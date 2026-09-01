@@ -1,0 +1,156 @@
+import { useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { api } from "../api.js";
+import { useAuth } from "../auth.jsx";
+
+const ROLE_LABEL = {
+  PRINCIPAL: "Principal",
+  EXAM_COORDINATOR: "Exam Coordinator",
+  TEACHER: "Teacher",
+};
+
+export default function Layout() {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [pendingCount, setPendingCount] = useState(null);
+  const isLeadership = user.role !== "TEACHER";
+  const analysisOpen =
+    location.pathname.startsWith("/analysis") ||
+    location.pathname.startsWith("/students") ||
+    location.pathname.startsWith("/classes");
+
+  useEffect(() => {
+    if (!isLeadership) return;
+    api("/api/analytics/pending-uploads")
+      .then((d) => setPendingCount(d.pendingTeacherCount ?? 0))
+      .catch(() => setPendingCount(null));
+  }, [isLeadership, location.pathname]);
+
+  const links = [
+    { to: "/", label: "Dashboard", end: true },
+    ...(user.role !== "TEACHER" ? [{ to: "/users", label: "Staff" }] : []),
+    ...(isLeadership ? [{ to: "/manage", label: "Records" }] : []),
+    { to: "/marks", label: "Mark register" },
+    { to: "/upload", label: "Bulk upload" },
+    ...(isLeadership ? [{ to: "/audit", label: "Audit log" }] : []),
+  ];
+
+  const analysisLinks = [
+    ...(isLeadership ? [{ to: "/analysis/school", label: "School" }] : []),
+    { to: "/analysis/classes", label: "Classes" },
+    ...(isLeadership ? [{ to: "/analysis/subjects", label: "Subjects" }] : []),
+    { to: "/analysis/students", label: "Students" },
+  ];
+
+  return (
+    <div className="min-h-screen flex">
+      <aside className="w-64 shrink-0 bg-ink-950 text-cream flex flex-col">
+        <div className="px-5 py-6 border-b border-white/10">
+          <div className="font-serif text-xl leading-tight">Marks Analytics</div>
+          <div className="mt-1 text-xs text-cream/60">School performance suite</div>
+        </div>
+        <nav className="flex-1 px-3 py-4 space-y-1">
+          {links.slice(0, 1).map((l) => (
+            <SideLink key={l.to} {...l} />
+          ))}
+          <div>
+            <NavLink
+              to="/analysis"
+              className={({ isActive }) =>
+                `flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
+                  isActive || analysisOpen ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
+                }`
+              }
+            >
+              <span>Marks analysis</span>
+            </NavLink>
+            {(analysisOpen || location.pathname === "/analysis") && (
+              <div className="ml-3 mt-1 space-y-0.5 border-l border-white/10 pl-2">
+                {analysisLinks.map((l) => (
+                  <SideLink key={l.to} {...l} />
+                ))}
+              </div>
+            )}
+          </div>
+          {isLeadership && (
+            <NavLink
+              to="/pending-uploads"
+              className={({ isActive }) =>
+                `flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
+                  isActive ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
+                }`
+              }
+            >
+              <span>Pending uploads</span>
+              {pendingCount != null && (
+                <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${pendingCount ? "bg-clay-500 text-white" : "bg-white/10 text-cream/70"}`}>
+                  {pendingCount}
+                </span>
+              )}
+            </NavLink>
+          )}
+          {links.slice(1).map((l) => (
+            <SideLink key={l.to} {...l} />
+          ))}
+        </nav>
+        <div className="px-5 py-4 border-t border-white/10">
+          <div className="text-sm font-medium">{user.name}</div>
+          <div className="text-xs text-cream/50">{ROLE_LABEL[user.role]}</div>
+          <button
+            className="mt-3 text-xs text-cream/70 hover:text-white"
+            onClick={() => {
+              logout();
+              navigate("/login");
+            }}
+          >
+            Sign out
+          </button>
+        </div>
+      </aside>
+      <main className="flex-1 min-w-0">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <Outlet />
+        </div>
+      </main>
+    </div>
+  );
+}
+
+function SideLink({ to, label, end }) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      className={({ isActive }) =>
+        `block rounded-lg px-3 py-2 text-sm ${
+          isActive ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
+        }`
+      }
+    >
+      {label}
+    </NavLink>
+  );
+}
+
+export function PageHeader({ title, subtitle, actions }) {
+  return (
+    <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <h1 className="font-serif text-3xl">{title}</h1>
+        {subtitle && <p className="mt-1 text-sm text-ink-700/70">{subtitle}</p>}
+      </div>
+      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+    </div>
+  );
+}
+
+export function Kpi({ label, value, to, warn }) {
+  const inner = (
+    <div className={`card p-4 ${to ? "hover:border-clay-500" : ""} ${warn ? "border-clay-500/40" : ""}`}>
+      <div className="text-xs uppercase tracking-wide text-ink-700/60">{label}</div>
+      <div className={`mt-1 font-serif text-3xl ${warn ? "text-clay-600" : ""}`}>{value ?? "—"}</div>
+    </div>
+  );
+  return to ? <Link to={to} className="block">{inner}</Link> : inner;
+}

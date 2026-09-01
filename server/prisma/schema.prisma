@@ -1,0 +1,140 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  PRINCIPAL
+  EXAM_COORDINATOR
+  TEACHER
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  REJECTED
+}
+
+enum ExamType {
+  UNIT_TEST
+  MID_TERM
+  FINAL
+}
+
+enum MarkStatus {
+  DRAFT
+  APPROVED
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String?    @unique
+  schoolId     String?    @unique
+  passwordHash String
+  role         Role
+  status       UserStatus @default(PENDING)
+  createdAt    DateTime   @default(now())
+
+  classTeacherOf ClassSection[]       @relation("ClassTeacher")
+  assignments    TeacherAssignment[]
+  enteredMarks   Mark[]               @relation("EnteredBy")
+  audits         MarkAudit[]
+}
+
+model ClassSection {
+  id             String  @id @default(cuid())
+  className      String
+  section        String
+  classTeacherId String?
+  classTeacher   User?   @relation("ClassTeacher", fields: [classTeacherId], references: [id])
+
+  students    Student[]
+  assignments TeacherAssignment[]
+
+  @@unique([className, section])
+}
+
+model Subject {
+  id        String @id @default(cuid())
+  name      String
+  className String
+  maxMarks  Int
+
+  assignments TeacherAssignment[]
+  marks       Mark[]
+
+  @@unique([name, className])
+}
+
+model TeacherAssignment {
+  id             String @id @default(cuid())
+  userId         String
+  classSectionId String
+  subjectId      String
+
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classSectionId, subjectId])
+}
+
+model Student {
+  id             String    @id @default(cuid())
+  name           String
+  rollNo         String
+  classSectionId String
+  dob            DateTime?
+  guardianName   String?
+  guardianPhone  String?
+
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  marks        Mark[]
+
+  @@unique([rollNo, classSectionId])
+}
+
+model Exam {
+  id    String   @id @default(cuid())
+  name  String
+  term  String
+  date  DateTime
+  type  ExamType
+  marks Mark[]
+}
+
+model Mark {
+  id            String     @id @default(cuid())
+  studentId     String
+  subjectId     String
+  examId        String
+  marksObtained Float
+  enteredById   String
+  status        MarkStatus @default(DRAFT)
+  updatedAt     DateTime   @updatedAt
+
+  student   Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  exam      Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
+  enteredBy User        @relation("EnteredBy", fields: [enteredById], references: [id])
+  audits    MarkAudit[]
+
+  @@unique([studentId, subjectId, examId])
+}
+
+model MarkAudit {
+  id          String   @id @default(cuid())
+  markId      String
+  changedById String
+  oldValue    Float?
+  newValue    Float
+  timestamp   DateTime @default(now())
+
+  mark      Mark @relation(fields: [markId], references: [id], onDelete: Cascade)
+  changedBy User @relation(fields: [changedById], references: [id])
+}
