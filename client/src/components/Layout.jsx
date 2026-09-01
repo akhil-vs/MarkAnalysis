@@ -14,6 +14,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(null);
+  const [lateEntryCount, setLateEntryCount] = useState(null);
   const isLeadership = user.role !== "TEACHER";
   const analysisOpen =
     location.pathname.startsWith("/analysis") ||
@@ -25,6 +26,9 @@ export default function Layout() {
     api("/api/analytics/pending-uploads")
       .then((d) => setPendingCount(d.pendingTeacherCount ?? 0))
       .catch(() => setPendingCount(null));
+    api("/api/mark-access?status=PENDING")
+      .then((rows) => setLateEntryCount(rows.length))
+      .catch(() => setLateEntryCount(null));
   }, [isLeadership, location.pathname]);
 
   const links = [
@@ -34,6 +38,7 @@ export default function Layout() {
     { to: "/marks", label: "Mark register" },
     { to: "/upload", label: "Bulk upload" },
     ...(isLeadership ? [{ to: "/audit", label: "Audit log" }] : []),
+    ...(isLeadership ? [{ to: "/late-entry", label: "Late entry", badge: lateEntryCount }] : []),
   ];
 
   const analysisLinks = [
@@ -117,18 +122,21 @@ export default function Layout() {
   );
 }
 
-function SideLink({ to, label, end }) {
+function SideLink({ to, label, end, badge }) {
   return (
     <NavLink
       to={to}
       end={end}
       className={({ isActive }) =>
-        `block rounded-lg px-3 py-2 text-sm ${
+        `flex items-center justify-between rounded-lg px-3 py-2 text-sm ${
           isActive ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
         }`
       }
     >
-      {label}
+      <span>{label}</span>
+      {badge != null && badge > 0 && (
+        <span className="rounded-full px-1.5 py-0.5 text-[10px] bg-clay-500 text-white">{badge}</span>
+      )}
     </NavLink>
   );
 }

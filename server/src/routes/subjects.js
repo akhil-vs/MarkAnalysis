@@ -42,7 +42,7 @@ subjectsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
   res.json(updated);
 });
 
-subjectsRouter.delete("/:id", requireRole("PRINCIPAL"), async (req, res) => {
+subjectsRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   await prisma.subject.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 });

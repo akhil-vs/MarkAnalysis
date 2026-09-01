@@ -245,15 +245,58 @@ function StudentsTab() {
 
 function ExamsTab() {
   const [rows, setRows] = useState([]);
-  const [form, setForm] = useState({ name: "", term: "Term 1", date: "", type: "UNIT_TEST" });
-  async function load() { setRows(await api("/api/exams")); }
+  const [form, setForm] = useState({
+    name: "",
+    term: "Term 1",
+    date: "",
+    type: "UNIT_TEST",
+    marksEntryDeadline: "",
+  });
+  const [deadlines, setDeadlines] = useState({});
+  const [message, setMessage] = useState("");
+
+  async function load() {
+    const exams = await api("/api/exams");
+    setRows(exams);
+    setDeadlines(
+      Object.fromEntries(
+        exams.map((e) => [
+          e.id,
+          e.marksEntryDeadline ? new Date(e.marksEntryDeadline).toISOString().slice(0, 10) : "",
+        ])
+      )
+    );
+  }
   useEffect(() => { load(); }, []);
+
   async function create(e) {
     e.preventDefault();
-    await api("/api/exams", { method: "POST", body: form });
-    setForm({ name: "", term: "Term 1", date: "", type: "UNIT_TEST" });
+    setMessage("");
+    await api("/api/exams", {
+      method: "POST",
+      body: {
+        ...form,
+        marksEntryDeadline: form.marksEntryDeadline || null,
+      },
+    });
+    setForm({ name: "", term: "Term 1", date: "", type: "UNIT_TEST", marksEntryDeadline: "" });
     load();
   }
+
+  async function saveDeadline(examId) {
+    setMessage("");
+    try {
+      await api(`/api/exams/${examId}`, {
+        method: "PATCH",
+        body: { marksEntryDeadline: deadlines[examId] || null },
+      });
+      setMessage("Mark entry deadline saved.");
+      load();
+    } catch (err) {
+      setMessage(err.message);
+    }
+  }
+
   return (
     <div className="grid lg:grid-cols-3 gap-4">
       <form className="card p-4 space-y-3" onSubmit={create}>
@@ -266,13 +309,32 @@ function ExamsTab() {
           <option value="MID_TERM">Mid-term</option>
           <option value="FINAL">Final</option>
         </select>
+        <div>
+          <label className="label">Mark entry deadline</label>
+          <input
+            className="field"
+            type="date"
+            value={form.marksEntryDeadline}
+            onChange={(e) => setForm({ ...form, marksEntryDeadline: e.target.value })}
+          />
+        </div>
         <button className="btn-primary">Create</button>
       </form>
       <div className="lg:col-span-2 card">
+        {message && <p className="px-4 pt-4 text-sm">{message}</p>}
         <PaginatedTable items={rows} empty="No exams scheduled.">
           {(page) => (
             <table className="table">
-              <thead><tr><th>Exam</th><th>Term</th><th>Type</th><th>Date</th></tr></thead>
+              <thead>
+                <tr>
+                  <th>Exam</th>
+                  <th>Term</th>
+                  <th>Type</th>
+                  <th>Date</th>
+                  <th>Mark entry deadline</th>
+                  <th></th>
+                </tr>
+              </thead>
               <tbody>
                 {page.map((r) => (
                   <tr key={r.id}>
@@ -280,6 +342,17 @@ function ExamsTab() {
                     <td>{r.term}</td>
                     <td>{r.type}</td>
                     <td>{new Date(r.date).toLocaleDateString()}</td>
+                    <td>
+                      <input
+                        className="field w-auto min-w-[9rem]"
+                        type="date"
+                        value={deadlines[r.id] ?? ""}
+                        onChange={(e) => setDeadlines((d) => ({ ...d, [r.id]: e.target.value }))}
+                      />
+                    </td>
+                    <td>
+                      <button type="button" className="btn-ghost" onClick={() => saveDeadline(r.id)}>Save</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>

@@ -2,11 +2,14 @@ import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { isLeadership } from "../lib/roles.js";
 
 export default function MarksEntry() {
   const { user } = useAuth();
+  const leadership = isLeadership(user.role);
   const [params, setParams] = useSearchParams();
   const [classes, setClasses] = useState([]);
   const [exams, setExams] = useState([]);
@@ -54,11 +57,15 @@ export default function MarksEntry() {
     return map;
   }, [grid]);
 
+  const canEditSubject = (subjectIdValue) =>
+    leadership || grid?.entryAccess?.bySubject?.[subjectIdValue]?.canEnter !== false;
+
   async function save() {
     if (!grid) return;
     const entries = [];
     for (const student of grid.students) {
       for (const subject of grid.subjects) {
+        if (!canEditSubject(subject.id)) continue;
         const key = `${student.id}:${subject.id}`;
         if (draft[key] === undefined) continue;
         const existing = markMeta[key];
@@ -94,15 +101,20 @@ export default function MarksEntry() {
     setParams(next);
   }
 
+  const allLocked =
+    !leadership &&
+    grid?.entryAccess?.pastDeadline &&
+    grid.subjects.every((s) => !grid.entryAccess.bySubject?.[s.id]?.canEnter);
+
   return (
     <div>
       <PageHeader
         title="Mark register"
-        subtitle="Spreadsheet-style entry. Saves as draft until a coordinator approves."
+        subtitle="Spreadsheet-style entry. Saves as draft until leadership approves."
         actions={
           <>
-            <button className="btn-primary" onClick={save}>Save drafts</button>
-            {user.role !== "TEACHER" && (
+            <button className="btn-primary" onClick={save} disabled={allLocked}>Save drafts</button>
+            {leadership && (
               <button className="btn-accent" onClick={approve}>Approve</button>
             )}
           </>
@@ -120,6 +132,15 @@ export default function MarksEntry() {
           {(grid?.subjects || []).map((s) => <option key={s.id} value={s.id}>{s.name}</option>)}
         </select>
       </div>
+      {grid && (
+        <EntryAccessNotice
+          entryAccess={grid.entryAccess}
+          subjects={grid.subjects}
+          examId={examId}
+          classSectionId={classSectionId}
+          onChange={loadGrid}
+        />
+      )}
       {message && <p className="mb-3 text-sm">{message}</p>}
       {errors.length > 0 && (
         <ul className="mb-3 text-sm text-clay-600">
@@ -152,11 +173,13 @@ export default function MarksEntry() {
                       {grid.subjects.map((subject) => {
                         const key = `${student.id}:${subject.id}`;
                         const meta = markMeta[key];
+                        const editable = canEditSubject(subject.id);
                         return (
                           <td key={subject.id}>
                             <input
                               className="field w-20"
                               value={draft[key] ?? ""}
+                              disabled={!editable}
                               onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
                             />
                             {meta && (

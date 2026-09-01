@@ -26,6 +26,7 @@ function seededScore(studentIndex, subjectIndex, examIndex) {
 async function main() {
   await prisma.markAudit.deleteMany();
   await prisma.mark.deleteMany();
+  await prisma.markEntryAccessRequest.deleteMany();
   await prisma.teacherAssignment.deleteMany();
   await prisma.student.deleteMany();
   await prisma.exam.deleteMany();
@@ -125,9 +126,27 @@ async function main() {
 
   const exams = await prisma.exam.createManyAndReturn({
     data: [
-      { name: "Unit Test 1", term: "Term 1", date: new Date("2025-07-15"), type: "UNIT_TEST" },
-      { name: "Mid-Term", term: "Term 1", date: new Date("2025-09-20"), type: "MID_TERM" },
-      { name: "Final Exam", term: "Term 2", date: new Date("2026-03-10"), type: "FINAL" },
+      {
+        name: "Unit Test 1",
+        term: "Term 1",
+        date: new Date("2025-07-15"),
+        type: "UNIT_TEST",
+        marksEntryDeadline: new Date("2026-12-31"),
+      },
+      {
+        name: "Mid-Term",
+        term: "Term 1",
+        date: new Date("2025-09-20"),
+        type: "MID_TERM",
+        marksEntryDeadline: new Date("2026-12-31"),
+      },
+      {
+        name: "Final Exam",
+        term: "Term 2",
+        date: new Date("2026-03-10"),
+        type: "FINAL",
+        marksEntryDeadline: new Date("2026-08-20"),
+      },
     ],
   });
 

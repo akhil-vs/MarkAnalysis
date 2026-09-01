@@ -5,7 +5,6 @@ import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import Pending from "./pages/Pending.jsx";
 import PrincipalDashboard from "./pages/PrincipalDashboard.jsx";
-import CoordinatorDashboard from "./pages/CoordinatorDashboard.jsx";
 import TeacherDashboard from "./pages/TeacherDashboard.jsx";
 import Users from "./pages/Users.jsx";
 import Manage from "./pages/Manage.jsx";
@@ -19,6 +18,7 @@ import AnalysisClasses from "./pages/AnalysisClasses.jsx";
 import AnalysisSubjects from "./pages/AnalysisSubjects.jsx";
 import AnalysisStudents from "./pages/AnalysisStudents.jsx";
 import PendingUploads from "./pages/PendingUploads.jsx";
+import LateEntryRequests from "./pages/LateEntryRequests.jsx";
 import AuditLog from "./pages/AuditLog.jsx";
 
 function Guard({ roles, children }) {
@@ -32,8 +32,7 @@ function Guard({ roles, children }) {
 
 function Home() {
   const { user } = useAuth();
-  if (user.role === "PRINCIPAL") return <PrincipalDashboard />;
-  if (user.role === "EXAM_COORDINATOR") return <CoordinatorDashboard />;
+  if (user.role === "PRINCIPAL" || user.role === "EXAM_COORDINATOR") return <PrincipalDashboard />;
   return <TeacherDashboard />;
 }
 
@@ -81,6 +80,10 @@ export default function App() {
         <Route
           path="pending-uploads"
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><PendingUploads /></Guard>}
+        />
+        <Route
+          path="late-entry"
+          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><LateEntryRequests /></Guard>}
         />
         <Route path="students/:id" element={<StudentAnalytics />} />
         <Route path="classes/:id" element={<ClassAnalytics />} />

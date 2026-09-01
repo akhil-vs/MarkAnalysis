@@ -9,6 +9,7 @@ import { examsRouter } from "./routes/exams.js";
 import { marksRouter } from "./routes/marks.js";
 import { analyticsRouter } from "./routes/analytics.js";
 import { exportsRouter } from "./routes/exports.js";
+import { markAccessRouter } from "./routes/markAccess.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -28,6 +29,7 @@ app.use("/api/subjects", subjectsRouter);
 app.use("/api/students", studentsRouter);
 app.use("/api/exams", examsRouter);
 app.use("/api/marks", marksRouter);
+app.use("/api/mark-access", markAccessRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/exports", exportsRouter);
 

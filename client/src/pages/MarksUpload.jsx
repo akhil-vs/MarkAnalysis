@@ -1,12 +1,19 @@
 import { useEffect, useState } from "react";
 import { api, download, getToken } from "../api.js";
+import { useAuth } from "../auth.jsx";
+import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { isLeadership } from "../lib/roles.js";
 
 export default function MarksUpload() {
+  const { user } = useAuth();
+  const leadership = isLeadership(user.role);
   const [classes, setClasses] = useState([]);
   const [exams, setExams] = useState([]);
   const [classSectionId, setClassSectionId] = useState("");
   const [examId, setExamId] = useState("");
+  const [entryAccess, setEntryAccess] = useState(null);
+  const [subjects, setSubjects] = useState([]);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [message, setMessage] = useState("");
@@ -20,8 +27,28 @@ export default function MarksUpload() {
     });
   }, []);
 
+  async function loadAccess() {
+    if (!classSectionId || !examId) return;
+    const data = await api(`/api/marks?${new URLSearchParams({ classSectionId, examId })}`);
+    setEntryAccess(data.entryAccess);
+    setSubjects(data.subjects || []);
+  }
+
+  useEffect(() => {
+    loadAccess().catch(() => {
+      setEntryAccess(null);
+      setSubjects([]);
+    });
+  }, [classSectionId, examId]);
+
+  const uploadBlocked =
+    !leadership &&
+    entryAccess?.pastDeadline &&
+    subjects.some((s) => !entryAccess.bySubject?.[s.id]?.canEnter);
+
   async function send(commit) {
     if (!file) return setMessage("Choose a CSV or Excel file");
+    if (uploadBlocked) return setMessage("Request late entry approval before uploading.");
     const body = new FormData();
     body.append("file", file);
     body.append("classSectionId", classSectionId);
@@ -54,6 +81,15 @@ export default function MarksUpload() {
             {exams.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
           </select>
         </div>
+        {subjects.length > 0 && (
+          <EntryAccessNotice
+            entryAccess={entryAccess}
+            subjects={subjects}
+            examId={examId}
+            classSectionId={classSectionId}
+            onChange={loadAccess}
+          />
+        )}
         <button
           className="btn-ghost"
           onClick={() =>
@@ -71,8 +107,8 @@ export default function MarksUpload() {
           onChange={(e) => setFile(e.target.files?.[0] || null)}
         />
         <div className="flex gap-2">
-          <button className="btn-ghost" onClick={() => send(false)}>Preview</button>
-          <button className="btn-primary" onClick={() => send(true)}>Commit drafts</button>
+          <button className="btn-ghost" onClick={() => send(false)} disabled={uploadBlocked}>Preview</button>
+          <button className="btn-primary" onClick={() => send(true)} disabled={uploadBlocked}>Commit drafts</button>
         </div>
         {message && <p className="text-sm">{message}</p>}
         {preview && (

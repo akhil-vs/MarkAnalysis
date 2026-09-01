@@ -48,8 +48,16 @@ export async function getAssignments(userId) {
   });
 }
 
+export function isLeadership(role) {
+  return role === "PRINCIPAL" || role === "EXAM_COORDINATOR";
+}
+
+export function requireLeadership() {
+  return requireRole("PRINCIPAL", "EXAM_COORDINATOR");
+}
+
 export async function teacherCanAccess(user, { classSectionId, subjectId }) {
-  if (user.role === "PRINCIPAL" || user.role === "EXAM_COORDINATOR") return true;
+  if (isLeadership(user.role)) return true;
   const where = { userId: user.userId };
   if (classSectionId) where.classSectionId = classSectionId;
   if (subjectId) where.subjectId = subjectId;

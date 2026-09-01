@@ -30,6 +30,12 @@ enum MarkStatus {
   APPROVED
 }
 
+enum MarkEntryAccessStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id           String     @id @default(cuid())
   name         String
@@ -44,6 +50,8 @@ model User {
   assignments    TeacherAssignment[]
   enteredMarks   Mark[]               @relation("EnteredBy")
   audits         MarkAudit[]
+  markEntryRequests MarkEntryAccessRequest[] @relation("MarkEntryTeacher")
+  reviewedMarkEntryRequests MarkEntryAccessRequest[] @relation("MarkEntryReviewer")
 }
 
 model ClassSection {
@@ -67,6 +75,7 @@ model Subject {
 
   assignments TeacherAssignment[]
   marks       Mark[]
+  markEntryRequests MarkEntryAccessRequest[]
 
   @@unique([name, className])
 }
@@ -100,12 +109,34 @@ model Student {
 }
 
 model Exam {
-  id    String   @id @default(cuid())
-  name  String
-  term  String
-  date  DateTime
-  type  ExamType
-  marks Mark[]
+  id                 String    @id @default(cuid())
+  name               String
+  term               String
+  date               DateTime
+  type               ExamType
+  marksEntryDeadline DateTime?
+  marks              Mark[]
+  markEntryRequests  MarkEntryAccessRequest[]
+}
+
+model MarkEntryAccessRequest {
+  id             String                  @id @default(cuid())
+  examId         String
+  teacherId      String
+  classSectionId String
+  subjectId      String
+  status         MarkEntryAccessStatus   @default(PENDING)
+  message        String?
+  requestedAt    DateTime                @default(now())
+  reviewedById   String?
+  reviewedAt     DateTime?
+
+  exam     Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  teacher  User    @relation("MarkEntryTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  subject  Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  reviewedBy User? @relation("MarkEntryReviewer", fields: [reviewedById], references: [id])
+
+  @@unique([examId, teacherId, classSectionId, subjectId])
 }
 
 model Mark {

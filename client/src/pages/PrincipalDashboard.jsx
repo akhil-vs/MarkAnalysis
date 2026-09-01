@@ -67,10 +67,12 @@ export default function PrincipalDashboard() {
   const teachers = [...(data.teacherPerf || [])].sort((a, b) => (b.average ?? 0) - (a.average ?? 0));
   const examPass = data.examPass || [];
 
+  const deskLabel = user.role === "PRINCIPAL" ? "Principal desk" : "Exam coordination";
+
   return (
     <div>
       <DashboardHero
-        kicker="Principal desk"
+        kicker={deskLabel}
         title={greeting(user.name)}
         subtitle={`${data.exam.name} · ${data.exam.term}. School average ${data.kpis.schoolAverage ?? "—"}% across ${data.kpis.students} students.`}
         actions={

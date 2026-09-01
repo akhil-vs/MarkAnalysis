@@ -44,7 +44,7 @@ classesRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async 
   res.json(updated);
 });
 
-classesRouter.delete("/:id", requireRole("PRINCIPAL"), async (req, res) => {
+classesRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   await prisma.classSection.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 });

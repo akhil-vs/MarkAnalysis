@@ -35,7 +35,10 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
 
   let chosenRole = ["TEACHER", "EXAM_COORDINATOR", "PRINCIPAL"].includes(role) ? role : "TEACHER";
   if (req.user.role === "EXAM_COORDINATOR" && chosenRole !== "TEACHER") {
-    return res.status(403).json({ error: "Coordinators can add teachers only" });
+    return res.status(403).json({ error: "Only the principal can add an exam coordinator" });
+  }
+  if (chosenRole === "PRINCIPAL") {
+    return res.status(403).json({ error: "Principal accounts cannot be created here" });
   }
 
   if (email) {
@@ -83,13 +86,8 @@ usersRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
   const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Not found" });
 
-  if (req.user.role === "EXAM_COORDINATOR") {
-    if (existing.role !== "TEACHER") {
-      return res.status(403).json({ error: "Coordinators can only update teachers" });
-    }
-    if (status || role) {
-      return res.status(403).json({ error: "Only the principal can change status or role" });
-    }
+  if (req.user.role === "EXAM_COORDINATOR" && role === "EXAM_COORDINATOR") {
+    return res.status(403).json({ error: "Only the principal can add an exam coordinator" });
   }
 
   const data = {};

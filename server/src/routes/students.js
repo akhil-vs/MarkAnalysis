@@ -207,7 +207,7 @@ studentsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
   res.json(updated);
 });
 
-studentsRouter.delete("/:id", requireRole("PRINCIPAL"), async (req, res) => {
+studentsRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   await prisma.student.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 });

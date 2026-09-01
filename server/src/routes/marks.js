@@ -4,7 +4,12 @@ import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
 import { parse } from "csv-parse/sync";
 import { prisma } from "../lib/prisma.js";
-import { auth, getAssignments, requireRole, teacherCanAccess } from "../middleware/auth.js";
+import { auth, getAssignments, isLeadership, requireRole, teacherCanAccess } from "../middleware/auth.js";
+import {
+  assertTeacherMarkEntryAccess,
+  getMarkEntryAccessMap,
+  teacherHasMarkEntryAccess,
+} from "../lib/markAccess.js";
 
 export const marksRouter = Router();
 marksRouter.use(auth);
@@ -58,7 +63,14 @@ marksRouter.get("/", async (req, res) => {
     include: { enteredBy: { select: { id: true, name: true } } },
   });
 
-  res.json({ classSection, subjects, students, marks });
+  const entryAccess = await getMarkEntryAccessMap(
+    req.user,
+    examId,
+    classSectionId,
+    subjects.map((s) => s.id)
+  );
+
+  res.json({ classSection, subjects, students, marks, entryAccess });
 });
 
 marksRouter.put("/", async (req, res) => {
@@ -87,6 +99,15 @@ marksRouter.put("/", async (req, res) => {
       });
       if (!ok) {
         results.push({ studentId, subjectId, error: "Not assigned" });
+        continue;
+      }
+      const blocked = await assertTeacherMarkEntryAccess(req.user, {
+        examId,
+        classSectionId: student.classSectionId,
+        subjectId,
+      });
+      if (blocked) {
+        results.push({ studentId, subjectId, error: blocked });
         continue;
       }
     }
@@ -328,6 +349,20 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
       errors,
       missingStudents,
     });
+  }
+
+  if (req.user.role === "TEACHER") {
+    const subjectIds = [...new Set(valid.map((v) => v.subject.id))];
+    for (const subjectId of subjectIds) {
+      const blocked = await assertTeacherMarkEntryAccess(req.user, {
+        examId,
+        classSectionId,
+        subjectId,
+      });
+      if (blocked) {
+        return res.status(403).json({ error: blocked });
+      }
+    }
   }
 
   const saved = [];

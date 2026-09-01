@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { auth, requireRole } from "../middleware/auth.js";
+import { parseDeadlineInput } from "../lib/markAccess.js";
 
 export const examsRouter = Router();
 examsRouter.use(auth);
@@ -11,26 +12,38 @@ examsRouter.get("/", async (_req, res) => {
 });
 
 examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, term, date, type } = req.body || {};
+  const { name, term, date, type, marksEntryDeadline } = req.body || {};
   if (!name || !term || !date || !type) {
     return res.status(400).json({ error: "Name, term, date, and type are required" });
   }
+  const deadline = marksEntryDeadline !== undefined ? parseDeadlineInput(marksEntryDeadline) : null;
+  if (marksEntryDeadline !== undefined && deadline === undefined) {
+    return res.status(400).json({ error: "Invalid marks entry deadline" });
+  }
   const created = await prisma.exam.create({
-    data: { name, term, date: new Date(date), type },
+    data: { name, term, date: new Date(date), type, marksEntryDeadline: deadline },
   });
   res.status(201).json(created);
 });
 
 examsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, term, date, type } = req.body || {};
+  const { name, term, date, type, marksEntryDeadline } = req.body || {};
+  const data = {
+    ...(name && { name }),
+    ...(term && { term }),
+    ...(date && { date: new Date(date) }),
+    ...(type && { type }),
+  };
+  if (marksEntryDeadline !== undefined) {
+    const deadline = parseDeadlineInput(marksEntryDeadline);
+    if (marksEntryDeadline !== null && marksEntryDeadline !== "" && deadline === undefined) {
+      return res.status(400).json({ error: "Invalid marks entry deadline" });
+    }
+    data.marksEntryDeadline = deadline;
+  }
   const updated = await prisma.exam.update({
     where: { id: req.params.id },
-    data: {
-      ...(name && { name }),
-      ...(term && { term }),
-      ...(date && { date: new Date(date) }),
-      ...(type && { type }),
-    },
+    data,
   });
   res.json(updated);
 });
