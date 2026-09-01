@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import {
   Bar,
   BarChart,
@@ -10,8 +10,8 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../api.js";
+import { ExamSelect, TeacherCompareTable, YearComparison, comparableNote } from "../components/AnalysisPanels.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { PaginatedTable } from "../components/PaginatedTable.jsx";
 
 export default function SubjectAnalytics() {
   const { id } = useParams();
@@ -35,13 +35,9 @@ export default function SubjectAnalytics() {
     <div>
       <PageHeader
         title={data.subject.name}
-        subtitle={`Class ${data.subject.className} · ${data.exam.name}`}
+        subtitle={`Class ${data.subject.className} · ${data.exam.name} · ${data.exam.academicYear || ""}`}
         actions={
-          <select className="field w-auto" value={examId} onChange={(e) => load(e.target.value)}>
-            {(data.exams || []).map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
-            ))}
-          </select>
+          <ExamSelect exams={data.exams} value={examId} onChange={load} />
         }
       />
       <div className="grid lg:grid-cols-2 gap-4">
@@ -58,30 +54,24 @@ export default function SubjectAnalytics() {
           </ResponsiveContainer>
         </div>
         <div className="card p-4 overflow-x-auto">
-          <h3 className="font-serif text-lg mb-3">Teacher comparison</h3>
-          <PaginatedTable items={data.teacherCompare} empty="No teacher comparison yet.">
-            {(page) => (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Teacher</th>
-                    <th>Class</th>
-                    <th>Average</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {page.map((row, i) => (
-                    <tr key={i}>
-                      <td>{row.teacher}</td>
-                      <td>{row.classLabel}</td>
-                      <td>{row.average ?? "—"}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </PaginatedTable>
+          <h3 className="font-serif text-lg mb-3">Teachers of this subject</h3>
+          {comparableNote(data.teacherMeta?.comparable, data.subject.name)}
+          <TeacherCompareTable rows={data.teacherCompare} />
+          {data.teacherMeta?.spread != null && data.teacherMeta?.comparable && (
+            <p className="text-xs text-ink-700/60 mt-3">
+              Spread between teachers is {data.teacherMeta.spread} points.
+            </p>
+          )}
         </div>
+      </div>
+      {data.schoolSubject && (
+        <p className="text-sm text-ink-700/60 mt-4">
+          School-wide {data.schoolSubject.name} average is {data.schoolSubject.average ?? "—"}%.{" "}
+          <Link className="underline" to={`/analysis/subjects/name/${encodeURIComponent(data.subject.name)}`}>Open full school view</Link>
+        </p>
+      )}
+      <div className="mt-4">
+        <YearComparison series={data.yearComparison} title="This subject versus previous years" />
       </div>
     </div>
   );

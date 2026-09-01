@@ -44,6 +44,20 @@ All seed passwords are `password123`. The login page also has one-click sign-in 
 | Teacher · Chemistry | `priya.nair@school.edu` | `SCH-T03` |
 | Teacher · English | `david.thomas@school.edu` | `SCH-T04` |
 | Teacher · Biology | `meera.iyer@school.edu` | `SCH-T05` |
+| Teacher · Mathematics | `kiran.bose@school.edu` | `SCH-T06` |
 
-The Final Exam seed leaves Biology (all sections) and English 10-D empty so principals and coordinators can see pending teacher uploads.
+The current Final Exam seed leaves Biology (all sections) and English 10-D empty so principals and coordinators can see pending teacher uploads.
+
+Mathematics is split across two teachers (Anita Sharma: 9-A, 10-A, 10-B; Kiran Bose: 9-B, 10-C, 10-D) so same-subject teacher comparison has data. Seed exams cover academic years 2024-25 and 2025-26.
+
+## Analysis
+
+Leadership can review:
+
+- **Class-wise** and **division-wise** results
+- **Subject-wise** and whole-school analysis per subject
+- **Teacher** registers and peer comparison
+- **Previous-year** comparison for the same exam type
+- **Same-subject** comparison when two or more teachers mark that paper
+
 # MarkAnalysis

@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import { ExamSelect, YearComparison } from "../components/AnalysisPanels.jsx";
 import {
   BarTrack,
   DashboardHero,
@@ -61,11 +62,7 @@ export default function TeacherDashboard() {
         subtitle={`${subjectName} across ${data.kpis?.sections ?? registers.length} section${(data.kpis?.sections ?? 0) === 1 ? "" : "s"}. ${data.exam?.name || "No exam"} is the current paper.`}
         actions={
           data.exams?.length ? (
-            <select className="field w-auto" value={examId} onChange={(e) => load(e.target.value)}>
-              {data.exams.map((e) => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
+            <ExamSelect exams={data.exams} value={examId} onChange={load} />
           ) : null
         }
       />
@@ -78,6 +75,7 @@ export default function TeacherDashboard() {
           label="Registers to finish"
           value={data.kpis?.pendingRegisters ?? 0}
           tone={data.kpis?.pendingRegisters ? "alert" : undefined}
+          to={user.id ? `/analysis/teachers/${user.id}` : undefined}
           hint={{
             text: data.kpis?.pendingRegisters ? "Marks still missing" : "All assigned rows entered",
             tone: data.kpis?.pendingRegisters ? "down" : "up",
@@ -136,6 +134,10 @@ export default function TeacherDashboard() {
             <EmptyNote>No marks in your assignments for this exam yet.</EmptyNote>
           )}
         </Panel>
+      </div>
+
+      <div className="mb-4">
+        <YearComparison series={data.yearComparison} title="Your registers versus previous years" />
       </div>
 
       <Panel title="Students to watch" action={<Link className="text-xs underline text-ink-700/60" to="/analysis/students">All your students</Link>}>

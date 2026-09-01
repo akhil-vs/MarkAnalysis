@@ -2,6 +2,7 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { auth, requireRole } from "../middleware/auth.js";
 import { parseDeadlineInput } from "../lib/markAccess.js";
+import { academicYearFromDate } from "../lib/stats.js";
 
 export const examsRouter = Router();
 examsRouter.use(auth);
@@ -12,7 +13,7 @@ examsRouter.get("/", async (_req, res) => {
 });
 
 examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, term, date, type, marksEntryDeadline } = req.body || {};
+  const { name, term, date, type, marksEntryDeadline, academicYear } = req.body || {};
   if (!name || !term || !date || !type) {
     return res.status(400).json({ error: "Name, term, date, and type are required" });
   }
@@ -20,19 +21,29 @@ examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
   if (marksEntryDeadline !== undefined && deadline === undefined) {
     return res.status(400).json({ error: "Invalid marks entry deadline" });
   }
+  const year = (academicYear && String(academicYear).trim()) || academicYearFromDate(date);
+  if (!year) return res.status(400).json({ error: "Academic year is required" });
   const created = await prisma.exam.create({
-    data: { name, term, date: new Date(date), type, marksEntryDeadline: deadline },
+    data: {
+      name,
+      term,
+      academicYear: year,
+      date: new Date(date),
+      type,
+      marksEntryDeadline: deadline,
+    },
   });
   res.status(201).json(created);
 });
 
 examsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, term, date, type, marksEntryDeadline } = req.body || {};
+  const { name, term, date, type, marksEntryDeadline, academicYear } = req.body || {};
   const data = {
     ...(name && { name }),
     ...(term && { term }),
     ...(date && { date: new Date(date) }),
     ...(type && { type }),
+    ...(academicYear && { academicYear: String(academicYear).trim() }),
   };
   if (marksEntryDeadline !== undefined) {
     const deadline = parseDeadlineInput(marksEntryDeadline);

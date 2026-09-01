@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { api, download } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import { ExamSelect, YearComparison } from "../components/AnalysisPanels.jsx";
 import {
   BarTrack,
   ChartTooltip,
@@ -26,6 +27,7 @@ import {
   deltaLabel,
   greeting,
 } from "../components/DashboardKit.jsx";
+import { yearDelta } from "../lib/exams.js";
 
 export default function PrincipalDashboard() {
   const { user } = useAuth();
@@ -50,10 +52,18 @@ export default function PrincipalDashboard() {
   );
 
   const trendDelta = useMemo(() => {
-    const points = data?.termTrend || [];
+    const points = data?.yearComparison?.length ? data.yearComparison : data?.termTrend || [];
     const current = points.find((p) => p.examId === examId) || points.at(-1);
     const idx = points.findIndex((p) => p.examId === current?.examId);
     const prev = idx > 0 ? points[idx - 1] : null;
+    const yoy = yearDelta(data?.yearComparison, examId);
+    if (yoy) {
+      const sign = yoy.diff > 0 ? "+" : "";
+      return {
+        text: `${sign}${yoy.diff} vs ${yoy.prev.academicYear}`,
+        tone: yoy.diff > 0 ? "up" : yoy.diff < 0 ? "down" : "flat",
+      };
+    }
     return deltaLabel(current?.average, prev?.average);
   }, [data, examId]);
 
@@ -77,11 +87,7 @@ export default function PrincipalDashboard() {
         subtitle={`${data.exam.name} · ${data.exam.term}. School average ${data.kpis.schoolAverage ?? "—"}% across ${data.kpis.students} students.`}
         actions={
           <>
-            <select className="field w-auto" value={examId} onChange={(e) => load(e.target.value)}>
-              {(data.exams || []).map((e) => (
-                <option key={e.id} value={e.id}>{e.name}</option>
-              ))}
-            </select>
+            <ExamSelect exams={data.exams} value={examId} onChange={load} />
             <button className="btn-ghost" onClick={() => download(`/api/exports/table.xlsx?examId=${examId}`, "marks.xlsx")}>
               Export Excel
             </button>
@@ -176,7 +182,7 @@ export default function PrincipalDashboard() {
           <div className="mt-3 flex flex-wrap gap-4 text-xs text-ink-700/60">
             {examPass.map((e) => (
               <span key={e.examId}>
-                {e.name}: <span className="text-ink-900 font-medium">{e.passRate}% pass</span>
+                {e.label || e.name}: <span className="text-ink-900 font-medium">{e.passRate}% pass</span>
               </span>
             ))}
           </div>
@@ -184,7 +190,23 @@ export default function PrincipalDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-4 mb-4">
-        <Panel className="lg:col-span-7" title="Section performance">
+        <Panel className="lg:col-span-5" title="Class-wise" action={<Link className="text-xs underline text-ink-700/60" to="/analysis/classes">All classes</Link>}>
+          <div className="space-y-4">
+            {(data.classWise || []).map((s) => (
+              <Link key={s.className} to={`/analysis/classes/group/${encodeURIComponent(s.className)}`} className="block group">
+                <div className="flex items-baseline justify-between text-sm mb-1.5">
+                  <span className="font-medium group-hover:underline">{s.label}</span>
+                  <span className="tabular-nums text-ink-700/70">
+                    {s.average ?? "—"}% · {s.passRate}% pass · {s.sectionCount} div
+                  </span>
+                </div>
+                <BarTrack value={s.average} color="#3d6b4f" />
+              </Link>
+            ))}
+            {!data.classWise?.length && <EmptyNote>No class groups yet.</EmptyNote>}
+          </div>
+        </Panel>
+        <Panel className="lg:col-span-7" title="Division-wise">
           <div className="space-y-4">
             {sections.map((s, i) => (
               <Link key={s.id} to={`/classes/${s.id}`} className="block group">
@@ -199,7 +221,22 @@ export default function PrincipalDashboard() {
             ))}
           </div>
         </Panel>
+      </div>
 
+      <div className="grid lg:grid-cols-12 gap-4 mb-4">
+        <Panel className="lg:col-span-7" title="Subject-wise" action={<Link className="text-xs underline text-ink-700/60" to="/analysis/subjects">All subjects</Link>}>
+          <div className="space-y-3">
+            {(data.subjectWise || []).map((s) => (
+              <Link key={s.name} to={`/analysis/subjects/name/${encodeURIComponent(s.name)}`} className="block group">
+                <div className="flex items-baseline justify-between text-sm mb-1.5">
+                  <span className="font-medium group-hover:underline">{s.name}</span>
+                  <span className="tabular-nums text-ink-700/70">{s.average ?? "—"}% · {s.passRate ?? "—"}% pass</span>
+                </div>
+                <BarTrack value={s.average} />
+              </Link>
+            ))}
+          </div>
+        </Panel>
         <Panel className="lg:col-span-5" title="Grade mix">
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={grades}>
@@ -217,6 +254,10 @@ export default function PrincipalDashboard() {
         </Panel>
       </div>
 
+      <div className="mb-4">
+        <YearComparison series={data.yearComparison} title="Same exam type versus previous years" />
+      </div>
+
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
         <Panel title="School toppers" action={<Link className="text-xs underline text-ink-700/60" to="/analysis/students">All students</Link>}>
           {data.toppers.slice(0, 8).map((s) => (
@@ -231,9 +272,13 @@ export default function PrincipalDashboard() {
             />
           ))}
         </Panel>
-        <Panel title="Teacher leaderboard" action={<Link className="text-xs underline text-ink-700/60" to="/analysis/subjects">By subject</Link>}>
+        <Panel title="Teacher leaderboard" action={<Link className="text-xs underline text-ink-700/60" to="/analysis/teachers">By teacher</Link>}>
           {teachers.slice(0, 8).map((row, i) => (
-            <div key={`${row.teacher}-${row.classLabel}-${row.subject}`} className="py-2.5 border-t border-ink-900/10 first:border-0">
+            <Link
+              key={`${row.teacher}-${row.classLabel}-${row.subject}`}
+              to={row.teacherId ? `/analysis/teachers/${row.teacherId}` : "/analysis/teachers"}
+              className="block py-2.5 border-t border-ink-900/10 first:border-0 hover:bg-white/40 -mx-1 px-1 rounded"
+            >
               <div className="flex items-center justify-between text-sm mb-1.5">
                 <div className="min-w-0">
                   <span className="text-ink-700/40 text-xs mr-2">{i + 1}</span>
@@ -243,7 +288,7 @@ export default function PrincipalDashboard() {
                 <span className="tabular-nums">{row.average}%</span>
               </div>
               <BarTrack value={row.average} color="#1b2437" />
-            </div>
+            </Link>
           ))}
         </Panel>
       </div>

@@ -16,6 +16,7 @@ import {
   YAxis,
 } from "recharts";
 import { api, download } from "../api.js";
+import { ExamSelect, YearComparison } from "../components/AnalysisPanels.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 
@@ -47,9 +48,7 @@ export default function ClassAnalytics() {
         subtitle={data.exam.name}
         actions={
           <>
-            <select className="field w-auto" value={examId} onChange={(e) => load(e.target.value)}>
-              {(data.exams || []).map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
-            </select>
+            <ExamSelect exams={data.exams} value={examId} onChange={load} />
             <button
               className="btn-ghost"
               onClick={() => download(`/api/exports/class-summary/${id}?examId=${examId}`, "class-summary.pdf")}
@@ -104,6 +103,10 @@ export default function ClassAnalytics() {
             </BarChart>
           </ResponsiveContainer>
         </div>
+      </div>
+
+      <div className="mb-4">
+        <YearComparison series={data.yearComparison} title="This division versus previous years" />
       </div>
 
       <div className="card p-4 mb-4">

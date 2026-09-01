@@ -45,7 +45,9 @@ export default function Layout() {
     ...(isLeadership ? [{ to: "/analysis/school", label: "School" }] : []),
     { to: "/analysis/classes", label: "Classes" },
     ...(isLeadership ? [{ to: "/analysis/subjects", label: "Subjects" }] : []),
+    ...(isLeadership ? [{ to: "/analysis/teachers", label: "Teachers" }] : []),
     { to: "/analysis/students", label: "Students" },
+    ...(isLeadership ? [{ to: "/analysis/compare", label: "Compare" }] : []),
   ];
 
   return (

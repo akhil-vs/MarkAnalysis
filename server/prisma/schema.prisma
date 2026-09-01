@@ -112,6 +112,7 @@ model Exam {
   id                 String    @id @default(cuid())
   name               String
   term               String
+  academicYear       String
   date               DateTime
   type               ExamType
   marksEntryDeadline DateTime?

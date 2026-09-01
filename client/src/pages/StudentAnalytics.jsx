@@ -13,6 +13,7 @@ import {
 import { api, download } from "../api.js";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { examLabel } from "../lib/exams.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a", "#4a6fa5"];
 
@@ -50,7 +51,7 @@ export default function StudentAnalytics() {
         actions={
           <>
             <select className="field w-auto" value={examId} onChange={(e) => setExamId(e.target.value)}>
-              {exams.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+              {exams.map((e) => <option key={e.id} value={e.id}>{examLabel(e)}</option>)}
             </select>
             <button
               className="btn-ghost"
