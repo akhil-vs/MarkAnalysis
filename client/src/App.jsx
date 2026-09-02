@@ -25,6 +25,7 @@ import TeacherAnalytics from "./pages/TeacherAnalytics.jsx";
 import PendingUploads from "./pages/PendingUploads.jsx";
 import LateEntryRequests from "./pages/LateEntryRequests.jsx";
 import AuditLog from "./pages/AuditLog.jsx";
+import ConsolidatedLists from "./pages/ConsolidatedLists.jsx";
 
 function Guard({ roles, children }) {
   const { user, loading } = useAuth();
@@ -96,6 +97,10 @@ export default function App() {
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><AnalysisCompare /></Guard>}
         />
         <Route path="analysis/students" element={<AnalysisStudents />} />
+        <Route
+          path="consolidated"
+          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><ConsolidatedLists /></Guard>}
+        />
         <Route
           path="pending-uploads"
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><PendingUploads /></Guard>}

@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
@@ -42,7 +43,10 @@ export default function PendingUploads() {
       </div>
 
       {pending.length === 0 ? (
-        <div className="card p-5 text-ink-700/70">Every assigned teacher has uploaded marks for this exam.</div>
+        <div className="card p-5 text-ink-700/70">
+          Every assigned teacher has uploaded marks for this exam.{" "}
+          <Link className="underline" to={`/consolidated?examId=${examId}`}>Generate consolidated mark lists</Link>
+        </div>
       ) : (
         <div className="space-y-3">
           {pending.map((t) => (

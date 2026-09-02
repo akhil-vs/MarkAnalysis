@@ -60,4 +60,12 @@ Leadership can review:
 - **Previous-year** comparison for the same exam type
 - **Same-subject** comparison when two or more teachers mark that paper
 
+## Consolidated mark lists
+
+Once teachers have entered marks for an exam (and leadership has approved them), the exam coordinator or principal can generate the official **consolidated mark list** for a class.
+
+Open **Mark lists** in the sidebar (or **Consolidated lists** from the school desk). Choose an exam and a class. The screen shows every student against every subject, with total, percent, grade, and rank. Classes are marked **Ready** when every subject register is fully approved.
+
+Download **Excel** or **PDF**. Incomplete classes can still be previewed; missing or draft papers appear as blanks. Approve remaining registers on the mark register before treating the file as official.
+
 # MarkAnalysis

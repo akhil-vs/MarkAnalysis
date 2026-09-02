@@ -88,6 +88,9 @@ export default function PrincipalDashboard() {
         actions={
           <>
             <ExamSelect exams={data.exams} value={examId} onChange={load} />
+            <Link className="btn-ghost" to={`/consolidated?examId=${examId}`}>
+              Consolidated lists
+            </Link>
             <button className="btn-ghost" onClick={() => download(`/api/exports/table.xlsx?examId=${examId}`, "marks.xlsx")}>
               Export Excel
             </button>

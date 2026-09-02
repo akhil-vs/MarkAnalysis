@@ -37,6 +37,7 @@ export default function Layout() {
     ...(isLeadership ? [{ to: "/manage", label: "Records" }] : []),
     { to: "/marks", label: "Mark register" },
     { to: "/upload", label: "Bulk upload" },
+    ...(isLeadership ? [{ to: "/consolidated", label: "Mark lists" }] : []),
     ...(isLeadership ? [{ to: "/audit", label: "Audit log" }] : []),
     ...(isLeadership ? [{ to: "/late-entry", label: "Late entry", badge: lateEntryCount }] : []),
   ];
