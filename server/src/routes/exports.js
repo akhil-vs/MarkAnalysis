@@ -4,6 +4,11 @@ import PDFDocument from "pdfkit";
 import { prisma } from "../lib/prisma.js";
 import { gradeFromPercent, mean, percentOf, round1 } from "../lib/grades.js";
 import { auth, requireRole } from "../middleware/auth.js";
+import {
+  buildClassConsolidated,
+  buildConsolidatedStatus,
+  fileStem,
+} from "../lib/consolidated.js";
 
 export const exportsRouter = Router();
 exportsRouter.use(auth);
@@ -138,6 +143,34 @@ exportsRouter.get("/class-summary/:classId", async (req, res) => {
   doc.end();
 });
 
+exportsRouter.get("/consolidated", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const data = await buildConsolidatedStatus(req.query.examId);
+  res.json(data);
+});
+
+exportsRouter.get("/consolidated/:classSectionId", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const built = await buildClassConsolidated(req.params.classSectionId, req.query.examId);
+  if (!built) return res.status(404).json({ error: "Class not found" });
+  if (built.empty) return res.status(404).json({ error: "No exam" });
+
+  const format = String(req.query.format || "json").toLowerCase();
+  if (format === "json") return res.json(built);
+
+  const stem = fileStem(built);
+  if (format === "xlsx") {
+    const buffer = await writeConsolidatedWorkbook(built);
+    res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    res.setHeader("Content-Disposition", `attachment; filename="${stem}.xlsx"`);
+    return res.send(Buffer.from(buffer));
+  }
+  if (format === "pdf") {
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${stem}.pdf"`);
+    return writeConsolidatedPdf(built, res);
+  }
+  return res.status(400).json({ error: "format must be json, xlsx, or pdf" });
+});
+
 exportsRouter.get("/table.xlsx", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { examId, classSectionId } = req.query;
   const where = { status: "APPROVED" };
@@ -181,3 +214,147 @@ exportsRouter.get("/table.xlsx", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), a
   res.setHeader("Content-Disposition", 'attachment; filename="marks-export.xlsx"');
   res.send(Buffer.from(buffer));
 });
+
+async function writeConsolidatedWorkbook(built) {
+  const workbook = new ExcelJS.Workbook();
+  workbook.creator = "Marks Analytics";
+  const sheet = workbook.addWorksheet("Consolidated mark list", {
+    pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, paperSize: 9 },
+  });
+
+  const subjectHeaders = built.subjects.map((s) => `${s.name} (${s.maxMarks})`);
+  const headers = ["Rank", "Roll", "Name", ...subjectHeaders, "Total", "Max", "%", "Grade"];
+  sheet.mergeCells(1, 1, 1, headers.length);
+  sheet.getCell(1, 1).value = "Consolidated mark list";
+  sheet.getCell(1, 1).font = { bold: true, size: 16, color: { argb: "FF1B2437" } };
+  sheet.getCell(1, 1).alignment = { horizontal: "center" };
+
+  sheet.mergeCells(2, 1, 2, headers.length);
+  const meta = [
+    `Class ${built.label}`,
+    built.examLabel,
+    built.classSection.classTeacher?.name ? `Class teacher: ${built.classSection.classTeacher.name}` : null,
+    built.ready ? "All subject registers approved" : `Incomplete: ${built.missingSubjects.join(", ") || "marks pending"}`,
+  ]
+    .filter(Boolean)
+    .join("  ·  ");
+  sheet.getCell(2, 1).value = meta;
+  sheet.getCell(2, 1).font = { size: 11, color: { argb: "FF4A5568" } };
+  sheet.getCell(2, 1).alignment = { horizontal: "center" };
+
+  const headerRow = sheet.addRow(headers);
+  headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
+  headerRow.alignment = { horizontal: "center", wrapText: true, vertical: "middle" };
+  headerRow.eachCell((cell) => {
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1B2437" } };
+    cell.border = {
+      top: { style: "thin", color: { argb: "FF1B2437" } },
+      bottom: { style: "thin", color: { argb: "FF1B2437" } },
+    };
+  });
+  headerRow.height = 28;
+
+  for (const student of built.students) {
+    const row = sheet.addRow([
+      student.rank,
+      student.rollNo,
+      student.name,
+      ...built.subjects.map((s) => student.bySubject[s.id]?.marks ?? ""),
+      student.total,
+      student.maxTotal,
+      student.percent,
+      student.grade,
+    ]);
+    row.alignment = { horizontal: "center", vertical: "middle" };
+    row.getCell(3).alignment = { horizontal: "left", vertical: "middle" };
+  }
+
+  sheet.columns = headers.map((h, i) => ({
+    width: i === 2 ? 22 : Math.min(16, Math.max(8, h.length + 2)),
+  }));
+  sheet.views = [{ state: "frozen", ySplit: 3 }];
+
+  const foot = sheet.addRow([]);
+  const noteRow = sheet.addRow([
+    built.ready
+      ? "Official list — every assigned teacher has approved marks for this exam."
+      : "Preview — missing or unapproved papers are left blank. Approve remaining registers before using this as the official list.",
+  ]);
+  sheet.mergeCells(noteRow.number, 1, noteRow.number, headers.length);
+  noteRow.getCell(1).font = { italic: true, size: 9, color: { argb: "FF4A5568" } };
+  void foot;
+
+  return workbook.xlsx.writeBuffer();
+}
+
+function writeConsolidatedPdf(built, res) {
+  const doc = new PDFDocument({ margin: 32, layout: "landscape", size: "A4" });
+  doc.pipe(res);
+  doc.fontSize(16).font("Helvetica-Bold").text("Consolidated mark list", { align: "center" });
+  doc.moveDown(0.25);
+  doc.fontSize(10).font("Helvetica").text(
+    `Class ${built.label}   ·   ${built.examLabel}${
+      built.classSection.classTeacher?.name ? `   ·   Class teacher: ${built.classSection.classTeacher.name}` : ""
+    }`,
+    { align: "center" }
+  );
+  if (!built.ready) {
+    doc.moveDown(0.2);
+    doc.fontSize(9).fillColor("#c45c26").text(
+      `Incomplete — missing: ${built.missingSubjects.join(", ") || "unapproved drafts"}`,
+      { align: "center" }
+    );
+    doc.fillColor("#000");
+  }
+  doc.moveDown(0.6);
+
+  const headers = ["Rank", "Roll", "Name", ...built.subjects.map((s) => s.name), "Total", "%", "Grade"];
+  const usable = 778;
+  const nameW = 120;
+  const other = (usable - nameW) / (headers.length - 1);
+  const widths = headers.map((h, i) => (i === 2 ? nameW : other));
+  let x = 32;
+  let y = doc.y;
+  doc.font("Helvetica-Bold").fontSize(7.5);
+  headers.forEach((h, i) => {
+    doc.text(h, x, y, { width: widths[i], align: i === 2 ? "left" : "center" });
+    x += widths[i];
+  });
+  y += 14;
+  doc.moveTo(32, y - 3).lineTo(810, y - 3).stroke();
+  doc.font("Helvetica");
+  for (const student of built.students) {
+    if (y > 540) {
+      doc.addPage();
+      y = 36;
+    }
+    const vals = [
+      student.rank ?? "—",
+      student.rollNo,
+      student.name,
+      ...built.subjects.map((s) => {
+        const cell = student.bySubject[s.id];
+        return cell?.marks != null ? String(cell.marks) : "—";
+      }),
+      student.total ?? "—",
+      student.percent ?? "—",
+      student.grade || "—",
+    ];
+    x = 32;
+    vals.forEach((v, i) => {
+      doc.text(String(v), x, y, { width: widths[i], align: i === 2 ? "left" : "center" });
+      x += widths[i];
+    });
+    y += 13;
+  }
+  doc.y = y + 12;
+  doc.fontSize(8).fillColor("#555").text(
+    built.ready
+      ? "Official list — all assigned subject registers are approved."
+      : "Preview only. Blank cells are missing or still in draft. Approve remaining registers for the official list.",
+    32,
+    doc.y,
+    { width: 778 }
+  );
+  doc.end();
+}

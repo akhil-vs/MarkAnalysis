@@ -16,14 +16,18 @@ import {
   YAxis,
 } from "recharts";
 import { api, download } from "../api.js";
+import { useAuth } from "../auth.jsx";
 import { ExamSelect, YearComparison } from "../components/AnalysisPanels.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { isLeadership } from "../lib/roles.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
 
 export default function ClassAnalytics() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const leadership = isLeadership(user.role);
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
 
@@ -49,6 +53,11 @@ export default function ClassAnalytics() {
         actions={
           <>
             <ExamSelect exams={data.exams} value={examId} onChange={load} />
+            {leadership && (
+              <Link className="btn-primary" to={`/consolidated?examId=${examId}&class=${id}`}>
+                Consolidated list
+              </Link>
+            )}
             <button
               className="btn-ghost"
               onClick={() => download(`/api/exports/class-summary/${id}?examId=${examId}`, "class-summary.pdf")}
