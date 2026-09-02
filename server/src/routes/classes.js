@@ -1,19 +1,36 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { auth, requireRole } from "../middleware/auth.js";
+import { auth, getAssignments, requireRole } from "../middleware/auth.js";
+import { compareClassNames } from "../lib/stats.js";
 
 export const classesRouter = Router();
 classesRouter.use(auth);
 
+function sortClasses(classes) {
+  return [...classes].sort((a, b) => {
+    const byClass = compareClassNames(a.className, b.className);
+    if (byClass) return byClass;
+    return compareClassNames(a.section, b.section);
+  });
+}
+
 classesRouter.get("/", async (req, res) => {
+  const where = {};
+  if (req.user.role === "TEACHER") {
+    const assignments = await getAssignments(req.user.userId);
+    const ids = [...new Set(assignments.map((a) => a.classSectionId))];
+    if (!ids.length) return res.json([]);
+    where.id = { in: ids };
+  }
+
   const classes = await prisma.classSection.findMany({
-    orderBy: [{ className: "asc" }, { section: "asc" }],
+    where,
     include: {
       classTeacher: { select: { id: true, name: true } },
       _count: { select: { students: true } },
     },
   });
-  res.json(classes);
+  res.json(sortClasses(classes));
 });
 
 classesRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {

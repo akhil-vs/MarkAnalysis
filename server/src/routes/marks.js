@@ -41,27 +41,33 @@ marksRouter.get("/", async (req, res) => {
   if (!classSection) return res.status(404).json({ error: "Class not found" });
 
   if (req.user.role === "TEACHER") {
-    const ok = await teacherCanAccess(req.user, { classSectionId, subjectId });
+    const ok = await teacherCanAccess(req.user, { classSectionId });
     if (!ok) return res.status(403).json({ error: "Not assigned to this class" });
   }
 
-  const subjects = subjectId
-    ? await prisma.subject.findMany({ where: { id: subjectId } })
-    : await scopedSubjects(req.user, classSection);
+  let subjects = await scopedSubjects(req.user, classSection);
+  if (subjectId && subjects.some((s) => s.id === subjectId)) {
+    subjects = subjects.filter((s) => s.id === subjectId);
+  }
 
   const students = await prisma.student.findMany({
     where: { classSectionId },
     orderBy: { rollNo: "asc" },
   });
 
-  const marks = await prisma.mark.findMany({
-    where: {
-      examId,
-      studentId: { in: students.map((s) => s.id) },
-      subjectId: { in: subjects.map((s) => s.id) },
-    },
-    include: { enteredBy: { select: { id: true, name: true } } },
-  });
+  const studentIds = students.map((s) => s.id);
+  const subjectIds = subjects.map((s) => s.id);
+  const marks =
+    studentIds.length && subjectIds.length
+      ? await prisma.mark.findMany({
+          where: {
+            examId,
+            studentId: { in: studentIds },
+            subjectId: { in: subjectIds },
+          },
+          include: { enteredBy: { select: { id: true, name: true } } },
+        })
+      : [];
 
   const entryAccess = await getMarkEntryAccessMap(
     req.user,

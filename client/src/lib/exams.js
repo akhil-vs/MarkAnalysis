@@ -3,6 +3,23 @@ export function examLabel(exam) {
   return exam.academicYear ? `${exam.name} · ${exam.academicYear}` : exam.name;
 }
 
+export function isExamOpen(exam) {
+  if (!exam?.marksEntryDeadline) return true;
+  const end = new Date(exam.marksEntryDeadline);
+  end.setHours(23, 59, 59, 999);
+  return Date.now() <= end.getTime();
+}
+
+/** Latest exam, or the latest still-open exam when teachers need a writable register. */
+export function defaultExamId(exams = [], { preferOpen = false } = {}) {
+  if (!exams.length) return "";
+  if (preferOpen) {
+    const open = [...exams].reverse().find(isExamOpen);
+    if (open) return open.id;
+  }
+  return exams.at(-1).id;
+}
+
 export function yearDelta(series, examId) {
   if (!series?.length) return null;
   const current = series.find((p) => p.examId === examId) || series.at(-1);

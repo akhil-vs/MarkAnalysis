@@ -6,7 +6,7 @@ import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { isLeadership } from "../lib/roles.js";
-import { examLabel } from "../lib/exams.js";
+import { defaultExamId, examLabel } from "../lib/exams.js";
 
 export default function MarksEntry() {
   const { user } = useAuth();
@@ -18,39 +18,92 @@ export default function MarksEntry() {
   const [draft, setDraft] = useState({});
   const [message, setMessage] = useState("");
   const [errors, setErrors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [catalogReady, setCatalogReady] = useState(false);
 
-  const classSectionId = params.get("classSectionId") || "";
-  const examId = params.get("examId") || "";
+  const requestedClass = params.get("classSectionId") || "";
+  const requestedExam = params.get("examId") || "";
   const subjectId = params.get("subjectId") || "";
+  const classSectionId = classes.some((c) => c.id === requestedClass)
+    ? requestedClass
+    : catalogReady
+      ? (classes[0]?.id || "")
+      : "";
+  const examId = exams.some((e) => e.id === requestedExam)
+    ? requestedExam
+    : catalogReady
+      ? defaultExamId(exams, { preferOpen: !leadership })
+      : "";
 
   useEffect(() => {
-    Promise.all([api("/api/classes"), api("/api/exams")]).then(([c, e]) => {
-      setClasses(c);
-      setExams(e);
-      const next = new URLSearchParams(params);
-      if (!next.get("classSectionId") && c[0]) next.set("classSectionId", c[0].id);
-      if (!next.get("examId") && e.length) next.set("examId", e.at(-1).id);
-      if (next.toString() !== params.toString()) setParams(next, { replace: true });
-    });
+    let cancelled = false;
+    (async () => {
+      try {
+        const [nextClasses, nextExams] = await Promise.all([api("/api/classes"), api("/api/exams")]);
+        if (cancelled) return;
+        setClasses(nextClasses);
+        setExams(nextExams);
+        const next = new URLSearchParams(params);
+        const classIds = new Set(nextClasses.map((c) => c.id));
+        if (!classIds.has(next.get("classSectionId") || "") && nextClasses[0]) {
+          next.set("classSectionId", nextClasses[0].id);
+          next.delete("subjectId");
+        }
+        const examIds = new Set(nextExams.map((e) => e.id));
+        if (!examIds.has(next.get("examId") || "") && nextExams.length) {
+          next.set("examId", defaultExamId(nextExams, { preferOpen: !leadership }));
+        }
+        if (next.toString() !== params.toString()) setParams(next, { replace: true });
+        setCatalogReady(true);
+      } catch (err) {
+        if (!cancelled) {
+          setMessage(err.message || "Could not load the mark register");
+          setCatalogReady(true);
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
-  async function loadGrid() {
+  async function loadGrid({ keepMessage = false } = {}) {
     if (!classSectionId || !examId) return;
     const q = new URLSearchParams({ classSectionId, examId });
     if (subjectId) q.set("subjectId", subjectId);
     const data = await api(`/api/marks?${q}`);
     setGrid(data);
     const next = {};
-    for (const m of data.marks) {
+    for (const m of data.marks || []) {
       next[`${m.studentId}:${m.subjectId}`] = String(m.marksObtained);
     }
     setDraft(next);
     setErrors([]);
+    if (!keepMessage) setMessage("");
+
+    if (subjectId && !(data.subjects || []).some((s) => s.id === subjectId)) {
+      const nextParams = new URLSearchParams(params);
+      nextParams.delete("subjectId");
+      setParams(nextParams, { replace: true });
+    }
   }
 
   useEffect(() => {
-    loadGrid().catch((e) => setMessage(e.message));
-  }, [classSectionId, examId, subjectId]);
+    if (!catalogReady) return;
+    if (!classSectionId || !examId) {
+      setLoading(false);
+      setGrid(null);
+      return;
+    }
+    setLoading(true);
+    loadGrid()
+      .catch((e) => {
+        setGrid(null);
+        setDraft({});
+        setMessage(e.message || "Could not load the mark register");
+      })
+      .finally(() => setLoading(false));
+  }, [catalogReady, classSectionId, examId, subjectId]);
 
   const markMeta = useMemo(() => {
     const map = {};
@@ -79,31 +132,41 @@ export default function MarksEntry() {
       setMessage("No changes to save");
       return;
     }
-    const res = await api("/api/marks", { method: "PUT", body: { examId, entries } });
-    const failed = res.results.filter((r) => r.error);
-    setErrors(failed);
-    setMessage(failed.length ? `${failed.length} cells failed validation` : "Saved as draft");
-    loadGrid();
+    try {
+      const res = await api("/api/marks", { method: "PUT", body: { examId, entries } });
+      const failed = (res.results || []).filter((r) => r.error);
+      setErrors(failed);
+      setMessage(failed.length ? `${failed.length} cells failed validation` : "Saved as draft");
+      await loadGrid({ keepMessage: true });
+    } catch (err) {
+      setMessage(err.message || "Could not save marks");
+    }
   }
 
   async function approve() {
-    await api("/api/marks/approve", {
-      method: "POST",
-      body: { examId, classSectionId, subjectId: subjectId || undefined },
-    });
-    setMessage("Approved");
-    loadGrid();
+    try {
+      await api("/api/marks/approve", {
+        method: "POST",
+        body: { examId, classSectionId, subjectId: subjectId || undefined },
+      });
+      setMessage("Approved");
+      await loadGrid({ keepMessage: true });
+    } catch (err) {
+      setMessage(err.message || "Could not approve marks");
+    }
   }
 
   function setParam(key, value) {
     const next = new URLSearchParams(params);
     if (value) next.set(key, value);
     else next.delete(key);
+    if (key === "classSectionId") next.delete("subjectId");
     setParams(next);
   }
 
   const allLocked =
     !leadership &&
+    Boolean(grid?.subjects?.length) &&
     grid?.entryAccess?.pastDeadline &&
     grid.subjects.every((s) => !grid.entryAccess.bySubject?.[s.id]?.canEnter);
 
@@ -114,18 +177,20 @@ export default function MarksEntry() {
         subtitle="Spreadsheet-style entry. Saves as draft until leadership approves."
         actions={
           <>
-            <button className="btn-primary" onClick={save} disabled={allLocked}>Save drafts</button>
+            <button className="btn-primary" onClick={save} disabled={allLocked || !grid}>Save drafts</button>
             {leadership && (
-              <button className="btn-accent" onClick={approve}>Approve</button>
+              <button className="btn-accent" onClick={approve} disabled={!grid}>Approve</button>
             )}
           </>
         }
       />
       <div className="flex flex-wrap gap-2 mb-4">
         <select className="field w-auto" value={classSectionId} onChange={(e) => setParam("classSectionId", e.target.value)}>
+          {!classSectionId && <option value="">Select class</option>}
           {classes.map((c) => <option key={c.id} value={c.id}>{c.className}-{c.section}</option>)}
         </select>
         <select className="field w-auto" value={examId} onChange={(e) => setParam("examId", e.target.value)}>
+          {!examId && <option value="">Select exam</option>}
           {exams.map((e) => <option key={e.id} value={e.id}>{examLabel(e)}</option>)}
         </select>
         <select className="field w-auto" value={subjectId} onChange={(e) => setParam("subjectId", e.target.value)}>
@@ -148,7 +213,20 @@ export default function MarksEntry() {
           {errors.map((e, i) => <li key={i}>{e.error}</li>)}
         </ul>
       )}
-      {grid && (
+      {!classes.length && !loading && (
+        <div className="card p-5 text-ink-700/70">
+          {leadership
+            ? "No classes yet. Add a class section first."
+            : "No classes assigned. Ask the principal to assign your subjects."}
+        </div>
+      )}
+      {loading && !grid && <p className="text-ink-700/60">Loading register…</p>}
+      {grid && !grid.subjects?.length && (
+        <div className="card p-5 text-ink-700/70">
+          No assigned subjects in this class for your account.
+        </div>
+      )}
+      {grid && grid.subjects?.length > 0 && (
         <div className="card">
           <PaginatedTable
             items={grid.students}

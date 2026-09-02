@@ -4,6 +4,7 @@ import { useAuth } from "../auth.jsx";
 import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { isLeadership } from "../lib/roles.js";
+import { defaultExamId, examLabel } from "../lib/exams.js";
 
 export default function MarksUpload() {
   const { user } = useAuth();
@@ -19,12 +20,14 @@ export default function MarksUpload() {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    Promise.all([api("/api/classes"), api("/api/exams")]).then(([c, e]) => {
-      setClasses(c);
-      setExams(e);
-      if (c[0]) setClassSectionId(c[0].id);
-      if (e[0]) setExamId(e[0].id);
-    });
+    Promise.all([api("/api/classes"), api("/api/exams")])
+      .then(([c, e]) => {
+        setClasses(c);
+        setExams(e);
+        if (c[0]) setClassSectionId(c[0].id);
+        if (e.length) setExamId(defaultExamId(e, { preferOpen: !leadership }));
+      })
+      .catch((err) => setMessage(err.message || "Could not load upload options"));
   }, []);
 
   async function loadAccess() {
@@ -78,7 +81,7 @@ export default function MarksUpload() {
             {classes.map((c) => <option key={c.id} value={c.id}>{c.className}-{c.section}</option>)}
           </select>
           <select className="field" value={examId} onChange={(e) => setExamId(e.target.value)}>
-            {exams.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+            {exams.map((e) => <option key={e.id} value={e.id}>{examLabel(e)}</option>)}
           </select>
         </div>
         {subjects.length > 0 && (
