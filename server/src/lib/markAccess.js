@@ -56,16 +56,17 @@ export async function getMarkEntryAccessMap(user, examId, classSectionId, subjec
     return { deadline, pastDeadline, bySubject: access };
   }
 
-  const requests = pastDeadline
-    ? await prisma.markEntryAccessRequest.findMany({
-        where: {
-          examId,
-          teacherId: user.userId,
-          classSectionId,
-          subjectId: { in: subjectIds },
-        },
-      })
-    : [];
+  const requests =
+    pastDeadline && subjectIds.length
+      ? await prisma.markEntryAccessRequest.findMany({
+          where: {
+            examId,
+            teacherId: user.userId,
+            classSectionId,
+            subjectId: { in: subjectIds },
+          },
+        })
+      : [];
   const bySubjectId = new Map(requests.map((r) => [r.subjectId, r]));
 
   const bySubject = {};
