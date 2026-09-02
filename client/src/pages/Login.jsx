@@ -12,6 +12,7 @@ const DEMO_ACCOUNTS = [
   { name: "Priya Nair", role: "Teacher · Chemistry", email: "priya.nair@school.edu", schoolId: "SCH-T03" },
   { name: "David Thomas", role: "Teacher · English", email: "david.thomas@school.edu", schoolId: "SCH-T04" },
   { name: "Meera Iyer", role: "Teacher · Biology", email: "meera.iyer@school.edu", schoolId: "SCH-T05" },
+  { name: "Kiran Bose", role: "Teacher · Mathematics", email: "kiran.bose@school.edu", schoolId: "SCH-T06" },
 ];
 
 export default function Login() {

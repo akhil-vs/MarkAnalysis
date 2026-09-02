@@ -17,6 +17,11 @@ import AnalysisHub from "./pages/AnalysisHub.jsx";
 import AnalysisClasses from "./pages/AnalysisClasses.jsx";
 import AnalysisSubjects from "./pages/AnalysisSubjects.jsx";
 import AnalysisStudents from "./pages/AnalysisStudents.jsx";
+import AnalysisTeachers from "./pages/AnalysisTeachers.jsx";
+import AnalysisCompare from "./pages/AnalysisCompare.jsx";
+import ClassGroupAnalytics from "./pages/ClassGroupAnalytics.jsx";
+import SubjectSchoolAnalytics from "./pages/SubjectSchoolAnalytics.jsx";
+import TeacherAnalytics from "./pages/TeacherAnalytics.jsx";
 import PendingUploads from "./pages/PendingUploads.jsx";
 import LateEntryRequests from "./pages/LateEntryRequests.jsx";
 import AuditLog from "./pages/AuditLog.jsx";
@@ -68,13 +73,27 @@ export default function App() {
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><PrincipalDashboard /></Guard>}
         />
         <Route path="analysis/classes" element={<AnalysisClasses />} />
+        <Route path="analysis/classes/group/:className" element={<ClassGroupAnalytics />} />
         <Route
           path="analysis/subjects"
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><AnalysisSubjects /></Guard>}
         />
         <Route
+          path="analysis/subjects/name/:name"
+          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><SubjectSchoolAnalytics /></Guard>}
+        />
+        <Route
           path="analysis/subjects/:id"
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><SubjectAnalytics /></Guard>}
+        />
+        <Route
+          path="analysis/teachers"
+          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><AnalysisTeachers /></Guard>}
+        />
+        <Route path="analysis/teachers/:id" element={<TeacherAnalytics />} />
+        <Route
+          path="analysis/compare"
+          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><AnalysisCompare /></Guard>}
         />
         <Route path="analysis/students" element={<AnalysisStudents />} />
         <Route

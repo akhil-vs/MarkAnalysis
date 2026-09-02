@@ -21,6 +21,7 @@ import {
   Panel,
   greeting,
 } from "../components/DashboardKit.jsx";
+import { ExamSelect } from "../components/AnalysisPanels.jsx";
 
 export default function CoordinatorDashboard() {
   const { user } = useAuth();
@@ -58,11 +59,7 @@ export default function CoordinatorDashboard() {
         title={greeting(user.name)}
         subtitle={`${data.exam.name} is the working exam. ${pending.length} teacher${pending.length === 1 ? "" : "s"} still have empty registers.`}
         actions={
-          <select className="field w-auto" value={examId} onChange={(e) => load(e.target.value)}>
-            {(data.exams || []).map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
-            ))}
-          </select>
+          <ExamSelect exams={data.exams} value={examId} onChange={load} />
         }
       />
 

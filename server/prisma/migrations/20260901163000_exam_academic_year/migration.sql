@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Exam" ADD COLUMN "academicYear" TEXT NOT NULL DEFAULT '2025-26';

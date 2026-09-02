@@ -6,6 +6,7 @@ import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { isLeadership } from "../lib/roles.js";
+import { examLabel } from "../lib/exams.js";
 
 export default function MarksEntry() {
   const { user } = useAuth();
@@ -28,7 +29,7 @@ export default function MarksEntry() {
       setExams(e);
       const next = new URLSearchParams(params);
       if (!next.get("classSectionId") && c[0]) next.set("classSectionId", c[0].id);
-      if (!next.get("examId") && e[0]) next.set("examId", e[0].id);
+      if (!next.get("examId") && e.length) next.set("examId", e.at(-1).id);
       if (next.toString() !== params.toString()) setParams(next, { replace: true });
     });
   }, []);
@@ -125,7 +126,7 @@ export default function MarksEntry() {
           {classes.map((c) => <option key={c.id} value={c.id}>{c.className}-{c.section}</option>)}
         </select>
         <select className="field w-auto" value={examId} onChange={(e) => setParam("examId", e.target.value)}>
-          {exams.map((e) => <option key={e.id} value={e.id}>{e.name}</option>)}
+          {exams.map((e) => <option key={e.id} value={e.id}>{examLabel(e)}</option>)}
         </select>
         <select className="field w-auto" value={subjectId} onChange={(e) => setParam("subjectId", e.target.value)}>
           <option value="">All assigned subjects</option>

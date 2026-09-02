@@ -250,6 +250,7 @@ function ExamsTab() {
     term: "Term 1",
     date: "",
     type: "UNIT_TEST",
+    academicYear: "",
     marksEntryDeadline: "",
   });
   const [deadlines, setDeadlines] = useState({});
@@ -279,7 +280,7 @@ function ExamsTab() {
         marksEntryDeadline: form.marksEntryDeadline || null,
       },
     });
-    setForm({ name: "", term: "Term 1", date: "", type: "UNIT_TEST", marksEntryDeadline: "" });
+    setForm({ name: "", term: "Term 1", date: "", type: "UNIT_TEST", academicYear: "", marksEntryDeadline: "" });
     load();
   }
 
@@ -303,6 +304,7 @@ function ExamsTab() {
         <h3 className="font-serif text-lg">Schedule exam</h3>
         <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         <input className="field" placeholder="Term" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} />
+        <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} />
         <input className="field" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} />
         <select className="field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
           <option value="UNIT_TEST">Unit test</option>
@@ -328,6 +330,7 @@ function ExamsTab() {
               <thead>
                 <tr>
                   <th>Exam</th>
+                  <th>Year</th>
                   <th>Term</th>
                   <th>Type</th>
                   <th>Date</th>
@@ -339,6 +342,7 @@ function ExamsTab() {
                 {page.map((r) => (
                   <tr key={r.id}>
                     <td>{r.name}</td>
+                    <td>{r.academicYear || "—"}</td>
                     <td>{r.term}</td>
                     <td>{r.type}</td>
                     <td>{new Date(r.date).toLocaleDateString()}</td>

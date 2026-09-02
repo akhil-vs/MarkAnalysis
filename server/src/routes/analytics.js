@@ -1,46 +1,44 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import {
-  GRADE_BANDS,
   PASS_PERCENT,
   gradeFromPercent,
   mean,
-  median,
   pearson,
-  percentOf,
   round1,
 } from "../lib/grades.js";
-import { auth, getAssignments } from "../middleware/auth.js";
+import { auth, getAssignments, isLeadership } from "../middleware/auth.js";
+import {
+  classLabel,
+  compareClassNames,
+  examLabel,
+  gradeDistFromStudents,
+  groupBy,
+  meanOf,
+  percentsOf,
+  pickExam,
+  sectionLabel,
+  studentTotals,
+  summarize,
+  toPercent,
+  withTeacherDeltas,
+  yearSeries,
+} from "../lib/stats.js";
+import { registerAnalysisReports } from "./analyticsReports.js";
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
 
-function toPercent(mark) {
-  return percentOf(mark.marksObtained, mark.subject.maxMarks);
-}
-
-function studentTotals(marksByStudent) {
-  return [...marksByStudent.entries()].map(([studentId, marks]) => {
-    const percents = marks.map(toPercent).filter((p) => p != null);
-    const avg = mean(percents);
-    return {
-      studentId,
-      student: marks[0].student,
-      avg: round1(avg),
-      grade: gradeFromPercent(avg),
-      total: marks.reduce((s, m) => s + m.marksObtained, 0),
-      count: marks.length,
-    };
-  });
+async function loadExams(examId) {
+  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
+  return { exams, exam: pickExam(exams, examId) };
 }
 
 analyticsRouter.get("/school", async (req, res) => {
-  if (req.user.role === "TEACHER") {
+  if (!isLeadership(req.user.role)) {
     return res.status(403).json({ error: "Forbidden" });
   }
-  const examId = req.query.examId;
-  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
-  const exam = examId ? exams.find((e) => e.id === examId) : exams[exams.length - 1];
+  const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true });
 
   const marks = await prisma.mark.findMany({
@@ -71,34 +69,55 @@ analyticsRouter.get("/school", async (req, res) => {
 
   const sectionAverages = classes.map((cls) => {
     const list = byClass.get(cls.id) || [];
-    const percents = list.map(toPercent).filter((p) => p != null);
+    const percents = percentsOf(list);
+    const stats = summarize(percents);
     return {
       id: cls.id,
-      label: `${cls.className}-${cls.section}`,
-      average: round1(mean(percents)),
-      passRate: percents.length
-        ? round1((percents.filter((p) => p >= PASS_PERCENT).length / percents.length) * 100)
-        : 0,
+      className: cls.className,
+      section: cls.section,
+      label: classLabel(cls),
+      average: stats.average,
+      passRate: stats.passRate,
       studentCount: cls._count.students,
     };
   });
 
-  const gradeDist = Object.fromEntries(GRADE_BANDS.map((b) => [b.grade, 0]));
+  const classWise = [...new Set(classes.map((c) => c.className))]
+    .sort(compareClassNames)
+    .map((className) => {
+    const sections = sectionAverages.filter((s) => s.className === className);
+    const stats = summarize(percentsOf(marks.filter((m) => m.student.classSection.className === className)));
+    return {
+      className,
+      label: `Class ${className}`,
+      sectionCount: sections.length,
+      studentCount: sections.reduce((s, c) => s + c.studentCount, 0),
+      average: stats.average,
+      passRate: stats.passRate,
+    };
+  });
+
+  const subjectWise = [...new Set((await prisma.subject.findMany()).map((s) => s.name))]
+    .sort()
+    .map((name) => {
+      const stats = summarize(percentsOf(marks.filter((m) => m.subject.name === name)));
+      return { name, average: stats.average, passRate: stats.passRate, count: stats.count };
+    })
+    .sort((a, b) => (a.average ?? 100) - (b.average ?? 100));
+
   const studentAvgs = studentTotals(groupBy(marks, (m) => m.studentId));
-  for (const s of studentAvgs) {
-    if (s.grade) gradeDist[s.grade] += 1;
-  }
+  const gradeDist = gradeDistFromStudents(studentAvgs);
 
   const byTerm = new Map();
   for (const mark of allApproved) {
-    const key = `${mark.exam.term}|${mark.exam.id}|${mark.exam.name}|${mark.exam.date.toISOString()}`;
+    const key = `${mark.exam.term}|${mark.exam.id}|${examLabel(mark.exam)}|${mark.exam.date.toISOString()}|${mark.exam.academicYear || ""}`;
     if (!byTerm.has(key)) byTerm.set(key, []);
     byTerm.get(key).push(toPercent(mark));
   }
   const termTrend = [...byTerm.entries()]
     .map(([key, percents]) => {
-      const [term, id, name, date] = key.split("|");
-      return { term, examId: id, examName: name, date, average: round1(mean(percents.filter((p) => p != null))) };
+      const [term, id, name, date, academicYear] = key.split("|");
+      return { term, examId: id, examName: name, academicYear, date, average: round1(meanOf(percents)) };
     })
     .sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -108,7 +127,7 @@ analyticsRouter.get("/school", async (req, res) => {
     studentId: s.studentId,
     name: s.student.name,
     rollNo: s.student.rollNo,
-    classLabel: `${s.student.classSection.className}-${s.student.classSection.section}`,
+    classLabel: sectionLabel(s.student),
     average: s.avg,
     grade: s.grade,
   }));
@@ -120,7 +139,7 @@ analyticsRouter.get("/school", async (req, res) => {
       studentId: s.studentId,
       name: s.student.name,
       rollNo: s.student.rollNo,
-      classLabel: `${s.student.classSection.className}-${s.student.classSection.section}`,
+      classLabel: sectionLabel(s.student),
       average: s.avg,
       grade: s.grade,
     }));
@@ -138,9 +157,10 @@ analyticsRouter.get("/school", async (req, res) => {
     const percents = tMarks.map(toPercent).filter((p) => p != null);
     if (!percents.length) continue;
     teacherPerf.push({
+      teacherId: a.userId,
       teacher: a.user.name,
       subject: a.subject.name,
-      classLabel: `${a.classSection.className}-${a.classSection.section}`,
+      classLabel: classLabel(a.classSection),
       average: round1(mean(percents)),
       passRate: round1((percents.filter((p) => p >= PASS_PERCENT).length / percents.length) * 100),
     });
@@ -152,6 +172,8 @@ analyticsRouter.get("/school", async (req, res) => {
       examId: e.id,
       name: e.name,
       term: e.term,
+      academicYear: e.academicYear,
+      label: examLabel(e),
       passRate: list.length
         ? round1((list.filter((p) => p >= PASS_PERCENT).length / list.length) * 100)
         : 0,
@@ -174,23 +196,24 @@ analyticsRouter.get("/school", async (req, res) => {
     exams,
     kpis,
     sectionAverages,
+    classWise,
+    subjectWise,
     gradeDist,
     termTrend,
     toppers,
     atRisk,
     teacherPerf,
     examPass,
+    yearComparison: yearSeries(allApproved, exams, exam),
     pendingUploads: await buildPendingUploads(exam),
   });
 });
 
 analyticsRouter.get("/coordinator", async (req, res) => {
-  if (req.user.role === "TEACHER") {
+  if (!isLeadership(req.user.role)) {
     return res.status(403).json({ error: "Forbidden" });
   }
-  const examId = req.query.examId;
-  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
-  const exam = examId ? exams.find((e) => e.id === examId) : exams[exams.length - 1];
+  const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true });
 
   const marks = await prisma.mark.findMany({
@@ -275,9 +298,7 @@ analyticsRouter.get("/coordinator", async (req, res) => {
 });
 
 analyticsRouter.get("/teacher", async (req, res) => {
-  const examId = req.query.examId;
-  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
-  const exam = examId ? exams.find((e) => e.id === examId) : exams[exams.length - 1];
+  const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true });
 
   let assignments = [];
@@ -350,7 +371,7 @@ analyticsRouter.get("/teacher", async (req, res) => {
     const byExam = groupBy(list, (m) => m.examId);
     const points = [...byExam.entries()].map(([id, ms]) => ({
       examId: id,
-      examName: ms[0].exam.name,
+      examName: examLabel(ms[0].exam),
       date: ms[0].exam.date,
       average: round1(mean(ms.map(toPercent).filter((p) => p != null))),
     }));
@@ -391,7 +412,17 @@ analyticsRouter.get("/teacher", async (req, res) => {
     pendingRegisters: registers.filter((r) => r.missing > 0).length,
   };
 
-  res.json({ exam, exams, assignments, radar, registers, studentTrends, watchlist, kpis });
+  res.json({
+    exam,
+    exams,
+    assignments,
+    radar,
+    registers,
+    studentTrends,
+    watchlist,
+    kpis,
+    yearComparison: yearSeries(allMarks, exams, exam),
+  });
 });
 
 analyticsRouter.get("/student/:id", async (req, res) => {
@@ -423,7 +454,9 @@ analyticsRouter.get("/student/:id", async (req, res) => {
   const subjectSeries = [...bySubject.entries()].map(([name, list]) => ({
     subject: name,
     points: list.map((m) => ({
-      exam: m.exam.name,
+      exam: examLabel(m.exam),
+      examName: m.exam.name,
+      academicYear: m.exam.academicYear,
       percent: toPercent(m),
       marks: m.marksObtained,
       max: m.subject.maxMarks,
@@ -468,14 +501,16 @@ analyticsRouter.get("/class/:id", async (req, res) => {
     }
   }
 
-  const examId = req.query.examId;
-  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
-  const exam = examId ? exams.find((e) => e.id === examId) : exams[exams.length - 1];
+  const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true, classSection: cls });
 
   const marks = await prisma.mark.findMany({
     where: { examId: exam.id, student: { classSectionId: cls.id }, status: "APPROVED" },
     include: { student: true, subject: true },
+  });
+  const allApproved = await prisma.mark.findMany({
+    where: { status: "APPROVED", student: { classSectionId: cls.id } },
+    include: { student: true, subject: true, exam: true },
   });
   const subjects = await prisma.subject.findMany({
     where: { className: cls.className },
@@ -483,24 +518,14 @@ analyticsRouter.get("/class/:id", async (req, res) => {
   });
 
   const perSubject = subjects.map((subject) => {
-    const values = marks.filter((m) => m.subjectId === subject.id).map(toPercent).filter((p) => p != null);
-    return {
-      subject: subject.name,
-      average: round1(mean(values)),
-      median: round1(median(values)),
-      highest: values.length ? round1(Math.max(...values)) : null,
-      lowest: values.length ? round1(Math.min(...values)) : null,
-      passRate: values.length
-        ? round1((values.filter((p) => p >= PASS_PERCENT).length / values.length) * 100)
-        : 0,
-    };
+    const values = percentsOf(marks.filter((m) => m.subjectId === subject.id));
+    return { subject: subject.name, ...summarize(values) };
   });
 
-  const gradeDist = Object.fromEntries(GRADE_BANDS.map((b) => [b.grade, 0]));
   const ranked = studentTotals(groupBy(marks, (m) => m.studentId)).sort(
     (a, b) => (b.avg ?? 0) - (a.avg ?? 0)
   );
-  for (const s of ranked) if (s.grade) gradeDist[s.grade] += 1;
+  const gradeDist = gradeDistFromStudents(ranked);
 
   const allClasses = await prisma.classSection.findMany({
     where: { className: cls.className },
@@ -551,18 +576,17 @@ analyticsRouter.get("/class/:id", async (req, res) => {
         grade: s.grade,
       })),
     radar,
-    sections: allClasses.map((c) => `${c.className}-${c.section}`),
+    sections: allClasses.map((c) => classLabel(c)),
+    yearComparison: yearSeries(allApproved, exams, exam),
   });
 });
 
 analyticsRouter.get("/subject/:id", async (req, res) => {
-  if (req.user.role === "TEACHER") return res.status(403).json({ error: "Forbidden" });
+  if (!isLeadership(req.user.role)) return res.status(403).json({ error: "Forbidden" });
   const subject = await prisma.subject.findUnique({ where: { id: req.params.id } });
   if (!subject) return res.status(404).json({ error: "Not found" });
 
-  const examId = req.query.examId;
-  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
-  const exam = examId ? exams.find((e) => e.id === examId) : exams[exams.length - 1];
+  const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true, subject });
 
   const sameName = await prisma.subject.findMany({ where: { name: subject.name } });
@@ -570,37 +594,60 @@ analyticsRouter.get("/subject/:id", async (req, res) => {
     where: { examId: exam.id, subjectId: { in: sameName.map((s) => s.id) }, status: "APPROVED" },
     include: { student: { include: { classSection: true } }, subject: true },
   });
+  const classMarks = marks.filter((m) => m.subject.className === subject.className);
+  const allApproved = await prisma.mark.findMany({
+    where: { subjectId: { in: sameName.map((s) => s.id) }, status: "APPROVED" },
+    include: { student: { include: { classSection: true } }, subject: true, exam: true },
+  });
   const assignments = await prisma.teacherAssignment.findMany({
     where: { subjectId: { in: sameName.map((s) => s.id) } },
     include: { user: true, classSection: true, subject: true },
   });
 
-  const byClass = groupBy(marks, (m) => m.student.classSectionId);
+  const byClass = groupBy(classMarks, (m) => m.student.classSectionId);
   const classAvgs = [...byClass.entries()].map(([id, list]) => ({
     classSectionId: id,
-    label: `${list[0].student.classSection.className}-${list[0].student.classSection.section}`,
-    average: round1(mean(list.map(toPercent).filter((p) => p != null))),
+    label: sectionLabel(list[0].student),
+    ...summarize(percentsOf(list)),
   }));
 
-  const teacherCompare = assignments.map((a) => {
-    const list = marks.filter((m) => m.student.classSectionId === a.classSectionId);
-    const percents = list.map(toPercent).filter((p) => p != null);
+  const classAssignments = assignments.filter((a) => a.subject.className === subject.className);
+  const byTeacher = groupBy(classAssignments, (a) => a.userId);
+  const teacherRows = [...byTeacher.entries()].map(([userId, list]) => {
+    const sectionIds = new Set(list.map((a) => a.classSectionId));
+    const tMarks = classMarks.filter((m) => sectionIds.has(m.student.classSectionId));
     return {
-      teacher: a.user.name,
-      classLabel: `${a.classSection.className}-${a.classSection.section}`,
-      average: round1(mean(percents)),
+      teacherId: userId,
+      teacher: list[0].user.name,
+      classLabel: list.map((a) => classLabel(a.classSection)).join(", "),
+      classLabels: list.map((a) => classLabel(a.classSection)),
+      ...summarize(percentsOf(tMarks)),
     };
   });
+  const teacherMeta = withTeacherDeltas(teacherRows);
 
-  res.json({ subject, exam, exams, classAvgs, teacherCompare });
+  res.json({
+    subject,
+    exam,
+    exams,
+    classAvgs,
+    teacherCompare: teacherMeta.teachers,
+    teacherMeta,
+    yearComparison: yearSeries(
+      allApproved.filter((m) => m.subject.className === subject.className),
+      exams,
+      exam
+    ),
+    schoolSubject: {
+      name: subject.name,
+      ...summarize(percentsOf(marks)),
+    },
+  });
 });
 
 analyticsRouter.get("/pending-uploads", async (req, res) => {
-  if (req.user.role === "TEACHER") return res.status(403).json({ error: "Forbidden" });
-  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
-  const exam = req.query.examId
-    ? exams.find((e) => e.id === req.query.examId)
-    : exams[exams.length - 1];
+  if (!isLeadership(req.user.role)) return res.status(403).json({ error: "Forbidden" });
+  const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true, exams, pendingTeacherCount: 0, teachers: [] });
   const pendingUploads = await buildPendingUploads(exam);
   res.json({ exams, ...pendingUploads });
@@ -659,12 +706,5 @@ async function buildPendingUploads(exam) {
   };
 }
 
-function groupBy(list, keyFn) {
-  const map = new Map();
-  for (const item of list) {
-    const key = keyFn(item);
-    if (!map.has(key)) map.set(key, []);
-    map.get(key).push(item);
-  }
-  return map;
-}
+registerAnalysisReports(analyticsRouter);
+
