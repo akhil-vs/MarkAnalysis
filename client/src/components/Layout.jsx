@@ -52,8 +52,8 @@ export default function Layout() {
   ];
 
   return (
-    <div className="min-h-screen flex">
-      <aside className="sticky top-0 h-screen w-64 shrink-0 bg-ink-950 text-cream flex flex-col overflow-hidden">
+    <div className="h-screen flex overflow-hidden">
+      <aside className="h-full w-64 shrink-0 bg-ink-950 text-cream flex flex-col overflow-hidden">
         <div className="px-5 py-6 border-b border-white/10 shrink-0">
           <div className="font-serif text-xl leading-tight">Marks Analytics</div>
           <div className="mt-1 text-xs text-cream/60">School performance suite</div>
@@ -116,7 +116,7 @@ export default function Layout() {
           </button>
         </div>
       </aside>
-      <main className="flex-1 min-w-0">
+      <main className="flex-1 min-w-0 h-full overflow-y-auto">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <Outlet />
         </div>
