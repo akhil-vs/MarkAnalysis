@@ -53,12 +53,12 @@ export default function Layout() {
 
   return (
     <div className="min-h-screen flex">
-      <aside className="w-64 shrink-0 bg-ink-950 text-cream flex flex-col">
-        <div className="px-5 py-6 border-b border-white/10">
+      <aside className="sticky top-0 h-screen w-64 shrink-0 bg-ink-950 text-cream flex flex-col overflow-hidden">
+        <div className="px-5 py-6 border-b border-white/10 shrink-0">
           <div className="font-serif text-xl leading-tight">Marks Analytics</div>
           <div className="mt-1 text-xs text-cream/60">School performance suite</div>
         </div>
-        <nav className="flex-1 px-3 py-4 space-y-1">
+        <nav className="flex-1 min-h-0 px-3 py-4 space-y-1 overflow-hidden">
           {links.slice(0, 1).map((l) => (
             <SideLink key={l.to} {...l} />
           ))}
@@ -102,7 +102,7 @@ export default function Layout() {
             <SideLink key={l.to} {...l} />
           ))}
         </nav>
-        <div className="px-5 py-4 border-t border-white/10">
+        <div className="px-5 py-4 border-t border-white/10 shrink-0">
           <div className="text-sm font-medium">{user.name}</div>
           <div className="text-xs text-cream/50">{ROLE_LABEL[user.role]}</div>
           <button
