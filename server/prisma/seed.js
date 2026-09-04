@@ -24,8 +24,15 @@ function seededScore(studentIndex, subjectIndex, examIndex, yearBoost = 0, teach
 }
 
 async function main() {
+  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DESTRUCTIVE_SEED !== "true") {
+    throw new Error(
+      "Refusing to run destructive seed in production. Set ALLOW_DESTRUCTIVE_SEED=true to override."
+    );
+  }
+
   await prisma.markAudit.deleteMany();
   await prisma.mark.deleteMany();
+  await prisma.notification.deleteMany();
   await prisma.markEntryAccessRequest.deleteMany();
   await prisma.teacherAssignment.deleteMany();
   await prisma.student.deleteMany();

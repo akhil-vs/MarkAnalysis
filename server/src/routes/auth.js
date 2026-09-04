@@ -13,7 +13,10 @@ authRouter.post("/signup", async (req, res) => {
   if (!email && !schoolId) {
     return res.status(400).json({ error: "Provide an email or school ID" });
   }
-  const allowed = ["TEACHER", "EXAM_COORDINATOR", "PRINCIPAL"];
+  const allowed = ["TEACHER", "EXAM_COORDINATOR"];
+  if (role === "PRINCIPAL") {
+    return res.status(403).json({ error: "Principal accounts cannot be requested via public signup" });
+  }
   const chosenRole = allowed.includes(role) ? role : "TEACHER";
 
   if (email) {
@@ -25,12 +28,6 @@ authRouter.post("/signup", async (req, res) => {
     if (exists) return res.status(409).json({ error: "School ID already registered" });
   }
 
-  const principalCount = await prisma.user.count({
-    where: { role: "PRINCIPAL", status: "ACTIVE" },
-  });
-  const status =
-    chosenRole === "PRINCIPAL" && principalCount === 0 ? "ACTIVE" : "PENDING";
-
   const user = await prisma.user.create({
     data: {
       name,
@@ -38,17 +35,9 @@ authRouter.post("/signup", async (req, res) => {
       schoolId: schoolId || null,
       passwordHash: await bcrypt.hash(password, 10),
       role: chosenRole,
-      status,
+      status: "PENDING",
     },
   });
-
-  if (status === "ACTIVE") {
-    return res.status(201).json({
-      user: publicUser(user),
-      token: signToken(user),
-      message: "Account created",
-    });
-  }
 
   return res.status(201).json({
     user: publicUser(user),
@@ -95,4 +84,26 @@ authRouter.get("/me", auth, async (req, res) => {
     user: publicUser(user),
     assignments: user.assignments,
   });
+});
+
+authRouter.post("/change-password", auth, async (req, res) => {
+  const { currentPassword, newPassword } = req.body || {};
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: "Current and new passwords are required" });
+  }
+  if (String(newPassword).length < 8) {
+    return res.status(400).json({ error: "New password must be at least 8 characters" });
+  }
+
+  const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+  if (!user) return res.status(404).json({ error: "Not found" });
+  if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+    return res.status(401).json({ error: "Current password is incorrect" });
+  }
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { passwordHash: await bcrypt.hash(newPassword, 10) },
+  });
+  res.json({ ok: true, message: "Password updated" });
 });

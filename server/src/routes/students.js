@@ -166,6 +166,15 @@ studentsRouter.get("/:id", async (req, res) => {
     include: { classSection: true },
   });
   if (!student) return res.status(404).json({ error: "Not found" });
+
+  if (req.user.role === "TEACHER") {
+    const assignments = await getAssignments(req.user.userId);
+    const allowed = new Set(assignments.map((a) => a.classSectionId));
+    if (!allowed.has(student.classSectionId)) {
+      return res.status(403).json({ error: "Not assigned to this student's class" });
+    }
+  }
+
   res.json(student);
 });
 

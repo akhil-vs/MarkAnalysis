@@ -106,7 +106,9 @@ export default function Layout() {
         <div className="px-5 py-4 border-t border-white/10 shrink-0">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <div className="text-sm font-medium truncate">{user.name}</div>
+              <Link to="/profile" className="text-sm font-medium truncate block hover:text-white">
+                {user.name}
+              </Link>
               <div className="text-xs text-cream/50">{ROLE_LABEL[user.role]}</div>
             </div>
             <NotificationBell />

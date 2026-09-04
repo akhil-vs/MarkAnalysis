@@ -226,6 +226,11 @@ marksRouter.get("/template", async (req, res) => {
   ]);
   if (!classSection || !exam) return res.status(404).json({ error: "Not found" });
 
+  if (req.user.role === "TEACHER") {
+    const ok = await teacherCanAccess(req.user, { classSectionId });
+    if (!ok) return res.status(403).json({ error: "Not assigned to this class" });
+  }
+
   const subjects = await scopedSubjects(req.user, classSection);
   const students = await prisma.student.findMany({
     where: { classSectionId },
@@ -278,6 +283,11 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
     where: { id: classSectionId },
   });
   if (!classSection) return res.status(404).json({ error: "Class not found" });
+
+  if (req.user.role === "TEACHER") {
+    const ok = await teacherCanAccess(req.user, { classSectionId });
+    if (!ok) return res.status(403).json({ error: "Not assigned to this class" });
+  }
 
   const subjects = await scopedSubjects(req.user, classSection);
   const students = await prisma.student.findMany({
@@ -442,4 +452,25 @@ marksRouter.post("/approve", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
     data: { status: "APPROVED" },
   });
   res.json({ approved: result.count });
+});
+
+marksRouter.post("/unapprove", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const { examId, classSectionId, subjectId } = req.body || {};
+  if (!examId) return res.status(400).json({ error: "examId is required" });
+
+  const studentFilter = classSectionId ? { classSectionId } : undefined;
+  const students = studentFilter
+    ? await prisma.student.findMany({ where: studentFilter, select: { id: true } })
+    : null;
+
+  const result = await prisma.mark.updateMany({
+    where: {
+      examId,
+      status: "APPROVED",
+      ...(subjectId && { subjectId }),
+      ...(students && { studentId: { in: students.map((s) => s.id) } }),
+    },
+    data: { status: "DRAFT" },
+  });
+  res.json({ reverted: result.count });
 });
