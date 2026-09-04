@@ -2,9 +2,19 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { auth, isLeadership, requireRole } from "../middleware/auth.js";
 import { isPastDeadline } from "../lib/markAccess.js";
+import { notifyLateEntryRequested, notifyLateEntryReviewed } from "../lib/notifications.js";
 
 export const markAccessRouter = Router();
 markAccessRouter.use(auth);
+
+async function decorateRequest(row) {
+  const classSection = await prisma.classSection.findUnique({
+    where: { id: row.classSectionId },
+    select: { id: true, className: true, section: true },
+  });
+  const classLabel = classSection ? `${classSection.className}-${classSection.section}` : row.classSectionId;
+  return { ...row, classSection, classLabel };
+}
 
 markAccessRouter.get("/", async (req, res) => {
   const { status, examId } = req.query;
@@ -115,7 +125,15 @@ markAccessRouter.post("/", async (req, res) => {
       reviewedAt: null,
       requestedAt: new Date(),
     },
+    include: {
+      exam: { select: { id: true, name: true } },
+      teacher: { select: { id: true, name: true } },
+      subject: { select: { id: true, name: true } },
+    },
   });
+
+  const decorated = await decorateRequest(created);
+  await notifyLateEntryRequested(decorated);
 
   res.status(201).json(created);
 });
@@ -136,6 +154,15 @@ markAccessRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
       reviewedById: req.user.userId,
       reviewedAt: new Date(),
     },
+    include: {
+      exam: { select: { id: true, name: true } },
+      teacher: { select: { id: true, name: true } },
+      subject: { select: { id: true, name: true } },
+    },
   });
+
+  const decorated = await decorateRequest(updated);
+  await notifyLateEntryReviewed(decorated, status);
+
   res.json(updated);
 });
