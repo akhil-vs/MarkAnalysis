@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import NotificationBell from "./NotificationBell.jsx";
 
 const ROLE_LABEL = {
   PRINCIPAL: "Principal",
@@ -103,8 +104,13 @@ export default function Layout() {
           ))}
         </nav>
         <div className="px-5 py-4 border-t border-white/10 shrink-0">
-          <div className="text-sm font-medium">{user.name}</div>
-          <div className="text-xs text-cream/50">{ROLE_LABEL[user.role]}</div>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <div className="text-sm font-medium truncate">{user.name}</div>
+              <div className="text-xs text-cream/50">{ROLE_LABEL[user.role]}</div>
+            </div>
+            <NotificationBell />
+          </div>
           <button
             className="mt-3 text-xs text-cream/70 hover:text-white"
             onClick={() => {
