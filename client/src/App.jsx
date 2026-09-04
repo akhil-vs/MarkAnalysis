@@ -1,10 +1,11 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useAuth } from "./auth.jsx";
 import Layout from "./components/Layout.jsx";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import Pending from "./pages/Pending.jsx";
 import PrincipalDashboard from "./pages/PrincipalDashboard.jsx";
+import CoordinatorDashboard from "./pages/CoordinatorDashboard.jsx";
 import TeacherDashboard from "./pages/TeacherDashboard.jsx";
 import Users from "./pages/Users.jsx";
 import Manage from "./pages/Manage.jsx";
@@ -26,6 +27,7 @@ import PendingUploads from "./pages/PendingUploads.jsx";
 import LateEntryRequests from "./pages/LateEntryRequests.jsx";
 import AuditLog from "./pages/AuditLog.jsx";
 import ConsolidatedLists from "./pages/ConsolidatedLists.jsx";
+import Profile from "./pages/Profile.jsx";
 
 function Guard({ roles, children }) {
   const { user, loading } = useAuth();
@@ -38,8 +40,18 @@ function Guard({ roles, children }) {
 
 function Home() {
   const { user } = useAuth();
-  if (user.role === "PRINCIPAL" || user.role === "EXAM_COORDINATOR") return <PrincipalDashboard />;
+  if (user.role === "PRINCIPAL") return <PrincipalDashboard />;
+  if (user.role === "EXAM_COORDINATOR") return <CoordinatorDashboard />;
   return <TeacherDashboard />;
+}
+
+function TeacherAnalyticsGuard() {
+  const { user } = useAuth();
+  const { id } = useParams();
+  if (user.role === "TEACHER" && user.id !== id) {
+    return <Navigate to={`/analysis/teachers/${user.id}`} replace />;
+  }
+  return <TeacherAnalytics />;
 }
 
 export default function App() {
@@ -91,7 +103,7 @@ export default function App() {
           path="analysis/teachers"
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><AnalysisTeachers /></Guard>}
         />
-        <Route path="analysis/teachers/:id" element={<TeacherAnalytics />} />
+        <Route path="analysis/teachers/:id" element={<TeacherAnalyticsGuard />} />
         <Route
           path="analysis/compare"
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><AnalysisCompare /></Guard>}
@@ -109,6 +121,7 @@ export default function App() {
           path="late-entry"
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><LateEntryRequests /></Guard>}
         />
+        <Route path="profile" element={<Profile />} />
         <Route path="students/:id" element={<StudentAnalytics />} />
         <Route path="classes/:id" element={<ClassAnalytics />} />
       </Route>

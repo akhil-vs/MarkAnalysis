@@ -179,8 +179,36 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
     }))
   );
 
+  function subjectsForClass(classSectionId) {
+    const cls = classes.find((c) => c.id === classSectionId);
+    if (!cls) return [];
+    return subjects.filter((s) => s.className === cls.className);
+  }
+
   function add() {
-    setRows((r) => [...r, { classSectionId: classes[0]?.id || "", subjectId: subjects[0]?.id || "" }]);
+    const classSectionId = classes[0]?.id || "";
+    const options = subjectsForClass(classSectionId);
+    setRows((r) => [...r, { classSectionId, subjectId: options[0]?.id || "" }]);
+  }
+
+  function updateRow(index, patch) {
+    setRows((r) =>
+      r.map((row, idx) => {
+        if (idx !== index) return row;
+        const next = { ...row, ...patch };
+        if (patch.classSectionId) {
+          const options = subjectsForClass(patch.classSectionId);
+          if (!options.some((s) => s.id === next.subjectId)) {
+            next.subjectId = options[0]?.id || "";
+          }
+        }
+        return next;
+      })
+    );
+  }
+
+  function removeRow(index) {
+    setRows((r) => r.filter((_, idx) => idx !== index));
   }
 
   return (
@@ -188,32 +216,45 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
       <div className="card w-full max-w-lg p-5">
         <h3 className="font-serif text-xl mb-3">Assign {user.name}</h3>
         <div className="space-y-2 max-h-80 overflow-auto">
-          {rows.map((row, i) => (
-            <div key={i} className="flex gap-2">
-              <select
-                className="field"
-                value={row.classSectionId}
-                onChange={(e) => setRows((r) => r.map((x, idx) => (idx === i ? { ...x, classSectionId: e.target.value } : x)))}
-              >
-                {classes.map((c) => (
-                  <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
-                ))}
-              </select>
-              <select
-                className="field"
-                value={row.subjectId}
-                onChange={(e) => setRows((r) => r.map((x, idx) => (idx === i ? { ...x, subjectId: e.target.value } : x)))}
-              >
-                {subjects.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </div>
-          ))}
+          {rows.length === 0 && (
+            <p className="text-sm text-ink-700/60">No assignments. Add a class and subject, or save to clear all.</p>
+          )}
+          {rows.map((row, i) => {
+            const options = subjectsForClass(row.classSectionId);
+            return (
+              <div key={i} className="flex gap-2 items-center">
+                <select
+                  className="field"
+                  value={row.classSectionId}
+                  onChange={(e) => updateRow(i, { classSectionId: e.target.value })}
+                >
+                  {classes.map((c) => (
+                    <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
+                  ))}
+                </select>
+                <select
+                  className="field"
+                  value={row.subjectId}
+                  onChange={(e) => updateRow(i, { subjectId: e.target.value })}
+                >
+                  {options.length === 0 && <option value="">No subjects for this class</option>}
+                  {options.map((s) => (
+                    <option key={s.id} value={s.id}>{s.name}</option>
+                  ))}
+                </select>
+                <button type="button" className="btn-ghost shrink-0" onClick={() => removeRow(i)}>
+                  Remove
+                </button>
+              </div>
+            );
+          })}
         </div>
         <div className="mt-4 flex gap-2">
           <button className="btn-ghost" onClick={add}>Add row</button>
-          <button className="btn-primary" onClick={() => onSave(user.id, rows.filter((r) => r.classSectionId && r.subjectId))}>
+          <button
+            className="btn-primary"
+            onClick={() => onSave(user.id, rows.filter((r) => r.classSectionId && r.subjectId))}
+          >
             Save
           </button>
           <button className="btn-ghost" onClick={onClose}>Cancel</button>

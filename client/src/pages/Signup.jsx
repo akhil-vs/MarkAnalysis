@@ -59,8 +59,8 @@ export default function Signup() {
           <select className="field" value={form.role} onChange={(e) => set("role", e.target.value)}>
             <option value="TEACHER">Teacher</option>
             <option value="EXAM_COORDINATOR">Exam Coordinator</option>
-            <option value="PRINCIPAL">Principal</option>
           </select>
+          <p className="mt-1 text-xs text-ink-700/60">Principal accounts are created by an existing principal, not via public signup.</p>
         </div>
         {error && <p className="text-sm text-clay-600">{error}</p>}
         {message && <p className="text-sm text-moss-600">{message}</p>}

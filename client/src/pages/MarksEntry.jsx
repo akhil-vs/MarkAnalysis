@@ -117,6 +117,7 @@ export default function MarksEntry() {
   async function save() {
     if (!grid) return;
     const entries = [];
+    let touchingApproved = false;
     for (const student of grid.students) {
       for (const subject of grid.subjects) {
         if (!canEditSubject(subject.id)) continue;
@@ -125,11 +126,20 @@ export default function MarksEntry() {
         const existing = markMeta[key];
         const original = existing ? String(existing.marksObtained) : "";
         if (String(draft[key]) === original) continue;
+        if (existing?.status === "APPROVED") touchingApproved = true;
         entries.push({ studentId: student.id, subjectId: subject.id, marksObtained: draft[key] });
       }
     }
     if (!entries.length) {
       setMessage("No changes to save");
+      return;
+    }
+    if (
+      touchingApproved &&
+      !window.confirm(
+        "Some cells are already approved. Saving will move those marks back to draft until leadership re-approves. Continue?"
+      )
+    ) {
       return;
     }
     try {
@@ -144,15 +154,54 @@ export default function MarksEntry() {
   }
 
   async function approve() {
+    const draftCount = (grid?.marks || []).filter((m) => m.status === "DRAFT").length;
+    const label = subjectId
+      ? grid?.subjects?.find((s) => s.id === subjectId)?.name || "this subject"
+      : "all subjects in this class";
+    if (
+      !window.confirm(
+        `Approve ${draftCount} draft mark${draftCount === 1 ? "" : "s"} for ${label}? Approved marks appear on consolidated lists and analytics.`
+      )
+    ) {
+      return;
+    }
     try {
-      await api("/api/marks/approve", {
+      const res = await api("/api/marks/approve", {
         method: "POST",
         body: { examId, classSectionId, subjectId: subjectId || undefined },
       });
-      setMessage("Approved");
+      setMessage(`Approved ${res.approved ?? 0} mark${res.approved === 1 ? "" : "s"}`);
       await loadGrid({ keepMessage: true });
     } catch (err) {
       setMessage(err.message || "Could not approve marks");
+    }
+  }
+
+  async function unapprove() {
+    const approvedCount = (grid?.marks || []).filter((m) => m.status === "APPROVED").length;
+    if (!approvedCount) {
+      setMessage("No approved marks in this view");
+      return;
+    }
+    const label = subjectId
+      ? grid?.subjects?.find((s) => s.id === subjectId)?.name || "this subject"
+      : "all subjects in this class";
+    if (
+      !window.confirm(
+        `Return ${approvedCount} approved mark${approvedCount === 1 ? "" : "s"} for ${label} to draft? They will leave official lists until re-approved.`
+      )
+    ) {
+      return;
+    }
+    try {
+      const res = await api("/api/marks/unapprove", {
+        method: "POST",
+        body: { examId, classSectionId, subjectId: subjectId || undefined },
+      });
+      setMessage(`Reverted ${res.reverted ?? 0} mark${res.reverted === 1 ? "" : "s"} to draft`);
+      await loadGrid({ keepMessage: true });
+    } catch (err) {
+      setMessage(err.message || "Could not unapprove marks");
     }
   }
 
@@ -179,7 +228,10 @@ export default function MarksEntry() {
           <>
             <button className="btn-primary" onClick={save} disabled={allLocked || !grid}>Save drafts</button>
             {leadership && (
-              <button className="btn-accent" onClick={approve} disabled={!grid}>Approve</button>
+              <>
+                <button className="btn-accent" onClick={approve} disabled={!grid}>Approve</button>
+                <button className="btn-ghost" onClick={unapprove} disabled={!grid}>Unapprove</button>
+              </>
             )}
           </>
         }

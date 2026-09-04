@@ -15,6 +15,14 @@ import { notificationsRouter } from "./routes/notifications.js";
 const app = express();
 const port = Number(process.env.PORT || 4000);
 
+if (!process.env.JWT_SECRET || process.env.JWT_SECRET === "change-me-in-production") {
+  if (process.env.NODE_ENV === "production") {
+    console.error("JWT_SECRET must be set to a strong value in production");
+    process.exit(1);
+  }
+  console.warn("Warning: using insecure default JWT_SECRET — set JWT_SECRET before deploying");
+}
+
 app.use(
   cors({
     origin: process.env.CLIENT_ORIGIN || "http://localhost:5173",
@@ -37,7 +45,12 @@ app.use("/api/exports", exportsRouter);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
-  res.status(500).json({ error: err.message || "Server error" });
+  const status = err.status || 500;
+  const message =
+    process.env.NODE_ENV === "production" && status >= 500
+      ? "Server error"
+      : err.message || "Server error";
+  res.status(status).json({ error: message });
 });
 
 app.listen(port, () => {

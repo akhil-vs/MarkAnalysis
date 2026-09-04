@@ -62,8 +62,9 @@ model ClassSection {
   classTeacherId String?
   classTeacher   User?   @relation("ClassTeacher", fields: [classTeacherId], references: [id])
 
-  students    Student[]
-  assignments TeacherAssignment[]
+  students          Student[]
+  assignments       TeacherAssignment[]
+  markEntryRequests MarkEntryAccessRequest[]
 
   @@unique([className, section])
 }
@@ -133,10 +134,11 @@ model MarkEntryAccessRequest {
   reviewedById   String?
   reviewedAt     DateTime?
 
-  exam     Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
-  teacher  User    @relation("MarkEntryTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
-  subject  Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  reviewedBy User? @relation("MarkEntryReviewer", fields: [reviewedById], references: [id])
+  exam         Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  teacher      User         @relation("MarkEntryTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  reviewedBy   User?        @relation("MarkEntryReviewer", fields: [reviewedById], references: [id])
 
   @@unique([examId, teacherId, classSectionId, subjectId])
 }
@@ -158,6 +160,8 @@ model Mark {
   audits    MarkAudit[]
 
   @@unique([studentId, subjectId, examId])
+  @@index([examId, status])
+  @@index([studentId])
 }
 
 model MarkAudit {

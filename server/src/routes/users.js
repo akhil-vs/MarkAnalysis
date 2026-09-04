@@ -86,8 +86,19 @@ usersRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
   const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Not found" });
 
-  if (req.user.role === "EXAM_COORDINATOR" && role === "EXAM_COORDINATOR") {
-    return res.status(403).json({ error: "Only the principal can add an exam coordinator" });
+  if (role === "PRINCIPAL" && req.user.role !== "PRINCIPAL") {
+    return res.status(403).json({ error: "Only a principal can assign the principal role" });
+  }
+  if (req.user.role === "EXAM_COORDINATOR" && (role === "EXAM_COORDINATOR" || role === "PRINCIPAL")) {
+    return res.status(403).json({ error: "Only the principal can change leadership roles" });
+  }
+  if (existing.role === "PRINCIPAL" && role && role !== "PRINCIPAL") {
+    const otherPrincipals = await prisma.user.count({
+      where: { role: "PRINCIPAL", status: "ACTIVE", id: { not: existing.id } },
+    });
+    if (otherPrincipals === 0) {
+      return res.status(400).json({ error: "Cannot demote the only active principal" });
+    }
   }
 
   const data = {};
