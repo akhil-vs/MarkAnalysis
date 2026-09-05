@@ -70,6 +70,7 @@ export default function LateEntryRequests() {
                   <th>Register</th>
                   <th>Requested</th>
                   <th>Status</th>
+                  <th>Accepted / Rejected</th>
                   <th></th>
                 </tr>
               </thead>
@@ -81,6 +82,18 @@ export default function LateEntryRequests() {
                     <td>{r.classLabel} · {r.subject.name}</td>
                     <td>{new Date(r.requestedAt).toLocaleString()}</td>
                     <td>{r.status}</td>
+                    <td>
+                      {r.reviewedAt ? (
+                        <div>
+                          <div>{new Date(r.reviewedAt).toLocaleString()}</div>
+                          {r.reviewedBy?.name && (
+                            <div className="text-[10px] text-ink-700/50">by {r.reviewedBy.name}</div>
+                          )}
+                        </div>
+                      ) : (
+                        "—"
+                      )}
+                    </td>
                     <td className="space-x-2 whitespace-nowrap">
                       {r.status === "PENDING" && (
                         <>

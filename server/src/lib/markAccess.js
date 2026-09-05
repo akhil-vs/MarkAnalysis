@@ -51,7 +51,14 @@ export async function getMarkEntryAccessMap(user, examId, classSectionId, subjec
   if (isLeadership(user.role)) {
     const access = {};
     for (const subjectId of subjectIds) {
-      access[subjectId] = { canEnter: true, pastDeadline, deadline, requestStatus: null, requestId: null };
+      access[subjectId] = {
+        canEnter: true,
+        pastDeadline,
+        deadline,
+        requestStatus: null,
+        requestId: null,
+        reviewedAt: null,
+      };
     }
     return { deadline, pastDeadline, bySubject: access };
   }
@@ -72,7 +79,14 @@ export async function getMarkEntryAccessMap(user, examId, classSectionId, subjec
   const bySubject = {};
   for (const subjectId of subjectIds) {
     if (!pastDeadline) {
-      bySubject[subjectId] = { canEnter: true, pastDeadline: false, deadline, requestStatus: null, requestId: null };
+      bySubject[subjectId] = {
+        canEnter: true,
+        pastDeadline: false,
+        deadline,
+        requestStatus: null,
+        requestId: null,
+        reviewedAt: null,
+      };
       continue;
     }
     const request = bySubjectId.get(subjectId);
@@ -82,6 +96,7 @@ export async function getMarkEntryAccessMap(user, examId, classSectionId, subjec
       deadline,
       requestStatus: request?.status ?? null,
       requestId: request?.id ?? null,
+      reviewedAt: request?.reviewedAt ?? null,
     };
   }
 
