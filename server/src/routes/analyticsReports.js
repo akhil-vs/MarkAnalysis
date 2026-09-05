@@ -1,5 +1,6 @@
 import { prisma } from "../lib/prisma.js";
 import { getAssignments, isLeadership } from "../middleware/auth.js";
+import { summarizeRegister } from "../lib/registerStatus.js";
 import {
   classLabel,
   compareClassNames,
@@ -337,7 +338,7 @@ export function registerAnalysisReports(router) {
     const marks = await prisma.mark.findMany({
       where: {
         examId: exam.id,
-        status: "APPROVED",
+        status: { in: ["DRAFT", "APPROVED"] },
         subjectId: { in: subjectIds.length ? subjectIds : ["__none__"] },
         student: { classSectionId: { in: classIds.length ? classIds : ["__none__"] } },
       },
@@ -355,16 +356,18 @@ export function registerAnalysisReports(router) {
     const registers = teacher.assignments.map((a) => {
       const expected = students.filter((s) => s.classSectionId === a.classSectionId);
       const list = marks.filter((m) => m.subjectId === a.subjectId && m.student.classSectionId === a.classSectionId);
+      const approved = list.filter((m) => m.status === "APPROVED");
+      const forAverage = approved.length ? approved : list;
+      const progress = summarizeRegister(expected.length, list);
       return {
         id: a.id,
         classSectionId: a.classSectionId,
         subjectId: a.subjectId,
         classLabel: classLabel(a.classSection),
         subject: a.subject.name,
-        expected: expected.length,
-        uploaded: list.length,
-        missing: Math.max(0, expected.length - list.length),
-        ...summarize(percentsOf(list)),
+        provisional: approved.length === 0 && list.length > 0,
+        ...progress,
+        ...summarize(percentsOf(forAverage)),
       };
     });
 
@@ -392,18 +395,22 @@ export function registerAnalysisReports(router) {
       peerCompare.push({ subject: name, ...withTeacherDeltas(rows) });
     }
 
-    const scoped = marks.filter(ownMarks);
+    const scopedApproved = marks.filter((m) => ownMarks(m) && m.status === "APPROVED");
+    const scopedAll = marks.filter(ownMarks);
+    const kpiMarks = scopedApproved.length ? scopedApproved : scopedAll;
     res.json({
       teacher: { id: teacher.id, name: teacher.name, email: teacher.email },
       exam,
       exams,
       kpis: {
-        ...summarize(percentsOf(scoped)),
+        ...summarize(percentsOf(kpiMarks)),
         sections: classIds.length,
         students: students.length,
+        provisional: scopedApproved.length === 0 && scopedAll.length > 0,
+        awaitingApproval: registers.filter((r) => r.status === "AWAITING_APPROVAL" || (r.draft > 0 && r.approved < r.expected)).length,
       },
       registers,
-      gradeDist: gradeDistFromStudents(studentTotals(groupBy(scoped, (m) => m.studentId))),
+      gradeDist: gradeDistFromStudents(studentTotals(groupBy(kpiMarks, (m) => m.studentId))),
       yearComparison: yearSeries(allApproved, exams, exam, ownMarks),
       peerCompare,
     });

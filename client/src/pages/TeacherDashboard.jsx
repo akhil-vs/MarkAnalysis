@@ -100,15 +100,18 @@ export default function TeacherDashboard() {
                 </div>
                 <div className="mt-3">
                   <div className="flex justify-between text-[11px] text-ink-700/50 mb-1">
-                    <span>Marks entered</span>
+                    <span>{r.statusLabel || (r.provisional ? "Draft — awaiting approval" : "Marks entered")}</span>
                     <span>{r.uploaded} / {r.expected}</span>
                   </div>
-                  <BarTrack value={r.expected ? (r.uploaded / r.expected) * 100 : 0} color={r.missing ? "#c45c26" : "#3d6b4f"} />
+                  <BarTrack
+                    value={r.expected ? (r.uploaded / r.expected) * 100 : 0}
+                    color={r.missing ? "#c45c26" : r.provisional || r.status === "AWAITING_APPROVAL" ? "#b45309" : "#3d6b4f"}
+                  />
                 </div>
                 <div className="mt-3 flex gap-3 text-xs">
                   <Link className="underline" to={`/classes/${r.classSectionId}`}>Class view</Link>
                   <Link className="underline" to={`/marks?classSectionId=${r.classSectionId}&subjectId=${r.subjectId}`}>
-                    {r.missing ? "Finish register" : "Mark register"}
+                    {r.missing ? "Finish register" : r.provisional || r.status === "AWAITING_APPROVAL" ? "Saved as draft" : "Mark register"}
                   </Link>
                 </div>
               </div>

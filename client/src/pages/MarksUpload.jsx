@@ -25,7 +25,7 @@ export default function MarksUpload() {
         setClasses(c);
         setExams(e);
         if (c[0]) setClassSectionId(c[0].id);
-        if (e.length) setExamId(defaultExamId(e, { preferOpen: !leadership }));
+        if (e.length) setExamId(defaultExamId(e));
       })
       .catch((err) => setMessage(err.message || "Could not load upload options"));
   }, []);

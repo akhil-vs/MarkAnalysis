@@ -10,13 +10,16 @@ export function isExamOpen(exam) {
   return Date.now() <= end.getTime();
 }
 
-/** Latest exam, or the latest still-open exam when teachers need a writable register. */
+/**
+ * Default to the latest exam for every role so teachers and leadership
+ * look at the same paper. Preferring only "open" deadlines made teachers
+ * land on Mid-Term while principals opened Final — marks looked "approved"
+ * on the teacher desk and missing on leadership views.
+ */
 export function defaultExamId(exams = [], { preferOpen = false } = {}) {
   if (!exams.length) return "";
-  if (preferOpen) {
-    const open = [...exams].reverse().find(isExamOpen);
-    if (open) return open.id;
-  }
+  // preferOpen kept for call-site compatibility; latest exam wins so roles stay aligned.
+  void preferOpen;
   return exams.at(-1).id;
 }
 

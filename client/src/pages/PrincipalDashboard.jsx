@@ -72,6 +72,7 @@ export default function PrincipalDashboard() {
   if (data.empty) return <p>No exam data yet.</p>;
 
   const pending = (data.pendingUploads?.teachers || []).filter((t) => t.pending);
+  const awaitingApproval = (data.pendingUploads?.teachers || []).filter((t) => t.awaitingApproval && !t.pending);
   const sections = [...(data.sectionAverages || [])].sort((a, b) => (b.average ?? 0) - (a.average ?? 0));
   const bestSection = sections[0];
   const teachers = [...(data.teacherPerf || [])].sort((a, b) => (b.average ?? 0) - (a.average ?? 0));
@@ -118,8 +119,14 @@ export default function PrincipalDashboard() {
           hint={{
             text: data.pendingUploads?.pendingTeacherCount
               ? "Registers still empty for this exam"
-              : "All assigned registers submitted",
-            tone: data.pendingUploads?.pendingTeacherCount ? "down" : "up",
+              : data.pendingUploads?.awaitingApprovalTeacherCount
+                ? `${data.pendingUploads.awaitingApprovalTeacherCount} awaiting approval`
+                : "All assigned registers submitted",
+            tone: data.pendingUploads?.pendingTeacherCount
+              ? "down"
+              : data.pendingUploads?.awaitingApprovalTeacherCount
+                ? "down"
+                : "up",
           }}
         />
       </div>
@@ -130,8 +137,22 @@ export default function PrincipalDashboard() {
           title="Needs attention"
           action={<Link className="text-xs underline text-ink-700/60" to="/pending-uploads">Upload status</Link>}
         >
-          {pending.length ? (
+          {pending.length || awaitingApproval.length ? (
             <div className="space-y-3">
+              {awaitingApproval.map((t) => (
+                <div key={`await-${t.teacherId}`} className="flex items-start justify-between gap-3">
+                  <div>
+                    <div className="text-sm font-medium">{t.name}</div>
+                    <div className="text-[11px] text-ink-700/50">
+                      {t.assignments
+                        .filter((a) => (a.draft ?? 0) > 0 && (a.approved ?? 0) < a.expected)
+                        .map((a) => `${a.classLabel} ${a.subject}`)
+                        .join(" · ")}
+                    </div>
+                  </div>
+                  <div className="text-xs text-clay-600 whitespace-nowrap">Awaiting approval</div>
+                </div>
+              ))}
               {pending.map((t) => (
                 <div key={t.teacherId} className="flex items-start justify-between gap-3">
                   <div>

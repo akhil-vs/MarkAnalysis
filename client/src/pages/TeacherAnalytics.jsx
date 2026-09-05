@@ -5,6 +5,13 @@ import { ExamSelect, TeacherCompareTable, YearComparison } from "../components/A
 import { BarTrack, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 
+function statusTone(status) {
+  if (status === "APPROVED") return "text-moss-700";
+  if (status === "AWAITING_APPROVAL") return "text-clay-600";
+  if (status === "PARTIAL") return "text-clay-600";
+  return "text-ink-700/50";
+}
+
 export default function TeacherAnalytics() {
   const { id } = useParams();
   const [data, setData] = useState(null);
@@ -31,28 +38,53 @@ export default function TeacherAnalytics() {
         actions={<ExamSelect exams={data.exams} value={examId} onChange={load} />}
       />
 
+      {data.kpis?.provisional && (
+        <p className="mb-4 text-sm text-clay-700 bg-[#fbf4ec] border border-clay-500/20 rounded-lg px-3 py-2">
+          Averages below include draft marks that still need leadership approval on the mark register.
+        </p>
+      )}
+
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
-        <Metric label="Average" value={data.kpis.average != null ? `${data.kpis.average}%` : "—"} />
+        <Metric
+          label={data.kpis?.provisional ? "Average (draft)" : "Average"}
+          value={data.kpis.average != null ? `${data.kpis.average}%` : "—"}
+        />
         <Metric label="Pass rate" value={data.kpis.passRate != null ? `${data.kpis.passRate}%` : "—"} />
         <Metric label="Sections" value={data.kpis.sections} />
-        <Metric label="Students" value={data.kpis.students} />
+        <Metric
+          label="Awaiting approval"
+          value={data.kpis.awaitingApproval ?? 0}
+          tone={data.kpis.awaitingApproval ? "alert" : undefined}
+        />
       </div>
 
       <Panel title="Registers" className="mb-4">
         <div className="grid sm:grid-cols-2 gap-3">
           {(data.registers || []).map((r) => (
-            <Link key={r.id} to={`/classes/${r.classSectionId}`} className="rounded-xl border border-ink-900/10 p-4 hover:border-clay-500">
-              <div className="flex justify-between">
+            <Link
+              key={r.id}
+              to={`/marks?classSectionId=${r.classSectionId}&subjectId=${r.subjectId}&examId=${examId}`}
+              className="rounded-xl border border-ink-900/10 p-4 hover:border-clay-500"
+            >
+              <div className="flex justify-between gap-2">
                 <div>
                   <div className="font-serif text-xl">{r.classLabel}</div>
                   <div className="text-xs text-ink-700/55">{r.subject}</div>
+                  <div className={`text-[11px] mt-1 ${statusTone(r.status)}`}>
+                    {r.statusLabel || r.status}
+                    {r.provisional ? " · provisional" : ""}
+                  </div>
                 </div>
                 <div className="text-right">
                   <div className="font-serif text-2xl">{r.average ?? "—"}</div>
-                  <div className="text-[11px] text-ink-700/50">{r.passRate ?? "—"}% pass</div>
+                  <div className="text-[11px] text-ink-700/50">
+                    {r.approved ?? 0} approved · {r.draft ?? 0} draft
+                  </div>
                 </div>
               </div>
-              <div className="mt-3"><BarTrack value={r.average} /></div>
+              <div className="mt-3">
+                <BarTrack value={r.expected ? ((r.uploaded || 0) / r.expected) * 100 : 0} />
+              </div>
             </Link>
           ))}
         </div>
