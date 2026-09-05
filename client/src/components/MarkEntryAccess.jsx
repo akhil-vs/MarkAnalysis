@@ -7,9 +7,10 @@ export function formatDeadline(deadline) {
 
 export function subjectAccessLabel(access) {
   if (!access?.pastDeadline) return null;
-  if (access.canEnter) return "Late entry approved";
+  const when = access.reviewedAt ? ` on ${new Date(access.reviewedAt).toLocaleString()}` : "";
+  if (access.canEnter) return `Late entry approved${when}`;
   if (access.requestStatus === "PENDING") return "Approval pending";
-  if (access.requestStatus === "REJECTED") return "Request rejected";
+  if (access.requestStatus === "REJECTED") return `Request rejected${when}`;
   return "Deadline passed — request approval";
 }
 
