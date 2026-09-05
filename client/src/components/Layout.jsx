@@ -25,7 +25,7 @@ export default function Layout() {
   useEffect(() => {
     if (!isLeadership) return;
     api("/api/analytics/pending-uploads")
-      .then((d) => setPendingCount(d.pendingTeacherCount ?? 0))
+      .then((d) => setPendingCount((d.pendingTeacherCount ?? 0) + (d.awaitingApprovalTeacherCount ?? 0)))
       .catch(() => setPendingCount(null));
     api("/api/mark-access?status=PENDING")
       .then((rows) => setLateEntryCount(rows.length))

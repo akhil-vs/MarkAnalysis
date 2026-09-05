@@ -32,7 +32,7 @@ export default function MarksEntry() {
   const examId = exams.some((e) => e.id === requestedExam)
     ? requestedExam
     : catalogReady
-      ? defaultExamId(exams, { preferOpen: !leadership })
+      ? defaultExamId(exams)
       : "";
 
   useEffect(() => {
@@ -51,7 +51,7 @@ export default function MarksEntry() {
         }
         const examIds = new Set(nextExams.map((e) => e.id));
         if (!examIds.has(next.get("examId") || "") && nextExams.length) {
-          next.set("examId", defaultExamId(nextExams, { preferOpen: !leadership }));
+          next.set("examId", defaultExamId(nextExams));
         }
         if (next.toString() !== params.toString()) setParams(next, { replace: true });
         setCatalogReady(true);

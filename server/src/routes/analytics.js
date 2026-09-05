@@ -25,6 +25,7 @@ import {
   yearSeries,
 } from "../lib/stats.js";
 import { registerAnalysisReports } from "./analyticsReports.js";
+import { summarizeRegister } from "../lib/registerStatus.js";
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
@@ -333,7 +334,10 @@ analyticsRouter.get("/teacher", async (req, res) => {
     const list = marks.filter(
       (m) => m.subjectId === a.subjectId && m.student.classSectionId === a.classSectionId
     );
-    const percents = list.map(toPercent).filter((p) => p != null);
+    const approved = list.filter((m) => m.status === "APPROVED");
+    const forAverage = approved.length ? approved : list;
+    const percents = forAverage.map(toPercent).filter((p) => p != null);
+    const progress = summarizeRegister(expected.length, list);
     return {
       id: a.id,
       classSectionId: a.classSectionId,
@@ -344,9 +348,8 @@ analyticsRouter.get("/teacher", async (req, res) => {
       passRate: percents.length
         ? round1((percents.filter((p) => p >= PASS_PERCENT).length / percents.length) * 100)
         : 0,
-      expected: expected.length,
-      uploaded: list.length,
-      missing: Math.max(0, expected.length - list.length),
+      provisional: approved.length === 0 && list.length > 0,
+      ...progress,
     };
   });
 
@@ -505,9 +508,14 @@ analyticsRouter.get("/class/:id", async (req, res) => {
   if (!exam) return res.json({ empty: true, classSection: cls });
 
   const marks = await prisma.mark.findMany({
-    where: { examId: exam.id, student: { classSectionId: cls.id }, status: "APPROVED" },
+    where: {
+      examId: exam.id,
+      student: { classSectionId: cls.id },
+      status: { in: ["DRAFT", "APPROVED"] },
+    },
     include: { student: true, subject: true },
   });
+  const approvedMarks = marks.filter((m) => m.status === "APPROVED");
   const allApproved = await prisma.mark.findMany({
     where: { status: "APPROVED", student: { classSectionId: cls.id } },
     include: { student: true, subject: true, exam: true },
@@ -518,11 +526,21 @@ analyticsRouter.get("/class/:id", async (req, res) => {
   });
 
   const perSubject = subjects.map((subject) => {
-    const values = percentsOf(marks.filter((m) => m.subjectId === subject.id));
-    return { subject: subject.name, ...summarize(values) };
+    const list = marks.filter((m) => m.subjectId === subject.id);
+    const approved = list.filter((m) => m.status === "APPROVED");
+    const forStats = approved.length ? approved : list;
+    const values = percentsOf(forStats);
+    return {
+      subject: subject.name,
+      subjectId: subject.id,
+      draftCount: list.filter((m) => m.status === "DRAFT").length,
+      approvedCount: approved.length,
+      provisional: approved.length === 0 && list.length > 0,
+      ...summarize(values),
+    };
   });
 
-  const ranked = studentTotals(groupBy(marks, (m) => m.studentId)).sort(
+  const ranked = studentTotals(groupBy(approvedMarks.length ? approvedMarks : marks, (m) => m.studentId)).sort(
     (a, b) => (b.avg ?? 0) - (a.avg ?? 0)
   );
   const gradeDist = gradeDistFromStudents(ranked);
@@ -591,10 +609,18 @@ analyticsRouter.get("/subject/:id", async (req, res) => {
 
   const sameName = await prisma.subject.findMany({ where: { name: subject.name } });
   const marks = await prisma.mark.findMany({
-    where: { examId: exam.id, subjectId: { in: sameName.map((s) => s.id) }, status: "APPROVED" },
+    where: {
+      examId: exam.id,
+      subjectId: { in: sameName.map((s) => s.id) },
+      status: { in: ["DRAFT", "APPROVED"] },
+    },
     include: { student: { include: { classSection: true } }, subject: true },
   });
-  const classMarks = marks.filter((m) => m.subject.className === subject.className);
+  const approvedMarks = marks.filter((m) => m.status === "APPROVED");
+  const classMarks = (approvedMarks.length ? approvedMarks : marks).filter(
+    (m) => m.subject.className === subject.className
+  );
+  const draftCount = marks.filter((m) => m.status === "DRAFT" && m.subject.className === subject.className).length;
   const allApproved = await prisma.mark.findMany({
     where: { subjectId: { in: sameName.map((s) => s.id) }, status: "APPROVED" },
     include: { student: { include: { classSection: true } }, subject: true, exam: true },
@@ -640,15 +666,18 @@ analyticsRouter.get("/subject/:id", async (req, res) => {
     ),
     schoolSubject: {
       name: subject.name,
-      ...summarize(percentsOf(marks)),
+      draftCount,
+      provisional: approvedMarks.filter((m) => m.subject.className === subject.className).length === 0 && classMarks.length > 0,
+      ...summarize(percentsOf(classMarks)),
     },
+    draftCount,
   });
 });
 
 analyticsRouter.get("/pending-uploads", async (req, res) => {
   if (!isLeadership(req.user.role)) return res.status(403).json({ error: "Forbidden" });
   const { exams, exam } = await loadExams(req.query.examId);
-  if (!exam) return res.json({ empty: true, exams, pendingTeacherCount: 0, teachers: [] });
+  if (!exam) return res.json({ empty: true, exams, pendingTeacherCount: 0, awaitingApprovalTeacherCount: 0, completeTeacherCount: 0, teachers: [] });
   const pendingUploads = await buildPendingUploads(exam);
   res.json({ exams, ...pendingUploads });
 });
@@ -661,17 +690,20 @@ async function buildPendingUploads(exam) {
     prisma.student.findMany({ select: { id: true, classSectionId: true } }),
     prisma.mark.findMany({
       where: { examId: exam.id },
-      select: { studentId: true, subjectId: true },
+      select: { studentId: true, subjectId: true, status: true },
     }),
   ]);
   const studentsByClass = groupBy(students, (s) => s.classSectionId);
-  const uploaded = new Set(marks.map((m) => `${m.studentId}:${m.subjectId}`));
   const byTeacher = new Map();
 
   for (const assignment of assignments) {
     const expected = studentsByClass.get(assignment.classSectionId) || [];
-    const done = expected.filter((s) => uploaded.has(`${s.id}:${assignment.subjectId}`)).length;
-    const missing = expected.length - done;
+    const registerMarks = marks.filter(
+      (m) =>
+        m.subjectId === assignment.subjectId &&
+        expected.some((s) => s.id === m.studentId)
+    );
+    const progress = summarizeRegister(expected.length, registerMarks);
     if (!byTeacher.has(assignment.userId)) {
       byTeacher.set(assignment.userId, {
         teacherId: assignment.userId,
@@ -684,24 +716,34 @@ async function buildPendingUploads(exam) {
       classSectionId: assignment.classSectionId,
       classLabel: `${assignment.classSection.className}-${assignment.classSection.section}`,
       subject: assignment.subject.name,
-      expected: expected.length,
-      uploaded: done,
-      missing,
+      ...progress,
     });
   }
 
   const teachers = [...byTeacher.values()]
-    .map((t) => ({
-      ...t,
-      pending: t.assignments.some((a) => a.missing > 0),
-      missingAssignments: t.assignments.filter((a) => a.missing > 0).length,
-    }))
-    .sort((a, b) => Number(b.pending) - Number(a.pending) || a.name.localeCompare(b.name));
+    .map((t) => {
+      const missingAssignments = t.assignments.filter((a) => a.missing > 0);
+      const awaitingApproval = t.assignments.filter((a) => a.status === "AWAITING_APPROVAL" || (a.draft > 0 && a.approved < a.expected));
+      return {
+        ...t,
+        pending: missingAssignments.length > 0,
+        awaitingApproval: awaitingApproval.length > 0,
+        missingAssignments: missingAssignments.length,
+        awaitingApprovalAssignments: awaitingApproval.length,
+      };
+    })
+    .sort(
+      (a, b) =>
+        Number(b.pending) - Number(a.pending) ||
+        Number(b.awaitingApproval) - Number(a.awaitingApproval) ||
+        a.name.localeCompare(b.name)
+    );
 
   return {
     exam,
     pendingTeacherCount: teachers.filter((t) => t.pending).length,
-    completeTeacherCount: teachers.filter((t) => !t.pending).length,
+    awaitingApprovalTeacherCount: teachers.filter((t) => t.awaitingApproval && !t.pending).length,
+    completeTeacherCount: teachers.filter((t) => !t.pending && !t.awaitingApproval).length,
     teachers,
   };
 }

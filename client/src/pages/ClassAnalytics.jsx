@@ -82,17 +82,25 @@ export default function ClassAnalytics() {
                     <th>High</th>
                     <th>Low</th>
                     <th>Pass</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
                   {page.map((r) => (
                     <tr key={r.subject}>
                       <td>{r.subject}</td>
-                      <td>{r.average}</td>
-                      <td>{r.median}</td>
-                      <td>{r.highest}</td>
-                      <td>{r.lowest}</td>
-                      <td>{r.passRate}%</td>
+                      <td>{r.average ?? "—"}</td>
+                      <td>{r.median ?? "—"}</td>
+                      <td>{r.highest ?? "—"}</td>
+                      <td>{r.lowest ?? "—"}</td>
+                      <td>{r.passRate != null ? `${r.passRate}%` : "—"}</td>
+                      <td className="text-xs text-ink-700/60">
+                        {r.provisional
+                          ? `Draft (${r.draftCount}) — approve to publish`
+                          : r.approvedCount
+                            ? `${r.approvedCount} approved`
+                            : "No marks"}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
