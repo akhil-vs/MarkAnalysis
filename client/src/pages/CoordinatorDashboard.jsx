@@ -22,6 +22,7 @@ import {
   greeting,
 } from "../components/DashboardKit.jsx";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
+import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 
 export default function CoordinatorDashboard() {
   const { user } = useAuth();
@@ -82,6 +83,10 @@ export default function CoordinatorDashboard() {
           value={strongestPair ? `${strongestPair.a} / ${strongestPair.b}` : "—"}
           hint={strongestPair ? { text: `r = ${strongestPair.r}`, tone: "flat" } : null}
         />
+      </div>
+
+      <div className="grid lg:grid-cols-12 gap-4 mb-4">
+        <PendingAccessRequests className="lg:col-span-12" />
       </div>
 
       <div className="grid lg:grid-cols-12 gap-4 mb-4">
