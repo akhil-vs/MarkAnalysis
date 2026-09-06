@@ -19,6 +19,9 @@ function typeLabel(type) {
   if (type === "LATE_ENTRY_APPROVED") return "Late entry approved";
   if (type === "LATE_ENTRY_REJECTED") return "Late entry rejected";
   if (type === "LATE_ENTRY_REQUESTED") return "Late entry requested";
+  if (type === "EDIT_APPROVED") return "Edit approved";
+  if (type === "EDIT_REJECTED") return "Edit rejected";
+  if (type === "EDIT_REQUESTED") return "Edit requested";
   return null;
 }
 

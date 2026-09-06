@@ -30,7 +30,7 @@ export default function PendingUploads() {
     <div>
       <PageHeader
         title="Pending mark uploads"
-        subtitle={`${data.exam.name} — missing registers and drafts waiting for approval`}
+        subtitle={`${data.exam.name} — missing registers and submitted marks waiting for approval`}
         actions={
           <select className="field w-auto" value={examId} onChange={(e) => load(e.target.value)}>
             {(data.exams || []).map((e) => (
@@ -68,7 +68,7 @@ export default function PendingUploads() {
             <section className="space-y-3">
               <h2 className="font-serif text-xl">Entered — awaiting your approval</h2>
               <p className="text-sm text-ink-700/60">
-                Approve each teacher’s register separately. Drafts for other teachers stay unpublished.
+                Approve each teacher’s register separately. Drafts and other teachers’ registers stay unpublished.
               </p>
               {awaiting.map((t) => (
                 <TeacherCard
@@ -103,17 +103,22 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
   const [busyKey, setBusyKey] = useState("");
   const rows =
     mode === "awaiting"
-      ? t.assignments.filter((a) => (a.draft ?? 0) > 0 && (a.approved ?? 0) < a.expected)
+      ? t.assignments.filter(
+          (a) =>
+            a.status === "AWAITING_APPROVAL" ||
+            ((a.submitted ?? 0) > 0 && (a.approved ?? 0) < a.expected)
+        )
       : t.assignments.filter((a) => a.missing > 0);
 
   async function approveRegister(a) {
     if (!a.subjectId) {
       return;
     }
+    const submittedCount = a.submitted ?? 0;
     const ok = await confirm({
-      title: "Approve this teacher’s drafts?",
-      message: `Approve ${a.draft ?? 0} draft mark${(a.draft ?? 0) === 1 ? "" : "s"} for ${t.name} · ${a.classLabel} · ${a.subject}? Other teachers’ drafts stay unpublished.`,
-      confirmLabel: "Approve drafts",
+      title: "Approve this teacher’s submitted marks?",
+      message: `Approve ${submittedCount} submitted mark${submittedCount === 1 ? "" : "s"} for ${t.name} · ${a.classLabel} · ${a.subject}? Other teachers’ registers stay unpublished.`,
+      confirmLabel: "Approve submitted",
     });
     if (!ok) return;
     const key = `${a.classSectionId}-${a.subjectId}`;
@@ -132,7 +137,7 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
         `Approved ${res.approved ?? 0} mark${res.approved === 1 ? "" : "s"} for ${t.name} · ${a.subject}`
       );
     } catch (err) {
-      await onApproved?.(err.message || "Could not approve drafts");
+      await onApproved?.(err.message || "Could not approve submitted marks");
     } finally {
       setBusyKey("");
     }
@@ -159,6 +164,7 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
                 <th>Class</th>
                 <th>Subject</th>
                 <th>Entered</th>
+                <th>Submitted</th>
                 <th>Approved</th>
                 <th>Draft</th>
                 <th></th>
@@ -174,6 +180,7 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
                     <td>
                       {a.uploaded} / {a.expected}
                     </td>
+                    <td>{a.submitted ?? 0}</td>
                     <td>{a.approved ?? 0}</td>
                     <td>{a.draft ?? 0}</td>
                     <td className="space-x-2 whitespace-nowrap">
@@ -192,7 +199,7 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
                           disabled={busyKey === key}
                           onClick={() => approveRegister(a)}
                         >
-                          {busyKey === key ? "Approving…" : "Approve drafts"}
+                          {busyKey === key ? "Approving…" : "Approve submitted"}
                         </button>
                       )}
                     </td>

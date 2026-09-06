@@ -12,6 +12,7 @@ import { defaultExamId, examLabel } from "../lib/exams.js";
 function StatusChip({ status, dirty }) {
   if (dirty) return <span className="mark-chip mark-chip-dirty">Unsaved</span>;
   if (status === "APPROVED") return <span className="mark-chip mark-chip-approved">Approved</span>;
+  if (status === "SUBMITTED") return <span className="mark-chip mark-chip-submitted">Submitted</span>;
   if (status === "DRAFT") return <span className="mark-chip mark-chip-draft">Draft</span>;
   return <span className="mark-chip mark-chip-empty">Empty</span>;
 }
@@ -39,6 +40,8 @@ export default function MarksEntry() {
   const [errors, setErrors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [requestingEdit, setRequestingEdit] = useState(false);
   const [catalogReady, setCatalogReady] = useState(false);
   const inputRefs = useRef({});
   const subjectOptionsRef = useRef([]);
@@ -167,6 +170,14 @@ export default function MarksEntry() {
     return leadership || grid?.entryAccess?.bySubject?.[id]?.canEnter !== false;
   }
 
+  function canEditCell(subjectId, meta) {
+    if (!canEditSubject(subjectId)) return false;
+    if (leadership) return true;
+    const locked = meta?.status === "SUBMITTED" || meta?.status === "APPROVED";
+    if (!locked) return true;
+    return Boolean(grid?.entryAccess?.bySubject?.[subjectId]?.canEditLocked);
+  }
+
   const dirtyKeys = useMemo(() => {
     const set = new Set();
     if (!grid) return set;
@@ -183,10 +194,11 @@ export default function MarksEntry() {
 
   const stats = useMemo(() => {
     if (!grid?.students?.length || !grid?.subjects?.length) {
-      return { cells: 0, entered: 0, draft: 0, approved: 0, empty: 0, dirty: 0 };
+      return { cells: 0, entered: 0, draft: 0, submitted: 0, approved: 0, empty: 0, dirty: 0 };
     }
     let entered = 0;
     let draftCount = 0;
+    let submitted = 0;
     let approved = 0;
     let empty = 0;
     for (const student of grid.students) {
@@ -194,12 +206,12 @@ export default function MarksEntry() {
         const key = `${student.id}:${subject.id}`;
         const meta = markMeta[key];
         const value = draft[key];
-        const original = meta ? String(meta.marksObtained) : "";
         const hasValue = value !== undefined && value !== "";
         if (hasValue) entered += 1;
         else empty += 1;
         if (dirtyKeys.has(key)) continue;
         if (meta?.status === "APPROVED") approved += 1;
+        else if (meta?.status === "SUBMITTED") submitted += 1;
         else if (meta?.status === "DRAFT") draftCount += 1;
       }
     }
@@ -207,73 +219,185 @@ export default function MarksEntry() {
       cells: grid.students.length * grid.subjects.length,
       entered,
       draft: draftCount,
+      submitted,
       approved,
       empty,
       dirty: dirtyKeys.size,
     };
   }, [grid, draft, markMeta, dirtyKeys]);
 
-  async function save() {
-    if (!grid) return;
+  function collectChangedEntries({ subjectFilter } = {}) {
+    if (!grid) return [];
     const entries = [];
-    let touchingApproved = false;
     for (const student of grid.students) {
       for (const subject of grid.subjects) {
-        if (!canEditSubject(subject.id)) continue;
+        if (subjectFilter && subject.id !== subjectFilter) continue;
+        if (!canEditCell(subject.id, markMeta[`${student.id}:${subject.id}`])) continue;
         const key = `${student.id}:${subject.id}`;
         if (draft[key] === undefined) continue;
         const existing = markMeta[key];
         const original = existing ? String(existing.marksObtained) : "";
         if (String(draft[key]) === original) continue;
-        if (existing?.status === "APPROVED") touchingApproved = true;
         entries.push({ studentId: student.id, subjectId: subject.id, marksObtained: draft[key] });
       }
     }
+    return entries;
+  }
+
+  async function save({ subjectFilter, silent = false } = {}) {
+    if (!grid) return { ok: false };
+    const entries = collectChangedEntries({ subjectFilter });
     if (!entries.length) {
-      setMessage("No changes to save");
-      return;
+      if (!silent) setMessage("No changes to save");
+      return { ok: false, empty: true };
+    }
+
+    let touchingLocked = false;
+    for (const entry of entries) {
+      const existing = markMeta[`${entry.studentId}:${entry.subjectId}`];
+      if (existing?.status === "APPROVED" || existing?.status === "SUBMITTED") {
+        touchingLocked = true;
+        break;
+      }
     }
     if (
-      touchingApproved &&
+      touchingLocked &&
       !(await confirm({
-        title: "Save over approved marks?",
+        title: "Save over submitted marks?",
         message:
-          "Some cells are already approved. Saving will move those marks back to draft until leadership re-approves.",
-        confirmLabel: "Save as draft",
+          "Some cells are already submitted or approved. Saving will move those marks back to draft until you submit again.",
+        confirmLabel: "Save progress",
         tone: "danger",
       }))
     ) {
-      return;
+      return { ok: false, cancelled: true };
     }
+
     setSaving(true);
     try {
       const res = await api("/api/marks", { method: "PUT", body: { examId, entries } });
       const failed = (res.results || []).filter((r) => r.error);
       setErrors(failed);
-      setMessage(
-        failed.length
-          ? `${failed.length} cells failed validation`
-          : `Saved ${entries.length} mark${entries.length === 1 ? "" : "s"} as draft`
-      );
+      if (failed.length) {
+        if (!silent) {
+          setMessage(`${failed.length} cell${failed.length === 1 ? "" : "s"} failed validation`);
+        }
+        return { ok: false, failed };
+      }
+      if (!silent) {
+        setMessage(
+          `Saved ${entries.length} mark${entries.length === 1 ? "" : "s"} as draft`
+        );
+      }
       await loadGrid({ keepMessage: true });
+      return { ok: true, count: entries.length };
     } catch (err) {
-      setMessage(err.message || "Could not save marks");
+      if (!silent) setMessage(err.message || "Could not save marks");
+      return { ok: false, error: err };
     } finally {
       setSaving(false);
     }
   }
 
+  async function submitMarks() {
+    const targetSubjectId = subjectId || (grid?.subjects?.length === 1 ? grid.subjects[0].id : "");
+    if (!targetSubjectId) {
+      setMessage("Select a subject from the dropdown to submit marks.");
+      return;
+    }
+    const subjectName =
+      grid?.subjects?.find((s) => s.id === targetSubjectId)?.name || "this subject";
+    const draftCount = (grid?.marks || []).filter(
+      (m) => m.subjectId === targetSubjectId && m.status === "DRAFT"
+    ).length;
+    const subjectDirty = [...dirtyKeys].some((key) => key.endsWith(`:${targetSubjectId}`));
+
+    if (
+      !(await confirm({
+        title: "Submit marks?",
+        message: `Submit ${subjectName} marks for leadership approval? Draft marks will be locked until you request edit access.`,
+        confirmLabel: "Submit marks",
+      }))
+    ) {
+      return;
+    }
+
+    setSubmitting(true);
+    try {
+      if (subjectDirty) {
+        const saved = await save({ subjectFilter: targetSubjectId, silent: true });
+        if (!saved.ok && !saved.empty) {
+          if (!saved.cancelled) {
+            setMessage(saved.error?.message || "Could not save changes before submit");
+          }
+          return;
+        }
+      }
+      const res = await api("/api/marks/submit", {
+        method: "POST",
+        body: { examId, classSectionId, subjectId: targetSubjectId },
+      });
+      setMessage(
+        `Submitted ${res.submitted ?? draftCount} mark${(res.submitted ?? draftCount) === 1 ? "" : "s"} for ${subjectName}`
+      );
+      await loadGrid({ keepMessage: true });
+    } catch (err) {
+      setMessage(err.message || "Could not submit marks");
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  async function requestEdit() {
+    const targetSubjectId = subjectId || (grid?.subjects?.length === 1 ? grid.subjects[0].id : "");
+    if (!targetSubjectId) {
+      setMessage("Select a subject to request edit access.");
+      return;
+    }
+    const subjectName =
+      grid?.subjects?.find((s) => s.id === targetSubjectId)?.name || "this subject";
+    const access = grid?.entryAccess?.bySubject?.[targetSubjectId];
+    if (access?.editRequestStatus === "PENDING") {
+      setMessage(`${subjectName} edit request is already waiting for approval.`);
+      return;
+    }
+
+    setRequestingEdit(true);
+    try {
+      await api("/api/mark-access", {
+        method: "POST",
+        body: { examId, classSectionId, subjectId: targetSubjectId, kind: "EDIT" },
+      });
+      setMessage(
+        access?.editRequestStatus === "REJECTED"
+          ? `${subjectName} edit requested again. Waiting for principal or coordinator approval.`
+          : `${subjectName} edit requested. Waiting for principal or coordinator approval.`
+      );
+      await loadGrid({ keepMessage: true });
+    } catch (err) {
+      if (err.status === 409) {
+        setMessage(`${subjectName} edit request is already waiting for approval.`);
+        await loadGrid({ keepMessage: true });
+      } else {
+        setMessage(err.message || "Could not request edit access");
+      }
+    } finally {
+      setRequestingEdit(false);
+    }
+  }
+
   async function approve(teacher) {
-    const draftCount = teacher?.count ?? (grid?.marks || []).filter((m) => m.status === "DRAFT").length;
+    const submittedCount =
+      teacher?.count ?? (grid?.marks || []).filter((m) => m.status === "SUBMITTED").length;
     const teacherName = teacher?.name || "this teacher";
     const scope = subjectId
       ? grid?.subjects?.find((s) => s.id === subjectId)?.name || "this subject"
       : "this class";
     if (
       !(await confirm({
-        title: "Approve teacher drafts?",
-        message: `Approve ${draftCount} draft mark${draftCount === 1 ? "" : "s"} entered by ${teacherName} for ${scope}? Only this teacher's drafts will be published.`,
-        confirmLabel: "Approve drafts",
+        title: "Approve submitted marks?",
+        message: `Approve ${submittedCount} submitted mark${submittedCount === 1 ? "" : "s"} entered by ${teacherName} for ${scope}? Only this teacher's submitted marks will be published.`,
+        confirmLabel: "Approve submitted",
       }))
     ) {
       return;
@@ -311,7 +435,7 @@ export default function MarksEntry() {
     if (
       !(await confirm({
         title: "Unapprove teacher marks?",
-        message: `Return ${approvedCount} approved mark${approvedCount === 1 ? "" : "s"} entered by ${teacherName} for ${scope} to draft? Only this teacher's marks will change.`,
+        message: `Return ${approvedCount} approved mark${approvedCount === 1 ? "" : "s"} entered by ${teacherName} for ${scope} to submitted? Only this teacher's marks will change.`,
         confirmLabel: "Unapprove",
         tone: "danger",
       }))
@@ -329,7 +453,7 @@ export default function MarksEntry() {
         },
       });
       setMessage(
-        `Reverted ${res.reverted ?? 0} mark${res.reverted === 1 ? "" : "s"} to draft for ${teacherName}`
+        `Reverted ${res.reverted ?? 0} mark${res.reverted === 1 ? "" : "s"} to submitted for ${teacherName}`
       );
       await loadGrid({ keepMessage: true });
     } catch (err) {
@@ -377,7 +501,7 @@ export default function MarksEntry() {
   const draftTeachers = useMemo(() => {
     const map = new Map();
     for (const m of grid?.marks || []) {
-      if (m.status !== "DRAFT") continue;
+      if (m.status !== "SUBMITTED") continue;
       const teacherId = m.enteredBy?.id || m.enteredById;
       if (!teacherId) continue;
       if (!map.has(teacherId)) {
@@ -410,24 +534,73 @@ export default function MarksEntry() {
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [grid]);
 
+  const effectiveSubjectId = subjectId || singleSubject?.id || "";
+  const selectedSubjectAccess = effectiveSubjectId
+    ? grid?.entryAccess?.bySubject?.[effectiveSubjectId]
+    : null;
+  const hasLockedMarksInSubject = useMemo(() => {
+    if (!effectiveSubjectId || !grid) return false;
+    return (grid.marks || []).some(
+      (m) =>
+        m.subjectId === effectiveSubjectId &&
+        (m.status === "SUBMITTED" || m.status === "APPROVED")
+    );
+  }, [grid, effectiveSubjectId]);
+  const canRequestEdit =
+    !leadership &&
+    Boolean(effectiveSubjectId) &&
+    hasLockedMarksInSubject &&
+    selectedSubjectAccess?.editRequestStatus !== "PENDING" &&
+    !selectedSubjectAccess?.canEditLocked;
+  const showEditPending =
+    !leadership &&
+    Boolean(effectiveSubjectId) &&
+    selectedSubjectAccess?.editRequestStatus === "PENDING";
+
   return (
     <div>
       <PageHeader
         title="Mark register"
-        subtitle="Enter marks by class and subject. Saves stay draft until leadership approves each teacher separately."
+        subtitle="Enter marks by class and subject. Save progress as draft, then submit for leadership approval."
         actions={
           <>
+            {!leadership && (
+              <button
+                className="btn-primary"
+                onClick={submitMarks}
+                disabled={allLocked || !grid || submitting || saving || !effectiveSubjectId}
+              >
+                {submitting ? "Submitting…" : "Submit marks"}
+              </button>
+            )}
             <button
-              className="btn-primary"
-              onClick={save}
-              disabled={allLocked || !grid || saving || stats.dirty === 0}
+              className={leadership ? "btn-primary" : "btn-ghost"}
+              onClick={() => save()}
+              disabled={allLocked || !grid || saving || submitting || stats.dirty === 0}
             >
               {saving
                 ? "Saving…"
                 : stats.dirty
-                  ? `Save ${stats.dirty} change${stats.dirty === 1 ? "" : "s"}`
-                  : "Save drafts"}
+                  ? `Save progress (${stats.dirty})`
+                  : "Save progress"}
             </button>
+            {canRequestEdit && (
+              <button
+                className="btn-ghost"
+                type="button"
+                onClick={requestEdit}
+                disabled={requestingEdit}
+              >
+                {requestingEdit
+                  ? "Requesting…"
+                  : selectedSubjectAccess?.editRequestStatus === "REJECTED"
+                    ? "Request edit again"
+                    : "Request edit"}
+              </button>
+            )}
+            {showEditPending && (
+              <span className="mark-chip mark-chip-pending self-center">Edit requested</span>
+            )}
             {leadership && draftTeachers.length === 1 && (
               <button className="btn-accent" onClick={() => approve(draftTeachers[0])}>
                 Approve {draftTeachers[0].name.split(" ")[0]} ({draftTeachers[0].count})
@@ -445,13 +618,13 @@ export default function MarksEntry() {
       {leadership && (draftTeachers.length > 1 || approvedTeachers.length > 1) && (
         <div className="card mb-4 p-4 space-y-3">
           <div className="text-sm text-ink-700/75">
-            Approve or unapprove one teacher at a time so registers stay separate.
+            Approve or unapprove one teacher at a time so submitted registers stay separate.
           </div>
           {draftTeachers.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {draftTeachers.map((t) => (
                 <button key={`draft-${t.teacherId}`} type="button" className="btn-accent" onClick={() => approve(t)}>
-                  Approve drafts · {t.name} ({t.count})
+                  Approve submitted · {t.name} ({t.count})
                 </button>
               ))}
             </div>
@@ -554,6 +727,11 @@ export default function MarksEntry() {
             tone={stats.draft ? "border-clay-500/30 bg-[#fbf4ec]" : undefined}
           />
           <StatPill
+            label="Submitted"
+            value={stats.submitted}
+            tone={stats.submitted ? "border-ink-900/15 bg-ink-900/5" : undefined}
+          />
+          <StatPill
             label="Approved"
             value={stats.approved}
             tone={stats.approved ? "border-moss-500/30 bg-[#eef5f0]" : undefined}
@@ -565,6 +743,11 @@ export default function MarksEntry() {
         </div>
       )}
 
+      {!effectiveSubjectId && grid?.subjects?.length > 1 && !leadership && (
+        <p className="mb-3 text-sm text-ink-700/65 rounded-lg border border-ink-900/10 bg-white/70 px-3 py-2">
+          Select a subject to submit marks or request edit access.
+        </p>
+      )}
       {message && (
         <p
           className={`mb-3 text-sm rounded-lg px-3 py-2 ${
@@ -620,7 +803,7 @@ export default function MarksEntry() {
                   {page.map((student, rowIdx) => {
                     const key = `${student.id}:${singleSubject.id}`;
                     const meta = markMeta[key];
-                    const editable = canEditSubject(singleSubject.id);
+                    const editable = canEditCell(singleSubject.id, meta);
                     const dirty = dirtyKeys.has(key);
                     const studentIndex = offset + rowIdx;
                     return (
@@ -703,7 +886,7 @@ export default function MarksEntry() {
                           {grid.subjects.map((subject, subjectIndex) => {
                             const key = `${student.id}:${subject.id}`;
                             const meta = markMeta[key];
-                            const editable = canEditSubject(subject.id);
+                            const editable = canEditCell(subject.id, meta);
                             const dirty = dirtyKeys.has(key);
                             return (
                               <td key={subject.id} className="align-top">

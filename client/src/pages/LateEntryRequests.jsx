@@ -18,21 +18,34 @@ function statusLabel(status) {
   return status || "—";
 }
 
+function kindLabel(kind) {
+  if (kind === "EDIT") return "Edit";
+  if (kind === "LATE_ENTRY") return "Late entry";
+  return kind || "Late entry";
+}
+
+function kindTone(kind) {
+  if (kind === "EDIT") return "mark-chip mark-chip-submitted";
+  return "mark-chip mark-chip-pending";
+}
+
 export default function LateEntryRequests() {
   const { user } = useAuth();
   const [rows, setRows] = useState([]);
   const [exams, setExams] = useState([]);
   const [examId, setExamId] = useState("");
   const [status, setStatus] = useState("PENDING");
+  const [kind, setKind] = useState("");
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState("ok");
   const [busyId, setBusyId] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function load(exam = examId, st = status) {
+  async function load(exam = examId, st = status, k = kind) {
     const params = new URLSearchParams();
     if (exam) params.set("examId", exam);
     if (st) params.set("status", st);
+    if (k) params.set("kind", k);
     setLoading(true);
     try {
       setRows(await api(`/api/mark-access?${params}`));
@@ -55,11 +68,11 @@ export default function LateEntryRequests() {
 
   useEffect(() => {
     if (!examId && exams.length) return;
-    load(examId, status).catch((e) => {
+    load(examId, status, kind).catch((e) => {
       setMessageTone("error");
       setMessage(e.message);
     });
-  }, [examId, status, exams.length]);
+  }, [examId, status, kind, exams.length]);
 
   async function review(id, nextStatus) {
     setMessage("");
@@ -90,17 +103,23 @@ export default function LateEntryRequests() {
       );
 
       setMessageTone("ok");
+      const existing = rows.find((row) => row.id === id);
+      const isEdit = (updated.kind || existing?.kind) === "EDIT";
       setMessage(
         nextStatus === "APPROVED"
-          ? "Late entry approved. The teacher can enter marks now."
-          : "Late entry request rejected."
+          ? isEdit
+            ? "Edit request approved. The teacher can edit and resubmit marks."
+            : "Late entry approved. The teacher can enter marks now."
+          : isEdit
+            ? "Edit request rejected."
+            : "Late entry request rejected."
       );
 
       // Move to the matching status filter so the updated row stays visible with confirmation.
       if (status === "PENDING" || status === "") {
         setStatus(nextStatus);
       } else {
-        await load(examId, status);
+        await load(examId, status, kind);
       }
     } catch (err) {
       setMessageTone("error");
@@ -114,7 +133,7 @@ export default function LateEntryRequests() {
     <div>
       <PageHeader
         title="Late mark entry"
-        subtitle="Teachers request access after the exam deadline. Approve to unlock their register."
+        subtitle="Teachers request late entry after the deadline or edit access for submitted registers."
         actions={
           <>
             <select className="field w-auto" value={examId} onChange={(e) => setExamId(e.target.value)}>
@@ -130,6 +149,11 @@ export default function LateEntryRequests() {
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
               <option value="">All</option>
+            </select>
+            <select className="field w-auto" value={kind} onChange={(e) => setKind(e.target.value)}>
+              <option value="">All kinds</option>
+              <option value="LATE_ENTRY">Late entry</option>
+              <option value="EDIT">Edit</option>
             </select>
           </>
         }
@@ -149,12 +173,13 @@ export default function LateEntryRequests() {
         {loading && !rows.length ? (
           <p className="p-4 text-sm text-ink-700/60">Loading requests…</p>
         ) : (
-          <PaginatedTable items={rows} resetKey={`${examId}:${status}`} empty="No late entry requests.">
+          <PaginatedTable items={rows} resetKey={`${examId}:${status}:${kind}`} empty="No mark access requests.">
             {(page) => (
               <table className="table">
                 <thead>
                   <tr>
                     <th>Teacher</th>
+                    <th>Kind</th>
                     <th>Exam</th>
                     <th>Register</th>
                     <th>Requested</th>
@@ -167,6 +192,9 @@ export default function LateEntryRequests() {
                   {page.map((r) => (
                     <tr key={r.id}>
                       <td className="font-medium">{r.teacher?.name || "—"}</td>
+                      <td>
+                        <span className={kindTone(r.kind)}>{kindLabel(r.kind)}</span>
+                      </td>
                       <td>{r.exam?.name || "—"}</td>
                       <td>
                         {r.classLabel || r.classSectionId} · {r.subject?.name || "—"}

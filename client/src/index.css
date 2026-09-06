@@ -78,6 +78,10 @@ body {
   @apply bg-clay-500/20 text-clay-600;
 }
 
+.mark-chip-submitted {
+  @apply bg-ink-900/10 text-ink-700/70;
+}
+
 .mark-grid th,
 .mark-grid td {
   @apply align-middle;

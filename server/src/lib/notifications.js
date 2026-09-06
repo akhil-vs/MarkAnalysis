@@ -91,3 +91,59 @@ export async function notifyLateEntryReviewed(request, status) {
     },
   });
 }
+
+
+export async function notifyEditRequested(request) {
+  const teacherName = request.teacher?.name || "A teacher";
+  const examName = request.exam?.name || "an exam";
+  const subjectName = request.subject?.name || "a subject";
+  const classLabel = request.classLabel || request.classSectionId;
+
+  return notifyRoles(["PRINCIPAL", "EXAM_COORDINATOR"], {
+    type: "EDIT_REQUESTED",
+    title: "Mark edit requested",
+    body: `${teacherName} requested edit access for ${examName} · ${classLabel} · ${subjectName}.`,
+    link: "/late-entry",
+    meta: {
+      requestId: request.id,
+      kind: "EDIT",
+      examId: request.examId,
+      teacherId: request.teacherId,
+      classSectionId: request.classSectionId,
+      subjectId: request.subjectId,
+    },
+  });
+}
+
+export async function notifyEditReviewed(request, status) {
+  const teacherUserId = request.teacherId || request.teacher?.id;
+  if (!teacherUserId) {
+    throw new Error("Cannot notify teacher: missing teacherId on edit request");
+  }
+
+  const examName = request.exam?.name || "an exam";
+  const subjectName = request.subject?.name || "a subject";
+  const classLabel = request.classLabel || request.classSectionId;
+  const approved = status === "APPROVED";
+  const marksLink = request.classSectionId && request.subjectId && request.examId
+    ? `/marks?classSectionId=${encodeURIComponent(request.classSectionId)}&examId=${encodeURIComponent(request.examId)}&subjectId=${encodeURIComponent(request.subjectId)}`
+    : "/marks";
+
+  return createNotification({
+    userId: teacherUserId,
+    type: approved ? "EDIT_APPROVED" : "EDIT_REJECTED",
+    title: approved ? "Mark edit approved" : "Mark edit rejected",
+    body: approved
+      ? `Your edit request for ${examName} · ${classLabel} · ${subjectName} was approved. Marks are unlocked as draft — edit and submit again.`
+      : `Your edit request for ${examName} · ${classLabel} · ${subjectName} was rejected.`,
+    link: marksLink,
+    meta: {
+      requestId: request.id,
+      kind: "EDIT",
+      examId: request.examId,
+      classSectionId: request.classSectionId,
+      subjectId: request.subjectId,
+      status,
+    },
+  });
+}

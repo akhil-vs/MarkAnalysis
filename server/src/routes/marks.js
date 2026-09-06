@@ -6,8 +6,10 @@ import { parse } from "csv-parse/sync";
 import { prisma } from "../lib/prisma.js";
 import { auth, getAssignments, isLeadership, requireRole, teacherCanAccess } from "../middleware/auth.js";
 import {
+  assertTeacherCanMutateMark,
   assertTeacherMarkEntryAccess,
   getMarkEntryAccessMap,
+  isLockedMarkStatus,
   teacherHasMarkEntryAccess,
 } from "../lib/markAccess.js";
 
@@ -107,10 +109,19 @@ marksRouter.put("/", async (req, res) => {
         results.push({ studentId, subjectId, error: "Not assigned" });
         continue;
       }
-      const blocked = await assertTeacherMarkEntryAccess(req.user, {
+    }
+
+    const existingForLock = await prisma.mark.findUnique({
+      where: { studentId_subjectId_examId: { studentId, subjectId, examId } },
+      select: { id: true, status: true, marksObtained: true },
+    });
+
+    if (req.user.role === "TEACHER") {
+      const blocked = await assertTeacherCanMutateMark(req.user, {
         examId,
         classSectionId: student.classSectionId,
         subjectId,
+        existingStatus: existingForLock?.status,
       });
       if (blocked) {
         results.push({ studentId, subjectId, error: blocked });
@@ -379,6 +390,29 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
         return res.status(403).json({ error: blocked });
       }
     }
+    for (const item of valid) {
+      const existing = await prisma.mark.findUnique({
+        where: {
+          studentId_subjectId_examId: {
+            studentId: item.student.id,
+            subjectId: item.subject.id,
+            examId,
+          },
+        },
+        select: { status: true },
+      });
+      if (isLockedMarkStatus(existing?.status)) {
+        const editBlocked = await assertTeacherCanMutateMark(req.user, {
+          examId,
+          classSectionId,
+          subjectId: item.subject.id,
+          existingStatus: existing.status,
+        });
+        if (editBlocked) {
+          return res.status(403).json({ error: editBlocked });
+        }
+      }
+    }
   }
 
   const saved = [];
@@ -433,11 +467,79 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
   });
 });
 
+
+marksRouter.post("/submit", async (req, res) => {
+  const { examId, classSectionId, subjectId } = req.body || {};
+  if (!examId || !classSectionId || !subjectId) {
+    return res.status(400).json({ error: "examId, classSectionId, and subjectId are required" });
+  }
+
+  if (req.user.role === "TEACHER") {
+    const ok = await teacherCanAccess(req.user, { classSectionId, subjectId });
+    if (!ok) return res.status(403).json({ error: "Not assigned to this register" });
+    const blocked = await assertTeacherMarkEntryAccess(req.user, {
+      examId,
+      classSectionId,
+      subjectId,
+    });
+    if (blocked) return res.status(403).json({ error: blocked });
+  } else if (!isLeadership(req.user.role)) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const students = await prisma.student.findMany({
+    where: { classSectionId },
+    select: { id: true },
+  });
+  const studentIds = students.map((s) => s.id);
+  if (!studentIds.length) {
+    return res.status(400).json({ error: "No students in this class" });
+  }
+
+  const teacherId = req.user.role === "TEACHER" ? req.user.userId : req.body.teacherId;
+  if (!teacherId) {
+    return res.status(400).json({ error: "teacherId is required when leadership submits for a teacher" });
+  }
+
+  const drafts = await prisma.mark.findMany({
+    where: {
+      examId,
+      subjectId,
+      studentId: { in: studentIds },
+      enteredById: teacherId,
+      status: "DRAFT",
+    },
+    select: { id: true },
+  });
+  if (!drafts.length) {
+    return res.status(400).json({ error: "No draft marks to submit for this register" });
+  }
+
+  const result = await prisma.mark.updateMany({
+    where: { id: { in: drafts.map((d) => d.id) } },
+    data: { status: "SUBMITTED" },
+  });
+
+  // Clear edit grant after resubmit so marks lock again.
+  await prisma.markEntryAccessRequest.deleteMany({
+    where: {
+      examId,
+      teacherId,
+      classSectionId,
+      subjectId,
+      kind: "EDIT",
+      status: "APPROVED",
+    },
+  });
+
+  res.json({ submitted: result.count, teacherId });
+});
+
 marksRouter.post("/approve", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { examId, classSectionId, subjectId, teacherId } = req.body || {};
   if (!examId) return res.status(400).json({ error: "examId is required" });
   if (!teacherId) {
-    return res.status(400).json({ error: "teacherId is required — approve drafts one teacher at a time" });
+    return res.status(400).json({ error: "teacherId is required — approve submitted marks one teacher at a time" });
   }
 
   const studentFilter = classSectionId ? { classSectionId } : undefined;
@@ -448,7 +550,7 @@ marksRouter.post("/approve", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
   const result = await prisma.mark.updateMany({
     where: {
       examId,
-      status: "DRAFT",
+      status: "SUBMITTED",
       enteredById: teacherId,
       ...(subjectId && { subjectId }),
       ...(students && { studentId: { in: students.map((s) => s.id) } }),
@@ -462,7 +564,7 @@ marksRouter.post("/unapprove", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
   const { examId, classSectionId, subjectId, teacherId } = req.body || {};
   if (!examId) return res.status(400).json({ error: "examId is required" });
   if (!teacherId) {
-    return res.status(400).json({ error: "teacherId is required — unapprove drafts one teacher at a time" });
+    return res.status(400).json({ error: "teacherId is required — unapprove submitted marks one teacher at a time" });
   }
 
   const studentFilter = classSectionId ? { classSectionId } : undefined;
@@ -478,7 +580,7 @@ marksRouter.post("/unapprove", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
       ...(subjectId && { subjectId }),
       ...(students && { studentId: { in: students.map((s) => s.id) } }),
     },
-    data: { status: "DRAFT" },
+    data: { status: "SUBMITTED" },
   });
   res.json({ reverted: result.count, teacherId });
 });
