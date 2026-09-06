@@ -74,6 +74,10 @@ body {
   @apply bg-ink-900/5 text-ink-700/45;
 }
 
+.mark-chip-pending {
+  @apply bg-clay-500/20 text-clay-600;
+}
+
 .mark-grid th,
 .mark-grid td {
   @apply align-middle;
