@@ -61,19 +61,27 @@ export async function notifyLateEntryRequested(request) {
 }
 
 export async function notifyLateEntryReviewed(request, status) {
+  const teacherUserId = request.teacherId || request.teacher?.id;
+  if (!teacherUserId) {
+    throw new Error("Cannot notify teacher: missing teacherId on late entry request");
+  }
+
   const examName = request.exam?.name || "an exam";
   const subjectName = request.subject?.name || "a subject";
   const classLabel = request.classLabel || request.classSectionId;
   const approved = status === "APPROVED";
+  const marksLink = request.classSectionId && request.subjectId && request.examId
+    ? `/marks?classSectionId=${encodeURIComponent(request.classSectionId)}&examId=${encodeURIComponent(request.examId)}&subjectId=${encodeURIComponent(request.subjectId)}`
+    : "/marks";
 
   return createNotification({
-    userId: request.teacherId,
+    userId: teacherUserId,
     type: approved ? "LATE_ENTRY_APPROVED" : "LATE_ENTRY_REJECTED",
     title: approved ? "Late mark entry approved" : "Late mark entry rejected",
     body: approved
       ? `Your late entry request for ${examName} · ${classLabel} · ${subjectName} was approved. You can enter marks now.`
       : `Your late entry request for ${examName} · ${classLabel} · ${subjectName} was rejected.`,
-    link: "/marks",
+    link: marksLink,
     meta: {
       requestId: request.id,
       examId: request.examId,

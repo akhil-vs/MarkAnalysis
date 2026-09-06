@@ -168,11 +168,14 @@ markAccessRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
   });
 
   const decorated = await decorateRequest(updated);
+  let notified = false;
   try {
     await notifyLateEntryReviewed(decorated, status);
+    notified = true;
   } catch (err) {
+    // Review is already saved — still surface notify failure for logs/clients.
     console.error("Failed to notify teacher of late entry review", err);
   }
 
-  res.json(decorated);
+  res.json({ ...decorated, notified });
 });
