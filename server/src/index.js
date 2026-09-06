@@ -11,6 +11,7 @@ import { analyticsRouter } from "./routes/analytics.js";
 import { exportsRouter } from "./routes/exports.js";
 import { markAccessRouter } from "./routes/markAccess.js";
 import { notificationsRouter } from "./routes/notifications.js";
+import { schoolRouter } from "./routes/school.js";
 
 const app = express();
 const port = Number(process.env.PORT || 4000);
@@ -40,6 +41,7 @@ app.use("/api/exams", examsRouter);
 app.use("/api/marks", marksRouter);
 app.use("/api/mark-access", markAccessRouter);
 app.use("/api/notifications", notificationsRouter);
+app.use("/api/school", schoolRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/exports", exportsRouter);
 

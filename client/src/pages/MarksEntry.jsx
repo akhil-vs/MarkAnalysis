@@ -8,6 +8,7 @@ import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
+import { formatMarkCell } from "../lib/markCodes.js";
 
 function StatusChip({ status, dirty }) {
   if (dirty) return <span className="mark-chip mark-chip-dirty">Unsaved</span>;
@@ -121,7 +122,7 @@ export default function MarksEntry() {
 
     const next = {};
     for (const m of data.marks || []) {
-      next[`${m.studentId}:${m.subjectId}`] = String(m.marksObtained);
+      next[`${m.studentId}:${m.subjectId}`] = formatMarkCell(m);
     }
     setDraft(next);
     setErrors([]);
@@ -185,7 +186,7 @@ export default function MarksEntry() {
       for (const subject of grid.subjects || []) {
         const key = `${student.id}:${subject.id}`;
         const meta = markMeta[key];
-        const original = meta ? String(meta.marksObtained) : "";
+        const original = meta ? formatMarkCell(meta) : "";
         if (String(draft[key] ?? "") !== original) set.add(key);
       }
     }
@@ -236,7 +237,7 @@ export default function MarksEntry() {
         const key = `${student.id}:${subject.id}`;
         if (draft[key] === undefined) continue;
         const existing = markMeta[key];
-        const original = existing ? String(existing.marksObtained) : "";
+        const original = existing ? formatMarkCell(existing) : "";
         if (String(draft[key]) === original) continue;
         entries.push({ studentId: student.id, subjectId: subject.id, marksObtained: draft[key] });
       }
@@ -783,7 +784,7 @@ export default function MarksEntry() {
             <div>
               <div className="font-serif text-lg">{singleSubject.name}</div>
               <div className="text-xs text-ink-700/55">
-                Max {singleSubject.maxMarks} · Enter moves to the next student
+                Max {singleSubject.maxMarks} · Enter moves to the next student · AB / EX / WH for absent, exempt, withheld
               </div>
             </div>
             {!canEditSubject(singleSubject.id) && (
@@ -828,7 +829,7 @@ export default function MarksEntry() {
                             inputMode="decimal"
                             value={draft[key] ?? ""}
                             disabled={!editable}
-                            placeholder="—"
+                            placeholder="AB/EX"
                             aria-label={`${student.name} ${singleSubject.name}`}
                             onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
                             onKeyDown={(e) => onMarkKeyDown(e, studentIndex, 0)}
@@ -849,7 +850,7 @@ export default function MarksEntry() {
       {grid && grid.subjects?.length > 1 && (
         <div className="card overflow-hidden">
           <div className="px-4 py-3 border-b border-ink-900/10 bg-white/50 text-xs text-ink-700/60">
-            Multi-subject grid · Ctrl/⌘ + ←/→ moves across subjects · Enter moves down
+            Multi-subject grid · Ctrl/⌘ + ←/→ moves across subjects · Enter moves down · Type AB, EX, or WH instead of a score
           </div>
           <PaginatedTable
             items={grid.students}
@@ -901,7 +902,7 @@ export default function MarksEntry() {
                                     inputMode="decimal"
                                     value={draft[key] ?? ""}
                                     disabled={!editable}
-                                    placeholder="—"
+                                    placeholder="AB/EX"
                                     aria-label={`${student.name} ${subject.name}`}
                                     onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
                                     onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}

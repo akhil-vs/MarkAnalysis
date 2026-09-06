@@ -7,8 +7,10 @@ import {
   percentOf,
   round1,
 } from "./grades.js";
+import { isScoredMark } from "./markCodes.js";
 
 export function toPercent(mark) {
+  if (!isScoredMark(mark)) return null;
   return percentOf(mark.marksObtained, mark.subject.maxMarks);
 }
 
@@ -45,17 +47,38 @@ export function groupBy(list, keyFn) {
 
 export function studentTotals(marksByStudent) {
   return [...marksByStudent.entries()].map(([studentId, marks]) => {
-    const percents = percentsOf(marks);
+    const scored = marks.filter(isScoredMark);
+    const percents = percentsOf(scored);
     const avg = mean(percents);
     return {
       studentId,
       student: marks[0].student,
       avg: round1(avg),
       grade: gradeFromPercent(avg),
-      total: marks.reduce((s, m) => s + m.marksObtained, 0),
-      count: marks.length,
+      total: scored.reduce((s, m) => s + (m.marksObtained || 0), 0),
+      count: scored.length,
     };
   });
+}
+
+export function applyTiedRanks(rows, getScore = (r) => r.percent) {
+  const ranked = [...rows].sort((a, b) => (getScore(b) ?? -1) - (getScore(a) ?? -1));
+  let lastScore = null;
+  let lastRank = 0;
+  ranked.forEach((row, i) => {
+    const score = getScore(row);
+    if (score == null) {
+      row.rank = null;
+      return;
+    }
+    if (score === lastScore) row.rank = lastRank;
+    else {
+      row.rank = i + 1;
+      lastRank = row.rank;
+      lastScore = score;
+    }
+  });
+  return ranked;
 }
 
 export function gradeDistFromStudents(studentAvgs) {
@@ -69,6 +92,19 @@ export function gradeDistFromStudents(studentAvgs) {
 export function examLabel(exam) {
   if (!exam) return "";
   return exam.academicYear ? `${exam.name} · ${exam.academicYear}` : exam.name;
+}
+
+export function nextAcademicYear(year) {
+  const m = String(year || "").trim().match(/^(\d{4})-(\d{2})$/);
+  if (!m) return null;
+  const start = Number(m[1]) + 1;
+  return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
+}
+
+export function nextClassName(className) {
+  const n = Number(className);
+  if (!Number.isFinite(n)) return null;
+  return String(n + 1);
 }
 
 export function academicYearFromDate(date) {

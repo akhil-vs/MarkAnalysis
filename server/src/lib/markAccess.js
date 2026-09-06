@@ -61,13 +61,14 @@ export async function teacherHasEditAccess(user, { examId, classSectionId, subje
   return Boolean(approved);
 }
 
-export async function getMarkEntryAccessMap(user, examId, classSectionId, subjectIds) {
+export async function getMarkEntryAccessMap(user, examId, classSectionId, subjectIds, { writableSubjectIds } = {}) {
   const exam = await prisma.exam.findUnique({
     where: { id: examId },
     select: { marksEntryDeadline: true },
   });
   const deadline = exam?.marksEntryDeadline ?? null;
   const pastDeadline = isPastDeadline(deadline);
+  const writable = writableSubjectIds ? new Set(writableSubjectIds) : null;
 
   if (isLeadership(user.role)) {
     const bySubject = {};
@@ -110,7 +111,9 @@ export async function getMarkEntryAccessMap(user, examId, classSectionId, subjec
   for (const subjectId of subjectIds) {
     const late = lateBySubject.get(subjectId);
     const edit = editBySubject.get(subjectId);
-    const canEnter = !pastDeadline || late?.status === "APPROVED" || edit?.status === "APPROVED";
+    const assigned = !writable || writable.has(subjectId);
+    const canEnter =
+      assigned && (!pastDeadline || late?.status === "APPROVED" || edit?.status === "APPROVED");
     bySubject[subjectId] = {
       canEnter,
       canEditLocked: edit?.status === "APPROVED",

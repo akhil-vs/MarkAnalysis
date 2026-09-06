@@ -2,8 +2,9 @@ import { Router } from "express";
 import multer from "multer";
 import ExcelJS from "exceljs";
 import { prisma } from "../lib/prisma.js";
-import { auth, requireRole, getAssignments } from "../middleware/auth.js";
+import { auth, requireRole, getTeacherClassIds } from "../middleware/auth.js";
 import { cell, parseDob, parseSpreadsheet } from "../lib/upload.js";
+import { academicYearFromDate, nextAcademicYear, nextClassName } from "../lib/stats.js";
 
 export const studentsRouter = Router();
 studentsRouter.use(auth);
@@ -120,6 +121,8 @@ studentsRouter.post("/upload", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), upl
         name: item.name,
         rollNo: item.rollNo,
         classSectionId: item.classSectionId,
+        academicYear: academicYearFromDate(new Date()) || "2025-26",
+        status: "ACTIVE",
         dob: item.dob,
         guardianName: item.guardianName,
         guardianPhone: item.guardianPhone,
@@ -144,13 +147,14 @@ studentsRouter.get("/", async (req, res) => {
   if (classSectionId) where.classSectionId = classSectionId;
 
   if (req.user.role === "TEACHER") {
-    const assignments = await getAssignments(req.user.userId);
-    const allowed = [...new Set(assignments.map((a) => a.classSectionId))];
+    const allowed = await getTeacherClassIds(req.user.userId);
     if (classSectionId && !allowed.includes(classSectionId)) {
       return res.status(403).json({ error: "Not assigned to this class" });
     }
     where.classSectionId = classSectionId || { in: allowed };
   }
+  if (req.query.status) where.status = req.query.status;
+  else if (req.query.includeInactive !== "true") where.status = where.status || "ACTIVE";
 
   const students = await prisma.student.findMany({
     where,
@@ -168,8 +172,7 @@ studentsRouter.get("/:id", async (req, res) => {
   if (!student) return res.status(404).json({ error: "Not found" });
 
   if (req.user.role === "TEACHER") {
-    const assignments = await getAssignments(req.user.userId);
-    const allowed = new Set(assignments.map((a) => a.classSectionId));
+    const allowed = new Set(await getTeacherClassIds(req.user.userId));
     if (!allowed.has(student.classSectionId)) {
       return res.status(403).json({ error: "Not assigned to this student's class" });
     }
@@ -179,16 +182,19 @@ studentsRouter.get("/:id", async (req, res) => {
 });
 
 studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, rollNo, classSectionId, dob, guardianName, guardianPhone } = req.body || {};
+  const { name, rollNo, classSectionId, dob, guardianName, guardianPhone, academicYear } = req.body || {};
   if (!name || !rollNo || !classSectionId) {
     return res.status(400).json({ error: "Name, roll number, and class are required" });
   }
+  const year = String(academicYear || "").trim() || academicYearFromDate(new Date()) || "2025-26";
   try {
     const created = await prisma.student.create({
       data: {
         name,
         rollNo: String(rollNo),
         classSectionId,
+        academicYear: year,
+        status: "ACTIVE",
         dob: dob ? new Date(dob) : null,
         guardianName: guardianName || null,
         guardianPhone: guardianPhone || null,
@@ -201,13 +207,15 @@ studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
 });
 
 studentsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, rollNo, classSectionId, dob, guardianName, guardianPhone } = req.body || {};
+  const { name, rollNo, classSectionId, dob, guardianName, guardianPhone, academicYear, status } = req.body || {};
   const updated = await prisma.student.update({
     where: { id: req.params.id },
     data: {
       ...(name && { name }),
       ...(rollNo && { rollNo: String(rollNo) }),
       ...(classSectionId && { classSectionId }),
+      ...(academicYear && { academicYear: String(academicYear).trim() }),
+      ...(status && ["ACTIVE", "PROMOTED", "TRANSFERRED", "LEFT"].includes(status) && { status }),
       ...(dob !== undefined && { dob: dob ? new Date(dob) : null }),
       ...(guardianName !== undefined && { guardianName }),
       ...(guardianPhone !== undefined && { guardianPhone }),
@@ -219,4 +227,75 @@ studentsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
 studentsRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   await prisma.student.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
+});
+
+studentsRouter.post("/promote", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const { fromClassSectionId, toClassSectionId, toYear, students: rows } = req.body || {};
+  if (!fromClassSectionId || !toClassSectionId || !Array.isArray(rows) || !rows.length) {
+    return res.status(400).json({ error: "fromClassSectionId, toClassSectionId, and students are required" });
+  }
+  if (fromClassSectionId === toClassSectionId) {
+    return res.status(400).json({ error: "Choose a different destination class" });
+  }
+
+  const [fromClass, toClass] = await Promise.all([
+    prisma.classSection.findUnique({ where: { id: fromClassSectionId } }),
+    prisma.classSection.findUnique({ where: { id: toClassSectionId } }),
+  ]);
+  if (!fromClass || !toClass) return res.status(404).json({ error: "Class not found" });
+
+  const destYear =
+    String(toYear || "").trim() ||
+    nextAcademicYear(academicYearFromDate(new Date())) ||
+    nextAcademicYear("2025-26");
+  if (!destYear) return res.status(400).json({ error: "Destination academic year is required" });
+
+  const ids = rows.map((r) => r.studentId).filter(Boolean);
+  const source = await prisma.student.findMany({
+    where: { id: { in: ids }, classSectionId: fromClassSectionId, status: "ACTIVE" },
+  });
+  if (source.length !== ids.length) {
+    return res.status(400).json({ error: "Some students are missing, already promoted, or not in the source class" });
+  }
+
+  const created = [];
+  for (const student of source) {
+    const requested = rows.find((r) => r.studentId === student.id);
+    const rollNo = String(requested?.rollNo || student.rollNo);
+    const existing = await prisma.student.findUnique({
+      where: { rollNo_classSectionId: { rollNo, classSectionId: toClassSectionId } },
+    });
+    if (existing) {
+      return res.status(409).json({
+        error: `Roll ${rollNo} already exists in ${toClass.className}-${toClass.section}`,
+      });
+    }
+
+    const next = await prisma.student.create({
+      data: {
+        name: student.name,
+        rollNo,
+        classSectionId: toClassSectionId,
+        academicYear: destYear,
+        status: "ACTIVE",
+        dob: student.dob,
+        guardianName: student.guardianName,
+        guardianPhone: student.guardianPhone,
+        promotedFromId: student.id,
+      },
+    });
+    await prisma.student.update({
+      where: { id: student.id },
+      data: { status: "PROMOTED" },
+    });
+    created.push(next);
+  }
+
+  res.status(201).json({
+    promoted: created.length,
+    toYear: destYear,
+    toClass: `${toClass.className}-${toClass.section}`,
+    suggestedNextClass: nextClassName(fromClass.className),
+    students: created,
+  });
 });

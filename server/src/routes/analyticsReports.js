@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma.js";
-import { getAssignments, isLeadership } from "../middleware/auth.js";
+import { getAssignments, getTeacherClassIds, isLeadership } from "../middleware/auth.js";
 import { summarizeRegister } from "../lib/registerStatus.js";
 import {
   classLabel,
@@ -38,8 +38,7 @@ export function registerAnalysisReports(router) {
       include: { _count: { select: { students: true } }, classTeacher: true },
     });
     if (req.user.role === "TEACHER") {
-      const assignments = await getAssignments(req.user.userId);
-      const allowed = new Set(assignments.map((a) => a.classSectionId));
+      const allowed = new Set(await getTeacherClassIds(req.user.userId));
       classes = classes.filter((c) => allowed.has(c.id));
     }
 
@@ -95,8 +94,8 @@ export function registerAnalysisReports(router) {
     });
     if (!sections.length) return res.status(404).json({ error: "Not found" });
     if (req.user.role === "TEACHER") {
-      const assignments = await getAssignments(req.user.userId);
-      if (!assignments.some((a) => a.classSection.className === className)) {
+      const allowed = new Set(await getTeacherClassIds(req.user.userId));
+      if (!sections.some((s) => allowed.has(s.id))) {
         return res.status(403).json({ error: "Forbidden" });
       }
     }

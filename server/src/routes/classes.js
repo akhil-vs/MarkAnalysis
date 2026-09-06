@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { auth, getAssignments, requireRole } from "../middleware/auth.js";
+import { auth, getTeacherClassIds, requireRole } from "../middleware/auth.js";
 import { compareClassNames } from "../lib/stats.js";
 
 export const classesRouter = Router();
@@ -17,8 +17,7 @@ function sortClasses(classes) {
 classesRouter.get("/", async (req, res) => {
   const where = {};
   if (req.user.role === "TEACHER") {
-    const assignments = await getAssignments(req.user.userId);
-    const ids = [...new Set(assignments.map((a) => a.classSectionId))];
+    const ids = await getTeacherClassIds(req.user.userId);
     if (!ids.length) return res.json([]);
     where.id = { in: ids };
   }
@@ -27,7 +26,7 @@ classesRouter.get("/", async (req, res) => {
     where,
     include: {
       classTeacher: { select: { id: true, name: true } },
-      _count: { select: { students: true } },
+      _count: { select: { students: { where: { status: "ACTIVE" } } } },
     },
   });
   res.json(sortClasses(classes));

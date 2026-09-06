@@ -3,6 +3,9 @@ import ExcelJS from "exceljs";
 import PDFDocument from "pdfkit";
 import { prisma } from "../lib/prisma.js";
 import { gradeFromPercent, mean, percentOf, round1 } from "../lib/grades.js";
+import { formatMarkCell, isScoredMark } from "../lib/markCodes.js";
+import { getSchoolProfile, schoolHeaderLines } from "../lib/school.js";
+import { studentWhereForExam } from "../lib/studentScope.js";
 import { auth, requireRole } from "../middleware/auth.js";
 import {
   buildClassConsolidated,
@@ -14,7 +17,18 @@ export const exportsRouter = Router();
 exportsRouter.use(auth);
 
 function pct(mark) {
+  if (!isScoredMark(mark)) return null;
   return percentOf(mark.marksObtained, mark.subject.maxMarks);
+}
+
+function writeSchoolHeader(doc, profile) {
+  const lines = schoolHeaderLines(profile);
+  doc.fontSize(20).text(lines[0], { align: "center" });
+  if (lines[1]) {
+    doc.moveDown(0.15);
+    doc.fontSize(9).fillColor("#555").text(lines[1], { align: "center" });
+    doc.fillColor("#000");
+  }
 }
 
 exportsRouter.get("/report-card/:studentId", async (req, res) => {
@@ -36,6 +50,7 @@ exportsRouter.get("/report-card/:studentId", async (req, res) => {
     orderBy: { subject: { name: "asc" } },
   });
   const avg = mean(marks.map(pct).filter((p) => p != null));
+  const school = await getSchoolProfile();
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
@@ -45,7 +60,7 @@ exportsRouter.get("/report-card/:studentId", async (req, res) => {
 
   const doc = new PDFDocument({ margin: 50 });
   doc.pipe(res);
-  doc.fontSize(20).text("School Marks Analytics", { align: "center" });
+  writeSchoolHeader(doc, school);
   doc.moveDown(0.3);
   doc.fontSize(14).text("Student Report Card", { align: "center" });
   doc.moveDown();
@@ -65,7 +80,7 @@ exportsRouter.get("/report-card/:studentId", async (req, res) => {
   doc.moveTo(50, y - 6).lineTo(545, y - 6).stroke();
   for (const mark of marks) {
     const p = pct(mark);
-    const row = [mark.subject.name, String(mark.marksObtained), String(mark.subject.maxMarks), String(p ?? "—"), gradeFromPercent(p) || "—"];
+    const row = [mark.subject.name, formatMarkCell(mark) || "—", String(mark.subject.maxMarks), String(p ?? "—"), gradeFromPercent(p) || "—"];
     row.forEach((v, i) => doc.text(v, cols[i], y));
     y += 20;
   }
@@ -85,7 +100,7 @@ exportsRouter.get("/class-summary/:classId", async (req, res) => {
   if (!exam) return res.status(404).json({ error: "No exam" });
 
   const students = await prisma.student.findMany({
-    where: { classSectionId: cls.id },
+    where: await studentWhereForExam(cls.id, exam),
     orderBy: { rollNo: "asc" },
   });
   const subjects = await prisma.subject.findMany({
@@ -102,9 +117,12 @@ exportsRouter.get("/class-summary/:classId", async (req, res) => {
     "Content-Disposition",
     `attachment; filename="class-${cls.className}${cls.section}-${exam.name.replace(/\s+/g, "_")}.pdf"`
   );
+  const school = await getSchoolProfile();
   const doc = new PDFDocument({ margin: 36, layout: "landscape", size: "A4" });
   doc.pipe(res);
-  doc.fontSize(16).text(`Class summary — ${cls.className}-${cls.section} / ${exam.name}`, { align: "center" });
+  writeSchoolHeader(doc, school);
+  doc.moveDown(0.2);
+  doc.fontSize(12).text(`Class summary — ${cls.className}-${cls.section} / ${exam.name}`, { align: "center" });
   doc.moveDown();
 
   const colW = Math.min(70, 700 / (subjects.length + 3));
@@ -126,7 +144,7 @@ exportsRouter.get("/class-summary/:classId", async (req, res) => {
       student.name,
       ...subjects.map((sub) => {
         const m = sMarks.find((x) => x.subjectId === sub.id);
-        return m ? String(m.marksObtained) : "—";
+        return m ? formatMarkCell(m) || "—" : "—";
       }),
       avg == null ? "—" : String(round1(avg)),
     ];
@@ -156,9 +174,10 @@ exportsRouter.get("/consolidated/:classSectionId", requireRole("PRINCIPAL", "EXA
   const format = String(req.query.format || "json").toLowerCase();
   if (format === "json") return res.json(built);
 
+  const school = await getSchoolProfile();
   const stem = fileStem(built);
   if (format === "xlsx") {
-    const buffer = await writeConsolidatedWorkbook(built);
+    const buffer = await writeConsolidatedWorkbook(built, school);
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${stem}.xlsx"`);
     return res.send(Buffer.from(buffer));
@@ -166,7 +185,7 @@ exportsRouter.get("/consolidated/:classSectionId", requireRole("PRINCIPAL", "EXA
   if (format === "pdf") {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${stem}.pdf"`);
-    return writeConsolidatedPdf(built, res);
+    return writeConsolidatedPdf(built, res, school);
   }
   return res.status(400).json({ error: "format must be json, xlsx, or pdf" });
 });
@@ -215,9 +234,9 @@ exportsRouter.get("/table.xlsx", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), a
   res.send(Buffer.from(buffer));
 });
 
-async function writeConsolidatedWorkbook(built) {
+async function writeConsolidatedWorkbook(built, school) {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = "Marks Analytics";
+  workbook.creator = school?.name || "Marks Analytics";
   const sheet = workbook.addWorksheet("Consolidated mark list", {
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, paperSize: 9 },
   });
@@ -225,7 +244,7 @@ async function writeConsolidatedWorkbook(built) {
   const subjectHeaders = built.subjects.map((s) => `${s.name} (${s.maxMarks})`);
   const headers = ["Rank", "Roll", "Name", ...subjectHeaders, "Total", "Max", "%", "Grade"];
   sheet.mergeCells(1, 1, 1, headers.length);
-  sheet.getCell(1, 1).value = "Consolidated mark list";
+  sheet.getCell(1, 1).value = `${school?.name || "School"} — Consolidated mark list`;
   sheet.getCell(1, 1).font = { bold: true, size: 16, color: { argb: "FF1B2437" } };
   sheet.getCell(1, 1).alignment = { horizontal: "center" };
 
@@ -259,7 +278,7 @@ async function writeConsolidatedWorkbook(built) {
       student.rank,
       student.rollNo,
       student.name,
-      ...built.subjects.map((s) => student.bySubject[s.id]?.marks ?? ""),
+      ...built.subjects.map((s) => student.bySubject[s.id]?.display || student.bySubject[s.id]?.marks || ""),
       student.total,
       student.maxTotal,
       student.percent,
@@ -287,10 +306,12 @@ async function writeConsolidatedWorkbook(built) {
   return workbook.xlsx.writeBuffer();
 }
 
-function writeConsolidatedPdf(built, res) {
+function writeConsolidatedPdf(built, res, school) {
   const doc = new PDFDocument({ margin: 32, layout: "landscape", size: "A4" });
   doc.pipe(res);
-  doc.fontSize(16).font("Helvetica-Bold").text("Consolidated mark list", { align: "center" });
+  writeSchoolHeader(doc, school);
+  doc.moveDown(0.2);
+  doc.fontSize(12).font("Helvetica-Bold").text("Consolidated mark list", { align: "center" });
   doc.moveDown(0.25);
   doc.fontSize(10).font("Helvetica").text(
     `Class ${built.label}   ·   ${built.examLabel}${
@@ -334,7 +355,7 @@ function writeConsolidatedPdf(built, res) {
       student.name,
       ...built.subjects.map((s) => {
         const cell = student.bySubject[s.id];
-        return cell?.marks != null ? String(cell.marks) : "—";
+        return cell?.display || (cell?.marks != null ? String(cell.marks) : "—");
       }),
       student.total ?? "—",
       student.percent ?? "—",

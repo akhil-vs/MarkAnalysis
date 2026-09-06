@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { describeAuditValue } from "../lib/markCodes.js";
 
 export default function AuditLog() {
   const [rows, setRows] = useState([]);
@@ -64,8 +65,8 @@ export default function AuditLog() {
                     <td>{r.mark.student.rollNo} {r.mark.student.name}</td>
                     <td>{r.mark.subject.name}</td>
                     <td>{r.mark.exam.name}</td>
-                    <td>{r.oldValue ?? "—"}</td>
-                    <td>{r.newValue === -1 ? "deleted" : r.newValue}</td>
+                    <td>{describeAuditValue(r.oldValue) ?? "—"}</td>
+                    <td>{describeAuditValue(r.newValue)}</td>
                   </tr>
                 ))}
               </tbody>

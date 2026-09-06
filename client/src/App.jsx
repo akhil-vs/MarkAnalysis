@@ -28,6 +28,7 @@ import LateEntryRequests from "./pages/LateEntryRequests.jsx";
 import AuditLog from "./pages/AuditLog.jsx";
 import ConsolidatedLists from "./pages/ConsolidatedLists.jsx";
 import Profile from "./pages/Profile.jsx";
+import SchoolSettings from "./pages/SchoolSettings.jsx";
 
 function Guard({ roles, children }) {
   const { user, loading } = useAuth();
@@ -122,6 +123,10 @@ export default function App() {
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><LateEntryRequests /></Guard>}
         />
         <Route path="profile" element={<Profile />} />
+        <Route
+          path="school"
+          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><SchoolSettings /></Guard>}
+        />
         <Route path="students/:id" element={<StudentAnalytics />} />
         <Route path="classes/:id" element={<ClassAnalytics />} />
       </Route>

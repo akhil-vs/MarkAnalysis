@@ -18,6 +18,7 @@ cp .env.example .env
 npm install
 npx prisma migrate dev --name init
 npm run seed
+npm test
 npm run dev
 ```
 
@@ -30,6 +31,8 @@ npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173).
+
+Leadership can set the **school name and board** under School (used on report cards and consolidated lists). After a year, use **Records → Promote** to move a class to the next section without losing last year’s marks. On the mark register, type `AB`, `EX`, or `WH` for absent, exempt, or withheld. Class teachers can open their section’s full register (read-only for papers they do not teach).
 
 ## Seed logins
 
