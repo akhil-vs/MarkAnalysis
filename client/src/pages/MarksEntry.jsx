@@ -447,7 +447,7 @@ export default function MarksEntry() {
           subjects={grid.subjects}
           examId={examId}
           classSectionId={classSectionId}
-          onChange={loadGrid}
+          onChange={() => loadGrid({ keepMessage: true })}
         />
       )}
 
