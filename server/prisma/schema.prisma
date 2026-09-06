@@ -27,7 +27,13 @@ enum ExamType {
 
 enum MarkStatus {
   DRAFT
+  SUBMITTED
   APPROVED
+}
+
+enum MarkEntryAccessKind {
+  LATE_ENTRY
+  EDIT
 }
 
 enum MarkEntryAccessStatus {
@@ -128,6 +134,7 @@ model MarkEntryAccessRequest {
   teacherId      String
   classSectionId String
   subjectId      String
+  kind           MarkEntryAccessKind     @default(LATE_ENTRY)
   status         MarkEntryAccessStatus   @default(PENDING)
   message        String?
   requestedAt    DateTime                @default(now())
@@ -140,7 +147,7 @@ model MarkEntryAccessRequest {
   subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   reviewedBy   User?        @relation("MarkEntryReviewer", fields: [reviewedById], references: [id])
 
-  @@unique([examId, teacherId, classSectionId, subjectId])
+  @@unique([examId, teacherId, classSectionId, subjectId, kind])
 }
 
 model Mark {
@@ -180,6 +187,9 @@ enum NotificationType {
   LATE_ENTRY_REQUESTED
   LATE_ENTRY_APPROVED
   LATE_ENTRY_REJECTED
+  EDIT_REQUESTED
+  EDIT_APPROVED
+  EDIT_REJECTED
 }
 
 model Notification {

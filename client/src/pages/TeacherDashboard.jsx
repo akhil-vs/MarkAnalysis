@@ -177,7 +177,7 @@ export default function TeacherDashboard() {
                 </div>
                 <div className="mt-3">
                   <div className="flex justify-between text-[11px] text-ink-700/50 mb-1">
-                    <span>{r.statusLabel || (r.provisional ? "Draft — awaiting approval" : "Marks entered")}</span>
+                    <span>{r.statusLabel || (r.provisional ? "Submitted — awaiting approval" : "Marks entered")}</span>
                     <span>{r.uploaded} / {r.expected}</span>
                   </div>
                   <BarTrack
@@ -188,7 +188,7 @@ export default function TeacherDashboard() {
                 <div className="mt-3 flex gap-3 text-xs">
                   <Link className="underline" to={`/classes/${r.classSectionId}`}>Class view</Link>
                   <Link className="underline" to={`/marks?classSectionId=${r.classSectionId}&subjectId=${r.subjectId}`}>
-                    {r.missing ? "Finish register" : r.provisional || r.status === "AWAITING_APPROVAL" ? "Saved as draft" : "Mark register"}
+                    {r.missing ? "Finish register" : r.provisional || r.status === "AWAITING_APPROVAL" ? "Submitted" : "Mark register"}
                   </Link>
                 </div>
               </div>

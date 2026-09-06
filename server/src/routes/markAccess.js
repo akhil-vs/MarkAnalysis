@@ -2,7 +2,12 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { auth, isLeadership, requireRole } from "../middleware/auth.js";
 import { isPastDeadline } from "../lib/markAccess.js";
-import { notifyLateEntryRequested, notifyLateEntryReviewed } from "../lib/notifications.js";
+import {
+  notifyLateEntryRequested,
+  notifyLateEntryReviewed,
+  notifyEditRequested,
+  notifyEditReviewed,
+} from "../lib/notifications.js";
 
 export const markAccessRouter = Router();
 markAccessRouter.use(auth);
@@ -12,15 +17,30 @@ async function decorateRequest(row) {
     where: { id: row.classSectionId },
     select: { id: true, className: true, section: true },
   });
-  const classLabel = classSection ? `${classSection.className}-${classSection.section}` : row.classSectionId;
+  const classLabel = classSection
+    ? `${classSection.className}-${classSection.section}`
+    : row.classSectionId;
   return { ...row, classSection, classLabel };
 }
 
+function uniqueKey(examId, teacherId, classSectionId, subjectId, kind) {
+  return {
+    examId_teacherId_classSectionId_subjectId_kind: {
+      examId,
+      teacherId,
+      classSectionId,
+      subjectId,
+      kind,
+    },
+  };
+}
+
 markAccessRouter.get("/", async (req, res) => {
-  const { status, examId } = req.query;
+  const { status, examId, kind } = req.query;
   const where = {};
   if (examId) where.examId = examId;
   if (status) where.status = status;
+  if (kind) where.kind = kind;
 
   if (req.user.role === "TEACHER") {
     where.teacherId = req.user.userId;
@@ -59,10 +79,11 @@ markAccessRouter.get("/", async (req, res) => {
 
 markAccessRouter.post("/", async (req, res) => {
   if (req.user.role !== "TEACHER") {
-    return res.status(403).json({ error: "Teachers request late entry access here" });
+    return res.status(403).json({ error: "Teachers request mark access here" });
   }
 
-  const { examId, classSectionId, subjectId, message } = req.body || {};
+  const { examId, classSectionId, subjectId, message, kind: rawKind } = req.body || {};
+  const kind = rawKind === "EDIT" ? "EDIT" : "LATE_ENTRY";
   if (!examId || !classSectionId || !subjectId) {
     return res.status(400).json({ error: "examId, classSectionId, and subjectId are required" });
   }
@@ -79,20 +100,30 @@ markAccessRouter.post("/", async (req, res) => {
   ]);
   if (!exam) return res.status(404).json({ error: "Exam not found" });
   if (!assignment) return res.status(403).json({ error: "Not assigned to this register" });
-  if (!isPastDeadline(exam.marksEntryDeadline)) {
-    return res.status(400).json({ error: "The mark entry deadline has not passed yet" });
+
+  if (kind === "LATE_ENTRY") {
+    if (!isPastDeadline(exam.marksEntryDeadline)) {
+      return res.status(400).json({ error: "The mark entry deadline has not passed yet" });
+    }
+  } else {
+    const lockedCount = await prisma.mark.count({
+      where: {
+        examId,
+        subjectId,
+        enteredById: req.user.userId,
+        status: { in: ["SUBMITTED", "APPROVED"] },
+        student: { classSectionId },
+      },
+    });
+    if (!lockedCount) {
+      return res.status(400).json({
+        error: "No submitted marks to edit. Submit the register before requesting edit access.",
+      });
+    }
   }
 
-  const existing = await prisma.markEntryAccessRequest.findUnique({
-    where: {
-      examId_teacherId_classSectionId_subjectId: {
-        examId,
-        teacherId: req.user.userId,
-        classSectionId,
-        subjectId,
-      },
-    },
-  });
+  const whereUnique = uniqueKey(examId, req.user.userId, classSectionId, subjectId, kind);
+  const existing = await prisma.markEntryAccessRequest.findUnique({ where: whereUnique });
 
   if (existing?.status === "APPROVED") {
     return res.json(existing);
@@ -102,19 +133,13 @@ markAccessRouter.post("/", async (req, res) => {
   }
 
   const created = await prisma.markEntryAccessRequest.upsert({
-    where: {
-      examId_teacherId_classSectionId_subjectId: {
-        examId,
-        teacherId: req.user.userId,
-        classSectionId,
-        subjectId,
-      },
-    },
+    where: whereUnique,
     create: {
       examId,
       teacherId: req.user.userId,
       classSectionId,
       subjectId,
+      kind,
       message: message || null,
       status: "PENDING",
     },
@@ -134,10 +159,10 @@ markAccessRouter.post("/", async (req, res) => {
 
   const decorated = await decorateRequest(created);
   try {
-    await notifyLateEntryRequested(decorated);
+    if (kind === "EDIT") await notifyEditRequested(decorated);
+    else await notifyLateEntryRequested(decorated);
   } catch (err) {
-    // Request is already saved — do not fail the teacher response if notify breaks.
-    console.error("Failed to notify leadership of late entry request", err);
+    console.error("Failed to notify leadership of mark access request", err);
   }
 
   res.status(201).json(created);
@@ -167,14 +192,31 @@ markAccessRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
     },
   });
 
+  if (status === "APPROVED" && existing.kind === "EDIT") {
+    const students = await prisma.student.findMany({
+      where: { classSectionId: existing.classSectionId },
+      select: { id: true },
+    });
+    await prisma.mark.updateMany({
+      where: {
+        examId: existing.examId,
+        subjectId: existing.subjectId,
+        enteredById: existing.teacherId,
+        studentId: { in: students.map((s) => s.id) },
+        status: { in: ["SUBMITTED", "APPROVED"] },
+      },
+      data: { status: "DRAFT" },
+    });
+  }
+
   const decorated = await decorateRequest(updated);
   let notified = false;
   try {
-    await notifyLateEntryReviewed(decorated, status);
+    if (existing.kind === "EDIT") await notifyEditReviewed(decorated, status);
+    else await notifyLateEntryReviewed(decorated, status);
     notified = true;
   } catch (err) {
-    // Review is already saved — still surface notify failure for logs/clients.
-    console.error("Failed to notify teacher of late entry review", err);
+    console.error("Failed to notify teacher of mark access review", err);
   }
 
   res.json({ ...decorated, notified });

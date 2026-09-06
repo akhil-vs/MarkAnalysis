@@ -724,7 +724,7 @@ async function buildPendingUploads(exam) {
   const teachers = [...byTeacher.values()]
     .map((t) => {
       const missingAssignments = t.assignments.filter((a) => a.missing > 0);
-      const awaitingApproval = t.assignments.filter((a) => a.status === "AWAITING_APPROVAL" || (a.draft > 0 && a.approved < a.expected));
+      const awaitingApproval = t.assignments.filter((a) => a.status === "AWAITING_APPROVAL" || ((a.submitted ?? 0) > 0 && a.approved < a.expected));
       return {
         ...t,
         pending: missingAssignments.length > 0,
