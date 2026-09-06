@@ -682,6 +682,67 @@ analyticsRouter.get("/pending-uploads", async (req, res) => {
   res.json({ exams, ...pendingUploads });
 });
 
+/** Submitted registers awaiting leadership approval — across every exam. */
+analyticsRouter.get("/awaiting-approvals", async (req, res) => {
+  if (!isLeadership(req.user.role)) return res.status(403).json({ error: "Forbidden" });
+
+  const submitted = await prisma.mark.findMany({
+    where: { status: "SUBMITTED" },
+    select: {
+      examId: true,
+      subjectId: true,
+      enteredById: true,
+      student: {
+        select: {
+          classSectionId: true,
+          classSection: { select: { className: true, section: true } },
+        },
+      },
+      exam: { select: { id: true, name: true, date: true } },
+      subject: { select: { id: true, name: true } },
+      enteredBy: { select: { id: true, name: true, email: true } },
+    },
+  });
+
+  const groups = new Map();
+  for (const mark of submitted) {
+    const classSectionId = mark.student.classSectionId;
+    const key = `${mark.examId}|${classSectionId}|${mark.subjectId}|${mark.enteredById}`;
+    const existing = groups.get(key);
+    if (existing) {
+      existing.submittedCount += 1;
+      continue;
+    }
+    const cs = mark.student.classSection;
+    groups.set(key, {
+      examId: mark.examId,
+      examName: mark.exam?.name || "Exam",
+      examDate: mark.exam?.date || null,
+      classSectionId,
+      classLabel: cs ? `${cs.className}-${cs.section}` : classSectionId,
+      subjectId: mark.subjectId,
+      subjectName: mark.subject?.name || "Subject",
+      teacherId: mark.enteredById,
+      teacherName: mark.enteredBy?.name || "Teacher",
+      teacherEmail: mark.enteredBy?.email || null,
+      submittedCount: 1,
+    });
+  }
+
+  const items = [...groups.values()].sort((a, b) => {
+    const dateA = a.examDate ? new Date(a.examDate).getTime() : 0;
+    const dateB = b.examDate ? new Date(b.examDate).getTime() : 0;
+    return (
+      dateB - dateA ||
+      a.teacherName.localeCompare(b.teacherName) ||
+      a.classLabel.localeCompare(b.classLabel) ||
+      a.subjectName.localeCompare(b.subjectName)
+    );
+  });
+
+  res.json({ count: items.length, items });
+});
+
 async function buildPendingUploads(exam) {
   const [assignments, students, marks] = await Promise.all([
     prisma.teacherAssignment.findMany({

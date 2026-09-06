@@ -132,8 +132,8 @@ export default function LateEntryRequests() {
             : "Late entry request rejected."
       );
 
-      if (status === "PENDING" || status === "") {
-        setStatus(nextStatus);
+      if (status === "PENDING") {
+        setRows((prev) => prev.filter((row) => row.id !== id));
       } else {
         await load(examId, status, kind);
       }

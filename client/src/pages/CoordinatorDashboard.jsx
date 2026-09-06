@@ -23,6 +23,7 @@ import {
 } from "../components/DashboardKit.jsx";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
+import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
 
 export default function CoordinatorDashboard() {
   const { user } = useAuth();
@@ -48,10 +49,12 @@ export default function CoordinatorDashboard() {
   if (data.empty) return <p>No exam data yet.</p>;
 
   const pending = (data.pendingUploads?.teachers || []).filter((t) => t.pending);
+  const awaitingApproval = (data.pendingUploads?.teachers || []).filter((t) => t.awaitingApproval && !t.pending);
   const difficulty = data.difficulty || [];
   const hardest = difficulty[0];
   const easiest = [...difficulty].reverse().find((d) => d.average != null) || difficulty.at(-1);
   const teacherRows = [...(data.teacherBySubject || [])].sort((a, b) => (a.average ?? 999) - (b.average ?? 999));
+  const awaitingCount = data.pendingUploads?.awaitingApprovalTeacherCount ?? 0;
 
   return (
     <div>
@@ -72,7 +75,16 @@ export default function CoordinatorDashboard() {
           tone={pending.length ? "alert" : undefined}
           hint={{ text: pending.length ? "Open the upload queue" : "All registers in", tone: pending.length ? "down" : "up" }}
         />
-        <Metric label="Draft marks" value={data.pendingDrafts} hint={{ text: "Saved but not approved", tone: "flat" }} />
+        <Metric
+          label="Awaiting approval"
+          value={awaitingCount}
+          to="/pending-uploads"
+          tone={awaitingCount ? "alert" : undefined}
+          hint={{
+            text: awaitingCount ? "Submitted — needs your approve" : "Nothing waiting",
+            tone: awaitingCount ? "down" : "up",
+          }}
+        />
         <Metric
           label="Hardest subject"
           value={hardest?.name || "—"}
@@ -86,6 +98,10 @@ export default function CoordinatorDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-4 mb-4">
+        <PendingSubmittedApprovals className="lg:col-span-12" />
+      </div>
+
+      <div className="grid lg:grid-cols-12 gap-4 mb-4">
         <PendingAccessRequests className="lg:col-span-12" />
       </div>
 
@@ -95,8 +111,26 @@ export default function CoordinatorDashboard() {
           title="Upload queue"
           action={<Link className="text-xs underline text-ink-700/60" to="/pending-uploads">Full list</Link>}
         >
-          {pending.length ? (
+          {pending.length || awaitingApproval.length ? (
             <div className="space-y-4">
+              {awaitingApproval.map((t) => {
+                const waiting = t.assignments.filter(
+                  (a) =>
+                    a.status === "AWAITING_APPROVAL" ||
+                    ((a.submitted ?? 0) > 0 && (a.approved ?? 0) < a.expected)
+                );
+                return (
+                  <div key={`await-${t.teacherId}`}>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span className="font-medium">{t.name}</span>
+                      <span className="text-clay-600 text-xs">Awaiting approval</span>
+                    </div>
+                    <div className="text-[11px] text-ink-700/55">
+                      {waiting.map((a) => `${a.classLabel} ${a.subject}`).join(" · ")}
+                    </div>
+                  </div>
+                );
+              })}
               {pending.map((t) => {
                 const holes = t.assignments.filter((a) => a.missing > 0);
                 return (
@@ -111,10 +145,10 @@ export default function CoordinatorDashboard() {
                   </div>
                 );
               })}
-              <Link className="btn-accent mt-2" to="/marks">Open mark register</Link>
+              <Link className="btn-accent mt-2" to="/pending-uploads">Open approval queue</Link>
             </div>
           ) : (
-            <EmptyNote>Every assigned teacher has uploaded for this exam. You can approve drafts from the register.</EmptyNote>
+            <EmptyNote>Every assigned teacher has uploaded and been approved for this exam.</EmptyNote>
           )}
         </Panel>
 

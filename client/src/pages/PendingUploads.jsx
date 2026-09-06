@@ -1,13 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 
 export default function PendingUploads() {
+  const [searchParams] = useSearchParams();
   const [data, setData] = useState(null);
-  const [examId, setExamId] = useState("");
+  const [examId, setExamId] = useState(searchParams.get("examId") || "");
   const [message, setMessage] = useState("");
 
   async function load(id) {
@@ -17,7 +18,8 @@ export default function PendingUploads() {
   }
 
   useEffect(() => {
-    load("");
+    load(searchParams.get("examId") || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   if (!data) return <p>Loading upload status…</p>;
