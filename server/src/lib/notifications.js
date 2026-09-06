@@ -151,3 +151,44 @@ export async function notifyEditReviewed(request, status) {
     },
   });
 }
+
+export async function notifyMarksSubmitted({
+  examId,
+  examName,
+  classSectionId,
+  classLabel,
+  subjectId,
+  subjectName,
+  teacherId,
+  teacherName,
+  submittedCount,
+}) {
+  const label = classLabel || classSectionId;
+  const exam = examName || "an exam";
+  const subject = subjectName || "a subject";
+  const teacher = teacherName || "A teacher";
+  const count = submittedCount ?? 0;
+
+  return notifyRoles(
+    ["PRINCIPAL", "EXAM_COORDINATOR"],
+    {
+      type: "MARKS_SUBMITTED",
+      title: "Marks submitted for approval",
+      body: `${teacher} submitted ${count} mark${count === 1 ? "" : "s"} for ${exam} · ${label} · ${subject}.`,
+      link:
+        examId && classSectionId && subjectId
+          ? `/marks?examId=${encodeURIComponent(examId)}&classSectionId=${encodeURIComponent(classSectionId)}&subjectId=${encodeURIComponent(subjectId)}`
+          : examId
+            ? `/pending-uploads?examId=${encodeURIComponent(examId)}`
+            : "/pending-uploads",
+      meta: {
+        examId,
+        classSectionId,
+        subjectId,
+        teacherId,
+        submittedCount: count,
+      },
+    },
+    { excludeUserId: teacherId }
+  );
+}

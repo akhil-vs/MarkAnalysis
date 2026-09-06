@@ -12,6 +12,7 @@ import {
   isLockedMarkStatus,
   teacherHasMarkEntryAccess,
 } from "../lib/markAccess.js";
+import { notifyMarksSubmitted } from "../lib/notifications.js";
 
 export const marksRouter = Router();
 marksRouter.use(auth);
@@ -531,6 +532,31 @@ marksRouter.post("/submit", async (req, res) => {
       status: "APPROVED",
     },
   });
+
+  try {
+    const [exam, subject, classSection, teacher] = await Promise.all([
+      prisma.exam.findUnique({ where: { id: examId }, select: { name: true } }),
+      prisma.subject.findUnique({ where: { id: subjectId }, select: { name: true } }),
+      prisma.classSection.findUnique({
+        where: { id: classSectionId },
+        select: { className: true, section: true },
+      }),
+      prisma.user.findUnique({ where: { id: teacherId }, select: { name: true } }),
+    ]);
+    await notifyMarksSubmitted({
+      examId,
+      examName: exam?.name,
+      classSectionId,
+      classLabel: classSection ? `${classSection.className}-${classSection.section}` : classSectionId,
+      subjectId,
+      subjectName: subject?.name,
+      teacherId,
+      teacherName: teacher?.name,
+      submittedCount: result.count,
+    });
+  } catch (err) {
+    console.error("Failed to notify leadership of mark submit", err);
+  }
 
   res.json({ submitted: result.count, teacherId });
 });

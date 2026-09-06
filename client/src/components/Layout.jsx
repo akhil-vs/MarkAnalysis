@@ -24,9 +24,13 @@ export default function Layout() {
 
   useEffect(() => {
     if (!isLeadership) return;
-    api("/api/analytics/pending-uploads")
-      .then((d) => setPendingCount((d.pendingTeacherCount ?? 0) + (d.awaitingApprovalTeacherCount ?? 0)))
-      .catch(() => setPendingCount(null));
+    api("/api/analytics/awaiting-approvals")
+      .then((d) => setPendingCount(Number(d.count) || 0))
+      .catch(() => {
+        api("/api/analytics/pending-uploads")
+          .then((d) => setPendingCount((d.pendingTeacherCount ?? 0) + (d.awaitingApprovalTeacherCount ?? 0)))
+          .catch(() => setPendingCount(null));
+      });
     api("/api/mark-access?status=PENDING")
       .then((rows) => setLateEntryCount(rows.length))
       .catch(() => setLateEntryCount(null));

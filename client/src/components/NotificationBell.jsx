@@ -22,6 +22,7 @@ function typeLabel(type) {
   if (type === "EDIT_APPROVED") return "Edit approved";
   if (type === "EDIT_REJECTED") return "Edit rejected";
   if (type === "EDIT_REQUESTED") return "Edit requested";
+  if (type === "MARKS_SUBMITTED") return "Marks submitted";
   return null;
 }
 

@@ -28,6 +28,7 @@ import {
   greeting,
 } from "../components/DashboardKit.jsx";
 import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
+import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
 import { yearDelta } from "../lib/exams.js";
 
 export default function PrincipalDashboard() {
@@ -133,6 +134,10 @@ export default function PrincipalDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-12 gap-4 mb-4">
+        <PendingSubmittedApprovals className="lg:col-span-12" />
+      </div>
+
+      <div className="grid lg:grid-cols-12 gap-4 mb-4">
         <PendingAccessRequests className="lg:col-span-12" />
       </div>
 
@@ -150,7 +155,11 @@ export default function PrincipalDashboard() {
                     <div className="text-sm font-medium">{t.name}</div>
                     <div className="text-[11px] text-ink-700/50">
                       {t.assignments
-                        .filter((a) => (a.draft ?? 0) > 0 && (a.approved ?? 0) < a.expected)
+                        .filter(
+                          (a) =>
+                            a.status === "AWAITING_APPROVAL" ||
+                            ((a.submitted ?? 0) > 0 && (a.approved ?? 0) < a.expected)
+                        )
                         .map((a) => `${a.classLabel} ${a.subject}`)
                         .join(" · ")}
                     </div>

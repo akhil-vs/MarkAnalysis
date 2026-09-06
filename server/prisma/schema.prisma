@@ -190,6 +190,7 @@ enum NotificationType {
   EDIT_REQUESTED
   EDIT_APPROVED
   EDIT_REJECTED
+  MARKS_SUBMITTED
 }
 
 model Notification {
