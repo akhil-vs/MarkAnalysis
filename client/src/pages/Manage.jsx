@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, download } from "../api.js";
+import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 
@@ -35,6 +36,7 @@ function emptyClassForm() {
 
 function ClassesTab() {
   const [rows, setRows] = useState([]);
+  const confirm = useConfirm();
   const [teachers, setTeachers] = useState([]);
   const [form, setForm] = useState(emptyClassForm());
   const [editingId, setEditingId] = useState(null);
@@ -81,7 +83,12 @@ function ClassesTab() {
 
   async function remove(row) {
     const label = `${row.className}-${row.section}`;
-    if (!window.confirm(`Delete class ${label}? Students and assignments in this section will be removed.`)) return;
+    if (!(await confirm({
+      title: "Delete class section?",
+      message: `Delete class ${label}? Students and assignments in this section will be removed.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    }))) return;
     setMessage("");
     try {
       await api(`/api/classes/${row.id}`, { method: "DELETE" });
@@ -141,6 +148,7 @@ function emptySubjectForm() {
 
 function SubjectsTab() {
   const [rows, setRows] = useState([]);
+  const confirm = useConfirm();
   const [form, setForm] = useState(emptySubjectForm());
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
@@ -177,7 +185,12 @@ function SubjectsTab() {
   }
 
   async function remove(row) {
-    if (!window.confirm(`Delete ${row.name} for class ${row.className}? Related marks and assignments will be removed.`)) return;
+    if (!(await confirm({
+      title: "Delete subject?",
+      message: `Delete ${row.name} for class ${row.className}? Related marks and assignments will be removed.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    }))) return;
     setMessage("");
     try {
       await api(`/api/subjects/${row.id}`, { method: "DELETE" });
@@ -233,6 +246,7 @@ function emptyStudentForm(classSectionId = "") {
 
 function StudentsTab() {
   const [rows, setRows] = useState([]);
+  const confirm = useConfirm();
   const [classes, setClasses] = useState([]);
   const [form, setForm] = useState(emptyStudentForm());
   const [editingId, setEditingId] = useState(null);
@@ -292,7 +306,12 @@ function StudentsTab() {
   }
 
   async function remove(row) {
-    if (!window.confirm(`Delete ${row.name} (roll ${row.rollNo})? Their marks will be removed.`)) return;
+    if (!(await confirm({
+      title: "Delete student?",
+      message: `Delete ${row.name} (roll ${row.rollNo})? Their marks will be removed.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    }))) return;
     setMessage("");
     try {
       await api(`/api/students/${row.id}`, { method: "DELETE" });
@@ -438,6 +457,7 @@ function emptyExamForm() {
 
 function ExamsTab() {
   const [rows, setRows] = useState([]);
+  const confirm = useConfirm();
   const [form, setForm] = useState(emptyExamForm());
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
@@ -489,7 +509,12 @@ function ExamsTab() {
   }
 
   async function remove(row) {
-    if (!window.confirm(`Delete exam "${row.name}"? All marks for this exam will be removed.`)) return;
+    if (!(await confirm({
+      title: "Delete exam?",
+      message: `Delete exam "${row.name}"? All marks for this exam will be removed.`,
+      confirmLabel: "Delete",
+      tone: "danger",
+    }))) return;
     setMessage("");
     try {
       await api(`/api/exams/${row.id}`, { method: "DELETE" });

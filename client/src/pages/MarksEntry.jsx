@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
@@ -26,6 +27,7 @@ function StatPill({ label, value, tone }) {
 
 export default function MarksEntry() {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const leadership = isLeadership(user.role);
   const [params, setParams] = useSearchParams();
   const [classes, setClasses] = useState([]);
@@ -233,9 +235,13 @@ export default function MarksEntry() {
     }
     if (
       touchingApproved &&
-      !window.confirm(
-        "Some cells are already approved. Saving will move those marks back to draft until leadership re-approves. Continue?"
-      )
+      !(await confirm({
+        title: "Save over approved marks?",
+        message:
+          "Some cells are already approved. Saving will move those marks back to draft until leadership re-approves.",
+        confirmLabel: "Save as draft",
+        tone: "danger",
+      }))
     ) {
       return;
     }
@@ -257,52 +263,74 @@ export default function MarksEntry() {
     }
   }
 
-  async function approve() {
-    const draftCount = (grid?.marks || []).filter((m) => m.status === "DRAFT").length;
-    const label = subjectId
+  async function approve(teacher) {
+    const draftCount = teacher?.count ?? (grid?.marks || []).filter((m) => m.status === "DRAFT").length;
+    const teacherName = teacher?.name || "this teacher";
+    const scope = subjectId
       ? grid?.subjects?.find((s) => s.id === subjectId)?.name || "this subject"
-      : "all subjects in this class";
+      : "this class";
     if (
-      !window.confirm(
-        `Approve ${draftCount} draft mark${draftCount === 1 ? "" : "s"} for ${label}? Approved marks appear on consolidated lists and analytics.`
-      )
+      !(await confirm({
+        title: "Approve teacher drafts?",
+        message: `Approve ${draftCount} draft mark${draftCount === 1 ? "" : "s"} entered by ${teacherName} for ${scope}? Only this teacher's drafts will be published.`,
+        confirmLabel: "Approve drafts",
+      }))
     ) {
       return;
     }
     try {
       const res = await api("/api/marks/approve", {
         method: "POST",
-        body: { examId, classSectionId, subjectId: subjectId || undefined },
+        body: {
+          examId,
+          classSectionId,
+          subjectId: subjectId || undefined,
+          teacherId: teacher.teacherId,
+        },
       });
-      setMessage(`Approved ${res.approved ?? 0} mark${res.approved === 1 ? "" : "s"}`);
+      setMessage(
+        `Approved ${res.approved ?? 0} mark${res.approved === 1 ? "" : "s"} for ${teacherName}`
+      );
       await loadGrid({ keepMessage: true });
     } catch (err) {
       setMessage(err.message || "Could not approve marks");
     }
   }
 
-  async function unapprove() {
-    const approvedCount = (grid?.marks || []).filter((m) => m.status === "APPROVED").length;
+  async function unapprove(teacher) {
+    const approvedCount =
+      teacher?.count ?? (grid?.marks || []).filter((m) => m.status === "APPROVED").length;
     if (!approvedCount) {
       setMessage("No approved marks in this view");
       return;
     }
-    const label = subjectId
+    const teacherName = teacher?.name || "this teacher";
+    const scope = subjectId
       ? grid?.subjects?.find((s) => s.id === subjectId)?.name || "this subject"
-      : "all subjects in this class";
+      : "this class";
     if (
-      !window.confirm(
-        `Return ${approvedCount} approved mark${approvedCount === 1 ? "" : "s"} for ${label} to draft? They will leave official lists until re-approved.`
-      )
+      !(await confirm({
+        title: "Unapprove teacher marks?",
+        message: `Return ${approvedCount} approved mark${approvedCount === 1 ? "" : "s"} entered by ${teacherName} for ${scope} to draft? Only this teacher's marks will change.`,
+        confirmLabel: "Unapprove",
+        tone: "danger",
+      }))
     ) {
       return;
     }
     try {
       const res = await api("/api/marks/unapprove", {
         method: "POST",
-        body: { examId, classSectionId, subjectId: subjectId || undefined },
+        body: {
+          examId,
+          classSectionId,
+          subjectId: subjectId || undefined,
+          teacherId: teacher.teacherId,
+        },
       });
-      setMessage(`Reverted ${res.reverted ?? 0} mark${res.reverted === 1 ? "" : "s"} to draft`);
+      setMessage(
+        `Reverted ${res.reverted ?? 0} mark${res.reverted === 1 ? "" : "s"} to draft for ${teacherName}`
+      );
       await loadGrid({ keepMessage: true });
     } catch (err) {
       setMessage(err.message || "Could not unapprove marks");
@@ -345,14 +373,48 @@ export default function MarksEntry() {
   const singleSubject = grid?.subjects?.length === 1 ? grid.subjects[0] : null;
   const selectedClass = classes.find((c) => c.id === classSectionId);
   const selectedExam = exams.find((e) => e.id === examId);
-  const draftReady = (grid?.marks || []).some((m) => m.status === "DRAFT");
-  const hasApproved = (grid?.marks || []).some((m) => m.status === "APPROVED");
+
+  const draftTeachers = useMemo(() => {
+    const map = new Map();
+    for (const m of grid?.marks || []) {
+      if (m.status !== "DRAFT") continue;
+      const teacherId = m.enteredBy?.id || m.enteredById;
+      if (!teacherId) continue;
+      if (!map.has(teacherId)) {
+        map.set(teacherId, {
+          teacherId,
+          name: m.enteredBy?.name || "Unknown teacher",
+          count: 0,
+        });
+      }
+      map.get(teacherId).count += 1;
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [grid]);
+
+  const approvedTeachers = useMemo(() => {
+    const map = new Map();
+    for (const m of grid?.marks || []) {
+      if (m.status !== "APPROVED") continue;
+      const teacherId = m.enteredBy?.id || m.enteredById;
+      if (!teacherId) continue;
+      if (!map.has(teacherId)) {
+        map.set(teacherId, {
+          teacherId,
+          name: m.enteredBy?.name || "Unknown teacher",
+          count: 0,
+        });
+      }
+      map.get(teacherId).count += 1;
+    }
+    return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+  }, [grid]);
 
   return (
     <div>
       <PageHeader
         title="Mark register"
-        subtitle="Enter marks by class and subject. Saves stay draft until leadership approves."
+        subtitle="Enter marks by class and subject. Saves stay draft until leadership approves each teacher separately."
         actions={
           <>
             <button
@@ -366,19 +428,50 @@ export default function MarksEntry() {
                   ? `Save ${stats.dirty} change${stats.dirty === 1 ? "" : "s"}`
                   : "Save drafts"}
             </button>
-            {leadership && (
-              <>
-                <button className="btn-accent" onClick={approve} disabled={!grid || !draftReady}>
-                  Approve drafts
-                </button>
-                <button className="btn-ghost" onClick={unapprove} disabled={!grid || !hasApproved}>
-                  Unapprove
-                </button>
-              </>
+            {leadership && draftTeachers.length === 1 && (
+              <button className="btn-accent" onClick={() => approve(draftTeachers[0])}>
+                Approve {draftTeachers[0].name.split(" ")[0]} ({draftTeachers[0].count})
+              </button>
+            )}
+            {leadership && approvedTeachers.length === 1 && (
+              <button className="btn-ghost" onClick={() => unapprove(approvedTeachers[0])}>
+                Unapprove {approvedTeachers[0].name.split(" ")[0]}
+              </button>
             )}
           </>
         }
       />
+
+      {leadership && (draftTeachers.length > 1 || approvedTeachers.length > 1) && (
+        <div className="card mb-4 p-4 space-y-3">
+          <div className="text-sm text-ink-700/75">
+            Approve or unapprove one teacher at a time so registers stay separate.
+          </div>
+          {draftTeachers.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {draftTeachers.map((t) => (
+                <button key={`draft-${t.teacherId}`} type="button" className="btn-accent" onClick={() => approve(t)}>
+                  Approve drafts · {t.name} ({t.count})
+                </button>
+              ))}
+            </div>
+          )}
+          {approvedTeachers.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {approvedTeachers.map((t) => (
+                <button
+                  key={`approved-${t.teacherId}`}
+                  type="button"
+                  className="btn-ghost"
+                  onClick={() => unapprove(t)}
+                >
+                  Unapprove · {t.name} ({t.count})
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="card p-4 mb-4">
         <div className="grid sm:grid-cols-3 gap-3">
