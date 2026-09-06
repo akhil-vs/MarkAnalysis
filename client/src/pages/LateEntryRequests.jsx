@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
@@ -31,15 +32,17 @@ function kindTone(kind) {
 
 export default function LateEntryRequests() {
   const { user } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [exams, setExams] = useState([]);
-  const [examId, setExamId] = useState("");
-  const [status, setStatus] = useState("PENDING");
-  const [kind, setKind] = useState("");
+  const [examId, setExamId] = useState(searchParams.get("examId") || "");
+  const [status, setStatus] = useState(searchParams.get("status") || "PENDING");
+  const [kind, setKind] = useState(searchParams.get("kind") || "");
   const [message, setMessage] = useState("");
   const [messageTone, setMessageTone] = useState("ok");
   const [busyId, setBusyId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [ready, setReady] = useState(false);
 
   async function load(exam = examId, st = status, k = kind) {
     const params = new URLSearchParams();
@@ -58,21 +61,36 @@ export default function LateEntryRequests() {
     api("/api/exams")
       .then((e) => {
         setExams(e);
-        if (e.at(-1)) setExamId(e.at(-1).id);
+        // Keep URL exam if valid; otherwise default to all exams (not the latest only).
+        const fromUrl = searchParams.get("examId") || "";
+        if (fromUrl && e.some((x) => x.id === fromUrl)) {
+          setExamId(fromUrl);
+        } else if (fromUrl && !e.some((x) => x.id === fromUrl)) {
+          setExamId("");
+        }
+        setReady(true);
       })
       .catch((err) => {
         setMessageTone("error");
         setMessage(err.message || "Could not load exams");
+        setReady(true);
       });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    if (!examId && exams.length) return;
+    if (!ready) return;
+    const next = new URLSearchParams();
+    if (examId) next.set("examId", examId);
+    if (status) next.set("status", status);
+    if (kind) next.set("kind", kind);
+    setSearchParams(next, { replace: true });
     load(examId, status, kind).catch((e) => {
       setMessageTone("error");
       setMessage(e.message);
     });
-  }, [examId, status, kind, exams.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [examId, status, kind, ready]);
 
   async function review(id, nextStatus) {
     setMessage("");
@@ -86,7 +104,6 @@ export default function LateEntryRequests() {
       const reviewedAt = updated.reviewedAt || new Date().toISOString();
       const reviewedBy = updated.reviewedBy || { id: user?.id, name: user?.name };
 
-      // Show the decision immediately in the table, even before filter reload.
       setRows((prev) =>
         prev.map((row) =>
           row.id === id
@@ -115,7 +132,6 @@ export default function LateEntryRequests() {
             : "Late entry request rejected."
       );
 
-      // Move to the matching status filter so the updated row stays visible with confirmation.
       if (status === "PENDING" || status === "") {
         setStatus(nextStatus);
       } else {
@@ -132,12 +148,12 @@ export default function LateEntryRequests() {
   return (
     <div>
       <PageHeader
-        title="Late mark entry"
-        subtitle="Teachers request late entry after the deadline or edit access for submitted registers."
+        title="Mark access requests"
+        subtitle="Approve late entry after the deadline or edit access for submitted registers — across every exam."
         actions={
           <>
             <select className="field w-auto" value={examId} onChange={(e) => setExamId(e.target.value)}>
-              {!examId && <option value="">Select exam</option>}
+              <option value="">All exams</option>
               {exams.map((e) => (
                 <option key={e.id} value={e.id}>
                   {e.name}
@@ -148,7 +164,7 @@ export default function LateEntryRequests() {
               <option value="PENDING">Pending</option>
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
-              <option value="">All</option>
+              <option value="">All statuses</option>
             </select>
             <select className="field w-auto" value={kind} onChange={(e) => setKind(e.target.value)}>
               <option value="">All kinds</option>
@@ -184,7 +200,7 @@ export default function LateEntryRequests() {
                     <th>Register</th>
                     <th>Requested</th>
                     <th>Status</th>
-                    <th>Accepted / Rejected</th>
+                    <th>Reviewed</th>
                     <th></th>
                   </tr>
                 </thead>

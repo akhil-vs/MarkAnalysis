@@ -27,6 +27,7 @@ import {
   deltaLabel,
   greeting,
 } from "../components/DashboardKit.jsx";
+import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 import { yearDelta } from "../lib/exams.js";
 
 export default function PrincipalDashboard() {
@@ -129,6 +130,10 @@ export default function PrincipalDashboard() {
                 : "up",
           }}
         />
+      </div>
+
+      <div className="grid lg:grid-cols-12 gap-4 mb-4">
+        <PendingAccessRequests className="lg:col-span-12" />
       </div>
 
       <div className="grid lg:grid-cols-12 gap-4 mb-4">

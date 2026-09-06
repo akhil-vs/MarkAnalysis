@@ -49,7 +49,9 @@ export async function notifyLateEntryRequested(request) {
     type: "LATE_ENTRY_REQUESTED",
     title: "Late mark entry requested",
     body: `${teacherName} requested late entry for ${examName} · ${classLabel} · ${subjectName}.`,
-    link: "/late-entry",
+    link: request.examId
+      ? `/late-entry?status=PENDING&examId=${encodeURIComponent(request.examId)}`
+      : "/late-entry?status=PENDING",
     meta: {
       requestId: request.id,
       examId: request.examId,
@@ -103,7 +105,9 @@ export async function notifyEditRequested(request) {
     type: "EDIT_REQUESTED",
     title: "Mark edit requested",
     body: `${teacherName} requested edit access for ${examName} · ${classLabel} · ${subjectName}.`,
-    link: "/late-entry",
+    link: request.examId
+      ? `/late-entry?status=PENDING&kind=EDIT&examId=${encodeURIComponent(request.examId)}`
+      : "/late-entry?status=PENDING&kind=EDIT",
     meta: {
       requestId: request.id,
       kind: "EDIT",
