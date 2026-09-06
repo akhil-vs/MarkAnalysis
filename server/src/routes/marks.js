@@ -434,8 +434,11 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
 });
 
 marksRouter.post("/approve", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { examId, classSectionId, subjectId } = req.body || {};
+  const { examId, classSectionId, subjectId, teacherId } = req.body || {};
   if (!examId) return res.status(400).json({ error: "examId is required" });
+  if (!teacherId) {
+    return res.status(400).json({ error: "teacherId is required — approve drafts one teacher at a time" });
+  }
 
   const studentFilter = classSectionId ? { classSectionId } : undefined;
   const students = studentFilter
@@ -446,17 +449,21 @@ marksRouter.post("/approve", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
     where: {
       examId,
       status: "DRAFT",
+      enteredById: teacherId,
       ...(subjectId && { subjectId }),
       ...(students && { studentId: { in: students.map((s) => s.id) } }),
     },
     data: { status: "APPROVED" },
   });
-  res.json({ approved: result.count });
+  res.json({ approved: result.count, teacherId });
 });
 
 marksRouter.post("/unapprove", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { examId, classSectionId, subjectId } = req.body || {};
+  const { examId, classSectionId, subjectId, teacherId } = req.body || {};
   if (!examId) return res.status(400).json({ error: "examId is required" });
+  if (!teacherId) {
+    return res.status(400).json({ error: "teacherId is required — unapprove drafts one teacher at a time" });
+  }
 
   const studentFilter = classSectionId ? { classSectionId } : undefined;
   const students = studentFilter
@@ -467,10 +474,11 @@ marksRouter.post("/unapprove", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
     where: {
       examId,
       status: "APPROVED",
+      enteredById: teacherId,
       ...(subjectId && { subjectId }),
       ...(students && { studentId: { in: students.map((s) => s.id) } }),
     },
     data: { status: "DRAFT" },
   });
-  res.json({ reverted: result.count });
+  res.json({ reverted: result.count, teacherId });
 });

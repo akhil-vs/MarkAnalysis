@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
+import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 
 export default function PendingUploads() {
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
+  const [message, setMessage] = useState("");
 
   async function load(id) {
     const res = await api(`/api/analytics/pending-uploads${id ? `?examId=${id}` : ""}`);
@@ -32,11 +34,16 @@ export default function PendingUploads() {
         actions={
           <select className="field w-auto" value={examId} onChange={(e) => load(e.target.value)}>
             {(data.exams || []).map((e) => (
-              <option key={e.id} value={e.id}>{e.name}</option>
+              <option key={e.id} value={e.id}>
+                {e.name}
+              </option>
             ))}
           </select>
         }
       />
+      {message && (
+        <p className="mb-3 rounded-lg bg-[#eef5f0] px-3 py-2 text-sm text-moss-600">{message}</p>
+      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <Kpi label="Teachers pending" value={data.pendingTeacherCount} warn={data.pendingTeacherCount > 0} />
         <Kpi
@@ -51,7 +58,9 @@ export default function PendingUploads() {
       {pending.length === 0 && awaiting.length === 0 ? (
         <div className="card p-5 text-ink-700/70">
           Every assigned teacher has uploaded and leadership has approved marks for this exam.{" "}
-          <Link className="underline" to={`/consolidated?examId=${examId}`}>Generate consolidated mark lists</Link>
+          <Link className="underline" to={`/consolidated?examId=${examId}`}>
+            Generate consolidated mark lists
+          </Link>
         </div>
       ) : (
         <div className="space-y-6">
@@ -59,10 +68,19 @@ export default function PendingUploads() {
             <section className="space-y-3">
               <h2 className="font-serif text-xl">Entered — awaiting your approval</h2>
               <p className="text-sm text-ink-700/60">
-                Teachers have saved these registers as draft. Open the mark register and click Approve so they appear in school analytics and consolidated lists.
+                Approve each teacher’s register separately. Drafts for other teachers stay unpublished.
               </p>
               {awaiting.map((t) => (
-                <TeacherCard key={`await-${t.teacherId}`} teacher={t} mode="awaiting" examId={examId} />
+                <TeacherCard
+                  key={`await-${t.teacherId}`}
+                  teacher={t}
+                  mode="awaiting"
+                  examId={examId}
+                  onApproved={async (msg) => {
+                    setMessage(msg);
+                    await load(examId);
+                  }}
+                />
               ))}
             </section>
           )}
@@ -80,11 +98,45 @@ export default function PendingUploads() {
   );
 }
 
-function TeacherCard({ teacher: t, mode, examId }) {
+function TeacherCard({ teacher: t, mode, examId, onApproved }) {
+  const confirm = useConfirm();
+  const [busyKey, setBusyKey] = useState("");
   const rows =
     mode === "awaiting"
       ? t.assignments.filter((a) => (a.draft ?? 0) > 0 && (a.approved ?? 0) < a.expected)
       : t.assignments.filter((a) => a.missing > 0);
+
+  async function approveRegister(a) {
+    if (!a.subjectId) {
+      return;
+    }
+    const ok = await confirm({
+      title: "Approve this teacher’s drafts?",
+      message: `Approve ${a.draft ?? 0} draft mark${(a.draft ?? 0) === 1 ? "" : "s"} for ${t.name} · ${a.classLabel} · ${a.subject}? Other teachers’ drafts stay unpublished.`,
+      confirmLabel: "Approve drafts",
+    });
+    if (!ok) return;
+    const key = `${a.classSectionId}-${a.subjectId}`;
+    setBusyKey(key);
+    try {
+      const res = await api("/api/marks/approve", {
+        method: "POST",
+        body: {
+          examId,
+          classSectionId: a.classSectionId,
+          subjectId: a.subjectId,
+          teacherId: t.teacherId,
+        },
+      });
+      await onApproved?.(
+        `Approved ${res.approved ?? 0} mark${res.approved === 1 ? "" : "s"} for ${t.name} · ${a.subject}`
+      );
+    } catch (err) {
+      await onApproved?.(err.message || "Could not approve drafts");
+    } finally {
+      setBusyKey("");
+    }
+  }
 
   return (
     <div className="card p-4">
@@ -113,23 +165,40 @@ function TeacherCard({ teacher: t, mode, examId }) {
               </tr>
             </thead>
             <tbody>
-              {page.map((a) => (
-                <tr key={`${a.classSectionId}-${a.subject}`}>
-                  <td>{a.classLabel}</td>
-                  <td>{a.subject}</td>
-                  <td>{a.uploaded} / {a.expected}</td>
-                  <td>{a.approved ?? 0}</td>
-                  <td>{a.draft ?? 0}</td>
-                  <td>
-                    <Link
-                      className="underline text-xs"
-                      to={`/marks?classSectionId=${a.classSectionId}&examId=${examId}`}
-                    >
-                      Open register
-                    </Link>
-                  </td>
-                </tr>
-              ))}
+              {page.map((a) => {
+                const key = `${a.classSectionId}-${a.subjectId || a.subject}`;
+                return (
+                  <tr key={key}>
+                    <td>{a.classLabel}</td>
+                    <td>{a.subject}</td>
+                    <td>
+                      {a.uploaded} / {a.expected}
+                    </td>
+                    <td>{a.approved ?? 0}</td>
+                    <td>{a.draft ?? 0}</td>
+                    <td className="space-x-2 whitespace-nowrap">
+                      <Link
+                        className="underline text-xs"
+                        to={`/marks?classSectionId=${a.classSectionId}&examId=${examId}${
+                          a.subjectId ? `&subjectId=${a.subjectId}` : ""
+                        }`}
+                      >
+                        Open register
+                      </Link>
+                      {mode === "awaiting" && a.subjectId && (
+                        <button
+                          type="button"
+                          className="btn-accent"
+                          disabled={busyKey === key}
+                          onClick={() => approveRegister(a)}
+                        >
+                          {busyKey === key ? "Approving…" : "Approve drafts"}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}

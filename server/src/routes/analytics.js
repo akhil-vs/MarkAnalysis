@@ -716,6 +716,7 @@ async function buildPendingUploads(exam) {
       classSectionId: assignment.classSectionId,
       classLabel: `${assignment.classSection.className}-${assignment.classSection.section}`,
       subject: assignment.subject.name,
+      subjectId: assignment.subjectId,
       ...progress,
     });
   }
