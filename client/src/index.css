@@ -53,3 +53,28 @@ body {
 .pager-btn-active {
   @apply bg-ink-900 text-cream border-ink-900 hover:bg-ink-800;
 }
+
+.mark-chip {
+  @apply inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide;
+}
+
+.mark-chip-approved {
+  @apply bg-moss-500/15 text-moss-600;
+}
+
+.mark-chip-draft {
+  @apply bg-clay-500/15 text-clay-600;
+}
+
+.mark-chip-dirty {
+  @apply bg-[#f3e0c8] text-clay-600;
+}
+
+.mark-chip-empty {
+  @apply bg-ink-900/5 text-ink-700/45;
+}
+
+.mark-grid th,
+.mark-grid td {
+  @apply align-middle;
+}
