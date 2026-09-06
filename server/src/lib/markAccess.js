@@ -110,7 +110,7 @@ export async function getMarkEntryAccessMap(user, examId, classSectionId, subjec
   for (const subjectId of subjectIds) {
     const late = lateBySubject.get(subjectId);
     const edit = editBySubject.get(subjectId);
-    const canEnter = !pastDeadline || late?.status === "APPROVED";
+    const canEnter = !pastDeadline || late?.status === "APPROVED" || edit?.status === "APPROVED";
     bySubject[subjectId] = {
       canEnter,
       canEditLocked: edit?.status === "APPROVED",

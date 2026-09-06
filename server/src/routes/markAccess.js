@@ -23,17 +23,6 @@ async function decorateRequest(row) {
   return { ...row, classSection, classLabel };
 }
 
-function uniqueKey(examId, teacherId, classSectionId, subjectId, kind) {
-  return {
-    examId_teacherId_classSectionId_subjectId_kind: {
-      examId,
-      teacherId,
-      classSectionId,
-      subjectId,
-      kind,
-    },
-  };
-}
 
 markAccessRouter.get("/", async (req, res) => {
   const { status, examId, kind } = req.query;
@@ -122,40 +111,63 @@ markAccessRouter.post("/", async (req, res) => {
     }
   }
 
-  const whereUnique = uniqueKey(examId, req.user.userId, classSectionId, subjectId, kind);
-  const existing = await prisma.markEntryAccessRequest.findUnique({ where: whereUnique });
-
-  if (existing?.status === "APPROVED") {
-    return res.json(existing);
-  }
-  if (existing?.status === "PENDING") {
-    return res.status(409).json({ error: "Request already pending approval" });
-  }
-
-  const created = await prisma.markEntryAccessRequest.upsert({
-    where: whereUnique,
-    create: {
+  // Avoid compound unique inputs — stale Prisma clients may not know about kind yet.
+  const existing = await prisma.markEntryAccessRequest.findFirst({
+    where: {
       examId,
       teacherId: req.user.userId,
       classSectionId,
       subjectId,
-      kind,
-      message: message || null,
-      status: "PENDING",
-    },
-    update: {
-      message: message || null,
-      status: "PENDING",
-      reviewedById: null,
-      reviewedAt: null,
-      requestedAt: new Date(),
-    },
-    include: {
-      exam: { select: { id: true, name: true } },
-      teacher: { select: { id: true, name: true } },
-      subject: { select: { id: true, name: true } },
     },
   });
+
+  if (existing?.status === "PENDING") {
+    return res.status(409).json({
+      error:
+        existing.kind === kind || !existing.kind
+          ? "Request already pending approval"
+          : `A ${existing.kind === "EDIT" ? "edit" : "late entry"} request is already pending for this register`,
+    });
+  }
+
+  if (existing?.status === "APPROVED" && (existing.kind === kind || (!existing.kind && kind === "LATE_ENTRY"))) {
+    return res.json(existing);
+  }
+
+  const include = {
+    exam: { select: { id: true, name: true } },
+    teacher: { select: { id: true, name: true } },
+    subject: { select: { id: true, name: true } },
+  };
+
+  const payload = {
+    kind,
+    message: message || null,
+    status: "PENDING",
+    reviewedById: null,
+    reviewedAt: null,
+    requestedAt: new Date(),
+  };
+
+  let created;
+  if (existing) {
+    created = await prisma.markEntryAccessRequest.update({
+      where: { id: existing.id },
+      data: payload,
+      include,
+    });
+  } else {
+    created = await prisma.markEntryAccessRequest.create({
+      data: {
+        examId,
+        teacherId: req.user.userId,
+        classSectionId,
+        subjectId,
+        ...payload,
+      },
+      include,
+    });
+  }
 
   const decorated = await decorateRequest(created);
   try {
