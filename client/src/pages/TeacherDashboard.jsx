@@ -28,6 +28,7 @@ export default function TeacherDashboard() {
   const { user, assignments } = useAuth();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
+  const [notices, setNotices] = useState([]);
 
   async function load(id) {
     const res = await api(`/api/analytics/teacher${id ? `?examId=${id}` : ""}`);
@@ -35,13 +36,41 @@ export default function TeacherDashboard() {
     if (res.exam) setExamId(res.exam.id);
   }
 
+  async function loadNotices() {
+    try {
+      const res = await api("/api/notifications?limit=8");
+      setNotices(Array.isArray(res.items) ? res.items : []);
+    } catch {
+      setNotices([]);
+    }
+  }
+
   useEffect(() => {
     load("");
+    loadNotices();
   }, []);
+
+  async function openNotice(notice) {
+    if (!notice.readAt) {
+      try {
+        await api(`/api/notifications/${notice.id}/read`, { method: "PATCH" });
+        setNotices((prev) =>
+          prev.map((n) => (n.id === notice.id ? { ...n, readAt: new Date().toISOString() } : n))
+        );
+      } catch {
+        // continue to link
+      }
+    }
+  }
 
   if (!data) return <p className="text-ink-700/60">Loading your classes…</p>;
 
   const registers = data.registers || [];
+  const unreadNotices = notices.filter((n) => !n.readAt);
+  const lateEntryNotices = notices.filter(
+    (n) => n.type === "LATE_ENTRY_APPROVED" || n.type === "LATE_ENTRY_REJECTED"
+  );
+  const dashboardNotices = (unreadNotices.length ? unreadNotices : lateEntryNotices).slice(0, 5);
   const radar = registers.reduce((acc, row) => {
     let item = acc.find((x) => x.subject === row.subject);
     if (!item) {
@@ -66,6 +95,54 @@ export default function TeacherDashboard() {
           ) : null
         }
       />
+
+      {dashboardNotices.length > 0 && (
+        <Panel
+          className="mb-5"
+          title="Notices"
+          action={
+            unreadNotices.length ? (
+              <span className="text-xs text-clay-600">{unreadNotices.length} unread</span>
+            ) : null
+          }
+        >
+          <div className="space-y-2">
+            {dashboardNotices.map((notice) => {
+              const approved = notice.type === "LATE_ENTRY_APPROVED";
+              const rejected = notice.type === "LATE_ENTRY_REJECTED";
+              return (
+                <Link
+                  key={notice.id}
+                  to={notice.link || "/marks"}
+                  onClick={() => openNotice(notice)}
+                  className={`block rounded-xl border px-4 py-3 transition hover:border-clay-500/40 ${
+                    notice.readAt ? "border-ink-900/10 bg-white/40" : "border-clay-500/25 bg-[#fbf4ec]"
+                  }`}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div>
+                      <div className="font-medium text-ink-900">{notice.title}</div>
+                      <div className="mt-1 text-sm text-ink-700/70">{notice.body}</div>
+                    </div>
+                    <div className="text-right">
+                      {(approved || rejected) && (
+                        <span
+                          className={`mark-chip ${approved ? "mark-chip-approved" : "mark-chip-dirty"}`}
+                        >
+                          {approved ? "Approved" : "Rejected"}
+                        </span>
+                      )}
+                      <div className="mt-1 text-[10px] text-ink-700/45">
+                        {new Date(notice.createdAt).toLocaleString()}
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        </Panel>
+      )}
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
         <Metric label="Your average" value={data.kpis?.average != null ? `${data.kpis.average}%` : "—"} />
