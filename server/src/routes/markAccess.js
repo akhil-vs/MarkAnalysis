@@ -163,6 +163,7 @@ markAccessRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
       exam: { select: { id: true, name: true } },
       teacher: { select: { id: true, name: true } },
       subject: { select: { id: true, name: true } },
+      reviewedBy: { select: { id: true, name: true } },
     },
   });
 
@@ -173,5 +174,5 @@ markAccessRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
     console.error("Failed to notify teacher of late entry review", err);
   }
 
-  res.json(updated);
+  res.json(decorated);
 });
