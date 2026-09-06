@@ -201,11 +201,11 @@ export default function ConsolidatedLists() {
                               if (cell.status === "DRAFT") {
                                 return (
                                   <td key={s.id} className="text-clay-600" title="Draft — not approved">
-                                    {cell.marks}
+                                    {cell.display || cell.marks}
                                   </td>
                                 );
                               }
-                              return <td key={s.id}>{cell.marks}</td>;
+                              return <td key={s.id}>{cell.display || cell.marks}</td>;
                             })}
                             <td>{row.total ?? "—"}</td>
                             <td>{row.percent ?? "—"}</td>

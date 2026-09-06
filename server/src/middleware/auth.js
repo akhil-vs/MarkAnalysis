@@ -48,6 +48,29 @@ export async function getAssignments(userId) {
   });
 }
 
+export async function getTeacherClassIds(userId) {
+  const [assignments, taught] = await Promise.all([
+    prisma.teacherAssignment.findMany({
+      where: { userId },
+      select: { classSectionId: true },
+    }),
+    prisma.classSection.findMany({
+      where: { classTeacherId: userId },
+      select: { id: true },
+    }),
+  ]);
+  return [...new Set([...assignments.map((a) => a.classSectionId), ...taught.map((c) => c.id)])];
+}
+
+export async function teacherIsClassTeacher(userId, classSectionId) {
+  if (!classSectionId) return false;
+  const cls = await prisma.classSection.findUnique({
+    where: { id: classSectionId },
+    select: { classTeacherId: true },
+  });
+  return cls?.classTeacherId === userId;
+}
+
 export function isLeadership(role) {
   return role === "PRINCIPAL" || role === "EXAM_COORDINATOR";
 }
@@ -56,11 +79,21 @@ export function requireLeadership() {
   return requireRole("PRINCIPAL", "EXAM_COORDINATOR");
 }
 
-export async function teacherCanAccess(user, { classSectionId, subjectId }) {
+export async function teacherCanAccess(user, { classSectionId, subjectId, write = false } = {}) {
   if (isLeadership(user.role)) return true;
-  const where = { userId: user.userId };
-  if (classSectionId) where.classSectionId = classSectionId;
-  if (subjectId) where.subjectId = subjectId;
-  const match = await prisma.teacherAssignment.findFirst({ where });
-  return Boolean(match);
+  if (write || subjectId) {
+    const where = { userId: user.userId };
+    if (classSectionId) where.classSectionId = classSectionId;
+    if (subjectId) where.subjectId = subjectId;
+    const match = await prisma.teacherAssignment.findFirst({ where });
+    return Boolean(match);
+  }
+  if (classSectionId) {
+    const assigned = await prisma.teacherAssignment.findFirst({
+      where: { userId: user.userId, classSectionId },
+    });
+    if (assigned) return true;
+    return teacherIsClassTeacher(user.userId, classSectionId);
+  }
+  return false;
 }

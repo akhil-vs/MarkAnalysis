@@ -10,8 +10,9 @@ import {
   assertTeacherMarkEntryAccess,
   getMarkEntryAccessMap,
   isLockedMarkStatus,
-  teacherHasMarkEntryAccess,
 } from "../lib/markAccess.js";
+import { auditValueFor, parseMarkInput } from "../lib/markCodes.js";
+import { studentWhereForExam } from "../lib/studentScope.js";
 import { notifyMarksSubmitted } from "../lib/notifications.js";
 
 export const marksRouter = Router();
@@ -19,17 +20,29 @@ marksRouter.use(auth);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-async function scopedSubjects(user, classSection) {
-  if (user.role === "TEACHER") {
-    const assignments = await getAssignments(user.userId);
-    return assignments
-      .filter((a) => a.classSectionId === classSection.id)
-      .map((a) => a.subject);
+async function assignedSubjects(user, classSection) {
+  const assignments = await getAssignments(user.userId);
+  return assignments
+    .filter((a) => a.classSectionId === classSection.id)
+    .map((a) => a.subject);
+}
+
+async function scopedSubjects(user, classSection, { write = false } = {}) {
+  if (user.role !== "TEACHER") {
+    return prisma.subject.findMany({
+      where: { className: classSection.className },
+      orderBy: { name: "asc" },
+    });
   }
-  return prisma.subject.findMany({
-    where: { className: classSection.className },
-    orderBy: { name: "asc" },
-  });
+  const assigned = await assignedSubjects(user, classSection);
+  if (write) return assigned;
+  if (classSection.classTeacherId === user.userId) {
+    return prisma.subject.findMany({
+      where: { className: classSection.className },
+      orderBy: { name: "asc" },
+    });
+  }
+  return assigned;
 }
 
 marksRouter.get("/", async (req, res) => {
@@ -53,8 +66,9 @@ marksRouter.get("/", async (req, res) => {
     subjects = subjects.filter((s) => s.id === subjectId);
   }
 
+  const exam = await prisma.exam.findUnique({ where: { id: examId } });
   const students = await prisma.student.findMany({
-    where: { classSectionId },
+    where: await studentWhereForExam(classSectionId, exam),
     orderBy: { rollNo: "asc" },
   });
 
@@ -72,14 +86,27 @@ marksRouter.get("/", async (req, res) => {
         })
       : [];
 
+  const writable =
+    req.user.role === "TEACHER"
+      ? (await assignedSubjects(req.user, classSection)).map((s) => s.id)
+      : subjects.map((s) => s.id);
+
   const entryAccess = await getMarkEntryAccessMap(
     req.user,
     examId,
     classSectionId,
-    subjects.map((s) => s.id)
+    subjects.map((s) => s.id),
+    { writableSubjectIds: writable }
   );
 
-  res.json({ classSection, subjects, students, marks, entryAccess });
+  res.json({
+    classSection,
+    subjects,
+    students,
+    marks,
+    entryAccess,
+    classTeacherView: req.user.role === "TEACHER" && classSection.classTeacherId === req.user.userId,
+  });
 });
 
 marksRouter.put("/", async (req, res) => {
@@ -105,6 +132,7 @@ marksRouter.put("/", async (req, res) => {
       const ok = await teacherCanAccess(req.user, {
         classSectionId: student.classSectionId,
         subjectId,
+        write: true,
       });
       if (!ok) {
         results.push({ studentId, subjectId, error: "Not assigned" });
@@ -129,7 +157,8 @@ marksRouter.put("/", async (req, res) => {
         continue;
       }
     }
-    if (marksObtained == null || marksObtained === "") {
+    const parsed = parseMarkInput(marksObtained, subject.maxMarks);
+    if (parsed.empty) {
       const existing = await prisma.mark.findUnique({
         where: { studentId_subjectId_examId: { studentId, subjectId, examId } },
       });
@@ -138,7 +167,7 @@ marksRouter.put("/", async (req, res) => {
           data: {
             markId: existing.id,
             changedById: req.user.userId,
-            oldValue: existing.marksObtained,
+            oldValue: auditValueFor(existing.outcome, existing.marksObtained),
             newValue: -1,
           },
         });
@@ -147,18 +176,8 @@ marksRouter.put("/", async (req, res) => {
       results.push({ studentId, subjectId, deleted: true });
       continue;
     }
-
-    const value = Number(marksObtained);
-    if (Number.isNaN(value) || value < 0) {
-      results.push({ studentId, subjectId, error: "Invalid marks" });
-      continue;
-    }
-    if (value > subject.maxMarks) {
-      results.push({
-        studentId,
-        subjectId,
-        error: `Marks exceed max (${subject.maxMarks})`,
-      });
+    if (parsed.error) {
+      results.push({ studentId, subjectId, error: parsed.error });
       continue;
     }
 
@@ -166,7 +185,11 @@ marksRouter.put("/", async (req, res) => {
       where: { studentId_subjectId_examId: { studentId, subjectId, examId } },
     });
 
-    if (existing && existing.marksObtained === value) {
+    const sameScore =
+      existing &&
+      existing.outcome === parsed.outcome &&
+      existing.marksObtained === parsed.marksObtained;
+    if (sameScore) {
       results.push({ studentId, subjectId, mark: existing, unchanged: true });
       continue;
     }
@@ -177,12 +200,14 @@ marksRouter.put("/", async (req, res) => {
         studentId,
         subjectId,
         examId,
-        marksObtained: value,
+        marksObtained: parsed.marksObtained,
+        outcome: parsed.outcome,
         enteredById: req.user.userId,
         status: "DRAFT",
       },
       update: {
-        marksObtained: value,
+        marksObtained: parsed.marksObtained,
+        outcome: parsed.outcome,
         enteredById: req.user.userId,
         status: "DRAFT",
       },
@@ -192,8 +217,8 @@ marksRouter.put("/", async (req, res) => {
       data: {
         markId: mark.id,
         changedById: req.user.userId,
-        oldValue: existing ? existing.marksObtained : null,
-        newValue: value,
+        oldValue: existing ? auditValueFor(existing.outcome, existing.marksObtained) : null,
+        newValue: auditValueFor(parsed.outcome, parsed.marksObtained),
       },
     });
     results.push({ studentId, subjectId, mark });
@@ -243,9 +268,9 @@ marksRouter.get("/template", async (req, res) => {
     if (!ok) return res.status(403).json({ error: "Not assigned to this class" });
   }
 
-  const subjects = await scopedSubjects(req.user, classSection);
+  const subjects = await scopedSubjects(req.user, classSection, { write: true });
   const students = await prisma.student.findMany({
-    where: { classSectionId },
+    where: await studentWhereForExam(classSectionId, exam),
     orderBy: { rollNo: "asc" },
   });
 
@@ -297,13 +322,14 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
   if (!classSection) return res.status(404).json({ error: "Class not found" });
 
   if (req.user.role === "TEACHER") {
-    const ok = await teacherCanAccess(req.user, { classSectionId });
+    const ok = await teacherCanAccess(req.user, { classSectionId, write: true });
     if (!ok) return res.status(403).json({ error: "Not assigned to this class" });
   }
 
-  const subjects = await scopedSubjects(req.user, classSection);
+  const exam = await prisma.exam.findUnique({ where: { id: examId } });
+  const subjects = await scopedSubjects(req.user, classSection, { write: true });
   const students = await prisma.student.findMany({
-    where: { classSectionId },
+    where: await studentWhereForExam(classSectionId, exam),
     orderBy: { rollNo: "asc" },
   });
   const byRoll = new Map(students.map((s) => [String(s.rollNo).trim(), s]));
@@ -343,26 +369,18 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
       const subject = subjectFromHeader(header, subjects);
       if (!subject) continue;
       if (raw === "" || raw == null) continue;
-      const value = Number(raw);
-      if (Number.isNaN(value) || value < 0) {
+      const parsed = parseMarkInput(raw, subject.maxMarks);
+      if (parsed.empty) continue;
+      if (parsed.error) {
         errors.push({
           row: index + 2,
           roll,
           subject: subject.name,
-          error: "Invalid marks",
+          error: parsed.error,
         });
         continue;
       }
-      if (value > subject.maxMarks) {
-        errors.push({
-          row: index + 2,
-          roll,
-          subject: subject.name,
-          error: `Exceeds max ${subject.maxMarks}`,
-        });
-        continue;
-      }
-      valid.push({ student, subject, value });
+      valid.push({ student, subject, ...parsed });
     }
   });
 
@@ -439,12 +457,14 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
         studentId: item.student.id,
         subjectId: item.subject.id,
         examId,
-        marksObtained: item.value,
+        marksObtained: item.marksObtained,
+        outcome: item.outcome,
         enteredById: req.user.userId,
         status: "DRAFT",
       },
       update: {
-        marksObtained: item.value,
+        marksObtained: item.marksObtained,
+        outcome: item.outcome,
         enteredById: req.user.userId,
         status: "DRAFT",
       },
@@ -453,8 +473,8 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
       data: {
         markId: mark.id,
         changedById: req.user.userId,
-        oldValue: existing ? existing.marksObtained : null,
-        newValue: item.value,
+        oldValue: existing ? auditValueFor(existing.outcome, existing.marksObtained) : null,
+        newValue: auditValueFor(item.outcome, item.marksObtained),
       },
     });
     saved.push(mark);
@@ -476,7 +496,7 @@ marksRouter.post("/submit", async (req, res) => {
   }
 
   if (req.user.role === "TEACHER") {
-    const ok = await teacherCanAccess(req.user, { classSectionId, subjectId });
+    const ok = await teacherCanAccess(req.user, { classSectionId, subjectId, write: true });
     if (!ok) return res.status(403).json({ error: "Not assigned to this register" });
     const blocked = await assertTeacherMarkEntryAccess(req.user, {
       examId,
@@ -488,8 +508,9 @@ marksRouter.post("/submit", async (req, res) => {
     return res.status(403).json({ error: "Forbidden" });
   }
 
+  const examRecord = await prisma.exam.findUnique({ where: { id: examId } });
   const students = await prisma.student.findMany({
-    where: { classSectionId },
+    where: await studentWhereForExam(classSectionId, examRecord),
     select: { id: true },
   });
   const studentIds = students.map((s) => s.id);

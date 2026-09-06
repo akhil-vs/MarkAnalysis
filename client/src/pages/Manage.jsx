@@ -4,7 +4,7 @@ import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 
-const TABS = ["Classes", "Subjects", "Students", "Exams"];
+const TABS = ["Classes", "Subjects", "Students", "Exams", "Promote"];
 
 export default function Manage() {
   const [tab, setTab] = useState("Classes");
@@ -26,6 +26,7 @@ export default function Manage() {
       {tab === "Subjects" && <SubjectsTab />}
       {tab === "Students" && <StudentsTab />}
       {tab === "Exams" && <ExamsTab />}
+      {tab === "Promote" && <PromoteTab />}
     </div>
   );
 }
@@ -241,7 +242,7 @@ function SubjectsTab() {
 }
 
 function emptyStudentForm(classSectionId = "") {
-  return { name: "", rollNo: "", classSectionId, guardianName: "", guardianPhone: "", dob: "" };
+  return { name: "", rollNo: "", classSectionId, guardianName: "", guardianPhone: "", dob: "", academicYear: "" };
 }
 
 function StudentsTab() {
@@ -273,6 +274,7 @@ function StudentsTab() {
       guardianName: row.guardianName || "",
       guardianPhone: row.guardianPhone || "",
       dob: row.dob ? new Date(row.dob).toISOString().slice(0, 10) : "",
+      academicYear: row.academicYear || "",
     });
     setMessage("");
   }
@@ -399,6 +401,7 @@ function StudentsTab() {
           </div>
           <input className="field" placeholder="Guardian name" value={form.guardianName} onChange={(e) => setForm({ ...form, guardianName: e.target.value })} />
           <input className="field" placeholder="Guardian phone" value={form.guardianPhone} onChange={(e) => setForm({ ...form, guardianPhone: e.target.value })} />
+          <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} />
           <div className="flex gap-2">
             <button className="btn-primary">{editingId ? "Save changes" : "Create"}</button>
             {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit}>Cancel</button>}
@@ -413,6 +416,7 @@ function StudentsTab() {
                     <th>Roll</th>
                     <th>Name</th>
                     <th>Class</th>
+                    <th>Year</th>
                     <th>DOB</th>
                     <th>Guardian</th>
                     <th>Phone</th>
@@ -425,6 +429,7 @@ function StudentsTab() {
                       <td>{r.rollNo}</td>
                       <td>{r.name}</td>
                       <td>{r.classSection.className}-{r.classSection.section}</td>
+                      <td>{r.academicYear || "—"}</td>
                       <td>{r.dob ? new Date(r.dob).toLocaleDateString() : "—"}</td>
                       <td>{r.guardianName || "—"}</td>
                       <td>{r.guardianPhone || "—"}</td>
@@ -580,6 +585,152 @@ function ExamsTab() {
                     <td className="whitespace-nowrap space-x-2">
                       <button type="button" className="btn-ghost" onClick={() => startEdit(r)}>Edit</button>
                       <button type="button" className="btn-ghost" onClick={() => remove(r)}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </PaginatedTable>
+      </div>
+    </div>
+  );
+}
+
+function nextYearHint(year) {
+  const m = String(year || "").match(/^(\d{4})-(\d{2})$/);
+  if (!m) return "";
+  const start = Number(m[1]) + 1;
+  return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
+}
+
+function PromoteTab() {
+  const confirm = useConfirm();
+  const [classes, setClasses] = useState([]);
+  const [students, setStudents] = useState([]);
+  const [fromId, setFromId] = useState("");
+  const [toId, setToId] = useState("");
+  const [toYear, setToYear] = useState("");
+  const [selected, setSelected] = useState({});
+  const [rolls, setRolls] = useState({});
+  const [message, setMessage] = useState("");
+
+  async function loadClasses() {
+    const c = await api("/api/classes");
+    setClasses(c);
+    if (!fromId && c[0]) setFromId(c[0].id);
+    if (!toId && c[1]) setToId(c[1].id);
+  }
+
+  async function loadStudents(classSectionId) {
+    if (!classSectionId) return;
+    const rows = await api(`/api/students?classSectionId=${classSectionId}`);
+    setStudents(rows);
+    setSelected(Object.fromEntries(rows.map((s) => [s.id, true])));
+    setRolls(Object.fromEntries(rows.map((s) => [s.id, s.rollNo])));
+    const year = rows[0]?.academicYear;
+    if (year && !toYear) setToYear(nextYearHint(year));
+  }
+
+  useEffect(() => { loadClasses(); }, []);
+  useEffect(() => { loadStudents(fromId); }, [fromId]);
+
+  const chosen = students.filter((s) => selected[s.id]);
+
+  async function promote() {
+    if (!chosen.length) return setMessage("Select at least one student");
+    const from = classes.find((c) => c.id === fromId);
+    const to = classes.find((c) => c.id === toId);
+    if (!(await confirm({
+      title: "Promote students?",
+      message: `Move ${chosen.length} student${chosen.length === 1 ? "" : "s"} from ${from?.className}-${from?.section} to ${to?.className}-${to?.section} for ${toYear || "the next year"}? Past marks stay on the previous class record.`,
+      confirmLabel: "Promote",
+    }))) return;
+    setMessage("");
+    try {
+      const data = await api("/api/students/promote", {
+        method: "POST",
+        body: {
+          fromClassSectionId: fromId,
+          toClassSectionId: toId,
+          toYear,
+          students: chosen.map((s) => ({ studentId: s.id, rollNo: rolls[s.id] || s.rollNo })),
+        },
+      });
+      setMessage(`Promoted ${data.promoted} students to ${data.toClass} (${data.toYear}).`);
+      loadStudents(fromId);
+    } catch (err) {
+      setMessage(err.message);
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="card p-5 space-y-3">
+        <h3 className="font-serif text-lg">Promote a class</h3>
+        <p className="text-sm text-ink-700/65">
+          Creates a new enrollment in the destination class for the next academic year and keeps this year’s
+          marks on the previous record. Year-on-year analysis follows the promotion chain.
+        </p>
+        <div className="grid sm:grid-cols-3 gap-3">
+          <label className="block">
+            <span className="label">From</span>
+            <select className="field" value={fromId} onChange={(e) => setFromId(e.target.value)}>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">To</span>
+            <select className="field" value={toId} onChange={(e) => setToId(e.target.value)}>
+              {classes.map((c) => (
+                <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
+              ))}
+            </select>
+          </label>
+          <label className="block">
+            <span className="label">Destination year</span>
+            <input className="field" placeholder="2026-27" value={toYear} onChange={(e) => setToYear(e.target.value)} />
+          </label>
+        </div>
+        <button type="button" className="btn-primary" onClick={promote} disabled={!chosen.length}>
+          Promote {chosen.length || 0} student{chosen.length === 1 ? "" : "s"}
+        </button>
+        {message && <p className="text-sm">{message}</p>}
+      </div>
+      <div className="card">
+        <PaginatedTable items={students} empty="No active students in this class." resetKey={fromId}>
+          {(page) => (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th></th>
+                  <th>Roll</th>
+                  <th>Name</th>
+                  <th>Year</th>
+                  <th>New roll</th>
+                </tr>
+              </thead>
+              <tbody>
+                {page.map((s) => (
+                  <tr key={s.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(selected[s.id])}
+                        onChange={(e) => setSelected((m) => ({ ...m, [s.id]: e.target.checked }))}
+                      />
+                    </td>
+                    <td>{s.rollNo}</td>
+                    <td>{s.name}</td>
+                    <td>{s.academicYear || "—"}</td>
+                    <td>
+                      <input
+                        className="field w-20"
+                        value={rolls[s.id] ?? s.rollNo}
+                        onChange={(e) => setRolls((m) => ({ ...m, [s.id]: e.target.value }))}
+                      />
                     </td>
                   </tr>
                 ))}

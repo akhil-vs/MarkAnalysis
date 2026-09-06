@@ -141,7 +141,28 @@ async function main() {
       idx += 1;
     }
   }
-  const students = await prisma.student.createManyAndReturn({ data: studentData });
+  const students = await prisma.student.createManyAndReturn({
+    data: studentData.map((s) => ({ ...s, academicYear: "2025-26", status: "ACTIVE" })),
+  });
+
+  await prisma.schoolProfile.upsert({
+    where: { id: "school" },
+    create: {
+      id: "school",
+      name: "Greenfield Public School",
+      board: "CBSE",
+      affiliationNo: "1930123",
+      address: "12 Lake View Road, Bengaluru",
+      phone: "080-40001234",
+      email: "office@greenfield.school",
+      updatedAt: new Date(),
+    },
+    update: {
+      name: "Greenfield Public School",
+      board: "CBSE",
+      affiliationNo: "1930123",
+    },
+  });
 
   const exams = await prisma.exam.createManyAndReturn({
     data: [

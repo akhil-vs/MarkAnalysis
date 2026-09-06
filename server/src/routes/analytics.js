@@ -7,7 +7,7 @@ import {
   pearson,
   round1,
 } from "../lib/grades.js";
-import { auth, getAssignments, isLeadership } from "../middleware/auth.js";
+import { auth, getAssignments, isLeadership, teacherCanAccess } from "../middleware/auth.js";
 import {
   classLabel,
   compareClassNames,
@@ -26,6 +26,7 @@ import {
 } from "../lib/stats.js";
 import { registerAnalysisReports } from "./analyticsReports.js";
 import { summarizeRegister } from "../lib/registerStatus.js";
+import { collectStudentLineageIds } from "../lib/studentScope.js";
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
@@ -436,14 +437,14 @@ analyticsRouter.get("/student/:id", async (req, res) => {
   if (!student) return res.status(404).json({ error: "Not found" });
 
   if (req.user.role === "TEACHER") {
-    const assignments = await getAssignments(req.user.userId);
-    if (!assignments.some((a) => a.classSectionId === student.classSectionId)) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+    const ok = await teacherCanAccess(req.user, { classSectionId: student.classSectionId });
+    if (!ok) return res.status(403).json({ error: "Forbidden" });
   }
 
+  const lineageIds = await collectStudentLineageIds(student);
+
   const marks = await prisma.mark.findMany({
-    where: { studentId: student.id },
+    where: { studentId: { in: lineageIds } },
     include: { subject: true, exam: true },
     orderBy: { exam: { date: "asc" } },
   });
@@ -498,10 +499,8 @@ analyticsRouter.get("/class/:id", async (req, res) => {
   const cls = await prisma.classSection.findUnique({ where: { id: req.params.id } });
   if (!cls) return res.status(404).json({ error: "Not found" });
   if (req.user.role === "TEACHER") {
-    const assignments = await getAssignments(req.user.userId);
-    if (!assignments.some((a) => a.classSectionId === cls.id)) {
-      return res.status(403).json({ error: "Forbidden" });
-    }
+    const ok = await teacherCanAccess(req.user, { classSectionId: cls.id });
+    if (!ok) return res.status(403).json({ error: "Forbidden" });
   }
 
   const { exams, exam } = await loadExams(req.query.examId);
@@ -748,7 +747,7 @@ async function buildPendingUploads(exam) {
     prisma.teacherAssignment.findMany({
       include: { user: true, classSection: true, subject: true },
     }),
-    prisma.student.findMany({ select: { id: true, classSectionId: true } }),
+    prisma.student.findMany({ where: { status: "ACTIVE" }, select: { id: true, classSectionId: true } }),
     prisma.mark.findMany({
       where: { examId: exam.id },
       select: { studentId: true, subjectId: true, status: true },

@@ -73,7 +73,7 @@ export default function MarksUpload() {
     <div>
       <PageHeader
         title="Bulk upload"
-        subtitle="One template per class and exam. Preview first, then commit drafts."
+        subtitle="One template per class and exam. Preview first, then commit drafts. Use AB, EX, or WH for absent, exempt, or withheld."
       />
       <div className="card p-5 space-y-4 max-w-2xl">
         <div className="grid sm:grid-cols-2 gap-3">

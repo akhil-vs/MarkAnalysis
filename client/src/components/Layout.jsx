@@ -40,6 +40,7 @@ export default function Layout() {
     { to: "/", label: "Dashboard", end: true },
     ...(user.role !== "TEACHER" ? [{ to: "/users", label: "Staff" }] : []),
     ...(isLeadership ? [{ to: "/manage", label: "Records" }] : []),
+    ...(isLeadership ? [{ to: "/school", label: "School" }] : []),
     { to: "/marks", label: "Mark register" },
     { to: "/upload", label: "Bulk upload" },
     ...(isLeadership ? [{ to: "/consolidated", label: "Mark lists" }] : []),

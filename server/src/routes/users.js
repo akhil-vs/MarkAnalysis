@@ -129,3 +129,17 @@ usersRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
   });
   res.json({ ...publicUser(fresh), assignments: fresh.assignments });
 });
+
+usersRouter.post("/:id/reset-password", requireRole("PRINCIPAL"), async (req, res) => {
+  const { password } = req.body || {};
+  if (!password || String(password).length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  }
+  const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Not found" });
+  await prisma.user.update({
+    where: { id: existing.id },
+    data: { passwordHash: await bcrypt.hash(String(password), 10) },
+  });
+  res.json({ ok: true, message: "Password reset" });
+});

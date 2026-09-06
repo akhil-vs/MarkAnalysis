@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "test": "node --test src/**/*.test.js"
   },
   "prisma": {
     "seed": "node prisma/seed.js"

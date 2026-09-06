@@ -31,6 +31,20 @@ enum MarkStatus {
   APPROVED
 }
 
+enum MarkOutcome {
+  SCORED
+  ABSENT
+  EXEMPT
+  WITHHELD
+}
+
+enum StudentStatus {
+  ACTIVE
+  PROMOTED
+  TRANSFERRED
+  LEFT
+}
+
 enum MarkEntryAccessKind {
   LATE_ENTRY
   EDIT
@@ -102,18 +116,24 @@ model TeacherAssignment {
 }
 
 model Student {
-  id             String    @id @default(cuid())
+  id             String        @id @default(cuid())
   name           String
   rollNo         String
   classSectionId String
+  academicYear   String        @default("2025-26")
+  status         StudentStatus @default(ACTIVE)
   dob            DateTime?
   guardianName   String?
   guardianPhone  String?
+  promotedFromId String?
 
   classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
   marks        Mark[]
+  promotedFrom Student?  @relation("StudentPromotion", fields: [promotedFromId], references: [id], onDelete: SetNull)
+  promotedTo   Student[] @relation("StudentPromotion")
 
   @@unique([rollNo, classSectionId])
+  @@index([classSectionId, academicYear, status])
 }
 
 model Exam {
@@ -155,7 +175,8 @@ model Mark {
   studentId     String
   subjectId     String
   examId        String
-  marksObtained Float
+  marksObtained Float?
+  outcome       MarkOutcome @default(SCORED)
   enteredById   String
   status        MarkStatus @default(DRAFT)
   updatedAt     DateTime   @updatedAt
@@ -181,6 +202,17 @@ model MarkAudit {
 
   mark      Mark @relation(fields: [markId], references: [id], onDelete: Cascade)
   changedBy User @relation(fields: [changedById], references: [id])
+}
+
+model SchoolProfile {
+  id            String   @id @default("school")
+  name          String
+  board         String?
+  affiliationNo String?
+  address       String?
+  phone         String?
+  email         String?
+  updatedAt     DateTime @updatedAt
 }
 
 enum NotificationType {
