@@ -133,7 +133,12 @@ markAccessRouter.post("/", async (req, res) => {
   });
 
   const decorated = await decorateRequest(created);
-  await notifyLateEntryRequested(decorated);
+  try {
+    await notifyLateEntryRequested(decorated);
+  } catch (err) {
+    // Request is already saved — do not fail the teacher response if notify breaks.
+    console.error("Failed to notify leadership of late entry request", err);
+  }
 
   res.status(201).json(created);
 });
@@ -162,7 +167,11 @@ markAccessRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
   });
 
   const decorated = await decorateRequest(updated);
-  await notifyLateEntryReviewed(decorated, status);
+  try {
+    await notifyLateEntryReviewed(decorated, status);
+  } catch (err) {
+    console.error("Failed to notify teacher of late entry review", err);
+  }
 
   res.json(updated);
 });

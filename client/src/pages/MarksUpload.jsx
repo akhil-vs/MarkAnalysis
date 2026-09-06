@@ -90,7 +90,7 @@ export default function MarksUpload() {
             subjects={subjects}
             examId={examId}
             classSectionId={classSectionId}
-            onChange={loadAccess}
+            onChange={() => loadAccess()}
           />
         )}
         <button
