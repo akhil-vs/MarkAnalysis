@@ -23,18 +23,6 @@ async function decorateRequest(row) {
   return { ...row, classSection, classLabel };
 }
 
-function uniqueKey(examId, teacherId, classSectionId, subjectId, kind) {
-  return {
-    examId_teacherId_classSectionId_subjectId_kind: {
-      examId,
-      teacherId,
-      classSectionId,
-      subjectId,
-      kind,
-    },
-  };
-}
-
 markAccessRouter.get("/", async (req, res) => {
   const { status, examId, kind } = req.query;
   const where = {};
@@ -122,14 +110,29 @@ markAccessRouter.post("/", async (req, res) => {
     }
   }
 
-  const whereUnique = uniqueKey(examId, req.user.userId, classSectionId, subjectId, kind);
+  // Use the original compound unique (without kind) — one request row per register.
+  const whereUnique = {
+    examId_teacherId_classSectionId_subjectId: {
+      examId,
+      teacherId: req.user.userId,
+      classSectionId,
+      subjectId,
+    },
+  };
+
   const existing = await prisma.markEntryAccessRequest.findUnique({ where: whereUnique });
 
-  if (existing?.status === "APPROVED") {
-    return res.json(existing);
-  }
   if (existing?.status === "PENDING") {
-    return res.status(409).json({ error: "Request already pending approval" });
+    return res.status(409).json({
+      error:
+        existing.kind === kind
+          ? "Request already pending approval"
+          : `A ${existing.kind === "EDIT" ? "edit" : "late entry"} request is already pending for this register`,
+    });
+  }
+
+  if (existing?.status === "APPROVED" && existing.kind === kind) {
+    return res.json(existing);
   }
 
   const created = await prisma.markEntryAccessRequest.upsert({
@@ -144,6 +147,7 @@ markAccessRouter.post("/", async (req, res) => {
       status: "PENDING",
     },
     update: {
+      kind,
       message: message || null,
       status: "PENDING",
       reviewedById: null,

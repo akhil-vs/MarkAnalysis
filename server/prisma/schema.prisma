@@ -147,7 +147,8 @@ model MarkEntryAccessRequest {
   subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   reviewedBy   User?        @relation("MarkEntryReviewer", fields: [reviewedById], references: [id])
 
-  @@unique([examId, teacherId, classSectionId, subjectId, kind])
+  // One open request per register; kind distinguishes late entry vs edit.
+  @@unique([examId, teacherId, classSectionId, subjectId])
 }
 
 model Mark {

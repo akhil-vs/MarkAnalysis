@@ -4,9 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "node --watch src/index.js",
+    "dev": "prisma generate && node --watch src/index.js",
     "start": "node src/index.js",
-    "seed": "node prisma/seed.js"
+    "seed": "node prisma/seed.js",
+    "postinstall": "prisma generate",
+    "migrate": "prisma migrate deploy"
   },
   "prisma": {
     "seed": "node prisma/seed.js"
