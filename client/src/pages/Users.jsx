@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
@@ -27,6 +27,55 @@ const USER_FILTERS = [
   { key: "status", match: (u, v) => u.status === v },
 ];
 
+const ROLE_LABEL = {
+  PRINCIPAL: "Principal",
+  EXAM_COORDINATOR: "Exam coordinator",
+  TEACHER: "Teacher",
+};
+
+function statusBadgeClass(status) {
+  if (status === "ACTIVE") return "status-badge status-badge-active";
+  if (status === "PENDING") return "status-badge status-badge-pending";
+  if (status === "REJECTED") return "status-badge status-badge-rejected";
+  return "status-badge status-badge-rejected";
+}
+
+function statusLabel(status) {
+  if (status === "ACTIVE") return "Active";
+  if (status === "PENDING") return "Pending";
+  if (status === "REJECTED") return "Rejected";
+  return status || "—";
+}
+
+function AssignmentSummary({ assignments }) {
+  const groups = useMemo(() => {
+    const map = new Map();
+    for (const a of assignments || []) {
+      const cls = a.classSection
+        ? `${a.classSection.className}-${a.classSection.section}`
+        : "—";
+      if (!map.has(cls)) map.set(cls, []);
+      if (a.subject?.name) map.get(cls).push(a.subject.name);
+    }
+    return [...map.entries()];
+  }, [assignments]);
+
+  if (!groups.length) {
+    return <span className="text-sm text-ink-700/45">No assignments</span>;
+  }
+
+  return (
+    <div className="min-w-[10rem] max-w-xs space-y-1">
+      {groups.map(([cls, subjects]) => (
+        <div key={cls} className="text-sm leading-snug">
+          <span className="font-medium text-ink-900">{cls}</span>
+          <span className="text-ink-700/60"> · {subjects.join(", ")}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Users() {
   const { user } = useAuth();
   const canCreateCoordinator = canAddCoordinator(user.role);
@@ -36,6 +85,7 @@ export default function Users() {
   const [subjects, setSubjects] = useState([]);
   const [editing, setEditing] = useState(null);
   const [resetting, setResetting] = useState(null);
+  const [busyId, setBusyId] = useState("");
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -62,8 +112,13 @@ export default function Users() {
   }, []);
 
   async function setStatus(id, status) {
-    await api(`/api/users/${id}`, { method: "PATCH", body: { status } });
-    load();
+    setBusyId(id);
+    try {
+      await api(`/api/users/${id}`, { method: "PATCH", body: { status } });
+      await load();
+    } finally {
+      setBusyId("");
+    }
   }
 
   async function saveAssignments(userId, assignments) {
@@ -175,43 +230,86 @@ export default function Users() {
               <thead>
                 <tr>
                   <th>Name</th>
-                  <th>Email / ID</th>
                   <th>Role</th>
                   <th>Status</th>
                   <th>Assignments</th>
-                  <th></th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {page.map((u) => (
-                  <tr key={u.id}>
-                    <td>{u.name}</td>
-                    <td>{u.email || u.schoolId}</td>
-                    <td>{u.role.replaceAll("_", " ")}</td>
-                    <td>{u.status}</td>
-                    <td className="text-xs">
-                      {(u.assignments || []).map((a) => (
-                        <div key={a.id}>
-                          {a.classSection.className}-{a.classSection.section} {a.subject.name}
+                {page.map((u) => {
+                  const busy = busyId === u.id;
+                  const canApprove = leadership && u.status !== "ACTIVE";
+                  const canReject = leadership && u.status !== "REJECTED" && u.role !== "PRINCIPAL";
+                  const canAssign = u.role === "TEACHER";
+                  const canReset = user.role === "PRINCIPAL" && u.id !== user.id;
+                  const assignmentCount = (u.assignments || []).length;
+
+                  return (
+                    <tr key={u.id}>
+                      <td>
+                        <div className="font-medium text-ink-900">{u.name}</div>
+                        <div className="text-xs text-ink-700/55 mt-0.5">
+                          {u.email || u.schoolId || "—"}
+                          {u.email && u.schoolId ? ` · ${u.schoolId}` : ""}
                         </div>
-                      ))}
-                    </td>
-                    <td className="space-x-2 whitespace-nowrap">
-                      {leadership && u.status !== "ACTIVE" && (
-                        <button className="btn-primary" onClick={() => setStatus(u.id, "ACTIVE")}>Approve</button>
-                      )}
-                      {leadership && u.status !== "REJECTED" && u.role !== "PRINCIPAL" && (
-                        <button className="btn-ghost" onClick={() => setStatus(u.id, "REJECTED")}>Reject</button>
-                      )}
-                      {u.role === "TEACHER" && (
-                        <button className="btn-ghost" onClick={() => setEditing(u)}>Assign</button>
-                      )}
-                      {user.role === "PRINCIPAL" && u.id !== user.id && (
-                        <button className="btn-ghost" onClick={() => setResetting(u)}>Reset password</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td>
+                        <span className="mark-chip mark-chip-submitted">
+                          {ROLE_LABEL[u.role] || u.role.replaceAll("_", " ")}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={statusBadgeClass(u.status)}>{statusLabel(u.status)}</span>
+                      </td>
+                      <td>
+                        {u.role === "TEACHER" ? (
+                          <AssignmentSummary assignments={u.assignments} />
+                        ) : (
+                          <span className="text-sm text-ink-700/45">—</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          {canApprove && (
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              disabled={busy}
+                              onClick={() => setStatus(u.id, "ACTIVE")}
+                            >
+                              {busy ? "Saving…" : "Approve"}
+                            </button>
+                          )}
+                          {canReject && (
+                            <button
+                              type="button"
+                              className="btn-danger"
+                              disabled={busy}
+                              onClick={() => setStatus(u.id, "REJECTED")}
+                            >
+                              Reject
+                            </button>
+                          )}
+                          {canAssign && (
+                            <button
+                              type="button"
+                              className={assignmentCount ? "btn-ghost" : "btn-accent"}
+                              onClick={() => setEditing(u)}
+                            >
+                              Assign
+                            </button>
+                          )}
+                          {canReset && (
+                            <button type="button" className="btn-ghost" onClick={() => setResetting(u)}>
+                              Reset password
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
