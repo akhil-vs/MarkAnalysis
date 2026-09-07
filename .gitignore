@@ -6,3 +6,5 @@ dist/
 .DS_Store
 server/uploads/
 client/dist/
+.vercel
+.env*
