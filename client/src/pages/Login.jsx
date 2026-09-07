@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
+import PoweredBy from "../components/PoweredBy.jsx";
 
 const DEMO_PASSWORD = "password123";
 
@@ -150,7 +151,10 @@ export function AuthShell({ title, subtitle, children }) {
             term trends.
           </p>
         </div>
-        <div className="text-sm text-cream/40">Every seed account uses password123</div>
+        <div className="space-y-2">
+          <div className="text-sm text-cream/40">Every seed account uses password123</div>
+          <PoweredBy tone="dark" />
+        </div>
       </div>
       <div className="flex items-center justify-center px-4 py-8 sm:p-8">
         <div className="w-full max-w-md">
@@ -161,6 +165,9 @@ export function AuthShell({ title, subtitle, children }) {
           <h1 className="font-serif text-2xl sm:text-3xl">{title}</h1>
           <p className="mt-1 mb-6 text-sm text-ink-700/70">{subtitle}</p>
           {children}
+          <div className="mt-8 lg:hidden">
+            <PoweredBy />
+          </div>
         </div>
       </div>
     </div>

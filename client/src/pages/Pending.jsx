@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import PoweredBy from "../components/PoweredBy.jsx";
 
 export default function Pending() {
   return (
@@ -12,6 +13,9 @@ export default function Pending() {
         <Link className="btn-primary mt-6" to="/login">
           Back to sign in
         </Link>
+        <div className="mt-8 flex justify-center">
+          <PoweredBy />
+        </div>
       </div>
     </div>
   );
