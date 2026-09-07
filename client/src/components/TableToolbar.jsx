@@ -1,6 +1,6 @@
 /**
  * Compact search + optional filter controls for tables.
- * Controls size to content and wrap; they do not stretch full page width.
+ * On sm+ screens, search and filter selects stay on one row when space allows.
  */
 export function TableToolbar({
   q,
@@ -17,7 +17,7 @@ export function TableToolbar({
     <div className={`flex flex-wrap items-center gap-2 ${className}`}>
       <input
         type="search"
-        className="field-search"
+        className="field-search shrink-0 basis-full sm:basis-auto"
         placeholder={placeholder}
         value={q}
         onChange={(e) => setQ(e.target.value)}
