@@ -46,7 +46,7 @@ export default function AuditLog() {
         subtitle="Who changed what, and when"
         actions={
           <select
-            className="field w-auto"
+            className="field-filter"
             value={examId}
             onChange={(e) => {
               setExamId(e.target.value);

@@ -168,7 +168,7 @@ export default function LateEntryRequests() {
         subtitle="Approve late entry after the deadline or edit access for submitted registers — across every exam."
         actions={
           <>
-            <select className="field w-auto" value={examId} onChange={(e) => setExamId(e.target.value)}>
+            <select className="field-filter" value={examId} onChange={(e) => setExamId(e.target.value)}>
               <option value="">All exams</option>
               {exams.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -176,13 +176,13 @@ export default function LateEntryRequests() {
                 </option>
               ))}
             </select>
-            <select className="field w-auto" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <select className="field-filter" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="PENDING">Pending</option>
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
               <option value="">All statuses</option>
             </select>
-            <select className="field w-auto" value={kind} onChange={(e) => setKind(e.target.value)}>
+            <select className="field-filter" value={kind} onChange={(e) => setKind(e.target.value)}>
               <option value="">All kinds</option>
               <option value="LATE_ENTRY">Late entry</option>
               <option value="EDIT">Edit</option>

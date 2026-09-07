@@ -6,7 +6,7 @@ import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
-import { TableToolbar } from "../components/TableToolbar.jsx";
+import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
 import { formatMarkCell } from "../lib/markCodes.js";
@@ -707,10 +707,9 @@ export default function MarksEntry() {
         </div>
       )}
 
-      <div className="card p-4 mb-4">
-        <div className="grid sm:grid-cols-3 gap-3">
-          <label className="block">
-            <span className="label">Class</span>
+      <div className="card px-3.5 py-3 mb-4">
+        <FilterBar>
+          <FilterField label="Class">
             <select
               className="field"
               value={classSectionId}
@@ -723,9 +722,8 @@ export default function MarksEntry() {
                 </option>
               ))}
             </select>
-          </label>
-          <label className="block">
-            <span className="label">Exam</span>
+          </FilterField>
+          <FilterField label="Exam">
             <select className="field" value={examId} onChange={(e) => setParam("examId", e.target.value)}>
               {!examId && <option value="">Select exam</option>}
               {exams.map((e) => (
@@ -734,9 +732,8 @@ export default function MarksEntry() {
                 </option>
               ))}
             </select>
-          </label>
-          <label className="block">
-            <span className="label">Subject</span>
+          </FilterField>
+          <FilterField label="Subject" className="sm:max-w-[15rem]">
             <select
               className="field"
               value={subjectId}
@@ -749,10 +746,10 @@ export default function MarksEntry() {
                 </option>
               ))}
             </select>
-          </label>
-        </div>
+          </FilterField>
+        </FilterBar>
         {(selectedClass || selectedExam) && (
-          <div className="mt-3 text-xs text-ink-700/60">
+          <div className="mt-2.5 text-xs text-ink-700/60">
             {[
               selectedClass ? `${selectedClass.className}-${selectedClass.section}` : null,
               selectedExam ? examLabel(selectedExam) : null,

@@ -1,6 +1,6 @@
 /**
- * Search input + optional filter controls for tables.
- * Place above a PaginatedTable (inside or just above the card).
+ * Compact search + optional filter controls for tables.
+ * Controls size to content and wrap; they do not stretch full page width.
  */
 export function TableToolbar({
   q,
@@ -14,10 +14,10 @@ export function TableToolbar({
   const showCount = typeof matched === "number" && typeof total === "number" && (q?.trim() || matched !== total);
 
   return (
-    <div className={`flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-2 ${className}`}>
+    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
       <input
         type="search"
-        className="field w-full sm:max-w-xs sm:flex-1"
+        className="field-search"
         placeholder={placeholder}
         value={q}
         onChange={(e) => setQ(e.target.value)}
@@ -25,10 +25,35 @@ export function TableToolbar({
       />
       {children}
       {showCount && (
-        <span className="text-xs text-ink-700/55 sm:ml-auto whitespace-nowrap">
+        <span className="text-xs text-ink-700/55 whitespace-nowrap sm:ml-auto">
           {matched === 0 ? "No matches" : `${matched} of ${total}`}
         </span>
       )}
     </div>
+  );
+}
+
+/**
+ * Horizontal filter strip: fields stay compact and wrap on narrow viewports.
+ */
+export function FilterBar({ children, className = "" }) {
+  return (
+    <div className={`flex flex-wrap items-end gap-2.5 sm:gap-3 ${className}`}>
+      {children}
+    </div>
+  );
+}
+
+/**
+ * Labeled filter control with a constrained width so grids don’t stretch edge-to-edge.
+ */
+export function FilterField({ label, className = "", children }) {
+  return (
+    <label
+      className={`block min-w-0 grow basis-[calc(50%-0.35rem)] sm:grow-0 sm:basis-auto sm:min-w-[9.5rem] sm:max-w-[13.5rem] ${className}`}
+    >
+      {label ? <span className="label">{label}</span> : null}
+      {children}
+    </label>
   );
 }

@@ -40,7 +40,7 @@ export default function PendingUploads() {
         title="Pending mark uploads"
         subtitle={`${data.exam.name} — missing registers and submitted marks waiting for approval`}
         actions={
-          <select className="field w-auto" value={examId} onChange={(e) => load(e.target.value)}>
+          <select className="field-filter" value={examId} onChange={(e) => load(e.target.value)}>
             {(data.exams || []).map((e) => (
               <option key={e.id} value={e.id}>
                 {e.name}

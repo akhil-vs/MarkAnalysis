@@ -412,7 +412,7 @@ export function PageHeader({ title, subtitle, actions }) {
         <h1 className="font-serif text-2xl sm:text-3xl leading-tight">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-ink-700/70">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2 w-full sm:w-auto">{actions}</div>}
+      {actions && <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:max-w-none sm:justify-end">{actions}</div>}
     </div>
   );
 }
