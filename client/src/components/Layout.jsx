@@ -27,6 +27,141 @@ function MenuIcon({ open }) {
   );
 }
 
+const NAV_ICON_PATHS = {
+  dashboard: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="1.2" />
+      <rect x="14" y="3" width="7" height="7" rx="1.2" />
+      <rect x="3" y="14" width="7" height="7" rx="1.2" />
+      <rect x="14" y="14" width="7" height="7" rx="1.2" />
+    </>
+  ),
+  analysis: (
+    <>
+      <path d="M4 19V5" strokeLinecap="round" />
+      <path d="M4 19h16" strokeLinecap="round" />
+      <path d="M8 16v-5" strokeLinecap="round" />
+      <path d="M12 16V8" strokeLinecap="round" />
+      <path d="M16 16v-8" strokeLinecap="round" />
+    </>
+  ),
+  pending: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l2.5 2.5" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+  staff: (
+    <>
+      <circle cx="9" cy="8" r="3" />
+      <path d="M3.5 19a5.5 5.5 0 0 1 11 0" strokeLinecap="round" />
+      <circle cx="17" cy="9" r="2.5" />
+      <path d="M15.5 19a4.5 4.5 0 0 1 5.5-4.2" strokeLinecap="round" />
+    </>
+  ),
+  records: (
+    <>
+      <path d="M5 4h10l4 4v12a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1z" strokeLinejoin="round" />
+      <path d="M14 4v4h4" strokeLinejoin="round" />
+      <path d="M8 13h8M8 17h5" strokeLinecap="round" />
+    </>
+  ),
+  school: (
+    <>
+      <path d="M3 21h18" strokeLinecap="round" />
+      <path d="M5 21V9l7-5 7 5v12" strokeLinejoin="round" />
+      <path d="M9 21v-6h6v6" strokeLinejoin="round" />
+      <path d="M9 12h.01M15 12h.01" strokeLinecap="round" />
+    </>
+  ),
+  register: (
+    <>
+      <rect x="5" y="3" width="14" height="18" rx="1.5" />
+      <path d="M9 8h6M9 12h6M9 16h4" strokeLinecap="round" />
+    </>
+  ),
+  upload: (
+    <>
+      <path d="M12 16V7" strokeLinecap="round" />
+      <path d="M8.5 10.5 12 7l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M5 19h14" strokeLinecap="round" />
+    </>
+  ),
+  lists: (
+    <>
+      <path d="M8 7h12M8 12h12M8 17h12" strokeLinecap="round" />
+      <path d="M4 7h.01M4 12h.01M4 17h.01" strokeLinecap="round" />
+    </>
+  ),
+  audit: (
+    <>
+      <path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8z" strokeLinejoin="round" />
+      <path d="M14 3v5h5" strokeLinejoin="round" />
+      <path d="M9 13h6M9 17h4" strokeLinecap="round" />
+    </>
+  ),
+  late: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M12 8v4l3 2" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M16.5 5.5 18 4" strokeLinecap="round" />
+    </>
+  ),
+  classes: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="1.5" />
+      <path d="M3 10h18" strokeLinecap="round" />
+      <path d="M8 14h.01M12 14h.01M16 14h.01" strokeLinecap="round" />
+    </>
+  ),
+  subjects: (
+    <>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v16H6.5A2.5 2.5 0 0 0 4 21.5z" strokeLinejoin="round" />
+      <path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v16h5.5A2.5 2.5 0 0 1 20 21.5z" strokeLinejoin="round" />
+    </>
+  ),
+  teachers: (
+    <>
+      <circle cx="12" cy="8" r="3.5" />
+      <path d="M5 20a7 7 0 0 1 14 0" strokeLinecap="round" />
+      <path d="M12 11.5v2" strokeLinecap="round" />
+    </>
+  ),
+  students: (
+    <>
+      <path d="M12 3 3 8l9 5 9-5-9-5z" strokeLinejoin="round" />
+      <path d="M5 11.5V17c0 .8 3.1 3 7 3s7-2.2 7-3v-5.5" strokeLinejoin="round" />
+    </>
+  ),
+  compare: (
+    <>
+      <path d="M7 7h10" strokeLinecap="round" />
+      <path d="M14 4l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 17H7" strokeLinecap="round" />
+      <path d="M10 14l-3 3 3 3" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
+};
+
+function NavIcon({ name, size = 16 }) {
+  const paths = NAV_ICON_PATHS[name];
+  if (!paths) return null;
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      className="shrink-0 opacity-80"
+      aria-hidden="true"
+    >
+      {paths}
+    </svg>
+  );
+}
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -79,24 +214,24 @@ export default function Layout() {
   }, [isLeadership, location.pathname]);
 
   const links = [
-    { to: "/", label: "Dashboard", end: true },
-    ...(user.role !== "TEACHER" ? [{ to: "/users", label: "Staff" }] : []),
-    ...(isLeadership ? [{ to: "/manage", label: "Records" }] : []),
-    ...(isLeadership ? [{ to: "/school", label: "School" }] : []),
-    { to: "/marks", label: "Mark register" },
-    { to: "/upload", label: "Bulk upload" },
-    ...(isLeadership ? [{ to: "/consolidated", label: "Mark lists" }] : []),
-    ...(isLeadership ? [{ to: "/audit", label: "Audit log" }] : []),
-    ...(isLeadership ? [{ to: "/late-entry", label: "Late entry", badge: lateEntryCount }] : []),
+    { to: "/", label: "Dashboard", icon: "dashboard", end: true },
+    ...(user.role !== "TEACHER" ? [{ to: "/users", label: "Staff", icon: "staff" }] : []),
+    ...(isLeadership ? [{ to: "/manage", label: "Records", icon: "records" }] : []),
+    ...(isLeadership ? [{ to: "/school", label: "School", icon: "school" }] : []),
+    { to: "/marks", label: "Mark register", icon: "register" },
+    { to: "/upload", label: "Bulk upload", icon: "upload" },
+    ...(isLeadership ? [{ to: "/consolidated", label: "Mark lists", icon: "lists" }] : []),
+    ...(isLeadership ? [{ to: "/audit", label: "Audit log", icon: "audit" }] : []),
+    ...(isLeadership ? [{ to: "/late-entry", label: "Late entry", icon: "late", badge: lateEntryCount }] : []),
   ];
 
   const analysisLinks = [
-    ...(isLeadership ? [{ to: "/analysis/school", label: "School" }] : []),
-    { to: "/analysis/classes", label: "Classes" },
-    ...(isLeadership ? [{ to: "/analysis/subjects", label: "Subjects" }] : []),
-    ...(isLeadership ? [{ to: "/analysis/teachers", label: "Teachers" }] : []),
-    { to: "/analysis/students", label: "Students" },
-    ...(isLeadership ? [{ to: "/analysis/compare", label: "Compare" }] : []),
+    ...(isLeadership ? [{ to: "/analysis/school", label: "School", icon: "school" }] : []),
+    { to: "/analysis/classes", label: "Classes", icon: "classes" },
+    ...(isLeadership ? [{ to: "/analysis/subjects", label: "Subjects", icon: "subjects" }] : []),
+    ...(isLeadership ? [{ to: "/analysis/teachers", label: "Teachers", icon: "teachers" }] : []),
+    { to: "/analysis/students", label: "Students", icon: "students" },
+    ...(isLeadership ? [{ to: "/analysis/compare", label: "Compare", icon: "compare" }] : []),
   ];
 
   function closeNav() {
@@ -128,11 +263,12 @@ export default function Layout() {
             to="/analysis"
             onClick={closeNav}
             className={({ isActive }) =>
-              `flex items-center justify-between rounded-lg px-3 py-2.5 text-sm ${
+              `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm ${
                 isActive || analysisOpen ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
               }`
             }
           >
+            <NavIcon name="analysis" />
             <span>Marks analysis</span>
           </NavLink>
           {(analysisOpen || location.pathname === "/analysis") && (
@@ -148,12 +284,15 @@ export default function Layout() {
             to="/pending-uploads"
             onClick={closeNav}
             className={({ isActive }) =>
-              `flex items-center justify-between rounded-lg px-3 py-2.5 text-sm ${
+              `flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm ${
                 isActive ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
               }`
             }
           >
-            <span>Pending uploads</span>
+            <span className="flex min-w-0 items-center gap-2.5">
+              <NavIcon name="pending" />
+              <span>Pending uploads</span>
+            </span>
             {pendingCount != null && (
               <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${pendingCount ? "bg-clay-500 text-white" : "bg-white/10 text-cream/70"}`}>
                 {pendingCount}
@@ -243,19 +382,22 @@ export default function Layout() {
   );
 }
 
-function SideLink({ to, label, end, badge, onNavigate }) {
+function SideLink({ to, label, end, badge, icon, onNavigate }) {
   return (
     <NavLink
       to={to}
       end={end}
       onClick={onNavigate}
       className={({ isActive }) =>
-        `flex items-center justify-between rounded-lg px-3 py-2.5 text-sm ${
+        `flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm ${
           isActive ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
         }`
       }
     >
-      <span>{label}</span>
+      <span className="flex min-w-0 items-center gap-2.5">
+        {icon && <NavIcon name={icon} />}
+        <span className="truncate">{label}</span>
+      </span>
       {badge != null && badge > 0 && (
         <span className="rounded-full px-1.5 py-0.5 text-[10px] bg-clay-500 text-white">{badge}</span>
       )}
