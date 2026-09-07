@@ -56,7 +56,7 @@ export function PaginationBar({
         <label className="flex items-center gap-2 text-xs uppercase tracking-wide text-ink-700/55">
           Rows
           <select
-            className="field w-auto py-1 text-sm normal-case tracking-normal"
+            className="field-filter min-w-0 py-1 text-sm normal-case tracking-normal"
             value={pageSize}
             onChange={(e) => setPageSize(Number(e.target.value))}
           >

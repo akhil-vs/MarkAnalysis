@@ -14,6 +14,7 @@ import { api } from "../api.js";
 import { ExamSelect, TeacherCompareTable, YearComparison } from "../components/AnalysisPanels.jsx";
 import { ChartTooltip, EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { FilterBar } from "../components/TableToolbar.jsx";
 
 export default function AnalysisCompare() {
   const [params, setParams] = useSearchParams();
@@ -111,19 +112,21 @@ export default function AnalysisCompare() {
         </button>
       </div>
 
-      <div className="flex flex-wrap gap-2 mb-5">
-        <select className="field w-auto" value={className} onChange={(e) => onClass(e.target.value)}>
-          <option value="">All classes</option>
-          {(years?.classes || teachers?.classes || []).map((c) => (
-            <option key={c} value={c}>Class {c}</option>
-          ))}
-        </select>
-        <select className="field w-auto" value={subjectName} onChange={(e) => onSubject(e.target.value)}>
-          <option value="">All subjects</option>
-          {(years?.subjects || teachers?.subjects || []).map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
+      <div className="mb-5">
+        <FilterBar>
+          <select className="field-filter" value={className} onChange={(e) => onClass(e.target.value)}>
+            <option value="">All classes</option>
+            {(years?.classes || teachers?.classes || []).map((c) => (
+              <option key={c} value={c}>Class {c}</option>
+            ))}
+          </select>
+          <select className="field-filter" value={subjectName} onChange={(e) => onSubject(e.target.value)}>
+            <option value="">All subjects</option>
+            {(years?.subjects || teachers?.subjects || []).map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        </FilterBar>
       </div>
 
       {tab === "years" && years && (

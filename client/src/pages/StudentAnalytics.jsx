@@ -98,7 +98,7 @@ export default function StudentAnalytics() {
         subtitle={`Roll ${s.rollNo} · ${s.classSection.className}-${s.classSection.section}`}
         actions={
           <>
-            <select className="field w-auto" value={examId} onChange={(e) => setExamId(e.target.value)}>
+            <select className="field-filter" value={examId} onChange={(e) => setExamId(e.target.value)}>
               {exams.map((e) => <option key={e.id} value={e.id}>{examLabel(e)}</option>)}
             </select>
             <button

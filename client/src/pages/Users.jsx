@@ -146,7 +146,7 @@ export default function Users() {
             total={table.total}
           >
             <select
-              className="field w-auto"
+              className="field-filter"
               value={table.filters.role || ""}
               onChange={(e) => table.setFilter("role", e.target.value)}
               aria-label="Filter by role"
@@ -157,7 +157,7 @@ export default function Users() {
               <option value="PRINCIPAL">Principal</option>
             </select>
             <select
-              className="field w-auto"
+              className="field-filter"
               value={table.filters.status || ""}
               onChange={(e) => table.setFilter("status", e.target.value)}
               aria-label="Filter by status"
