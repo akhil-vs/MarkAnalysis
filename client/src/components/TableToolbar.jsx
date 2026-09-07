@@ -1,6 +1,6 @@
 /**
  * Compact search + optional filter controls for tables.
- * On sm+ screens, search and filter selects stay on one row when space allows.
+ * On sm+ screens, search and filter selects stay on one row; they stack on very small screens.
  */
 export function TableToolbar({
   q,
@@ -14,7 +14,7 @@ export function TableToolbar({
   const showCount = typeof matched === "number" && typeof total === "number" && (q?.trim() || matched !== total);
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
+    <div className={`flex flex-wrap items-center gap-2 sm:flex-nowrap ${className}`}>
       <input
         type="search"
         className="field-search shrink-0 basis-full sm:basis-auto"
@@ -25,7 +25,7 @@ export function TableToolbar({
       />
       {children}
       {showCount && (
-        <span className="text-xs text-ink-700/55 whitespace-nowrap sm:ml-auto">
+        <span className="text-xs text-ink-700/55 whitespace-nowrap sm:ml-auto shrink-0">
           {matched === 0 ? "No matches" : `${matched} of ${total}`}
         </span>
       )}
