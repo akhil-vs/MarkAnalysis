@@ -41,6 +41,14 @@ function classSearchText(r) {
   return searchHaystack(r.className, r.section, r.classTeacher?.name, r._count?.students);
 }
 
+const CLASS_FILTERS = [
+  { key: "className", match: (r, v) => String(r.className) === v },
+  {
+    key: "teacher",
+    match: (r, v) => (v === "assigned" ? Boolean(r.classTeacherId) : !r.classTeacherId),
+  },
+];
+
 function ClassesTab() {
   const [rows, setRows] = useState([]);
   const confirm = useConfirm();
@@ -48,7 +56,11 @@ function ClassesTab() {
   const [form, setForm] = useState(emptyClassForm());
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
-  const table = useTableSearch(rows, { getSearchText: classSearchText });
+  const table = useTableSearch(rows, { getSearchText: classSearchText, filterDefs: CLASS_FILTERS });
+  const classOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.className).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })),
+    [rows]
+  );
 
   async function load() {
     const [c, u] = await Promise.all([api("/api/classes"), api("/api/users")]);
@@ -131,7 +143,29 @@ function ClassesTab() {
             placeholder="Search class, section, or teacher"
             matched={table.matched}
             total={table.total}
-          />
+          >
+            <select
+              className="field-filter"
+              value={table.filters.className || ""}
+              onChange={(e) => table.setFilter("className", e.target.value)}
+              aria-label="Filter by class"
+            >
+              <option value="">All classes</option>
+              {classOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+            <select
+              className="field-filter"
+              value={table.filters.teacher || ""}
+              onChange={(e) => table.setFilter("teacher", e.target.value)}
+              aria-label="Filter by class teacher"
+            >
+              <option value="">All teachers</option>
+              <option value="assigned">Has class teacher</option>
+              <option value="unassigned">No class teacher</option>
+            </select>
+          </TableToolbar>
         </div>
         <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No classes yet.">
           {(page) => (
@@ -177,7 +211,7 @@ function SubjectsTab() {
   const [message, setMessage] = useState("");
   const table = useTableSearch(rows, { getSearchText: subjectSearchText, filterDefs: SUBJECT_FILTERS });
   const classOptions = useMemo(
-    () => [...new Set(rows.map((r) => r.className).filter(Boolean))].sort(),
+    () => [...new Set(rows.map((r) => r.className).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })),
     [rows]
   );
 
@@ -305,7 +339,10 @@ function studentSearchText(r) {
   );
 }
 
-const STUDENT_FILTERS = [{ key: "classSectionId", match: (r, v) => r.classSectionId === v }];
+const STUDENT_FILTERS = [
+  { key: "classSectionId", match: (r, v) => r.classSectionId === v },
+  { key: "academicYear", match: (r, v) => String(r.academicYear || "") === v },
+];
 
 function StudentsTab() {
   const [rows, setRows] = useState([]);
@@ -318,6 +355,10 @@ function StudentsTab() {
   const [preview, setPreview] = useState(null);
   const [message, setMessage] = useState("");
   const table = useTableSearch(rows, { getSearchText: studentSearchText, filterDefs: STUDENT_FILTERS });
+  const yearOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.academicYear).filter(Boolean))].sort().reverse(),
+    [rows]
+  );
 
   async function load() {
     const [s, c] = await Promise.all([api("/api/students"), api("/api/classes")]);
@@ -490,6 +531,17 @@ function StudentsTab() {
                   <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
                 ))}
               </select>
+              <select
+                className="field-filter"
+                value={table.filters.academicYear || ""}
+                onChange={(e) => table.setFilter("academicYear", e.target.value)}
+                aria-label="Filter by academic year"
+              >
+                <option value="">All years</option>
+                {yearOptions.map((y) => (
+                  <option key={y} value={y}>{y}</option>
+                ))}
+              </select>
             </TableToolbar>
           </div>
           <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No students yet.">
@@ -548,7 +600,10 @@ function examSearchText(r) {
   return searchHaystack(r.name, r.term, r.type, r.academicYear);
 }
 
-const EXAM_FILTERS = [{ key: "type", match: (r, v) => r.type === v }];
+const EXAM_FILTERS = [
+  { key: "type", match: (r, v) => r.type === v },
+  { key: "academicYear", match: (r, v) => String(r.academicYear || "") === v },
+];
 
 function ExamsTab() {
   const [rows, setRows] = useState([]);
@@ -557,6 +612,10 @@ function ExamsTab() {
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
   const table = useTableSearch(rows, { getSearchText: examSearchText, filterDefs: EXAM_FILTERS });
+  const yearOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.academicYear).filter(Boolean))].sort().reverse(),
+    [rows]
+  );
 
   async function load() {
     setRows(await api("/api/exams"));
@@ -669,6 +728,17 @@ function ExamsTab() {
               <option value="MID_TERM">Mid-term</option>
               <option value="FINAL">Final</option>
             </select>
+            <select
+              className="field-filter"
+              value={table.filters.academicYear || ""}
+              onChange={(e) => table.setFilter("academicYear", e.target.value)}
+              aria-label="Filter by academic year"
+            >
+              <option value="">All years</option>
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
           </TableToolbar>
         </div>
         <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No exams scheduled.">
@@ -730,7 +800,21 @@ function PromoteTab() {
   const [selected, setSelected] = useState({});
   const [rolls, setRolls] = useState({});
   const [message, setMessage] = useState("");
-  const table = useTableSearch(students, { getSearchText: promoteSearchText });
+  const promoteFilters = useMemo(
+    () => [
+      {
+        key: "selection",
+        match: (s, v) => (v === "selected" ? Boolean(selected[s.id]) : !selected[s.id]),
+      },
+      { key: "academicYear", match: (s, v) => String(s.academicYear || "") === v },
+    ],
+    [selected]
+  );
+  const table = useTableSearch(students, { getSearchText: promoteSearchText, filterDefs: promoteFilters });
+  const yearOptions = useMemo(
+    () => [...new Set(students.map((s) => s.academicYear).filter(Boolean))].sort().reverse(),
+    [students]
+  );
 
   async function loadClasses() {
     const c = await api("/api/classes");
@@ -821,7 +905,29 @@ function PromoteTab() {
             placeholder="Search name or roll"
             matched={table.matched}
             total={table.total}
-          />
+          >
+            <select
+              className="field-filter"
+              value={table.filters.selection || ""}
+              onChange={(e) => table.setFilter("selection", e.target.value)}
+              aria-label="Filter by selection"
+            >
+              <option value="">All students</option>
+              <option value="selected">Selected</option>
+              <option value="unselected">Not selected</option>
+            </select>
+            <select
+              className="field-filter"
+              value={table.filters.academicYear || ""}
+              onChange={(e) => table.setFilter("academicYear", e.target.value)}
+              aria-label="Filter by academic year"
+            >
+              <option value="">All years</option>
+              {yearOptions.map((y) => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </TableToolbar>
         </div>
         <PaginatedTable
           items={table.filtered}
