@@ -24,6 +24,63 @@ export function ExamSelect({ exams = [], value, onChange }) {
   );
 }
 
+function yearRowSearchText(row) {
+  return searchHaystack(row.academicYear, row.examName, row.average, row.passRate);
+}
+
+function YearComparisonTable({ series }) {
+  const table = useTableSearch(series, { getSearchText: yearRowSearchText });
+  const filtered = table.filtered;
+
+  return (
+    <div className="mt-3">
+      <div className="mb-3">
+        <TableToolbar
+          q={table.q}
+          setQ={table.setQ}
+          placeholder="Search year or exam"
+          matched={table.matched}
+          total={table.total}
+        />
+      </div>
+      <div className="overflow-x-auto">
+        <table className="table">
+          <thead>
+            <tr>
+              <th>Year</th>
+              <th>Exam</th>
+              <th>Average</th>
+              <th>Pass</th>
+              <th>Change</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.map((row) => {
+              const idx = series.findIndex((s) => s.examId === row.examId);
+              const prev = idx > 0 ? series[idx - 1] : null;
+              const diff =
+                row.average != null && prev?.average != null
+                  ? Math.round((row.average - prev.average) * 10) / 10
+                  : null;
+              return (
+                <tr key={row.examId}>
+                  <td>{row.academicYear || "—"}</td>
+                  <td>{row.examName}</td>
+                  <td>{row.average ?? "—"}%</td>
+                  <td>{row.passRate ?? "—"}%</td>
+                  <td className={diff > 0 ? "text-moss-600" : diff < 0 ? "text-clay-600" : ""}>
+                    {diff == null ? "—" : `${diff > 0 ? "+" : ""}${diff}`}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 export function YearComparison({ series, title = "Compared with previous years" }) {
   if (!series?.length) return null;
   const hasYears = new Set(series.map((s) => s.academicYear).filter(Boolean)).size > 1;
@@ -44,39 +101,7 @@ export function YearComparison({ series, title = "Compared with previous years" 
               <Bar dataKey="passRate" name="Pass %" fill="#3d6b4f" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-          <div className="mt-3 overflow-x-auto">
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Year</th>
-                  <th>Exam</th>
-                  <th>Average</th>
-                  <th>Pass</th>
-                  <th>Change</th>
-                </tr>
-              </thead>
-              <tbody>
-                {series.map((row, i) => {
-                  const prev = series[i - 1];
-                  const diff =
-                    row.average != null && prev?.average != null
-                      ? Math.round((row.average - prev.average) * 10) / 10
-                      : null;
-                  return (
-                    <tr key={row.examId}>
-                      <td>{row.academicYear || "—"}</td>
-                      <td>{row.examName}</td>
-                      <td>{row.average ?? "—"}%</td>
-                      <td>{row.passRate ?? "—"}%</td>
-                      <td className={diff > 0 ? "text-moss-600" : diff < 0 ? "text-clay-600" : ""}>
-                        {diff == null ? "—" : `${diff > 0 ? "+" : ""}${diff}`}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
+          <YearComparisonTable series={series} />
         </>
       )}
     </Panel>
@@ -92,17 +117,15 @@ export function TeacherCompareTable({ rows = [], empty = "Need two or more teach
   const table = useTableSearch(list, { getSearchText: teacherCompareSearchText });
   return (
     <div>
-      {list.length > 3 && (
-        <div className="mb-3">
-          <TableToolbar
-            q={table.q}
-            setQ={table.setQ}
-            placeholder="Search teacher or class"
-            matched={table.matched}
-            total={table.total}
-          />
-        </div>
-      )}
+      <div className="mb-3">
+        <TableToolbar
+          q={table.q}
+          setQ={table.setQ}
+          placeholder="Search teacher or class"
+          matched={table.matched}
+          total={table.total}
+        />
+      </div>
       <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty={empty}>
         {(page) => (
           <table className="table">
