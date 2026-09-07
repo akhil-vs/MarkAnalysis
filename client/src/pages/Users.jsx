@@ -226,8 +226,8 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-ink-950/40 flex items-center justify-center p-4 z-20">
-      <div className="card w-full max-w-lg p-5">
+    <div className="fixed inset-0 bg-ink-950/40 flex items-end sm:items-center justify-center p-0 sm:p-4 z-20">
+      <div className="card w-full max-w-lg rounded-b-none sm:rounded-xl p-5 max-h-[92dvh] overflow-y-auto safe-pb">
         <h3 className="font-serif text-xl mb-3">Assign {user.name}</h3>
         <div className="space-y-2 max-h-80 overflow-auto">
           {rows.length === 0 && (
@@ -236,7 +236,7 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
           {rows.map((row, i) => {
             const options = subjectsForClass(row.classSectionId);
             return (
-              <div key={i} className="flex gap-2 items-center">
+              <div key={i} className="flex flex-col sm:flex-row gap-2 sm:items-center">
                 <select
                   className="field"
                   value={row.classSectionId}
@@ -256,7 +256,7 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
-                <button type="button" className="btn-ghost shrink-0" onClick={() => removeRow(i)}>
+                <button type="button" className="btn-ghost shrink-0 w-full sm:w-auto" onClick={() => removeRow(i)}>
                   Remove
                 </button>
               </div>
@@ -294,8 +294,8 @@ function ResetPasswordModal({ user, onClose, onDone }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-ink-950/40 flex items-center justify-center p-4 z-20">
-      <form className="card w-full max-w-md p-5 space-y-3" onSubmit={save}>
+    <div className="fixed inset-0 bg-ink-950/40 flex items-end sm:items-center justify-center p-0 sm:p-4 z-20">
+      <form className="card w-full max-w-md rounded-b-none sm:rounded-xl p-5 space-y-3 safe-pb" onSubmit={save}>
         <h3 className="font-serif text-xl">Reset password for {user.name}</h3>
         <p className="text-sm text-ink-700/65">They can change it again from their profile after signing in.</p>
         <input
@@ -307,9 +307,9 @@ function ResetPasswordModal({ user, onClose, onDone }) {
           onChange={(e) => setPassword(e.target.value)}
         />
         {error && <p className="text-sm text-clay-600">{error}</p>}
-        <div className="flex gap-2">
-          <button className="btn-primary">Reset password</button>
-          <button type="button" className="btn-ghost" onClick={onClose}>Cancel</button>
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-primary flex-1 sm:flex-none">Reset password</button>
+          <button type="button" className="btn-ghost flex-1 sm:flex-none" onClick={onClose}>Cancel</button>
         </div>
       </form>
     </div>

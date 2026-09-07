@@ -140,7 +140,7 @@ function QuickLogin({ account, busy, onClick }) {
 
 export function AuthShell({ title, subtitle, children }) {
   return (
-    <div className="min-h-screen grid lg:grid-cols-2">
+    <div className="min-h-[100dvh] grid lg:grid-cols-2">
       <div className="hidden lg:flex flex-col justify-between bg-ink-950 text-cream p-12">
         <div className="font-serif text-2xl">Marks Analytics</div>
         <div>
@@ -152,9 +152,13 @@ export function AuthShell({ title, subtitle, children }) {
         </div>
         <div className="text-sm text-cream/40">Every seed account uses password123</div>
       </div>
-      <div className="flex items-center justify-center p-8">
+      <div className="flex items-center justify-center px-4 py-8 sm:p-8">
         <div className="w-full max-w-md">
-          <h1 className="font-serif text-3xl">{title}</h1>
+          <div className="lg:hidden mb-6">
+            <div className="font-serif text-2xl text-ink-900">Marks Analytics</div>
+            <p className="mt-1 text-sm text-ink-700/65">School performance suite</p>
+          </div>
+          <h1 className="font-serif text-2xl sm:text-3xl">{title}</h1>
           <p className="mt-1 mb-6 text-sm text-ink-700/70">{subtitle}</p>
           {children}
         </div>

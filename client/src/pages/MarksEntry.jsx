@@ -10,6 +10,20 @@ import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
 import { formatMarkCell } from "../lib/markCodes.js";
 
+function useMediaQuery(query) {
+  const [matches, setMatches] = useState(() =>
+    typeof window !== "undefined" ? window.matchMedia(query).matches : false
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(query);
+    const onChange = () => setMatches(mq.matches);
+    onChange();
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [query]);
+  return matches;
+}
+
 function StatusChip({ status, dirty }) {
   if (dirty) return <span className="mark-chip mark-chip-dirty">Unsaved</span>;
   if (status === "APPROVED") return <span className="mark-chip mark-chip-approved">Approved</span>;
@@ -31,6 +45,7 @@ export default function MarksEntry() {
   const { user } = useAuth();
   const confirm = useConfirm();
   const leadership = isLeadership(user.role);
+  const isMdUp = useMediaQuery("(min-width: 768px)");
   const [params, setParams] = useSearchParams();
   const [classes, setClasses] = useState([]);
   const [exams, setExams] = useState([]);
@@ -564,7 +579,7 @@ export default function MarksEntry() {
         title="Mark register"
         subtitle="Enter marks by class and subject. Save progress as draft, then submit for leadership approval."
         actions={
-          <>
+          <div className="hidden lg:flex flex-wrap gap-2">
             {!leadership && (
               <button
                 className="btn-primary"
@@ -612,10 +627,46 @@ export default function MarksEntry() {
                 Unapprove {approvedTeachers[0].name.split(" ")[0]}
               </button>
             )}
-          </>
+          </div>
         }
       />
 
+      <div className="lg:hidden sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 -mx-4 mb-4 border-b border-ink-900/10 bg-paper/95 px-4 py-2.5 backdrop-blur">
+        <div className="flex flex-wrap gap-2">
+          {!leadership && (
+            <button
+              className="btn-primary flex-1 min-w-[8rem]"
+              onClick={submitMarks}
+              disabled={allLocked || !grid || submitting || saving || !effectiveSubjectId}
+            >
+              {submitting ? "Submitting…" : "Submit"}
+            </button>
+          )}
+          <button
+            className={`${leadership ? "btn-primary" : "btn-ghost"} flex-1 min-w-[8rem]`}
+            onClick={() => save()}
+            disabled={allLocked || !grid || saving || submitting || stats.dirty === 0}
+          >
+            {saving ? "Saving…" : stats.dirty ? `Save (${stats.dirty})` : "Save"}
+          </button>
+          {canRequestEdit && (
+            <button className="btn-ghost flex-1 min-w-[8rem]" type="button" onClick={requestEdit} disabled={requestingEdit}>
+              {requestingEdit ? "Requesting…" : "Request edit"}
+            </button>
+          )}
+          {showEditPending && <span className="mark-chip mark-chip-pending self-center">Edit requested</span>}
+          {leadership && draftTeachers.length === 1 && (
+            <button className="btn-accent flex-1 min-w-[8rem]" onClick={() => approve(draftTeachers[0])}>
+              Approve ({draftTeachers[0].count})
+            </button>
+          )}
+          {leadership && approvedTeachers.length === 1 && (
+            <button className="btn-ghost flex-1 min-w-[8rem]" onClick={() => unapprove(approvedTeachers[0])}>
+              Unapprove
+            </button>
+          )}
+        </div>
+      </div>
       {leadership && (draftTeachers.length > 1 || approvedTeachers.length > 1) && (
         <div className="card mb-4 p-4 space-y-3">
           <div className="text-sm text-ink-700/75">
@@ -810,15 +861,17 @@ export default function MarksEntry() {
                     return (
                       <div
                         key={student.id}
-                        className={`flex flex-wrap items-center gap-3 px-4 py-3 ${
+                        className={`flex flex-col gap-2 px-4 py-3 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3 ${
                           dirty ? "bg-[#fbf7f0]" : ""
                         }`}
                       >
-                        <div className="w-12 text-xs font-medium tabular-nums text-ink-700/55">
-                          {student.rollNo}
+                        <div className="flex items-baseline justify-between gap-3 sm:contents">
+                          <div className="w-12 text-xs font-medium tabular-nums text-ink-700/55">
+                            {student.rollNo}
+                          </div>
+                          <div className="min-w-0 flex-1 font-medium">{student.name}</div>
                         </div>
-                        <div className="min-w-[8rem] flex-1 font-medium">{student.name}</div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 sm:ml-auto">
                           <input
                             ref={(el) => {
                               inputRefs.current[key] = el;
@@ -850,7 +903,12 @@ export default function MarksEntry() {
       {grid && grid.subjects?.length > 1 && (
         <div className="card overflow-hidden">
           <div className="px-4 py-3 border-b border-ink-900/10 bg-white/50 text-xs text-ink-700/60">
-            Multi-subject grid · Ctrl/⌘ + ←/→ moves across subjects · Enter moves down · Type AB, EX, or WH instead of a score
+            <span className="hidden md:inline">
+              Multi-subject grid · Ctrl/⌘ + ←/→ moves across subjects · Enter moves down · Type AB, EX, or WH instead of a score
+            </span>
+            <span className="md:hidden">
+              Multi-subject entry · Type AB, EX, or WH instead of a score. Pick one subject above for a simpler list.
+            </span>
           </div>
           <PaginatedTable
             items={grid.students}
@@ -860,6 +918,57 @@ export default function MarksEntry() {
           >
             {(page, pagination) => {
               const offset = (pagination.page - 1) * pagination.pageSize;
+              if (!isMdUp) {
+                return (
+                  <div className="divide-y divide-ink-900/10">
+                    {page.map((student, rowIdx) => (
+                      <div key={student.id} className="px-4 py-3 space-y-2">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <div className="font-medium min-w-0 truncate">{student.name}</div>
+                          <div className="text-xs tabular-nums text-ink-700/55 shrink-0">Roll {student.rollNo}</div>
+                        </div>
+                        <div className="grid grid-cols-1 gap-2">
+                          {grid.subjects.map((subject, subjectIndex) => {
+                            const key = `${student.id}:${subject.id}`;
+                            const meta = markMeta[key];
+                            const editable = canEditCell(subject.id, meta);
+                            const dirty = dirtyKeys.has(key);
+                            return (
+                              <div
+                                key={subject.id}
+                                className={`flex items-center gap-2 rounded-lg border px-2.5 py-2 ${
+                                  dirty ? "border-clay-500/40 bg-[#fbf7f0]" : "border-ink-900/10 bg-white/70"
+                                }`}
+                              >
+                                <div className="min-w-0 flex-1">
+                                  <div className="text-sm font-medium truncate">{subject.name}</div>
+                                  <div className="text-[10px] text-ink-700/45">max {subject.maxMarks}</div>
+                                </div>
+                                <input
+                                  ref={(el) => {
+                                    inputRefs.current[key] = el;
+                                  }}
+                                  className={`field w-[4.75rem] text-center tabular-nums ${
+                                    dirty ? "border-clay-500 ring-2 ring-clay-500/15" : ""
+                                  }`}
+                                  inputMode="decimal"
+                                  value={draft[key] ?? ""}
+                                  disabled={!editable}
+                                  placeholder="AB/EX"
+                                  aria-label={`${student.name} ${subject.name}`}
+                                  onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+                                  onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
+                                />
+                                <StatusChip status={meta?.status} dirty={dirty} />
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
               return (
                 <div className="overflow-x-auto">
                   <table className="table mark-grid">

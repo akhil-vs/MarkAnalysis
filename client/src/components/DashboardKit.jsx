@@ -46,9 +46,9 @@ export function ChartTooltip({ active, payload, label }) {
 
 export function Metric({ label, value, hint, tone, to }) {
   const body = (
-    <div className={`card p-5 h-full ${to ? "hover:border-clay-500 transition" : ""} ${tone === "alert" ? "border-clay-500/50 bg-[#fbf4ec]" : ""}`}>
-      <div className="text-[11px] uppercase tracking-wider text-ink-700/55">{label}</div>
-      <div className={`mt-2 font-serif text-4xl leading-none ${tone === "alert" ? "text-clay-600" : ""}`}>
+    <div className={`card p-3.5 sm:p-5 h-full ${to ? "hover:border-clay-500 transition" : ""} ${tone === "alert" ? "border-clay-500/50 bg-[#fbf4ec]" : ""}`}>
+      <div className="text-[10px] sm:text-[11px] uppercase tracking-wider text-ink-700/55">{label}</div>
+      <div className={`mt-2 font-serif text-3xl sm:text-4xl leading-none ${tone === "alert" ? "text-clay-600" : ""}`}>
         {value ?? "—"}
       </div>
       {hint && (
@@ -63,10 +63,10 @@ export function Metric({ label, value, hint, tone, to }) {
 
 export function Panel({ title, action, children, className = "" }) {
   return (
-    <section className={`card p-5 ${className}`}>
-      <div className="flex items-start justify-between gap-3 mb-4">
-        <h3 className="font-serif text-xl leading-tight">{title}</h3>
-        {action}
+    <section className={`card p-4 sm:p-5 ${className}`}>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 mb-4">
+        <h3 className="font-serif text-lg sm:text-xl leading-tight">{title}</h3>
+        {action && <div className="flex flex-wrap gap-2 shrink-0">{action}</div>}
       </div>
       {children}
     </section>
@@ -116,13 +116,13 @@ export function EmptyNote({ children }) {
 
 export function DashboardHero({ kicker, title, subtitle, actions }) {
   return (
-    <div className="mb-7 flex flex-wrap items-end justify-between gap-4">
-      <div>
+    <div className="mb-5 sm:mb-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
+      <div className="min-w-0">
         {kicker && <div className="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 mb-1">{kicker}</div>}
-        <h1 className="font-serif text-4xl leading-tight">{title}</h1>
+        <h1 className="font-serif text-2xl sm:text-4xl leading-tight">{title}</h1>
         {subtitle && <p className="mt-1.5 text-sm text-ink-700/65 max-w-xl">{subtitle}</p>}
       </div>
-      {actions && <div className="flex flex-wrap gap-2">{actions}</div>}
+      {actions && <div className="flex flex-wrap gap-2 w-full sm:w-auto">{actions}</div>}
     </div>
   );
 }

@@ -76,15 +76,25 @@ export default function NotificationBell() {
     }
     function place() {
       const rect = buttonRef.current.getBoundingClientRect();
-      const width = 320;
       const margin = 8;
-      let left = rect.right + margin;
-      if (left + width > window.innerWidth - margin) {
-        left = Math.max(margin, rect.left - width - margin);
+      const width = Math.min(320, window.innerWidth - margin * 2);
+      const narrow = window.innerWidth < 640;
+      let left;
+      let top;
+      let maxHeight;
+      if (narrow) {
+        left = Math.max(margin, Math.min(rect.right - width, window.innerWidth - width - margin));
+        top = Math.min(rect.bottom + margin, window.innerHeight - margin * 2);
+        maxHeight = Math.max(180, window.innerHeight - top - margin);
+      } else {
+        left = rect.right + margin;
+        if (left + width > window.innerWidth - margin) {
+          left = Math.max(margin, rect.left - width - margin);
+        }
+        maxHeight = Math.min(360, window.innerHeight - margin * 2);
+        top = rect.bottom - maxHeight;
+        if (top < margin) top = margin;
       }
-      const maxHeight = Math.min(360, window.innerHeight - margin * 2);
-      let top = rect.bottom - maxHeight;
-      if (top < margin) top = margin;
       setCoords({ top, left, width, maxHeight });
     }
     place();

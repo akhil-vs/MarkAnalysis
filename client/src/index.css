@@ -2,8 +2,25 @@
 @tailwind components;
 @tailwind utilities;
 
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
 body {
   @apply bg-paper text-ink-900 font-sans antialiased;
+  overscroll-behavior-y: none;
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+.safe-pt {
+  padding-top: env(safe-area-inset-top, 0px);
+}
+
+.safe-pb {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .card {
@@ -11,7 +28,7 @@ body {
 }
 
 .btn {
-  @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2 text-sm font-medium transition;
+  @apply inline-flex items-center justify-center gap-2 rounded-lg px-3.5 py-2.5 sm:py-2 text-sm font-medium transition min-h-[2.75rem] sm:min-h-0;
 }
 
 .btn-primary {
@@ -27,7 +44,7 @@ body {
 }
 
 .field {
-  @apply w-full rounded-lg border border-ink-900/15 bg-white px-3 py-2 text-sm outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-500/20;
+  @apply w-full rounded-lg border border-ink-900/15 bg-white px-3 py-2.5 sm:py-2 text-sm outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-500/20 min-h-[2.75rem] sm:min-h-0;
 }
 
 .label {
@@ -47,7 +64,7 @@ body {
 }
 
 .pager-btn {
-  @apply min-w-[2rem] h-8 px-2 rounded-md text-sm border border-ink-900/15 bg-white/70 hover:bg-white disabled:opacity-40 disabled:hover:bg-white/70;
+  @apply min-w-[2.5rem] h-9 sm:min-w-[2rem] sm:h-8 px-2 rounded-md text-sm border border-ink-900/15 bg-white/70 hover:bg-white disabled:opacity-40 disabled:hover:bg-white/70;
 }
 
 .pager-btn-active {

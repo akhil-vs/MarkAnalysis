@@ -92,7 +92,7 @@ export default function ConsolidatedLists() {
 
       {error && <p className="text-clay-600 text-sm mb-3">{error}</p>}
 
-      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
         <div className="card p-4">
           <div className="text-xs uppercase tracking-wide text-ink-700/60">Classes ready</div>
           <div className="font-serif text-3xl mt-1">{data?.readyCount ?? 0} / {classes.length}</div>

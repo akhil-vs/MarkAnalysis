@@ -11,11 +11,11 @@ export default function Manage() {
   return (
     <div>
       <PageHeader title="School records" subtitle="Classes, subjects, students, and exam schedule" />
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
         {TABS.map((t) => (
           <button
             key={t}
-            className={tab === t ? "btn-primary" : "btn-ghost"}
+            className={`${tab === t ? "btn-primary" : "btn-ghost"} shrink-0`}
             onClick={() => setTab(t)}
           >
             {t}
