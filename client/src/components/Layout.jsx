@@ -3,6 +3,7 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import NotificationBell from "./NotificationBell.jsx";
+import PoweredBy from "./PoweredBy.jsx";
 
 const ROLE_LABEL = {
   PRINCIPAL: "Principal",
@@ -186,6 +187,9 @@ export default function Layout() {
         >
           Sign out
         </button>
+        <div className="mt-4">
+          <PoweredBy tone="dark" />
+        </div>
       </div>
     </>
   );
