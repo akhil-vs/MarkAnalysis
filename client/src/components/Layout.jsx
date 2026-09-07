@@ -51,10 +51,15 @@ export default function Layout() {
     function onKey(e) {
       if (e.key === "Escape") setNavOpen(false);
     }
+    function onResize() {
+      if (window.matchMedia("(min-width: 1024px)").matches) setNavOpen(false);
+    }
     document.addEventListener("keydown", onKey);
+    window.addEventListener("resize", onResize);
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
+      window.removeEventListener("resize", onResize);
     };
   }, [navOpen]);
 
