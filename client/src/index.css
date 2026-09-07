@@ -49,7 +49,7 @@ body {
 
 /* Compact selects/inputs for toolbars and filter strips — intrinsic width, not full bleed */
 .field-filter {
-  @apply inline-block w-auto max-w-full min-w-[7.5rem] rounded-lg border border-ink-900/15 bg-white px-2.5 py-2 text-sm outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-500/20 min-h-[2.5rem] sm:min-h-0 sm:py-1.5;
+  @apply inline-block w-auto max-w-full min-w-[7.5rem] shrink-0 rounded-lg border border-ink-900/15 bg-white px-2.5 py-2 text-sm outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-500/20 min-h-[2.5rem] sm:min-h-0 sm:py-1.5;
 }
 
 .field-search {
