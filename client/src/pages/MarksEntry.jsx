@@ -6,9 +6,15 @@ import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { TableToolbar } from "../components/TableToolbar.jsx";
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
 import { formatMarkCell } from "../lib/markCodes.js";
+import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+
+function markStudentSearchText(s) {
+  return searchHaystack(s.name, s.rollNo);
+}
 
 function useMediaQuery(query) {
   const [matches, setMatches] = useState(() =>
@@ -477,8 +483,17 @@ export default function MarksEntry() {
     }
   }
 
+  const allLocked =
+    !leadership &&
+    Boolean(grid?.subjects?.length) &&
+    grid?.entryAccess?.pastDeadline &&
+    grid.subjects.every((s) => !grid.entryAccess.bySubject?.[s.id]?.canEnter);
+
+  const studentTable = useTableSearch(grid?.students, { getSearchText: markStudentSearchText });
+  const visibleStudents = studentTable.filtered;
+
   function focusCell(studentIndex, subjectIndex) {
-    const student = grid?.students?.[studentIndex];
+    const student = visibleStudents[studentIndex];
     const subject = grid?.subjects?.[subjectIndex];
     if (!student || !subject) return;
     const el = inputRefs.current[`${student.id}:${subject.id}`];
@@ -503,12 +518,6 @@ export default function MarksEntry() {
       focusCell(studentIndex, subjectIndex - 1);
     }
   }
-
-  const allLocked =
-    !leadership &&
-    Boolean(grid?.subjects?.length) &&
-    grid?.entryAccess?.pastDeadline &&
-    grid.subjects.every((s) => !grid.entryAccess.bySubject?.[s.id]?.canEnter);
 
   const singleSubject = grid?.subjects?.length === 1 ? grid.subjects[0] : null;
   const selectedClass = classes.find((c) => c.id === classSectionId);
@@ -842,9 +851,18 @@ export default function MarksEntry() {
               <span className="mark-chip mark-chip-empty">Read only</span>
             )}
           </div>
+          <div className="px-4 py-3 border-b border-ink-900/10">
+            <TableToolbar
+              q={studentTable.q}
+              setQ={studentTable.setQ}
+              placeholder="Search student name or roll"
+              matched={studentTable.matched}
+              total={studentTable.total}
+            />
+          </div>
           <PaginatedTable
-            items={grid.students}
-            resetKey={`${classSectionId}:${examId}:${subjectId}`}
+            items={visibleStudents}
+            resetKey={`${classSectionId}:${examId}:${subjectId}:${studentTable.resetKey}`}
             empty="No students in this class."
             pageSize={25}
           >
@@ -910,9 +928,18 @@ export default function MarksEntry() {
               Multi-subject entry · Type AB, EX, or WH instead of a score. Pick one subject above for a simpler list.
             </span>
           </div>
+          <div className="px-4 py-3 border-b border-ink-900/10">
+            <TableToolbar
+              q={studentTable.q}
+              setQ={studentTable.setQ}
+              placeholder="Search student name or roll"
+              matched={studentTable.matched}
+              total={studentTable.total}
+            />
+          </div>
           <PaginatedTable
-            items={grid.students}
-            resetKey={`${classSectionId}:${examId}:${subjectId}`}
+            items={visibleStudents}
+            resetKey={`${classSectionId}:${examId}:${subjectId}:${studentTable.resetKey}`}
             empty="No students in this class."
             pageSize={20}
           >

@@ -4,6 +4,12 @@ import { api } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { TableToolbar } from "../components/TableToolbar.jsx";
+import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+
+function assignmentSearchText(a) {
+  return searchHaystack(a.classLabel, a.subject);
+}
 
 export default function PendingUploads() {
   const [searchParams] = useSearchParams();
@@ -111,6 +117,7 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
             ((a.submitted ?? 0) > 0 && (a.approved ?? 0) < a.expected)
         )
       : t.assignments.filter((a) => a.missing > 0);
+  const table = useTableSearch(rows, { getSearchText: assignmentSearchText });
 
   async function approveRegister(a) {
     if (!a.subjectId) {
@@ -158,7 +165,22 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
             : `${t.missingAssignments} register${t.missingAssignments === 1 ? "" : "s"} outstanding`}
         </div>
       </div>
-      <PaginatedTable items={rows} pageSize={5} pageSizeOptions={[5, 10, 25]} empty="No rows.">
+      <div className="mt-3">
+        <TableToolbar
+          q={table.q}
+          setQ={table.setQ}
+          placeholder="Search class or subject"
+          matched={table.matched}
+          total={table.total}
+        />
+      </div>
+      <PaginatedTable
+        items={table.filtered}
+        pageSize={5}
+        pageSizeOptions={[5, 10, 25]}
+        resetKey={table.resetKey}
+        empty="No rows."
+      >
         {(page) => (
           <table className="table mt-3">
             <thead>

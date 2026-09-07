@@ -1,36 +1,37 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { TableToolbar } from "../components/TableToolbar.jsx";
+import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+
+function studentSearchText(s) {
+  return searchHaystack(s.name, s.rollNo, s.classSection?.className, s.classSection?.section);
+}
 
 export default function AnalysisStudents() {
   const [students, setStudents] = useState([]);
-  const [q, setQ] = useState("");
+  const table = useTableSearch(students, { getSearchText: studentSearchText });
 
   useEffect(() => {
     api("/api/students").then(setStudents);
   }, []);
 
-  const rows = useMemo(() => {
-    const needle = q.trim().toLowerCase();
-    if (!needle) return students;
-    return students.filter((s) =>
-      `${s.name} ${s.rollNo} ${s.classSection.className}${s.classSection.section}`.toLowerCase().includes(needle)
-    );
-  }, [students, q]);
-
   return (
     <div>
       <PageHeader title="Student analysis" subtitle="Search a student for trends, rank, and a report card" />
-      <input
-        className="field max-w-md mb-4"
-        placeholder="Search name, roll, or class"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
       <div className="card">
-        <PaginatedTable items={rows} resetKey={q} empty="No matching students.">
+        <div className="p-3 border-b border-ink-900/10">
+          <TableToolbar
+            q={table.q}
+            setQ={table.setQ}
+            placeholder="Search name, roll, or class"
+            matched={table.matched}
+            total={table.total}
+          />
+        </div>
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No matching students.">
           {(page) => (
             <table className="table">
               <thead>

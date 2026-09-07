@@ -21,8 +21,103 @@ import { ExamSelect, YearComparison } from "../components/AnalysisPanels.jsx";
 import { GRADE_COLORS, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { TableToolbar } from "../components/TableToolbar.jsx";
+import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
+
+function subjectStatSearchText(r) {
+  return searchHaystack(r.subject, r.average, r.median, r.highest, r.lowest, r.passRate);
+}
+
+function rankSearchText(s) {
+  return searchHaystack(s.name, s.rank, s.average, s.grade, s.classLabel);
+}
+
+function SearchableSubjectStats({ rows }) {
+  const table = useTableSearch(rows, { getSearchText: subjectStatSearchText });
+  return (
+    <>
+      <div className="mb-3">
+        <TableToolbar
+          q={table.q}
+          setQ={table.setQ}
+          placeholder="Search subject"
+          matched={table.matched}
+          total={table.total}
+        />
+      </div>
+      <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subject marks yet.">
+        {(page) => (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Subject</th>
+                <th>Avg</th>
+                <th>Med</th>
+                <th>High</th>
+                <th>Low</th>
+                <th>Pass</th>
+              </tr>
+            </thead>
+            <tbody>
+              {page.map((r) => (
+                <tr key={r.subject}>
+                  <td>{r.subject}</td>
+                  <td>{r.average ?? "—"}</td>
+                  <td>{r.median ?? "—"}</td>
+                  <td>{r.highest ?? "—"}</td>
+                  <td>{r.lowest ?? "—"}</td>
+                  <td>{r.passRate ?? "—"}%</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </PaginatedTable>
+    </>
+  );
+}
+
+function SearchableRankTable({ rows, showRank = true, showClass = true }) {
+  const table = useTableSearch(rows, { getSearchText: rankSearchText });
+  return (
+    <>
+      <div className="mb-3">
+        <TableToolbar
+          q={table.q}
+          setQ={table.setQ}
+          placeholder="Search student or class"
+          matched={table.matched}
+          total={table.total}
+        />
+      </div>
+      <PaginatedTable
+        items={table.filtered}
+        pageSize={10}
+        pageSizeOptions={[10, 25]}
+        resetKey={table.resetKey}
+        empty="No rankings yet."
+      >
+        {(page) => (
+          <table className="table">
+            <tbody>
+              {page.map((s) => (
+                <tr key={s.studentId}>
+                  {showRank && <td>{s.rank}</td>}
+                  <td><Link className="underline" to={`/students/${s.studentId}`}>{s.name}</Link></td>
+                  {showClass && <td>{s.classLabel}</td>}
+                  <td>{s.average}%</td>
+                  <td>{s.grade}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </PaginatedTable>
+    </>
+  );
+}
 
 export default function ClassGroupAnalytics() {
   const { className } = useParams();
@@ -93,34 +188,7 @@ export default function ClassGroupAnalytics() {
 
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
         <Panel title="Subject stats">
-          <PaginatedTable items={data.perSubject} empty="No subject marks yet.">
-            {(page) => (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Subject</th>
-                    <th>Avg</th>
-                    <th>Med</th>
-                    <th>High</th>
-                    <th>Low</th>
-                    <th>Pass</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {page.map((r) => (
-                    <tr key={r.subject}>
-                      <td>{r.subject}</td>
-                      <td>{r.average ?? "—"}</td>
-                      <td>{r.median ?? "—"}</td>
-                      <td>{r.highest ?? "—"}</td>
-                      <td>{r.lowest ?? "—"}</td>
-                      <td>{r.passRate ?? "—"}%</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </PaginatedTable>
+          <SearchableSubjectStats rows={data.perSubject} />
         </Panel>
         <Panel title="Division comparison">
           <ResponsiveContainer width="100%" height={280}>
@@ -143,41 +211,10 @@ export default function ClassGroupAnalytics() {
 
       <div className="grid lg:grid-cols-2 gap-4">
         <Panel title="Top 10">
-          <PaginatedTable items={data.top10} pageSize={10} pageSizeOptions={[10, 25]} empty="No rankings yet.">
-            {(page) => (
-              <table className="table">
-                <tbody>
-                  {page.map((s) => (
-                    <tr key={s.studentId}>
-                      <td>{s.rank}</td>
-                      <td><Link className="underline" to={`/students/${s.studentId}`}>{s.name}</Link></td>
-                      <td>{s.classLabel}</td>
-                      <td>{s.average}%</td>
-                      <td>{s.grade}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </PaginatedTable>
+          <SearchableRankTable rows={data.top10} showRank showClass />
         </Panel>
         <Panel title="Bottom 10">
-          <PaginatedTable items={data.bottom10} pageSize={10} pageSizeOptions={[10, 25]} empty="No rankings yet.">
-            {(page) => (
-              <table className="table">
-                <tbody>
-                  {page.map((s) => (
-                    <tr key={s.studentId}>
-                      <td><Link className="underline" to={`/students/${s.studentId}`}>{s.name}</Link></td>
-                      <td>{s.classLabel}</td>
-                      <td>{s.average}%</td>
-                      <td>{s.grade}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </PaginatedTable>
+          <SearchableRankTable rows={data.bottom10} showRank={false} showClass />
         </Panel>
       </div>
     </div>

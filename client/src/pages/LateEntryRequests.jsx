@@ -4,6 +4,8 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { TableToolbar } from "../components/TableToolbar.jsx";
+import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function statusTone(status) {
   if (status === "APPROVED") return "mark-chip mark-chip-approved";
@@ -30,6 +32,19 @@ function kindTone(kind) {
   return "mark-chip mark-chip-pending";
 }
 
+function requestSearchText(r) {
+  return searchHaystack(
+    r.teacher?.name,
+    r.kind,
+    r.exam?.name,
+    r.classLabel,
+    r.classSectionId,
+    r.subject?.name,
+    r.status,
+    r.reviewedBy?.name
+  );
+}
+
 export default function LateEntryRequests() {
   const { user } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -43,6 +58,7 @@ export default function LateEntryRequests() {
   const [busyId, setBusyId] = useState("");
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
+  const table = useTableSearch(rows, { getSearchText: requestSearchText });
 
   async function load(exam = examId, st = status, k = kind) {
     const params = new URLSearchParams();
@@ -189,76 +205,91 @@ export default function LateEntryRequests() {
         {loading && !rows.length ? (
           <p className="p-4 text-sm text-ink-700/60">Loading requests…</p>
         ) : (
-          <PaginatedTable items={rows} resetKey={`${examId}:${status}:${kind}`} empty="No mark access requests.">
-            {(page) => (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Teacher</th>
-                    <th>Kind</th>
-                    <th>Exam</th>
-                    <th>Register</th>
-                    <th>Requested</th>
-                    <th>Status</th>
-                    <th>Reviewed</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {page.map((r) => (
-                    <tr key={r.id}>
-                      <td className="font-medium">{r.teacher?.name || "—"}</td>
-                      <td>
-                        <span className={kindTone(r.kind)}>{kindLabel(r.kind)}</span>
-                      </td>
-                      <td>{r.exam?.name || "—"}</td>
-                      <td>
-                        {r.classLabel || r.classSectionId} · {r.subject?.name || "—"}
-                      </td>
-                      <td>{r.requestedAt ? new Date(r.requestedAt).toLocaleString() : "—"}</td>
-                      <td>
-                        <span className={statusTone(r.status)}>{statusLabel(r.status)}</span>
-                      </td>
-                      <td>
-                        {r.reviewedAt ? (
-                          <div>
-                            <div>{new Date(r.reviewedAt).toLocaleString()}</div>
-                            {r.reviewedBy?.name && (
-                              <div className="text-[10px] text-ink-700/50">by {r.reviewedBy.name}</div>
-                            )}
-                          </div>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
-                      <td className="space-x-2 whitespace-nowrap">
-                        {r.status === "PENDING" && (
-                          <>
-                            <button
-                              type="button"
-                              className="btn-primary"
-                              disabled={Boolean(busyId)}
-                              onClick={() => review(r.id, "APPROVED")}
-                            >
-                              {busyId === r.id ? "Saving…" : "Approve"}
-                            </button>
-                            <button
-                              type="button"
-                              className="btn-ghost"
-                              disabled={Boolean(busyId)}
-                              onClick={() => review(r.id, "REJECTED")}
-                            >
-                              Reject
-                            </button>
-                          </>
-                        )}
-                      </td>
+          <>
+            <div className="p-3 border-b border-ink-900/10">
+              <TableToolbar
+                q={table.q}
+                setQ={table.setQ}
+                placeholder="Search teacher, class, or subject"
+                matched={table.matched}
+                total={table.total}
+              />
+            </div>
+            <PaginatedTable
+              items={table.filtered}
+              resetKey={`${examId}:${status}:${kind}:${table.resetKey}`}
+              empty="No mark access requests."
+            >
+              {(page) => (
+                <table className="table">
+                  <thead>
+                    <tr>
+                      <th>Teacher</th>
+                      <th>Kind</th>
+                      <th>Exam</th>
+                      <th>Register</th>
+                      <th>Requested</th>
+                      <th>Status</th>
+                      <th>Reviewed</th>
+                      <th></th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </PaginatedTable>
+                  </thead>
+                  <tbody>
+                    {page.map((r) => (
+                      <tr key={r.id}>
+                        <td className="font-medium">{r.teacher?.name || "—"}</td>
+                        <td>
+                          <span className={kindTone(r.kind)}>{kindLabel(r.kind)}</span>
+                        </td>
+                        <td>{r.exam?.name || "—"}</td>
+                        <td>
+                          {r.classLabel || r.classSectionId} · {r.subject?.name || "—"}
+                        </td>
+                        <td>{r.requestedAt ? new Date(r.requestedAt).toLocaleString() : "—"}</td>
+                        <td>
+                          <span className={statusTone(r.status)}>{statusLabel(r.status)}</span>
+                        </td>
+                        <td>
+                          {r.reviewedAt ? (
+                            <div>
+                              <div>{new Date(r.reviewedAt).toLocaleString()}</div>
+                              {r.reviewedBy?.name && (
+                                <div className="text-[10px] text-ink-700/50">by {r.reviewedBy.name}</div>
+                              )}
+                            </div>
+                          ) : (
+                            "—"
+                          )}
+                        </td>
+                        <td className="space-x-2 whitespace-nowrap">
+                          {r.status === "PENDING" && (
+                            <>
+                              <button
+                                type="button"
+                                className="btn-primary"
+                                disabled={Boolean(busyId)}
+                                onClick={() => review(r.id, "APPROVED")}
+                              >
+                                {busyId === r.id ? "Saving…" : "Approve"}
+                              </button>
+                              <button
+                                type="button"
+                                className="btn-ghost"
+                                disabled={Boolean(busyId)}
+                                onClick={() => review(r.id, "REJECTED")}
+                              >
+                                Reject
+                              </button>
+                            </>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
+          </>
         )}
       </div>
     </div>
