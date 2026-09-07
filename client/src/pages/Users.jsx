@@ -139,6 +139,7 @@ export default function Users() {
       <div className="card">
         <div className="p-3 border-b border-ink-900/10">
           <TableToolbar
+            className="sm:flex-nowrap"
             q={table.q}
             setQ={table.setQ}
             placeholder="Search name, email, or school ID"
@@ -146,7 +147,7 @@ export default function Users() {
             total={table.total}
           >
             <select
-              className="field w-auto"
+              className="field-filter shrink-0"
               value={table.filters.role || ""}
               onChange={(e) => table.setFilter("role", e.target.value)}
               aria-label="Filter by role"
@@ -157,7 +158,7 @@ export default function Users() {
               <option value="PRINCIPAL">Principal</option>
             </select>
             <select
-              className="field w-auto"
+              className="field-filter shrink-0"
               value={table.filters.status || ""}
               onChange={(e) => table.setFilter("status", e.target.value)}
               aria-label="Filter by status"

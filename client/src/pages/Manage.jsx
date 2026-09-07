@@ -3,7 +3,7 @@ import { api, download } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
-import { TableToolbar } from "../components/TableToolbar.jsx";
+import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 const TABS = ["Classes", "Subjects", "Students", "Exams", "Promote"];
@@ -252,7 +252,7 @@ function SubjectsTab() {
             total={table.total}
           >
             <select
-              className="field w-auto"
+              className="field-filter"
               value={table.filters.className || ""}
               onChange={(e) => table.setFilter("className", e.target.value)}
               aria-label="Filter by class"
@@ -416,7 +416,7 @@ function StudentsTab() {
           If you pick a class below, Class/Section can be left blank in the file.
         </p>
         <div className="flex flex-wrap gap-2">
-          <select className="field w-auto" value={classSectionId} onChange={(e) => setClassSectionId(e.target.value)}>
+          <select className="field-filter max-w-full" value={classSectionId} onChange={(e) => setClassSectionId(e.target.value)}>
             <option value="">All classes (file must include Class + Section)</option>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
@@ -480,7 +480,7 @@ function StudentsTab() {
               total={table.total}
             >
               <select
-                className="field w-auto"
+                className="field-filter"
                 value={table.filters.classSectionId || ""}
                 onChange={(e) => table.setFilter("classSectionId", e.target.value)}
                 aria-label="Filter by class"
@@ -659,7 +659,7 @@ function ExamsTab() {
             total={table.total}
           >
             <select
-              className="field w-auto"
+              className="field-filter"
               value={table.filters.type || ""}
               onChange={(e) => table.setFilter("type", e.target.value)}
               aria-label="Filter by exam type"
@@ -789,28 +789,25 @@ function PromoteTab() {
           Creates a new enrollment in the destination class for the next academic year and keeps this year’s
           marks on the previous record. Year-on-year analysis follows the promotion chain.
         </p>
-        <div className="grid sm:grid-cols-3 gap-3">
-          <label className="block">
-            <span className="label">From</span>
+        <FilterBar>
+          <FilterField label="From">
             <select className="field" value={fromId} onChange={(e) => setFromId(e.target.value)}>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
               ))}
             </select>
-          </label>
-          <label className="block">
-            <span className="label">To</span>
+          </FilterField>
+          <FilterField label="To">
             <select className="field" value={toId} onChange={(e) => setToId(e.target.value)}>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
               ))}
             </select>
-          </label>
-          <label className="block">
-            <span className="label">Destination year</span>
+          </FilterField>
+          <FilterField label="Destination year">
             <input className="field" placeholder="2026-27" value={toYear} onChange={(e) => setToYear(e.target.value)} />
-          </label>
-        </div>
+          </FilterField>
+        </FilterBar>
         <button type="button" className="btn-primary" onClick={promote} disabled={!chosen.length}>
           Promote {chosen.length || 0} student{chosen.length === 1 ? "" : "s"}
         </button>

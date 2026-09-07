@@ -16,7 +16,7 @@ import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 export function ExamSelect({ exams = [], value, onChange }) {
   return (
-    <select className="field w-auto" value={value} onChange={(e) => onChange(e.target.value)}>
+    <select className="field-filter" value={value} onChange={(e) => onChange(e.target.value)}>
       {exams.map((exam) => (
         <option key={exam.id} value={exam.id}>{examLabel(exam)}</option>
       ))}

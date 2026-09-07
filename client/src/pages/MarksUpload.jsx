@@ -5,6 +5,7 @@ import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
+import { FilterBar, FilterField } from "../components/TableToolbar.jsx";
 
 export default function MarksUpload() {
   const { user } = useAuth();
@@ -76,14 +77,18 @@ export default function MarksUpload() {
         subtitle="One template per class and exam. Preview first, then commit drafts. Use AB, EX, or WH for absent, exempt, or withheld."
       />
       <div className="card p-5 space-y-4 max-w-2xl">
-        <div className="grid sm:grid-cols-2 gap-3">
-          <select className="field" value={classSectionId} onChange={(e) => setClassSectionId(e.target.value)}>
-            {classes.map((c) => <option key={c.id} value={c.id}>{c.className}-{c.section}</option>)}
-          </select>
-          <select className="field" value={examId} onChange={(e) => setExamId(e.target.value)}>
-            {exams.map((e) => <option key={e.id} value={e.id}>{examLabel(e)}</option>)}
-          </select>
-        </div>
+        <FilterBar>
+          <FilterField label="Class">
+            <select className="field" value={classSectionId} onChange={(e) => setClassSectionId(e.target.value)}>
+              {classes.map((c) => <option key={c.id} value={c.id}>{c.className}-{c.section}</option>)}
+            </select>
+          </FilterField>
+          <FilterField label="Exam" className="sm:max-w-[15rem]">
+            <select className="field" value={examId} onChange={(e) => setExamId(e.target.value)}>
+              {exams.map((e) => <option key={e.id} value={e.id}>{examLabel(e)}</option>)}
+            </select>
+          </FilterField>
+        </FilterBar>
         {subjects.length > 0 && (
           <EntryAccessNotice
             entryAccess={entryAccess}
