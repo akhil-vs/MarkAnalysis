@@ -3,7 +3,29 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { TableToolbar } from "../components/TableToolbar.jsx";
 import { canAddCoordinator, isLeadership } from "../lib/roles.js";
+import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+
+function userSearchText(u) {
+  return searchHaystack(
+    u.name,
+    u.email,
+    u.schoolId,
+    u.role,
+    u.status,
+    (u.assignments || []).map((a) => [
+      a.classSection?.className,
+      a.classSection?.section,
+      a.subject?.name,
+    ])
+  );
+}
+
+const USER_FILTERS = [
+  { key: "role", match: (u, v) => u.role === v },
+  { key: "status", match: (u, v) => u.status === v },
+];
 
 export default function Users() {
   const { user } = useAuth();
@@ -22,6 +44,7 @@ export default function Users() {
     role: "TEACHER",
   });
   const [message, setMessage] = useState("");
+  const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
 
   async function load() {
     const [u, c, s] = await Promise.all([
@@ -114,7 +137,39 @@ export default function Users() {
       </form>
 
       <div className="card">
-        <PaginatedTable items={users} empty="No staff accounts yet.">
+        <div className="p-3 border-b border-ink-900/10">
+          <TableToolbar
+            q={table.q}
+            setQ={table.setQ}
+            placeholder="Search name, email, or school ID"
+            matched={table.matched}
+            total={table.total}
+          >
+            <select
+              className="field w-auto"
+              value={table.filters.role || ""}
+              onChange={(e) => table.setFilter("role", e.target.value)}
+              aria-label="Filter by role"
+            >
+              <option value="">All roles</option>
+              <option value="TEACHER">Teacher</option>
+              <option value="EXAM_COORDINATOR">Exam Coordinator</option>
+              <option value="PRINCIPAL">Principal</option>
+            </select>
+            <select
+              className="field w-auto"
+              value={table.filters.status || ""}
+              onChange={(e) => table.setFilter("status", e.target.value)}
+              aria-label="Filter by status"
+            >
+              <option value="">All statuses</option>
+              <option value="ACTIVE">Active</option>
+              <option value="PENDING">Pending</option>
+              <option value="REJECTED">Rejected</option>
+            </select>
+          </TableToolbar>
+        </div>
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No staff accounts yet.">
           {(page) => (
             <table className="table">
               <thead>

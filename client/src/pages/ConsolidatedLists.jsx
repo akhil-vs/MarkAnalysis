@@ -5,6 +5,12 @@ import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import { EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { TableToolbar } from "../components/TableToolbar.jsx";
+import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+
+function cmlStudentSearchText(row) {
+  return searchHaystack(row.name, row.rollNo, row.grade, row.rank, row.total, row.percent);
+}
 
 export default function ConsolidatedLists() {
   const [params, setParams] = useSearchParams();
@@ -168,60 +174,84 @@ export default function ConsolidatedLists() {
               )}
 
               <div className="overflow-x-auto">
-                <PaginatedTable items={preview.students} pageSize={15} pageSizeOptions={[15, 25, 50]} empty="No students in this class.">
-                  {(page) => (
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Rank</th>
-                          <th>Roll</th>
-                          <th>Name</th>
-                          {preview.subjects.map((s) => (
-                            <th key={s.id} title={s.teacher || ""}>
-                              {s.name}
-                              <div className="font-normal text-[10px] text-ink-700/50">{s.maxMarks}</div>
-                            </th>
-                          ))}
-                          <th>Total</th>
-                          <th>%</th>
-                          <th>Grade</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {page.map((row) => (
-                          <tr key={row.studentId}>
-                            <td>{row.rank ?? "—"}</td>
-                            <td>{row.rollNo}</td>
-                            <td>
-                              <Link className="underline" to={`/students/${row.studentId}`}>{row.name}</Link>
-                            </td>
-                            {preview.subjects.map((s) => {
-                              const cell = row.bySubject[s.id];
-                              if (!cell || cell.status === "MISSING") return <td key={s.id} className="text-ink-700/35">—</td>;
-                              if (cell.status === "DRAFT") {
-                                return (
-                                  <td key={s.id} className="text-clay-600" title="Draft — not approved">
-                                    {cell.display || cell.marks}
-                                  </td>
-                                );
-                              }
-                              return <td key={s.id}>{cell.display || cell.marks}</td>;
-                            })}
-                            <td>{row.total ?? "—"}</td>
-                            <td>{row.percent ?? "—"}</td>
-                            <td>{row.grade || "—"}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-                </PaginatedTable>
+                <CmlStudentTable students={preview.students} subjects={preview.subjects} resetKey={selectedId} />
               </div>
             </Panel>
           )}
         </div>
       </div>
     </div>
+  );
+}
+
+function CmlStudentTable({ students, subjects, resetKey }) {
+  const table = useTableSearch(students, { getSearchText: cmlStudentSearchText });
+  return (
+    <>
+      <div className="mb-3">
+        <TableToolbar
+          q={table.q}
+          setQ={table.setQ}
+          placeholder="Search name, roll, or grade"
+          matched={table.matched}
+          total={table.total}
+        />
+      </div>
+      <PaginatedTable
+        items={table.filtered}
+        pageSize={15}
+        pageSizeOptions={[15, 25, 50]}
+        resetKey={`${resetKey}:${table.resetKey}`}
+        empty="No students in this class."
+      >
+        {(page) => (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Roll</th>
+                <th>Name</th>
+                {subjects.map((s) => (
+                  <th key={s.id} title={s.teacher || ""}>
+                    {s.name}
+                    <div className="font-normal text-[10px] text-ink-700/50">{s.maxMarks}</div>
+                  </th>
+                ))}
+                <th>Total</th>
+                <th>%</th>
+                <th>Grade</th>
+              </tr>
+            </thead>
+            <tbody>
+              {page.map((row) => (
+                <tr key={row.studentId}>
+                  <td>{row.rank ?? "—"}</td>
+                  <td>{row.rollNo}</td>
+                  <td>
+                    <Link className="underline" to={`/students/${row.studentId}`}>{row.name}</Link>
+                  </td>
+                  {subjects.map((s) => {
+                    const cell = row.bySubject[s.id];
+                    if (!cell || cell.status === "MISSING") return <td key={s.id} className="text-ink-700/35">—</td>;
+                    if (cell.status === "DRAFT") {
+                      return (
+                        <td key={s.id} className="text-clay-600" title="Draft — not approved">
+                          {cell.display || cell.marks}
+                        </td>
+                      );
+                    }
+                    return <td key={s.id}>{cell.display || cell.marks}</td>;
+                  })}
+                  <td>{row.total ?? "—"}</td>
+                  <td>{row.percent ?? "—"}</td>
+                  <td>{row.grade || "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </PaginatedTable>
+    </>
   );
 }
 

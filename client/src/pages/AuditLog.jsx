@@ -2,12 +2,27 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { TableToolbar } from "../components/TableToolbar.jsx";
 import { describeAuditValue } from "../lib/markCodes.js";
+import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+
+function auditSearchText(r) {
+  return searchHaystack(
+    r.changedBy?.name,
+    r.mark?.student?.rollNo,
+    r.mark?.student?.name,
+    r.mark?.subject?.name,
+    r.mark?.exam?.name,
+    describeAuditValue(r.oldValue),
+    describeAuditValue(r.newValue)
+  );
+}
 
 export default function AuditLog() {
   const [rows, setRows] = useState([]);
   const [exams, setExams] = useState([]);
   const [examId, setExamId] = useState("");
+  const table = useTableSearch(rows, { getSearchText: auditSearchText });
 
   async function load(id) {
     const q = id ? `?examId=${id}` : "";
@@ -43,7 +58,20 @@ export default function AuditLog() {
         }
       />
       <div className="card">
-        <PaginatedTable items={rows} resetKey={examId} empty="No edits recorded for this exam yet.">
+        <div className="p-3 border-b border-ink-900/10">
+          <TableToolbar
+            q={table.q}
+            setQ={table.setQ}
+            placeholder="Search staff, student, or subject"
+            matched={table.matched}
+            total={table.total}
+          />
+        </div>
+        <PaginatedTable
+          items={table.filtered}
+          resetKey={`${examId}:${table.resetKey}`}
+          empty="No edits recorded for this exam yet."
+        >
           {(page) => (
             <table className="table">
               <thead>

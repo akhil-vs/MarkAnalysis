@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api, download } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { TableToolbar } from "../components/TableToolbar.jsx";
+import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 const TABS = ["Classes", "Subjects", "Students", "Exams", "Promote"];
 
@@ -35,6 +37,10 @@ function emptyClassForm() {
   return { className: "10", section: "", classTeacherId: "" };
 }
 
+function classSearchText(r) {
+  return searchHaystack(r.className, r.section, r.classTeacher?.name, r._count?.students);
+}
+
 function ClassesTab() {
   const [rows, setRows] = useState([]);
   const confirm = useConfirm();
@@ -42,6 +48,7 @@ function ClassesTab() {
   const [form, setForm] = useState(emptyClassForm());
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
+  const table = useTableSearch(rows, { getSearchText: classSearchText });
 
   async function load() {
     const [c, u] = await Promise.all([api("/api/classes"), api("/api/users")]);
@@ -117,7 +124,16 @@ function ClassesTab() {
         {message && <p className="text-sm">{message}</p>}
       </form>
       <div className="lg:col-span-2 card">
-        <PaginatedTable items={rows} empty="No classes yet.">
+        <div className="p-3 border-b border-ink-900/10">
+          <TableToolbar
+            q={table.q}
+            setQ={table.setQ}
+            placeholder="Search class, section, or teacher"
+            matched={table.matched}
+            total={table.total}
+          />
+        </div>
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No classes yet.">
           {(page) => (
             <table className="table">
               <thead><tr><th>Class</th><th>Section</th><th>Teacher</th><th>Students</th><th></th></tr></thead>
@@ -147,12 +163,23 @@ function emptySubjectForm() {
   return { name: "", className: "10", maxMarks: 100 };
 }
 
+function subjectSearchText(r) {
+  return searchHaystack(r.name, r.className, r.maxMarks);
+}
+
+const SUBJECT_FILTERS = [{ key: "className", match: (r, v) => String(r.className) === v }];
+
 function SubjectsTab() {
   const [rows, setRows] = useState([]);
   const confirm = useConfirm();
   const [form, setForm] = useState(emptySubjectForm());
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
+  const table = useTableSearch(rows, { getSearchText: subjectSearchText, filterDefs: SUBJECT_FILTERS });
+  const classOptions = useMemo(
+    () => [...new Set(rows.map((r) => r.className).filter(Boolean))].sort(),
+    [rows]
+  );
 
   async function load() { setRows(await api("/api/subjects")); }
   useEffect(() => { load(); }, []);
@@ -216,7 +243,28 @@ function SubjectsTab() {
         {message && <p className="text-sm">{message}</p>}
       </form>
       <div className="lg:col-span-2 card">
-        <PaginatedTable items={rows} empty="No subjects yet.">
+        <div className="p-3 border-b border-ink-900/10">
+          <TableToolbar
+            q={table.q}
+            setQ={table.setQ}
+            placeholder="Search subject or class"
+            matched={table.matched}
+            total={table.total}
+          >
+            <select
+              className="field w-auto"
+              value={table.filters.className || ""}
+              onChange={(e) => table.setFilter("className", e.target.value)}
+              aria-label="Filter by class"
+            >
+              <option value="">All classes</option>
+              {classOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </TableToolbar>
+        </div>
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subjects yet.">
           {(page) => (
             <table className="table">
               <thead><tr><th>Subject</th><th>Class</th><th>Max</th><th></th></tr></thead>
@@ -245,6 +293,20 @@ function emptyStudentForm(classSectionId = "") {
   return { name: "", rollNo: "", classSectionId, guardianName: "", guardianPhone: "", dob: "", academicYear: "" };
 }
 
+function studentSearchText(r) {
+  return searchHaystack(
+    r.name,
+    r.rollNo,
+    r.classSection?.className,
+    r.classSection?.section,
+    r.academicYear,
+    r.guardianName,
+    r.guardianPhone
+  );
+}
+
+const STUDENT_FILTERS = [{ key: "classSectionId", match: (r, v) => r.classSectionId === v }];
+
 function StudentsTab() {
   const [rows, setRows] = useState([]);
   const confirm = useConfirm();
@@ -255,6 +317,7 @@ function StudentsTab() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [message, setMessage] = useState("");
+  const table = useTableSearch(rows, { getSearchText: studentSearchText, filterDefs: STUDENT_FILTERS });
 
   async function load() {
     const [s, c] = await Promise.all([api("/api/students"), api("/api/classes")]);
@@ -408,7 +471,28 @@ function StudentsTab() {
           </div>
         </form>
         <div className="lg:col-span-2 card">
-          <PaginatedTable items={rows} empty="No students yet.">
+          <div className="p-3 border-b border-ink-900/10">
+            <TableToolbar
+              q={table.q}
+              setQ={table.setQ}
+              placeholder="Search name, roll, guardian…"
+              matched={table.matched}
+              total={table.total}
+            >
+              <select
+                className="field w-auto"
+                value={table.filters.classSectionId || ""}
+                onChange={(e) => table.setFilter("classSectionId", e.target.value)}
+                aria-label="Filter by class"
+              >
+                <option value="">All classes</option>
+                {classes.map((c) => (
+                  <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
+                ))}
+              </select>
+            </TableToolbar>
+          </div>
+          <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No students yet.">
             {(page) => (
               <table className="table">
                 <thead>
@@ -460,12 +544,19 @@ function emptyExamForm() {
   };
 }
 
+function examSearchText(r) {
+  return searchHaystack(r.name, r.term, r.type, r.academicYear);
+}
+
+const EXAM_FILTERS = [{ key: "type", match: (r, v) => r.type === v }];
+
 function ExamsTab() {
   const [rows, setRows] = useState([]);
   const confirm = useConfirm();
   const [form, setForm] = useState(emptyExamForm());
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
+  const table = useTableSearch(rows, { getSearchText: examSearchText, filterDefs: EXAM_FILTERS });
 
   async function load() {
     setRows(await api("/api/exams"));
@@ -559,7 +650,28 @@ function ExamsTab() {
         {message && <p className="text-sm">{message}</p>}
       </form>
       <div className="lg:col-span-2 card">
-        <PaginatedTable items={rows} empty="No exams scheduled.">
+        <div className="p-3 border-b border-ink-900/10">
+          <TableToolbar
+            q={table.q}
+            setQ={table.setQ}
+            placeholder="Search exam, term, or year"
+            matched={table.matched}
+            total={table.total}
+          >
+            <select
+              className="field w-auto"
+              value={table.filters.type || ""}
+              onChange={(e) => table.setFilter("type", e.target.value)}
+              aria-label="Filter by exam type"
+            >
+              <option value="">All types</option>
+              <option value="UNIT_TEST">Unit test</option>
+              <option value="MID_TERM">Mid-term</option>
+              <option value="FINAL">Final</option>
+            </select>
+          </TableToolbar>
+        </div>
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No exams scheduled.">
           {(page) => (
             <table className="table">
               <thead>
@@ -604,6 +716,10 @@ function nextYearHint(year) {
   return `${start}-${String((start + 1) % 100).padStart(2, "0")}`;
 }
 
+function promoteSearchText(s) {
+  return searchHaystack(s.name, s.rollNo, s.academicYear);
+}
+
 function PromoteTab() {
   const confirm = useConfirm();
   const [classes, setClasses] = useState([]);
@@ -614,6 +730,7 @@ function PromoteTab() {
   const [selected, setSelected] = useState({});
   const [rolls, setRolls] = useState({});
   const [message, setMessage] = useState("");
+  const table = useTableSearch(students, { getSearchText: promoteSearchText });
 
   async function loadClasses() {
     const c = await api("/api/classes");
@@ -700,7 +817,20 @@ function PromoteTab() {
         {message && <p className="text-sm">{message}</p>}
       </div>
       <div className="card">
-        <PaginatedTable items={students} empty="No active students in this class." resetKey={fromId}>
+        <div className="p-3 border-b border-ink-900/10">
+          <TableToolbar
+            q={table.q}
+            setQ={table.setQ}
+            placeholder="Search name or roll"
+            matched={table.matched}
+            total={table.total}
+          />
+        </div>
+        <PaginatedTable
+          items={table.filtered}
+          empty="No active students in this class."
+          resetKey={`${fromId}:${table.resetKey}`}
+        >
           {(page) => (
             <table className="table">
               <thead>

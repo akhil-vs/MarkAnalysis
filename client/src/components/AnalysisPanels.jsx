@@ -10,7 +10,9 @@ import {
 } from "recharts";
 import { ChartTooltip, EmptyNote, Panel } from "./DashboardKit.jsx";
 import { PaginatedTable } from "./PaginatedTable.jsx";
+import { TableToolbar } from "./TableToolbar.jsx";
 import { examLabel } from "../lib/exams.js";
+import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 export function ExamSelect({ exams = [], value, onChange }) {
   return (
@@ -81,39 +83,57 @@ export function YearComparison({ series, title = "Compared with previous years" 
   );
 }
 
+function teacherCompareSearchText(row) {
+  return searchHaystack(row.teacher, row.classLabels, row.classLabel, row.average, row.passRate);
+}
+
 export function TeacherCompareTable({ rows = [], empty = "Need two or more teachers of this subject to compare." }) {
   const list = Array.isArray(rows) ? rows : rows.teachers || [];
+  const table = useTableSearch(list, { getSearchText: teacherCompareSearchText });
   return (
-    <PaginatedTable items={list} empty={empty}>
-      {(page) => (
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Teacher</th>
-              <th>Classes</th>
-              <th>Average</th>
-              <th>Pass</th>
-              <th>vs peers</th>
-            </tr>
-          </thead>
-          <tbody>
-            {page.map((row) => (
-              <tr key={row.teacherId || `${row.teacher}-${row.classLabel}`}>
-                <td className="font-medium">{row.teacher}</td>
-                <td className="text-ink-700/70">
-                  {row.classLabels?.join(", ") || row.classLabel || "—"}
-                </td>
-                <td>{row.average ?? "—"}%</td>
-                <td>{row.passRate ?? "—"}%</td>
-                <td className={row.delta > 0 ? "text-moss-600" : row.delta < 0 ? "text-clay-600" : ""}>
-                  {row.delta == null ? "—" : `${row.delta > 0 ? "+" : ""}${row.delta}`}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+    <div>
+      {list.length > 3 && (
+        <div className="mb-3">
+          <TableToolbar
+            q={table.q}
+            setQ={table.setQ}
+            placeholder="Search teacher or class"
+            matched={table.matched}
+            total={table.total}
+          />
+        </div>
       )}
-    </PaginatedTable>
+      <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty={empty}>
+        {(page) => (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Teacher</th>
+                <th>Classes</th>
+                <th>Average</th>
+                <th>Pass</th>
+                <th>vs peers</th>
+              </tr>
+            </thead>
+            <tbody>
+              {page.map((row) => (
+                <tr key={row.teacherId || `${row.teacher}-${row.classLabel}`}>
+                  <td className="font-medium">{row.teacher}</td>
+                  <td className="text-ink-700/70">
+                    {row.classLabels?.join(", ") || row.classLabel || "—"}
+                  </td>
+                  <td>{row.average ?? "—"}%</td>
+                  <td>{row.passRate ?? "—"}%</td>
+                  <td className={row.delta > 0 ? "text-moss-600" : row.delta < 0 ? "text-clay-600" : ""}>
+                    {row.delta == null ? "—" : `${row.delta > 0 ? "+" : ""}${row.delta}`}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </PaginatedTable>
+    </div>
   );
 }
 
