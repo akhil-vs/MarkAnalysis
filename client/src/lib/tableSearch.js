@@ -42,9 +42,7 @@ export function useTableSearch(
       const text = getSearchText ? getSearchText(item) : searchHaystack(item);
       return text.toLowerCase().includes(needle);
     });
-    // getSearchText / filterDefs are expected to be stable or cheap to re-run
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [list, q, filters]);
+  }, [list, q, filters, filterDefs, getSearchText]);
 
   function setFilter(key, value) {
     setFilters((prev) => ({ ...prev, [key]: value }));
