@@ -202,30 +202,49 @@ function ClassesTab() {
   );
 }
 
-function emptySubjectForm() {
-  return { name: "", className: "10", maxMarks: 100 };
+function emptySubjectForm(className = "") {
+  return { name: "", className, maxMarks: 100 };
 }
 
 function subjectSearchText(r) {
   return searchHaystack(r.name, r.className, r.maxMarks);
 }
 
+function uniqueClassNames(sections = []) {
+  return [...new Set(sections.map((c) => c.className).filter(Boolean))].sort((a, b) =>
+    String(a).localeCompare(String(b), undefined, { numeric: true })
+  );
+}
+
 const SUBJECT_FILTERS = [{ key: "className", match: (r, v) => String(r.className) === v }];
 
 function SubjectsTab() {
   const [rows, setRows] = useState([]);
+  const [classSections, setClassSections] = useState([]);
   const confirm = useConfirm();
   const [form, setForm] = useState(emptySubjectForm());
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const table = useTableSearch(rows, { getSearchText: subjectSearchText, filterDefs: SUBJECT_FILTERS });
-  const classOptions = useMemo(
-    () => [...new Set(rows.map((r) => r.className).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })),
-    [rows]
-  );
+  const classOptions = useMemo(() => uniqueClassNames(classSections), [classSections]);
+  const formClassOptions = useMemo(() => {
+    if (!form.className || classOptions.includes(form.className)) return classOptions;
+    return [...classOptions, form.className].sort((a, b) =>
+      String(a).localeCompare(String(b), undefined, { numeric: true })
+    );
+  }, [classOptions, form.className]);
 
-  async function load() { setRows(await api("/api/subjects")); }
+  async function load() {
+    const [subjects, classes] = await Promise.all([api("/api/subjects"), api("/api/classes")]);
+    setRows(subjects);
+    setClassSections(classes);
+    const options = uniqueClassNames(classes);
+    setForm((f) => {
+      if (f.className && options.includes(f.className)) return f;
+      return { ...f, className: options[0] || "" };
+    });
+  }
   useEffect(() => { load(); }, []);
 
   function startEdit(row) {
@@ -235,11 +254,15 @@ function SubjectsTab() {
 
   function cancelEdit() {
     setEditingId(null);
-    setForm(emptySubjectForm());
+    setForm(emptySubjectForm(classOptions[0] || ""));
   }
 
   async function save(e) {
     e.preventDefault();
+    if (!form.className) {
+      toast.error("Create a class first, then choose it here.");
+      return;
+    }
     setBusy(true);
     try {
       if (editingId) {
@@ -282,11 +305,56 @@ function SubjectsTab() {
     <div className="grid lg:grid-cols-3 gap-4">
       <form className="card p-4 space-y-3" onSubmit={save}>
         <h3 className="font-serif text-lg">{editingId ? "Edit subject" : "Add subject"}</h3>
-        <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
-        <input className="field" placeholder="Class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} required disabled={busy} />
-        <input className="field" type="number" placeholder="Max marks" value={form.maxMarks} onChange={(e) => setForm({ ...form, maxMarks: Number(e.target.value) })} required disabled={busy} />
+        <div>
+          <label className="label">Subject name</label>
+          <input
+            className="field"
+            placeholder="e.g. Mathematics"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+            disabled={busy}
+          />
+        </div>
+        <div>
+          <label className="label">Class</label>
+          <select
+            className="field"
+            value={form.className}
+            onChange={(e) => setForm({ ...form, className: e.target.value })}
+            required
+            disabled={busy || formClassOptions.length === 0}
+            aria-label="Select class"
+          >
+            {formClassOptions.length === 0 ? (
+              <option value="">No classes yet</option>
+            ) : (
+              formClassOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))
+            )}
+          </select>
+          <p className="mt-1 text-xs text-ink-700/55">
+            Choose from classes already created (without section).
+          </p>
+        </div>
+        <div>
+          <label className="label">Max marks</label>
+          <input
+            className="field"
+            type="number"
+            placeholder="Max marks"
+            value={form.maxMarks}
+            onChange={(e) => setForm({ ...form, maxMarks: Number(e.target.value) })}
+            required
+            disabled={busy}
+          />
+        </div>
+        {classOptions.length === 0 && (
+          <p className="text-sm text-clay-600">Add a class section under Classes before creating subjects.</p>
+        )}
         <div className="flex gap-2">
-          <button className="btn-primary" disabled={busy}>
+          <button className="btn-primary" disabled={busy || classOptions.length === 0}>
             <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
           </button>
           {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
