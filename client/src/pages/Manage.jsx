@@ -518,13 +518,18 @@ function StudentsTab() {
     }
   }
 
+  const [uploadMode, setUploadMode] = useState(null);
+
   async function send(commit) {
     if (!file) return toast.error("Choose a CSV or Excel file");
+    if (busy) return;
     const body = new FormData();
     body.append("file", file);
     if (classSectionId) body.append("classSectionId", classSectionId);
     body.append("commit", commit ? "true" : "false");
     setBusy(true);
+    setUploadMode(commit ? "commit" : "preview");
+    toast.info(commit ? "Uploading students…" : "Checking file…");
     try {
       const data = await api("/api/students/upload", { method: "POST", body });
       setPreview(data);
@@ -538,12 +543,13 @@ function StudentsTab() {
       toast.error(err.message);
     } finally {
       setBusy(false);
+      setUploadMode(null);
     }
   }
 
   return (
     <div className="space-y-4">
-      <div className="card p-5 space-y-3">
+      <div className="card p-5 space-y-3" aria-busy={Boolean(uploadMode)}>
         <h3 className="font-serif text-lg">Bulk upload students</h3>
         <p className="text-sm text-ink-700/60">
           Spreadsheet columns: Class, Section, Roll No, Name, Date of Birth, Guardian Name, Guardian Phone.
@@ -570,17 +576,53 @@ function StudentsTab() {
             Download template
           </button>
         </div>
-        <input type="file" accept=".csv,.xlsx,.xls" onChange={(e) => setFile(e.target.files?.[0] || null)} disabled={busy} />
-        <div className="flex gap-2">
-          <button type="button" className="btn-ghost" onClick={() => send(false)} disabled={busy}>Preview</button>
-          <button type="button" className="btn-primary" onClick={() => send(true)} disabled={busy}>Import students</button>
+        <div className="space-y-1.5">
+          <input
+            type="file"
+            accept=".csv,.xlsx,.xls"
+            disabled={busy}
+            onChange={(e) => {
+              setFile(e.target.files?.[0] || null);
+              setPreview(null);
+            }}
+          />
+          {file && (
+            <p className="text-xs text-ink-700/65">
+              Selected: <span className="font-medium text-ink-800">{file.name}</span>
+            </p>
+          )}
         </div>
-        {preview?.errors?.length > 0 && (
-          <ul className="text-sm text-clay-600 list-disc pl-5">
-            {preview.errors.map((e, i) => (
-              <li key={i}>Row {e.row} {e.roll ? `(${e.roll})` : ""} — {e.error}</li>
-            ))}
-          </ul>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="btn-ghost" onClick={() => send(false)} disabled={busy || !file}>
+            <BusyLabel busy={uploadMode === "preview"} idle="Preview" busyText="Checking…" />
+          </button>
+          <button type="button" className="btn-primary" onClick={() => send(true)} disabled={busy || !file}>
+            <BusyLabel busy={uploadMode === "commit"} idle="Import students" busyText="Uploading…" />
+          </button>
+        </div>
+        {uploadMode && (
+          <p className="text-sm text-ink-700/70" role="status">
+            {uploadMode === "commit" ? "Uploading students…" : "Checking spreadsheet…"}
+          </p>
+        )}
+        {preview && !uploadMode && (
+          <div className="text-sm space-y-2 rounded-xl border border-ink-900/10 bg-cream/60 p-3.5">
+            <div className="font-medium text-ink-800">
+              {preview.preview
+                ? `Preview complete · ${preview.validCount ?? 0} valid row${(preview.validCount ?? 0) === 1 ? "" : "s"}`
+                : `Import complete · ${preview.created ?? 0} added` +
+                  (preview.updated ? `, ${preview.updated} updated` : "")}
+            </div>
+            {preview?.errors?.length > 0 ? (
+              <ul className="text-clay-600 list-disc pl-5">
+                {preview.errors.map((e, i) => (
+                  <li key={i}>Row {e.row} {e.roll ? `(${e.roll})` : ""} — {e.error}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="text-ink-700/70">No row errors.</p>
+            )}
+          </div>
         )}
       </div>
 
