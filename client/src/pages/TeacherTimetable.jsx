@@ -490,7 +490,7 @@ function MonthlyView({ data, onPickDay }) {
             >
               <div className="text-sm font-medium">{Number(day.date.slice(-2))}</div>
               <div className={`mt-1 text-[11px] ${hasWork ? "text-clay-600" : "text-ink-700/40"}`}>
-                {hasWork ? `${day.entryCount} periods` : "—"}
+                {hasWork ? `${day.entryCount} period${day.entryCount === 1 ? "" : "s"}` : "—"}
               </div>
             </button>
           );
