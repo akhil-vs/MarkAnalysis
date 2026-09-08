@@ -32,7 +32,16 @@ export default function Timetables() {
     [teachers]
   );
 
-  if (error) return <p className="text-clay-600">{error}</p>;
+  if (error) {
+    return (
+      <div>
+        <PageHeader title="Teacher timetables" subtitle={error} />
+        <p className="text-sm text-ink-700/65">
+          Try refreshing after the latest deployment finishes applying database updates.
+        </p>
+      </div>
+    );
+  }
   if (!teachers) return <p>Loading teacher timetables…</p>;
 
   return (
