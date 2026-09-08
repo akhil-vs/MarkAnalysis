@@ -67,6 +67,12 @@ app.use("/api/exports", exportsRouter);
 app.use((err, _req, res, _next) => {
   console.error(err);
   const status = err.status || 500;
+  // Prisma P2021 = table does not exist (pending migrate deploy).
+  if (err.code === "P2021") {
+    return res.status(503).json({
+      error: "Database schema is out of date. Redeploy so pending migrations can apply.",
+    });
+  }
   const message =
     process.env.NODE_ENV === "production" && status >= 500
       ? "Server error"

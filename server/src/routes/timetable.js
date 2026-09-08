@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { ensureDefaultPeriods } from "../lib/periods.js";
 import { prisma } from "../lib/prisma.js";
 import { auth, isLeadership, publicUser, requireLeadership } from "../middleware/auth.js";
 
@@ -103,7 +104,7 @@ async function loadTeacherOr404(teacherId, res) {
 }
 
 timetableRouter.get("/periods", async (_req, res) => {
-  const periods = await prisma.period.findMany({ orderBy: { sortOrder: "asc" } });
+  const periods = await ensureDefaultPeriods();
   res.json(periods);
 });
 
@@ -219,7 +220,7 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
   if (!date) return res.status(400).json({ error: "date must be YYYY-MM-DD" });
 
   const [periods, entries] = await Promise.all([
-    prisma.period.findMany({ orderBy: { sortOrder: "asc" } }),
+    ensureDefaultPeriods(),
     prisma.timetableEntry.findMany({
       where: { teacherId: userId },
       include: ENTRY_INCLUDE,
