@@ -1,0 +1,65 @@
+import { describe, it } from "node:test";
+import assert from "node:assert/strict";
+import { buildConsolidatedStudentRows } from "./consolidatedRows.js";
+
+describe("buildConsolidatedStudentRows", () => {
+  const subjects = [
+    { id: "math", name: "Math", maxMarks: 100 },
+    { id: "eng", name: "English", maxMarks: 100 },
+  ];
+  const students = [
+    { id: "a", rollNo: "1", name: "Ada" },
+    { id: "b", rollNo: "2", name: "Ben" },
+  ];
+
+  it("calculates total, percent, grade, and rank from draft marks", () => {
+    const marks = [
+      { studentId: "a", subjectId: "math", marksObtained: 80, outcome: "SCORED", status: "DRAFT" },
+      { studentId: "a", subjectId: "eng", marksObtained: 90, outcome: "SCORED", status: "DRAFT" },
+      { studentId: "b", subjectId: "math", marksObtained: 70, outcome: "SCORED", status: "SUBMITTED" },
+      { studentId: "b", subjectId: "eng", marksObtained: 60, outcome: "SCORED", status: "SUBMITTED" },
+    ];
+
+    const rows = buildConsolidatedStudentRows(students, subjects, marks);
+    const ada = rows.find((r) => r.studentId === "a");
+    const ben = rows.find((r) => r.studentId === "b");
+
+    assert.equal(ada.total, 170);
+    assert.equal(ada.percent, 85);
+    assert.equal(ada.grade, "A");
+    assert.equal(ada.rank, 1);
+
+    assert.equal(ben.total, 130);
+    assert.equal(ben.percent, 65);
+    assert.equal(ben.grade, "C");
+    assert.equal(ben.rank, 2);
+  });
+
+  it("skips absent papers in percent but still ranks scored work", () => {
+    const marks = [
+      { studentId: "a", subjectId: "math", marksObtained: 80, outcome: "SCORED", status: "APPROVED" },
+      { studentId: "a", subjectId: "eng", marksObtained: null, outcome: "ABSENT", status: "APPROVED" },
+      { studentId: "b", subjectId: "math", marksObtained: 40, outcome: "SCORED", status: "APPROVED" },
+      { studentId: "b", subjectId: "eng", marksObtained: 40, outcome: "SCORED", status: "APPROVED" },
+    ];
+
+    const rows = buildConsolidatedStudentRows(students, subjects, marks);
+    const ada = rows.find((r) => r.studentId === "a");
+    const ben = rows.find((r) => r.studentId === "b");
+
+    assert.equal(ada.total, 80);
+    assert.equal(ada.maxTotal, 100);
+    assert.equal(ada.percent, 80);
+    assert.equal(ada.rank, 1);
+    assert.equal(ben.percent, 40);
+    assert.equal(ben.rank, 2);
+  });
+
+  it("leaves total and rank empty when no marks are entered", () => {
+    const rows = buildConsolidatedStudentRows(students, subjects, []);
+    assert.equal(rows[0].total, null);
+    assert.equal(rows[0].percent, null);
+    assert.equal(rows[0].rank, null);
+    assert.equal(rows[0].maxTotal, 200);
+  });
+});

@@ -436,6 +436,10 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
     }
   }
 
+  // Leadership bulk upload publishes immediately so totals/ranks/averages appear
+  // on mark lists and analytics. Teachers still commit drafts and submit later.
+  const markStatus = isLeadership(req.user.role) ? "APPROVED" : "DRAFT";
+
   const saved = [];
   for (const item of valid) {
     const existing = await prisma.mark.findUnique({
@@ -462,13 +466,13 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
         marksObtained: item.marksObtained,
         outcome: item.outcome,
         enteredById: req.user.userId,
-        status: "DRAFT",
+        status: markStatus,
       },
       update: {
         marksObtained: item.marksObtained,
         outcome: item.outcome,
         enteredById: req.user.userId,
-        status: "DRAFT",
+        status: markStatus,
       },
     });
     await prisma.markAudit.create({
@@ -485,6 +489,7 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
   res.json({
     preview: false,
     saved: saved.length,
+    status: markStatus,
     errors,
     missingStudents,
   });
