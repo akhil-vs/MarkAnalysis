@@ -5,12 +5,31 @@ import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import { EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { Spinner } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function cmlStudentSearchText(row) {
   return searchHaystack(row.name, row.rollNo, row.grade, row.rank, row.total, row.percent);
+}
+
+function LoadingShell({ label }) {
+  return (
+    <div className="card relative overflow-hidden min-h-[12rem]">
+      <div
+        className="absolute inset-0 z-10 flex items-center justify-center bg-cream/55 backdrop-blur-[1px]"
+        role="status"
+        aria-live="polite"
+        aria-label={label}
+      >
+        <div className="inline-flex items-center gap-2 rounded-lg border border-ink-900/10 bg-white/95 px-3 py-2 text-sm text-ink-700 shadow-sm">
+          <Spinner className="h-4 w-4 text-ink-900" label="" />
+          <span>{label}</span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 export default function ConsolidatedLists() {
@@ -22,6 +41,7 @@ export default function ConsolidatedLists() {
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const [previewLoading, setPreviewLoading] = useState(Boolean(params.get("class")));
 
   async function loadStatus(id) {
     const res = await api(`/api/exports/consolidated${id ? `?examId=${id}` : ""}`);
@@ -32,10 +52,17 @@ export default function ConsolidatedLists() {
   async function loadPreview(classId, id = examId) {
     if (!classId) {
       setPreview(null);
+      setPreviewLoading(false);
       return;
     }
-    const res = await api(`/api/exports/consolidated/${classId}?examId=${id}&format=json`);
-    setPreview(res);
+    setPreviewLoading(true);
+    setError("");
+    try {
+      const res = await api(`/api/exports/consolidated/${classId}?examId=${id}&format=json`);
+      setPreview(res);
+    } finally {
+      setPreviewLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -44,13 +71,19 @@ export default function ConsolidatedLists() {
 
   useEffect(() => {
     if (selectedId && examId) {
-      loadPreview(selectedId, examId).catch((e) => setError(e.message));
+      loadPreview(selectedId, examId).catch((e) => {
+        setError(e.message);
+        setPreviewLoading(false);
+      });
+    } else {
+      setPreviewLoading(false);
     }
   }, [selectedId, examId]);
 
   function onExam(id) {
     setExamId(id);
     setPreview(null);
+    if (selectedId) setPreviewLoading(true);
     const next = new URLSearchParams(params);
     next.set("examId", id);
     setParams(next, { replace: true });
@@ -59,6 +92,9 @@ export default function ConsolidatedLists() {
 
   function selectClass(id) {
     setSelectedId(id);
+    if (id !== selectedId) {
+      setPreviewLoading(true);
+    }
     const next = new URLSearchParams(params);
     if (examId) next.set("examId", examId);
     next.set("class", id);
@@ -87,11 +123,23 @@ export default function ConsolidatedLists() {
     }
   }
 
-  if (!data && !error) return <p>Loading mark lists…</p>;
+  if (!data && !error) {
+    return (
+      <div>
+        <PageHeader
+          title="Consolidated mark lists"
+          subtitle="After teachers enter and you approve marks, generate the official class list — every student, every subject, totals, grade, and rank."
+        />
+        <LoadingShell label="Loading mark lists…" />
+      </div>
+    );
+  }
   if (data?.empty) return <p>No exam data yet.</p>;
 
   const classes = data?.classes || [];
   const selected = classes.find((c) => c.id === selectedId);
+  const tableBusy = previewLoading || Boolean(busy);
+  const tableBusyLabel = previewLoading ? "Loading mark list…" : "Preparing download…";
 
   return (
     <div>
@@ -151,15 +199,18 @@ export default function ConsolidatedLists() {
 
         <div className="lg:col-span-8">
           {!selected && <EmptyNote>Choose a class to preview its consolidated mark list.</EmptyNote>}
+          {selected && previewLoading && !preview && (
+            <LoadingShell label="Loading mark list…" />
+          )}
           {selected && preview && (
             <Panel
               title={`${preview.label} — ${preview.examLabel}`}
               action={
                 <div className="flex flex-wrap gap-2">
-                  <button className="btn-primary" disabled={Boolean(busy)} onClick={() => generate("xlsx")}>
+                  <button className="btn-primary" disabled={tableBusy} onClick={() => generate("xlsx")}>
                     {busy === "xlsx" ? "Preparing…" : "Excel"}
                   </button>
-                  <button className="btn-ghost" disabled={Boolean(busy)} onClick={() => generate("pdf")}>
+                  <button className="btn-ghost" disabled={tableBusy} onClick={() => generate("pdf")}>
                     {busy === "pdf" ? "Preparing…" : "PDF"}
                   </button>
                 </div>
@@ -179,9 +230,13 @@ export default function ConsolidatedLists() {
                 </p>
               )}
 
-              <div className="overflow-x-auto">
-                <CmlStudentTable students={preview.students} subjects={preview.subjects} resetKey={selectedId} />
-              </div>
+              <CmlStudentTable
+                students={preview.students}
+                subjects={preview.subjects}
+                resetKey={selectedId}
+                busy={tableBusy}
+                busyLabel={tableBusyLabel}
+              />
             </Panel>
           )}
         </div>
@@ -190,7 +245,7 @@ export default function ConsolidatedLists() {
   );
 }
 
-function CmlStudentTable({ students, subjects, resetKey }) {
+function CmlStudentTable({ students, subjects, resetKey, busy = false, busyLabel = "Loading mark list…" }) {
   const table = useTableSearch(students, { getSearchText: cmlStudentSearchText });
   return (
     <>
@@ -209,6 +264,8 @@ function CmlStudentTable({ students, subjects, resetKey }) {
         pageSizeOptions={[15, 25, 50]}
         resetKey={`${resetKey}:${table.resetKey}`}
         empty="No students in this class."
+        busy={busy}
+        busyLabel={busyLabel}
       >
         {(page) => (
           <table className="table">
