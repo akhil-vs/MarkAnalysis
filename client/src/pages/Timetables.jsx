@@ -37,7 +37,7 @@ export default function Timetables() {
       <div>
         <PageHeader title="Teacher timetables" subtitle={error} />
         <p className="text-sm text-ink-700/65">
-          If this persists after a fresh deploy, the database may still be missing timetable tables.
+          Try refreshing after the latest deployment finishes applying database updates.
         </p>
       </div>
     );
