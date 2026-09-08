@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
@@ -28,6 +28,55 @@ const USER_FILTERS = [
   { key: "status", match: (u, v) => u.status === v },
 ];
 
+const ROLE_LABEL = {
+  PRINCIPAL: "Principal",
+  EXAM_COORDINATOR: "Exam coordinator",
+  TEACHER: "Teacher",
+};
+
+function statusBadgeClass(status) {
+  if (status === "ACTIVE") return "status-badge status-badge-active";
+  if (status === "PENDING") return "status-badge status-badge-pending";
+  if (status === "REJECTED") return "status-badge status-badge-rejected";
+  return "status-badge status-badge-rejected";
+}
+
+function statusLabel(status) {
+  if (status === "ACTIVE") return "Active";
+  if (status === "PENDING") return "Pending";
+  if (status === "REJECTED") return "Rejected";
+  return status || "—";
+}
+
+function AssignmentSummary({ assignments }) {
+  const groups = useMemo(() => {
+    const map = new Map();
+    for (const a of assignments || []) {
+      const cls = a.classSection
+        ? `${a.classSection.className}-${a.classSection.section}`
+        : "—";
+      if (!map.has(cls)) map.set(cls, []);
+      if (a.subject?.name) map.get(cls).push(a.subject.name);
+    }
+    return [...map.entries()];
+  }, [assignments]);
+
+  if (!groups.length) {
+    return <span className="text-sm text-ink-700/45">No assignments</span>;
+  }
+
+  return (
+    <div className="min-w-[10rem] max-w-xs space-y-1">
+      {groups.map(([cls, subjects]) => (
+        <div key={cls} className="text-sm leading-snug">
+          <span className="font-medium text-ink-900">{cls}</span>
+          <span className="text-ink-700/60"> · {subjects.join(", ")}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function Users() {
   const { user } = useAuth();
   const canCreateCoordinator = canAddCoordinator(user.role);
@@ -37,6 +86,8 @@ export default function Users() {
   const [subjects, setSubjects] = useState([]);
   const [editing, setEditing] = useState(null);
   const [resetting, setResetting] = useState(null);
+  const [busyId, setBusyId] = useState("");
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -45,9 +96,8 @@ export default function Users() {
     role: "TEACHER",
   });
   const [message, setMessage] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [busyUserId, setBusyUserId] = useState("");
   const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
+  const tableBusy = Boolean(busyId) || creating;
 
   async function load() {
     const [u, c, s] = await Promise.all([
@@ -65,34 +115,30 @@ export default function Users() {
   }, []);
 
   async function setStatus(id, status) {
-    setBusy(true);
-    setBusyUserId(id);
+    setBusyId(id);
     try {
       await api(`/api/users/${id}`, { method: "PATCH", body: { status } });
       await load();
     } finally {
-      setBusy(false);
-      setBusyUserId("");
+      setBusyId("");
     }
   }
 
   async function saveAssignments(userId, assignments) {
-    setBusy(true);
-    setBusyUserId(userId);
+    setBusyId(userId);
     try {
       await api(`/api/users/${userId}`, { method: "PATCH", body: { assignments } });
       setEditing(null);
       await load();
     } finally {
-      setBusy(false);
-      setBusyUserId("");
+      setBusyId("");
     }
   }
 
   async function addStaff(e) {
     e.preventDefault();
     setMessage("");
-    setBusy(true);
+    setCreating(true);
     try {
       await api("/api/users", { method: "POST", body: form });
       setForm({
@@ -107,7 +153,7 @@ export default function Users() {
     } catch (err) {
       setMessage(err.message);
     } finally {
-      setBusy(false);
+      setCreating(false);
     }
   }
 
@@ -151,8 +197,8 @@ export default function Users() {
           </select>
         </div>
         <div className="flex items-end">
-          <button className="btn-primary" disabled={busy}>
-            <BusyLabel busy={busy && !busyUserId} idle="Create account" busyText="Creating…" />
+          <button className="btn-primary" disabled={tableBusy}>
+            <BusyLabel busy={creating} idle="Create account" busyText="Creating…" />
           </button>
         </div>
         {message && <p className="sm:col-span-2 lg:col-span-3 text-sm">{message}</p>}
@@ -161,7 +207,6 @@ export default function Users() {
       <div className="card">
         <div className="p-3 border-b border-ink-900/10">
           <TableToolbar
-            className="sm:flex-nowrap"
             q={table.q}
             setQ={table.setQ}
             placeholder="Search name, email, or school ID"
@@ -169,7 +214,7 @@ export default function Users() {
             total={table.total}
           >
             <select
-              className="field-filter shrink-0"
+              className="field-filter"
               value={table.filters.role || ""}
               onChange={(e) => table.setFilter("role", e.target.value)}
               aria-label="Filter by role"
@@ -180,7 +225,7 @@ export default function Users() {
               <option value="PRINCIPAL">Principal</option>
             </select>
             <select
-              className="field-filter shrink-0"
+              className="field-filter"
               value={table.filters.status || ""}
               onChange={(e) => table.setFilter("status", e.target.value)}
               aria-label="Filter by status"
@@ -192,51 +237,104 @@ export default function Users() {
             </select>
           </TableToolbar>
         </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No staff accounts yet." busy={busy} busyLabel="Updating staff…">
+        <PaginatedTable
+          items={table.filtered}
+          resetKey={table.resetKey}
+          empty="No staff accounts yet."
+          busy={tableBusy}
+          busyLabel="Updating staff…"
+        >
           {(page) => (
             <table className="table">
               <thead>
                 <tr>
                   <th>Name</th>
-                  <th>Email / ID</th>
                   <th>Role</th>
                   <th>Status</th>
                   <th>Assignments</th>
-                  <th></th>
+                  <th className="text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {page.map((u) => (
-                  <tr key={u.id}>
-                    <td>{u.name}</td>
-                    <td>{u.email || u.schoolId}</td>
-                    <td>{u.role.replaceAll("_", " ")}</td>
-                    <td>{u.status}</td>
-                    <td className="text-xs">
-                      {(u.assignments || []).map((a) => (
-                        <div key={a.id}>
-                          {a.classSection.className}-{a.classSection.section} {a.subject.name}
+                {page.map((u) => {
+                  const busy = busyId === u.id;
+                  const canApprove = leadership && u.status !== "ACTIVE";
+                  const canReject = leadership && u.status !== "REJECTED" && u.role !== "PRINCIPAL";
+                  const canAssign = u.role === "TEACHER";
+                  const canReset = user.role === "PRINCIPAL" && u.id !== user.id;
+                  const assignmentCount = (u.assignments || []).length;
+
+                  return (
+                    <tr key={u.id}>
+                      <td>
+                        <div className="font-medium text-ink-900">{u.name}</div>
+                        <div className="text-xs text-ink-700/55 mt-0.5">
+                          {u.email || u.schoolId || "—"}
+                          {u.email && u.schoolId ? ` · ${u.schoolId}` : ""}
                         </div>
-                      ))}
-                    </td>
-                    <td className="space-x-2 whitespace-nowrap">
-                      {leadership && u.status !== "ACTIVE" && (
-                        <button className="btn-primary" disabled={busy} onClick={() => setStatus(u.id, "ACTIVE")}>
-                          <BusyLabel busy={busyUserId === u.id} idle="Approve" busyText="Saving…" />
-                        </button>
-                      )}
-                      {leadership && u.status !== "REJECTED" && u.role !== "PRINCIPAL" && (
-                        <button className="btn-ghost" disabled={busy} onClick={() => setStatus(u.id, "REJECTED")}>Reject</button>
-                      )}
-                      {u.role === "TEACHER" && (
-                        <button className="btn-ghost" disabled={busy} onClick={() => setEditing(u)}>Assign</button>
-                      )}
-                      {user.role === "PRINCIPAL" && u.id !== user.id && (
-                        <button className="btn-ghost" disabled={busy} onClick={() => setResetting(u)}>Reset password</button>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      </td>
+                      <td>
+                        <span className="mark-chip mark-chip-submitted">
+                          {ROLE_LABEL[u.role] || u.role.replaceAll("_", " ")}
+                        </span>
+                      </td>
+                      <td>
+                        <span className={statusBadgeClass(u.status)}>{statusLabel(u.status)}</span>
+                      </td>
+                      <td>
+                        {u.role === "TEACHER" ? (
+                          <AssignmentSummary assignments={u.assignments} />
+                        ) : (
+                          <span className="text-sm text-ink-700/45">—</span>
+                        )}
+                      </td>
+                      <td>
+                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                          {canApprove && (
+                            <button
+                              type="button"
+                              className="btn-primary"
+                              disabled={tableBusy}
+                              onClick={() => setStatus(u.id, "ACTIVE")}
+                            >
+                              <BusyLabel busy={busy} idle="Approve" busyText="Saving…" />
+                            </button>
+                          )}
+                          {canReject && (
+                            <button
+                              type="button"
+                              className="btn-danger"
+                              disabled={tableBusy}
+                              onClick={() => setStatus(u.id, "REJECTED")}
+                            >
+                              Reject
+                            </button>
+                          )}
+                          {canAssign && (
+                            <button
+                              type="button"
+                              className={assignmentCount ? "btn-ghost" : "btn-accent"}
+                              disabled={tableBusy}
+                              onClick={() => setEditing(u)}
+                            >
+                              Assign
+                            </button>
+                          )}
+                          {canReset && (
+                            <button
+                              type="button"
+                              className="btn-ghost"
+                              disabled={tableBusy}
+                              onClick={() => setResetting(u)}
+                            >
+                              Reset password
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
