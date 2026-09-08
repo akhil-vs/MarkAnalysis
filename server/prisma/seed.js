@@ -34,6 +34,8 @@ async function main() {
   await prisma.mark.deleteMany();
   await prisma.notification.deleteMany();
   await prisma.markEntryAccessRequest.deleteMany();
+  await prisma.timetableEntry.deleteMany();
+  await prisma.period.deleteMany();
   await prisma.teacherAssignment.deleteMany();
   await prisma.student.deleteMany();
   await prisma.exam.deleteMany();
@@ -123,6 +125,67 @@ async function main() {
     }
   }
   await prisma.teacherAssignment.createMany({ data: assignmentData });
+
+  const periodDefs = [
+    { name: "Period 1", sortOrder: 1, startTime: "08:00", endTime: "08:45", isBreak: false },
+    { name: "Period 2", sortOrder: 2, startTime: "08:45", endTime: "09:30", isBreak: false },
+    { name: "Period 3", sortOrder: 3, startTime: "09:30", endTime: "10:15", isBreak: false },
+    { name: "Break", sortOrder: 4, startTime: "10:15", endTime: "10:30", isBreak: true },
+    { name: "Period 4", sortOrder: 5, startTime: "10:30", endTime: "11:15", isBreak: false },
+    { name: "Period 5", sortOrder: 6, startTime: "11:15", endTime: "12:00", isBreak: false },
+    { name: "Lunch", sortOrder: 7, startTime: "12:00", endTime: "12:40", isBreak: true },
+    { name: "Period 6", sortOrder: 8, startTime: "12:40", endTime: "13:25", isBreak: false },
+    { name: "Period 7", sortOrder: 9, startTime: "13:25", endTime: "14:10", isBreak: false },
+    { name: "Period 8", sortOrder: 10, startTime: "14:10", endTime: "14:55", isBreak: false },
+  ];
+  const periods = await prisma.period.createManyAndReturn({ data: periodDefs });
+  const teachingPeriods = periods.filter((p) => !p.isBreak);
+  const sectionById = Object.fromEntries(sections.map((s) => [s.id, s]));
+
+  const teacherBusy = new Set();
+  const classBusy = new Set();
+  const timetableRows = [];
+  const assignmentsByTeacher = new Map();
+  for (const assignment of assignmentData) {
+    if (!assignmentsByTeacher.has(assignment.userId)) assignmentsByTeacher.set(assignment.userId, []);
+    assignmentsByTeacher.get(assignment.userId).push(assignment);
+  }
+
+  function tryPlace(assignment, dayOfWeek, periodStartIndex = 0) {
+    const cls = sectionById[assignment.classSectionId];
+    for (let attempt = 0; attempt < teachingPeriods.length; attempt++) {
+      const period = teachingPeriods[(periodStartIndex + attempt) % teachingPeriods.length];
+      const tKey = `${assignment.userId}|${dayOfWeek}|${period.id}`;
+      const cKey = `${assignment.classSectionId}|${dayOfWeek}|${period.id}`;
+      if (teacherBusy.has(tKey) || classBusy.has(cKey)) continue;
+      teacherBusy.add(tKey);
+      classBusy.add(cKey);
+      timetableRows.push({
+        teacherId: assignment.userId,
+        classSectionId: assignment.classSectionId,
+        subjectId: assignment.subjectId,
+        periodId: period.id,
+        dayOfWeek,
+        room: `R-${cls.className}${cls.section}`,
+      });
+      return true;
+    }
+    return false;
+  }
+
+  for (const [, list] of assignmentsByTeacher) {
+    list.forEach((assignment, index) => {
+      const preferredDay = (index % 5) + 1;
+      const periodStart = index % teachingPeriods.length;
+      if (tryPlace(assignment, preferredDay, periodStart)) return;
+      for (let day = 1; day <= 5; day++) {
+        if (day === preferredDay) continue;
+        if (tryPlace(assignment, day, periodStart)) return;
+      }
+    });
+  }
+
+  await prisma.timetableEntry.createMany({ data: timetableRows });
 
   const studentData = [];
   let idx = 0;
@@ -259,6 +322,8 @@ async function main() {
   console.log(`  Students: ${students.length}`);
   console.log(`  Exams: ${exams.map((e) => `${e.name} ${e.academicYear}`).join(", ")}`);
   console.log(`  Marks: ${markRows.length}`);
+  console.log(`  Periods: ${periods.length}`);
+  console.log(`  Timetable slots: ${timetableRows.length}`);
   console.log("  Password for all seed users: password123");
 }
 

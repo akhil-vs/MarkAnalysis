@@ -63,6 +63,10 @@ Leadership can review:
 - **Previous-year** comparison for the same exam type
 - **Same-subject** comparison when two or more teachers mark that paper
 
+## Teacher timetables
+
+Principals and exam coordinators can open **Timetables** in the sidebar (or **Timetable** from a staff row) to browse each teacher’s schedule. Switch between **Daily**, **Weekly**, and **Monthly** views. Leadership can also add or remove teaching periods on a teacher’s timetable page.
+
 ## Consolidated mark lists
 
 Once teachers have entered marks for an exam (and leadership has approved them), the exam coordinator or principal can generate the official **consolidated mark list** for a class.

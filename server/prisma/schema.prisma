@@ -74,6 +74,7 @@ model User {
   markEntryRequests MarkEntryAccessRequest[] @relation("MarkEntryTeacher")
   reviewedMarkEntryRequests MarkEntryAccessRequest[] @relation("MarkEntryReviewer")
   notifications  Notification[]
+  timetableEntries TimetableEntry[]
 }
 
 model ClassSection {
@@ -86,6 +87,7 @@ model ClassSection {
   students          Student[]
   assignments       TeacherAssignment[]
   markEntryRequests MarkEntryAccessRequest[]
+  timetableEntries  TimetableEntry[]
 
   @@unique([className, section])
 }
@@ -99,6 +101,7 @@ model Subject {
   assignments TeacherAssignment[]
   marks       Mark[]
   markEntryRequests MarkEntryAccessRequest[]
+  timetableEntries TimetableEntry[]
 
   @@unique([name, className])
 }
@@ -240,4 +243,38 @@ model Notification {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt, createdAt])
+}
+
+/// School bell periods (teaching slots and breaks). sortOrder controls grid order.
+model Period {
+  id        String  @id @default(cuid())
+  name      String
+  sortOrder Int     @unique
+  startTime String
+  endTime   String
+  isBreak   Boolean @default(false)
+
+  entries TimetableEntry[]
+}
+
+/// Weekly template slot: teacher teaches subject to a class in a period on a weekday.
+/// dayOfWeek uses ISO weekday: 1 = Monday … 7 = Sunday.
+model TimetableEntry {
+  id             String  @id @default(cuid())
+  teacherId      String
+  classSectionId String
+  subjectId      String
+  periodId       String
+  dayOfWeek      Int
+  room           String?
+
+  teacher      User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  period       Period       @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, dayOfWeek, periodId])
+  @@unique([classSectionId, dayOfWeek, periodId])
+  @@index([teacherId, dayOfWeek])
+  @@index([dayOfWeek, periodId])
 }
