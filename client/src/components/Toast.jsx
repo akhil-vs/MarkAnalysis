@@ -127,11 +127,11 @@ export function ToastProvider({ children }) {
                 <p className="min-w-0 flex-1 leading-snug">{t.message}</p>
                 <button
                   type="button"
-                  className="shrink-0 rounded-md px-1.5 py-0.5 text-xs opacity-60 hover:opacity-100"
+                  className="shrink-0 rounded-md px-1.5 py-0.5 text-xs font-medium opacity-60 hover:opacity-100"
                   aria-label="Dismiss"
                   onClick={() => dismiss(t.id)}
                 >
-                  ✕
+                  Close
                 </button>
               </div>
             );
