@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { BusyLabel } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { canAddCoordinator, isLeadership } from "../lib/roles.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
@@ -86,6 +87,7 @@ export default function Users() {
   const [editing, setEditing] = useState(null);
   const [resetting, setResetting] = useState(null);
   const [busyId, setBusyId] = useState("");
+  const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
     name: "",
     email: "",
@@ -95,6 +97,7 @@ export default function Users() {
   });
   const [message, setMessage] = useState("");
   const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
+  const tableBusy = Boolean(busyId) || creating;
 
   async function load() {
     const [u, c, s] = await Promise.all([
@@ -122,14 +125,20 @@ export default function Users() {
   }
 
   async function saveAssignments(userId, assignments) {
-    await api(`/api/users/${userId}`, { method: "PATCH", body: { assignments } });
-    setEditing(null);
-    load();
+    setBusyId(userId);
+    try {
+      await api(`/api/users/${userId}`, { method: "PATCH", body: { assignments } });
+      setEditing(null);
+      await load();
+    } finally {
+      setBusyId("");
+    }
   }
 
   async function addStaff(e) {
     e.preventDefault();
     setMessage("");
+    setCreating(true);
     try {
       await api("/api/users", { method: "POST", body: form });
       setForm({
@@ -140,9 +149,11 @@ export default function Users() {
         role: "TEACHER",
       });
       setMessage("Staff account created and active. They can sign in now.");
-      load();
+      await load();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setCreating(false);
     }
   }
 
@@ -186,7 +197,9 @@ export default function Users() {
           </select>
         </div>
         <div className="flex items-end">
-          <button className="btn-primary">Create account</button>
+          <button className="btn-primary" disabled={tableBusy}>
+            <BusyLabel busy={creating} idle="Create account" busyText="Creating…" />
+          </button>
         </div>
         {message && <p className="sm:col-span-2 lg:col-span-3 text-sm">{message}</p>}
       </form>
@@ -224,7 +237,13 @@ export default function Users() {
             </select>
           </TableToolbar>
         </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No staff accounts yet.">
+        <PaginatedTable
+          items={table.filtered}
+          resetKey={table.resetKey}
+          empty="No staff accounts yet."
+          busy={tableBusy}
+          busyLabel="Updating staff…"
+        >
           {(page) => (
             <table className="table">
               <thead>
@@ -275,17 +294,17 @@ export default function Users() {
                             <button
                               type="button"
                               className="btn-primary"
-                              disabled={busy}
+                              disabled={tableBusy}
                               onClick={() => setStatus(u.id, "ACTIVE")}
                             >
-                              {busy ? "Saving…" : "Approve"}
+                              <BusyLabel busy={busy} idle="Approve" busyText="Saving…" />
                             </button>
                           )}
                           {canReject && (
                             <button
                               type="button"
                               className="btn-danger"
-                              disabled={busy}
+                              disabled={tableBusy}
                               onClick={() => setStatus(u.id, "REJECTED")}
                             >
                               Reject
@@ -295,13 +314,19 @@ export default function Users() {
                             <button
                               type="button"
                               className={assignmentCount ? "btn-ghost" : "btn-accent"}
+                              disabled={tableBusy}
                               onClick={() => setEditing(u)}
                             >
                               Assign
                             </button>
                           )}
                           {canReset && (
-                            <button type="button" className="btn-ghost" onClick={() => setResetting(u)}>
+                            <button
+                              type="button"
+                              className="btn-ghost"
+                              disabled={tableBusy}
+                              onClick={() => setResetting(u)}
+                            >
                               Reset password
                             </button>
                           )}
@@ -345,6 +370,7 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
       subjectId: a.subjectId,
     }))
   );
+  const [saving, setSaving] = useState(false);
 
   function subjectsForClass(classSectionId) {
     const cls = classes.find((c) => c.id === classSectionId);
@@ -378,6 +404,15 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
     setRows((r) => r.filter((_, idx) => idx !== index));
   }
 
+  async function save() {
+    setSaving(true);
+    try {
+      await onSave(user.id, rows.filter((r) => r.classSectionId && r.subjectId));
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="fixed inset-0 bg-ink-950/40 flex items-end sm:items-center justify-center p-0 sm:p-4 z-20">
       <div className="card w-full max-w-lg rounded-b-none sm:rounded-xl p-5 max-h-[92dvh] overflow-y-auto safe-pb">
@@ -393,6 +428,7 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
                 <select
                   className="field"
                   value={row.classSectionId}
+                  disabled={saving}
                   onChange={(e) => updateRow(i, { classSectionId: e.target.value })}
                 >
                   {classes.map((c) => (
@@ -402,6 +438,7 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
                 <select
                   className="field"
                   value={row.subjectId}
+                  disabled={saving}
                   onChange={(e) => updateRow(i, { subjectId: e.target.value })}
                 >
                   {options.length === 0 && <option value="">No subjects for this class</option>}
@@ -409,7 +446,7 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
                     <option key={s.id} value={s.id}>{s.name}</option>
                   ))}
                 </select>
-                <button type="button" className="btn-ghost shrink-0 w-full sm:w-auto" onClick={() => removeRow(i)}>
+                <button type="button" className="btn-ghost shrink-0 w-full sm:w-auto" disabled={saving} onClick={() => removeRow(i)}>
                   Remove
                 </button>
               </div>
@@ -417,14 +454,11 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
           })}
         </div>
         <div className="mt-4 flex gap-2">
-          <button className="btn-ghost" onClick={add}>Add row</button>
-          <button
-            className="btn-primary"
-            onClick={() => onSave(user.id, rows.filter((r) => r.classSectionId && r.subjectId))}
-          >
-            Save
+          <button className="btn-ghost" onClick={add} disabled={saving}>Add row</button>
+          <button className="btn-primary" onClick={save} disabled={saving}>
+            <BusyLabel busy={saving} idle="Save" busyText="Saving…" />
           </button>
-          <button className="btn-ghost" onClick={onClose}>Cancel</button>
+          <button className="btn-ghost" onClick={onClose} disabled={saving}>Cancel</button>
         </div>
       </div>
     </div>
@@ -434,15 +468,19 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
 function ResetPasswordModal({ user, onClose, onDone }) {
   const [password, setPassword] = useState("password123");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
 
   async function save(e) {
     e.preventDefault();
     setError("");
+    setBusy(true);
     try {
       await api(`/api/users/${user.id}/reset-password`, { method: "POST", body: { password } });
       onDone(`Password reset for ${user.name}.`);
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -457,12 +495,15 @@ function ResetPasswordModal({ user, onClose, onDone }) {
           minLength={8}
           required
           value={password}
+          disabled={busy}
           onChange={(e) => setPassword(e.target.value)}
         />
         {error && <p className="text-sm text-clay-600">{error}</p>}
         <div className="flex flex-wrap gap-2">
-          <button className="btn-primary flex-1 sm:flex-none">Reset password</button>
-          <button type="button" className="btn-ghost flex-1 sm:flex-none" onClick={onClose}>Cancel</button>
+          <button className="btn-primary flex-1 sm:flex-none" disabled={busy}>
+            <BusyLabel busy={busy} idle="Reset password" busyText="Saving…" />
+          </button>
+          <button type="button" className="btn-ghost flex-1 sm:flex-none" onClick={onClose} disabled={busy}>Cancel</button>
         </div>
       </form>
     </div>

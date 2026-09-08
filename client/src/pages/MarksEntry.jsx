@@ -6,6 +6,7 @@ import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { BusyLabel } from "../components/Spinner.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
@@ -64,6 +65,7 @@ export default function MarksEntry() {
   const [saving, setSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [requestingEdit, setRequestingEdit] = useState(false);
+  const [approving, setApproving] = useState(false);
   const [catalogReady, setCatalogReady] = useState(false);
   const inputRefs = useRef({});
   const subjectOptionsRef = useRef([]);
@@ -425,6 +427,7 @@ export default function MarksEntry() {
       return;
     }
     try {
+      setApproving(true);
       const res = await api("/api/marks/approve", {
         method: "POST",
         body: {
@@ -440,6 +443,8 @@ export default function MarksEntry() {
       await loadGrid({ keepMessage: true });
     } catch (err) {
       setMessage(err.message || "Could not approve marks");
+    } finally {
+      setApproving(false);
     }
   }
 
@@ -465,6 +470,7 @@ export default function MarksEntry() {
       return;
     }
     try {
+      setApproving(true);
       const res = await api("/api/marks/unapprove", {
         method: "POST",
         body: {
@@ -480,6 +486,8 @@ export default function MarksEntry() {
       await loadGrid({ keepMessage: true });
     } catch (err) {
       setMessage(err.message || "Could not unapprove marks");
+    } finally {
+      setApproving(false);
     }
   }
 
@@ -582,6 +590,17 @@ export default function MarksEntry() {
     Boolean(effectiveSubjectId) &&
     selectedSubjectAccess?.editRequestStatus === "PENDING";
 
+  const tableBusy = saving || submitting || requestingEdit || approving;
+  const tableBusyLabel = saving
+    ? "Saving marks…"
+    : submitting
+      ? "Submitting marks…"
+      : requestingEdit
+        ? "Requesting edit…"
+        : approving
+          ? "Updating approval…"
+          : "Updating…";
+
   return (
     <div>
       <PageHeader
@@ -593,47 +612,59 @@ export default function MarksEntry() {
               <button
                 className="btn-primary"
                 onClick={submitMarks}
-                disabled={allLocked || !grid || submitting || saving || !effectiveSubjectId}
+                disabled={allLocked || !grid || submitting || saving || approving || !effectiveSubjectId}
               >
-                {submitting ? "Submitting…" : "Submit marks"}
+                <BusyLabel busy={submitting} idle="Submit marks" busyText="Submitting…" />
               </button>
             )}
             <button
               className={leadership ? "btn-primary" : "btn-ghost"}
               onClick={() => save()}
-              disabled={allLocked || !grid || saving || submitting || stats.dirty === 0}
+              disabled={allLocked || !grid || saving || submitting || approving || stats.dirty === 0}
             >
-              {saving
-                ? "Saving…"
-                : stats.dirty
-                  ? `Save progress (${stats.dirty})`
-                  : "Save progress"}
+              <BusyLabel
+                busy={saving}
+                idle={stats.dirty ? `Save progress (${stats.dirty})` : "Save progress"}
+                busyText="Saving…"
+              />
             </button>
             {canRequestEdit && (
               <button
                 className="btn-ghost"
                 type="button"
                 onClick={requestEdit}
-                disabled={requestingEdit}
+                disabled={requestingEdit || saving || submitting || approving}
               >
-                {requestingEdit
-                  ? "Requesting…"
-                  : selectedSubjectAccess?.editRequestStatus === "REJECTED"
-                    ? "Request edit again"
-                    : "Request edit"}
+                <BusyLabel
+                  busy={requestingEdit}
+                  idle={
+                    selectedSubjectAccess?.editRequestStatus === "REJECTED"
+                      ? "Request edit again"
+                      : "Request edit"
+                  }
+                  busyText="Requesting…"
+                />
               </button>
             )}
             {showEditPending && (
               <span className="mark-chip mark-chip-pending self-center">Edit requested</span>
             )}
             {leadership && draftTeachers.length === 1 && (
-              <button className="btn-accent" onClick={() => approve(draftTeachers[0])}>
-                Approve {draftTeachers[0].name.split(" ")[0]} ({draftTeachers[0].count})
+              <button className="btn-accent" onClick={() => approve(draftTeachers[0])} disabled={tableBusy}>
+                <BusyLabel
+                  busy={approving}
+                  idle={`Approve ${draftTeachers[0].name.split(" ")[0]} (${draftTeachers[0].count})`}
+                  busyText="Approving…"
+                />
               </button>
             )}
             {leadership && approvedTeachers.length === 1 && (
-              <button className="btn-ghost" onClick={() => unapprove(approvedTeachers[0])}>
-                Unapprove {approvedTeachers[0].name.split(" ")[0]}
+              <button className="btn-ghost" onClick={() => unapprove(approvedTeachers[0])} disabled={tableBusy}>
+                <BusyLabel
+                  busy={approving}
+                  idle={`Unapprove ${approvedTeachers[0].name.split(" ")[0]}`}
+                  busyText="Updating…"
+                />
               </button>
             )}
           </div>
@@ -646,32 +677,41 @@ export default function MarksEntry() {
             <button
               className="btn-primary flex-1 min-w-[8rem]"
               onClick={submitMarks}
-              disabled={allLocked || !grid || submitting || saving || !effectiveSubjectId}
+              disabled={allLocked || !grid || submitting || saving || approving || !effectiveSubjectId}
             >
-              {submitting ? "Submitting…" : "Submit"}
+              <BusyLabel busy={submitting} idle="Submit" busyText="Submitting…" />
             </button>
           )}
           <button
             className={`${leadership ? "btn-primary" : "btn-ghost"} flex-1 min-w-[8rem]`}
             onClick={() => save()}
-            disabled={allLocked || !grid || saving || submitting || stats.dirty === 0}
+            disabled={allLocked || !grid || saving || submitting || approving || stats.dirty === 0}
           >
-            {saving ? "Saving…" : stats.dirty ? `Save (${stats.dirty})` : "Save"}
+            <BusyLabel
+              busy={saving}
+              idle={stats.dirty ? `Save (${stats.dirty})` : "Save"}
+              busyText="Saving…"
+            />
           </button>
           {canRequestEdit && (
-            <button className="btn-ghost flex-1 min-w-[8rem]" type="button" onClick={requestEdit} disabled={requestingEdit}>
-              {requestingEdit ? "Requesting…" : "Request edit"}
+            <button
+              className="btn-ghost flex-1 min-w-[8rem]"
+              type="button"
+              onClick={requestEdit}
+              disabled={requestingEdit || saving || submitting || approving}
+            >
+              <BusyLabel busy={requestingEdit} idle="Request edit" busyText="Requesting…" />
             </button>
           )}
           {showEditPending && <span className="mark-chip mark-chip-pending self-center">Edit requested</span>}
           {leadership && draftTeachers.length === 1 && (
-            <button className="btn-accent flex-1 min-w-[8rem]" onClick={() => approve(draftTeachers[0])}>
-              Approve ({draftTeachers[0].count})
+            <button className="btn-accent flex-1 min-w-[8rem]" onClick={() => approve(draftTeachers[0])} disabled={tableBusy}>
+              <BusyLabel busy={approving} idle={`Approve (${draftTeachers[0].count})`} busyText="Approving…" />
             </button>
           )}
           {leadership && approvedTeachers.length === 1 && (
-            <button className="btn-ghost flex-1 min-w-[8rem]" onClick={() => unapprove(approvedTeachers[0])}>
-              Unapprove
+            <button className="btn-ghost flex-1 min-w-[8rem]" onClick={() => unapprove(approvedTeachers[0])} disabled={tableBusy}>
+              <BusyLabel busy={approving} idle="Unapprove" busyText="Updating…" />
             </button>
           )}
         </div>
@@ -684,8 +724,14 @@ export default function MarksEntry() {
           {draftTeachers.length > 0 && (
             <div className="flex flex-wrap gap-2">
               {draftTeachers.map((t) => (
-                <button key={`draft-${t.teacherId}`} type="button" className="btn-accent" onClick={() => approve(t)}>
-                  Approve submitted · {t.name} ({t.count})
+                <button
+                  key={`draft-${t.teacherId}`}
+                  type="button"
+                  className="btn-accent"
+                  disabled={tableBusy}
+                  onClick={() => approve(t)}
+                >
+                  <BusyLabel busy={approving} idle={`Approve submitted · ${t.name} (${t.count})`} busyText="Approving…" />
                 </button>
               ))}
             </div>
@@ -697,9 +743,10 @@ export default function MarksEntry() {
                   key={`approved-${t.teacherId}`}
                   type="button"
                   className="btn-ghost"
+                  disabled={tableBusy}
                   onClick={() => unapprove(t)}
                 >
-                  Unapprove · {t.name} ({t.count})
+                  <BusyLabel busy={approving} idle={`Unapprove · ${t.name} (${t.count})`} busyText="Updating…" />
                 </button>
               ))}
             </div>
@@ -862,6 +909,8 @@ export default function MarksEntry() {
             resetKey={`${classSectionId}:${examId}:${subjectId}:${studentTable.resetKey}`}
             empty="No students in this class."
             pageSize={25}
+            busy={tableBusy}
+            busyLabel={tableBusyLabel}
           >
             {(page, pagination) => {
               const offset = (pagination.page - 1) * pagination.pageSize;
@@ -939,6 +988,8 @@ export default function MarksEntry() {
             resetKey={`${classSectionId}:${examId}:${subjectId}:${studentTable.resetKey}`}
             empty="No students in this class."
             pageSize={20}
+            busy={tableBusy}
+            busyLabel={tableBusyLabel}
           >
             {(page, pagination) => {
               const offset = (pagination.page - 1) * pagination.pageSize;

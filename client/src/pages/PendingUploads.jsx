@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { BusyLabel } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -180,6 +181,8 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
         pageSizeOptions={[5, 10, 25]}
         resetKey={table.resetKey}
         empty="No rows."
+        busy={Boolean(busyKey)}
+        busyLabel="Approving marks…"
       >
         {(page) => (
           <table className="table mt-3">
@@ -220,10 +223,10 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
                         <button
                           type="button"
                           className="btn-accent"
-                          disabled={busyKey === key}
+                          disabled={Boolean(busyKey)}
                           onClick={() => approveRegister(a)}
                         >
-                          {busyKey === key ? "Approving…" : "Approve submitted"}
+                          <BusyLabel busy={busyKey === key} idle="Approve submitted" busyText="Approving…" />
                         </button>
                       )}
                     </td>

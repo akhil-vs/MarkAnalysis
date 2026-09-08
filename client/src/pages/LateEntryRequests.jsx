@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { BusyLabel } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -219,6 +220,8 @@ export default function LateEntryRequests() {
               items={table.filtered}
               resetKey={`${examId}:${status}:${kind}:${table.resetKey}`}
               empty="No mark access requests."
+              busy={Boolean(busyId) || loading}
+              busyLabel={busyId ? "Updating request…" : "Loading requests…"}
             >
               {(page) => (
                 <table className="table">
@@ -270,7 +273,7 @@ export default function LateEntryRequests() {
                                 disabled={Boolean(busyId)}
                                 onClick={() => review(r.id, "APPROVED")}
                               >
-                                {busyId === r.id ? "Saving…" : "Approve"}
+                                <BusyLabel busy={busyId === r.id} idle="Approve" busyText="Saving…" />
                               </button>
                               <button
                                 type="button"

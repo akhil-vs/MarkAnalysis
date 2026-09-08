@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { EmptyNote, Panel } from "./DashboardKit.jsx";
+import { BusyLabel, Spinner } from "./Spinner.jsx";
 
 function kindLabel(kind) {
   return kind === "EDIT" ? "Edit marks" : "Late entry";
@@ -60,16 +61,34 @@ export default function PendingAccessRequests({ className = "", limit = 8 }) {
       }
     >
       {rows == null ? (
-        <p className="text-sm text-ink-700/55">Loading requests…</p>
+        <p className="text-sm text-ink-700/55 inline-flex items-center gap-2">
+          <Spinner className="h-3.5 w-3.5" label="" />
+          Loading requests…
+        </p>
       ) : error ? (
         <p className="text-sm text-clay-600">{error}</p>
       ) : shown.length === 0 ? (
         <EmptyNote>No pending late-entry or edit requests across exams.</EmptyNote>
       ) : (
-        <div className="space-y-3">
+        <div className={`relative space-y-3 ${busyId ? "pointer-events-none" : ""}`}>
+          {busyId && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center bg-cream/50 rounded-lg"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="inline-flex items-center gap-2 rounded-lg border border-ink-900/10 bg-white/95 px-3 py-2 text-sm text-ink-700 shadow-sm">
+                <Spinner className="h-4 w-4" label="" />
+                Updating…
+              </div>
+            </div>
+          )}
           {message && <p className="text-xs text-moss-600">{message}</p>}
           {shown.map((r) => (
-            <div key={r.id} className="flex flex-wrap items-start justify-between gap-3 border-b border-ink-900/5 pb-3 last:border-0 last:pb-0">
+            <div
+              key={r.id}
+              className="flex flex-wrap items-start justify-between gap-3 border-b border-ink-900/5 pb-3 last:border-0 last:pb-0"
+            >
               <div className="min-w-0">
                 <div className="text-sm font-medium">{r.teacher?.name || "Teacher"}</div>
                 <div className="text-[11px] text-ink-700/55">
@@ -89,7 +108,7 @@ export default function PendingAccessRequests({ className = "", limit = 8 }) {
                   disabled={Boolean(busyId)}
                   onClick={() => review(r.id, "APPROVED")}
                 >
-                  {busyId === r.id ? "Saving…" : "Approve"}
+                  <BusyLabel busy={busyId === r.id} idle="Approve" busyText="Saving…" />
                 </button>
                 <button
                   type="button"

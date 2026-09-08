@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Spinner } from "./Spinner.jsx";
 
 export function usePagination(items = [], { pageSize: initialSize = 10, resetKey } = {}) {
   const [page, setPage] = useState(1);
@@ -100,13 +101,33 @@ export function PaginatedTable({
   resetKey,
   empty = "No rows yet.",
   className = "",
+  busy = false,
+  busyLabel = "Updating…",
   children,
 }) {
   const pagination = usePagination(items, { pageSize, resetKey });
 
   return (
-    <div className={className}>
-      <div className="overflow-x-auto">{children(pagination.slice, pagination)}</div>
+    <div className={`relative ${className}`}>
+      <div
+        className={`overflow-x-auto transition-opacity ${busy ? "pointer-events-none opacity-50" : ""}`}
+        aria-busy={busy || undefined}
+      >
+        {children(pagination.slice, pagination)}
+      </div>
+      {busy && (
+        <div
+          className="absolute inset-0 z-10 flex items-center justify-center bg-cream/55 backdrop-blur-[1px]"
+          role="status"
+          aria-live="polite"
+          aria-label={busyLabel}
+        >
+          <div className="inline-flex items-center gap-2 rounded-lg border border-ink-900/10 bg-white/95 px-3 py-2 text-sm text-ink-700 shadow-sm">
+            <Spinner className="h-4 w-4 text-ink-900" label="" />
+            <span>{busyLabel}</span>
+          </div>
+        </div>
+      )}
       <PaginationBar {...pagination} pageSizeOptions={pageSizeOptions} empty={empty} />
     </div>
   );

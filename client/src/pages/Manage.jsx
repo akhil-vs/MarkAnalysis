@@ -3,6 +3,7 @@ import { api, download } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { BusyLabel } from "../components/Spinner.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -56,6 +57,7 @@ function ClassesTab() {
   const [form, setForm] = useState(emptyClassForm());
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const table = useTableSearch(rows, { getSearchText: classSearchText, filterDefs: CLASS_FILTERS });
   const classOptions = useMemo(
     () => [...new Set(rows.map((r) => r.className).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })),
@@ -87,6 +89,7 @@ function ClassesTab() {
   async function save(e) {
     e.preventDefault();
     setMessage("");
+    setBusy(true);
     try {
       if (editingId) {
         await api(`/api/classes/${editingId}`, { method: "PATCH", body: form });
@@ -95,9 +98,11 @@ function ClassesTab() {
         await api("/api/classes", { method: "POST", body: form });
       }
       cancelEdit();
-      load();
+      await load();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -110,12 +115,15 @@ function ClassesTab() {
       tone: "danger",
     }))) return;
     setMessage("");
+    setBusy(true);
     try {
       await api(`/api/classes/${row.id}`, { method: "DELETE" });
       if (editingId === row.id) cancelEdit();
-      load();
+      await load();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -123,15 +131,17 @@ function ClassesTab() {
     <div className="grid lg:grid-cols-3 gap-4">
       <form className="card p-4 space-y-3" onSubmit={save}>
         <h3 className="font-serif text-lg">{editingId ? "Edit class section" : "Add class section"}</h3>
-        <input className="field" placeholder="Class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} required />
-        <input className="field" placeholder="Section" value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} required />
-        <select className="field" value={form.classTeacherId} onChange={(e) => setForm({ ...form, classTeacherId: e.target.value })}>
+        <input className="field" placeholder="Class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} required disabled={busy} />
+        <input className="field" placeholder="Section" value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} required disabled={busy} />
+        <select className="field" value={form.classTeacherId} onChange={(e) => setForm({ ...form, classTeacherId: e.target.value })} disabled={busy}>
           <option value="">Class teacher (optional)</option>
           {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
         </select>
         <div className="flex gap-2">
-          <button className="btn-primary">{editingId ? "Save changes" : "Create"}</button>
-          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit}>Cancel</button>}
+          <button className="btn-primary" disabled={busy}>
+            <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
+          </button>
+          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
         </div>
         {message && <p className="text-sm">{message}</p>}
       </form>
@@ -167,7 +177,7 @@ function ClassesTab() {
             </select>
           </TableToolbar>
         </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No classes yet.">
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No classes yet." busy={busy} busyLabel="Updating classes…">
           {(page) => (
             <table className="table">
               <thead><tr><th>Class</th><th>Section</th><th>Teacher</th><th>Students</th><th></th></tr></thead>
@@ -179,8 +189,8 @@ function ClassesTab() {
                     <td>{r.classTeacher?.name || "—"}</td>
                     <td>{r._count?.students ?? 0}</td>
                     <td className="whitespace-nowrap space-x-2">
-                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)}>Edit</button>
-                      <button type="button" className="btn-ghost" onClick={() => remove(r)}>Delete</button>
+                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
+                      <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -209,6 +219,7 @@ function SubjectsTab() {
   const [form, setForm] = useState(emptySubjectForm());
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const table = useTableSearch(rows, { getSearchText: subjectSearchText, filterDefs: SUBJECT_FILTERS });
   const classOptions = useMemo(
     () => [...new Set(rows.map((r) => r.className).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })),
@@ -232,6 +243,7 @@ function SubjectsTab() {
   async function save(e) {
     e.preventDefault();
     setMessage("");
+    setBusy(true);
     try {
       if (editingId) {
         await api(`/api/subjects/${editingId}`, { method: "PATCH", body: form });
@@ -240,9 +252,11 @@ function SubjectsTab() {
         await api("/api/subjects", { method: "POST", body: form });
       }
       cancelEdit();
-      load();
+      await load();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -254,12 +268,15 @@ function SubjectsTab() {
       tone: "danger",
     }))) return;
     setMessage("");
+    setBusy(true);
     try {
       await api(`/api/subjects/${row.id}`, { method: "DELETE" });
       if (editingId === row.id) cancelEdit();
-      load();
+      await load();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -267,12 +284,14 @@ function SubjectsTab() {
     <div className="grid lg:grid-cols-3 gap-4">
       <form className="card p-4 space-y-3" onSubmit={save}>
         <h3 className="font-serif text-lg">{editingId ? "Edit subject" : "Add subject"}</h3>
-        <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-        <input className="field" placeholder="Class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} required />
-        <input className="field" type="number" placeholder="Max marks" value={form.maxMarks} onChange={(e) => setForm({ ...form, maxMarks: Number(e.target.value) })} required />
+        <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
+        <input className="field" placeholder="Class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} required disabled={busy} />
+        <input className="field" type="number" placeholder="Max marks" value={form.maxMarks} onChange={(e) => setForm({ ...form, maxMarks: Number(e.target.value) })} required disabled={busy} />
         <div className="flex gap-2">
-          <button className="btn-primary">{editingId ? "Save changes" : "Create"}</button>
-          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit}>Cancel</button>}
+          <button className="btn-primary" disabled={busy}>
+            <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
+          </button>
+          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
         </div>
         {message && <p className="text-sm">{message}</p>}
       </form>
@@ -298,7 +317,7 @@ function SubjectsTab() {
             </select>
           </TableToolbar>
         </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subjects yet.">
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subjects yet." busy={busy} busyLabel="Updating subjects…">
           {(page) => (
             <table className="table">
               <thead><tr><th>Subject</th><th>Class</th><th>Max</th><th></th></tr></thead>
@@ -309,8 +328,8 @@ function SubjectsTab() {
                     <td>{r.className}</td>
                     <td>{r.maxMarks}</td>
                     <td className="whitespace-nowrap space-x-2">
-                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)}>Edit</button>
-                      <button type="button" className="btn-ghost" onClick={() => remove(r)}>Delete</button>
+                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
+                      <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -354,6 +373,7 @@ function StudentsTab() {
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const table = useTableSearch(rows, { getSearchText: studentSearchText, filterDefs: STUDENT_FILTERS });
   const yearOptions = useMemo(
     () => [...new Set(rows.map((r) => r.academicYear).filter(Boolean))].sort().reverse(),
@@ -397,6 +417,7 @@ function StudentsTab() {
       guardianName: form.guardianName || null,
       guardianPhone: form.guardianPhone || null,
     };
+    setBusy(true);
     try {
       if (editingId) {
         await api(`/api/students/${editingId}`, { method: "PATCH", body });
@@ -405,9 +426,11 @@ function StudentsTab() {
         await api("/api/students", { method: "POST", body });
       }
       cancelEdit();
-      load();
+      await load();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -419,12 +442,15 @@ function StudentsTab() {
       tone: "danger",
     }))) return;
     setMessage("");
+    setBusy(true);
     try {
       await api(`/api/students/${row.id}`, { method: "DELETE" });
       if (editingId === row.id) cancelEdit();
-      load();
+      await load();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -434,6 +460,7 @@ function StudentsTab() {
     body.append("file", file);
     if (classSectionId) body.append("classSectionId", classSectionId);
     body.append("commit", commit ? "true" : "false");
+    setBusy(true);
     try {
       const data = await api("/api/students/upload", { method: "POST", body });
       setPreview(data);
@@ -442,9 +469,11 @@ function StudentsTab() {
           ? `Added ${data.created} students` + (data.updated ? `, updated ${data.updated}` : "")
           : `Preview: ${data.validCount} valid rows`
       );
-      if (commit) load();
+      if (commit) await load();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -457,7 +486,7 @@ function StudentsTab() {
           If you pick a class below, Class/Section can be left blank in the file.
         </p>
         <div className="flex flex-wrap gap-2">
-          <select className="field-filter max-w-full" value={classSectionId} onChange={(e) => setClassSectionId(e.target.value)}>
+          <select className="field-filter max-w-full" value={classSectionId} onChange={(e) => setClassSectionId(e.target.value)} disabled={busy}>
             <option value="">All classes (file must include Class + Section)</option>
             {classes.map((c) => (
               <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
@@ -466,6 +495,7 @@ function StudentsTab() {
           <button
             type="button"
             className="btn-ghost"
+            disabled={busy}
             onClick={() =>
               download(
                 `/api/students/template${classSectionId ? `?classSectionId=${classSectionId}` : ""}`,
@@ -476,10 +506,10 @@ function StudentsTab() {
             Download template
           </button>
         </div>
-        <input type="file" accept=".csv,.xlsx,.xls" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+        <input type="file" accept=".csv,.xlsx,.xls" onChange={(e) => setFile(e.target.files?.[0] || null)} disabled={busy} />
         <div className="flex gap-2">
-          <button type="button" className="btn-ghost" onClick={() => send(false)}>Preview</button>
-          <button type="button" className="btn-primary" onClick={() => send(true)}>Import students</button>
+          <button type="button" className="btn-ghost" onClick={() => send(false)} disabled={busy}>Preview</button>
+          <button type="button" className="btn-primary" onClick={() => send(true)} disabled={busy}>Import students</button>
         </div>
         {message && <p className="text-sm">{message}</p>}
         {preview?.errors?.length > 0 && (
@@ -494,21 +524,23 @@ function StudentsTab() {
       <div className="grid lg:grid-cols-3 gap-4">
         <form className="card p-4 space-y-3" onSubmit={save}>
           <h3 className="font-serif text-lg">{editingId ? "Edit student" : "Add one student"}</h3>
-          <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-          <input className="field" placeholder="Roll no" value={form.rollNo} onChange={(e) => setForm({ ...form, rollNo: e.target.value })} required />
-          <select className="field" value={form.classSectionId} onChange={(e) => setForm({ ...form, classSectionId: e.target.value })}>
+          <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
+          <input className="field" placeholder="Roll no" value={form.rollNo} onChange={(e) => setForm({ ...form, rollNo: e.target.value })} required disabled={busy} />
+          <select className="field" value={form.classSectionId} onChange={(e) => setForm({ ...form, classSectionId: e.target.value })} disabled={busy}>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.className}-{c.section}</option>)}
           </select>
           <div>
             <label className="label">Date of birth</label>
-            <input className="field" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} />
+            <input className="field" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} disabled={busy} />
           </div>
-          <input className="field" placeholder="Guardian name" value={form.guardianName} onChange={(e) => setForm({ ...form, guardianName: e.target.value })} />
-          <input className="field" placeholder="Guardian phone" value={form.guardianPhone} onChange={(e) => setForm({ ...form, guardianPhone: e.target.value })} />
-          <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} />
+          <input className="field" placeholder="Guardian name" value={form.guardianName} onChange={(e) => setForm({ ...form, guardianName: e.target.value })} disabled={busy} />
+          <input className="field" placeholder="Guardian phone" value={form.guardianPhone} onChange={(e) => setForm({ ...form, guardianPhone: e.target.value })} disabled={busy} />
+          <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} disabled={busy} />
           <div className="flex gap-2">
-            <button className="btn-primary">{editingId ? "Save changes" : "Create"}</button>
-            {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit}>Cancel</button>}
+            <button className="btn-primary" disabled={busy}>
+              <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
+            </button>
+            {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
           </div>
         </form>
         <div className="lg:col-span-2 card">
@@ -544,7 +576,7 @@ function StudentsTab() {
               </select>
             </TableToolbar>
           </div>
-          <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No students yet.">
+          <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No students yet." busy={busy} busyLabel="Updating students…">
             {(page) => (
               <table className="table">
                 <thead>
@@ -570,8 +602,8 @@ function StudentsTab() {
                       <td>{r.guardianName || "—"}</td>
                       <td>{r.guardianPhone || "—"}</td>
                       <td className="whitespace-nowrap space-x-2">
-                        <button type="button" className="btn-ghost" onClick={() => startEdit(r)}>Edit</button>
-                        <button type="button" className="btn-ghost" onClick={() => remove(r)}>Delete</button>
+                        <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
+                        <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
                       </td>
                     </tr>
                   ))}
@@ -611,6 +643,7 @@ function ExamsTab() {
   const [form, setForm] = useState(emptyExamForm());
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const table = useTableSearch(rows, { getSearchText: examSearchText, filterDefs: EXAM_FILTERS });
   const yearOptions = useMemo(
     () => [...new Set(rows.map((r) => r.academicYear).filter(Boolean))].sort().reverse(),
@@ -649,6 +682,7 @@ function ExamsTab() {
       ...form,
       marksEntryDeadline: form.marksEntryDeadline || null,
     };
+    setBusy(true);
     try {
       if (editingId) {
         await api(`/api/exams/${editingId}`, { method: "PATCH", body });
@@ -657,9 +691,11 @@ function ExamsTab() {
         await api("/api/exams", { method: "POST", body });
       }
       cancelEdit();
-      load();
+      await load();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -671,12 +707,15 @@ function ExamsTab() {
       tone: "danger",
     }))) return;
     setMessage("");
+    setBusy(true);
     try {
       await api(`/api/exams/${row.id}`, { method: "DELETE" });
       if (editingId === row.id) cancelEdit();
-      load();
+      await load();
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -684,11 +723,11 @@ function ExamsTab() {
     <div className="grid lg:grid-cols-3 gap-4">
       <form className="card p-4 space-y-3" onSubmit={save}>
         <h3 className="font-serif text-lg">{editingId ? "Edit exam" : "Schedule exam"}</h3>
-        <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required />
-        <input className="field" placeholder="Term" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} required />
-        <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} />
-        <input className="field" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required />
-        <select className="field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })}>
+        <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
+        <input className="field" placeholder="Term" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} required disabled={busy} />
+        <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} disabled={busy} />
+        <input className="field" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required disabled={busy} />
+        <select className="field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} disabled={busy}>
           <option value="UNIT_TEST">Unit test</option>
           <option value="MID_TERM">Mid-term</option>
           <option value="FINAL">Final</option>
@@ -700,11 +739,14 @@ function ExamsTab() {
             type="date"
             value={form.marksEntryDeadline}
             onChange={(e) => setForm({ ...form, marksEntryDeadline: e.target.value })}
+            disabled={busy}
           />
         </div>
         <div className="flex gap-2">
-          <button className="btn-primary">{editingId ? "Save changes" : "Create"}</button>
-          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit}>Cancel</button>}
+          <button className="btn-primary" disabled={busy}>
+            <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
+          </button>
+          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
         </div>
         {message && <p className="text-sm">{message}</p>}
       </form>
@@ -741,7 +783,7 @@ function ExamsTab() {
             </select>
           </TableToolbar>
         </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No exams scheduled.">
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No exams scheduled." busy={busy} busyLabel="Updating exams…">
           {(page) => (
             <table className="table">
               <thead>
@@ -765,8 +807,8 @@ function ExamsTab() {
                     <td>{new Date(r.date).toLocaleDateString()}</td>
                     <td>{r.marksEntryDeadline ? new Date(r.marksEntryDeadline).toLocaleDateString() : "—"}</td>
                     <td className="whitespace-nowrap space-x-2">
-                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)}>Edit</button>
-                      <button type="button" className="btn-ghost" onClick={() => remove(r)}>Delete</button>
+                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
+                      <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
                     </td>
                   </tr>
                 ))}
@@ -800,6 +842,7 @@ function PromoteTab() {
   const [selected, setSelected] = useState({});
   const [rolls, setRolls] = useState({});
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
   const promoteFilters = useMemo(
     () => [
       {
@@ -848,6 +891,7 @@ function PromoteTab() {
       confirmLabel: "Promote",
     }))) return;
     setMessage("");
+    setBusy(true);
     try {
       const data = await api("/api/students/promote", {
         method: "POST",
@@ -859,9 +903,11 @@ function PromoteTab() {
         },
       });
       setMessage(`Promoted ${data.promoted} students to ${data.toClass} (${data.toYear}).`);
-      loadStudents(fromId);
+      await loadStudents(fromId);
     } catch (err) {
       setMessage(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -875,25 +921,29 @@ function PromoteTab() {
         </p>
         <FilterBar>
           <FilterField label="From">
-            <select className="field" value={fromId} onChange={(e) => setFromId(e.target.value)}>
+            <select className="field" value={fromId} onChange={(e) => setFromId(e.target.value)} disabled={busy}>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
               ))}
             </select>
           </FilterField>
           <FilterField label="To">
-            <select className="field" value={toId} onChange={(e) => setToId(e.target.value)}>
+            <select className="field" value={toId} onChange={(e) => setToId(e.target.value)} disabled={busy}>
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
               ))}
             </select>
           </FilterField>
           <FilterField label="Destination year">
-            <input className="field" placeholder="2026-27" value={toYear} onChange={(e) => setToYear(e.target.value)} />
+            <input className="field" placeholder="2026-27" value={toYear} onChange={(e) => setToYear(e.target.value)} disabled={busy} />
           </FilterField>
         </FilterBar>
-        <button type="button" className="btn-primary" onClick={promote} disabled={!chosen.length}>
-          Promote {chosen.length || 0} student{chosen.length === 1 ? "" : "s"}
+        <button type="button" className="btn-primary" onClick={promote} disabled={!chosen.length || busy}>
+          <BusyLabel
+            busy={busy}
+            idle={`Promote ${chosen.length || 0} student${chosen.length === 1 ? "" : "s"}`}
+            busyText="Promoting…"
+          />
         </button>
         {message && <p className="text-sm">{message}</p>}
       </div>
@@ -933,6 +983,8 @@ function PromoteTab() {
           items={table.filtered}
           empty="No active students in this class."
           resetKey={`${fromId}:${table.resetKey}`}
+          busy={busy}
+          busyLabel="Updating students…"
         >
           {(page) => (
             <table className="table">
@@ -952,6 +1004,7 @@ function PromoteTab() {
                       <input
                         type="checkbox"
                         checked={Boolean(selected[s.id])}
+                        disabled={busy}
                         onChange={(e) => setSelected((m) => ({ ...m, [s.id]: e.target.checked }))}
                       />
                     </td>
@@ -962,6 +1015,7 @@ function PromoteTab() {
                       <input
                         className="field w-20"
                         value={rolls[s.id] ?? s.rollNo}
+                        disabled={busy}
                         onChange={(e) => setRolls((m) => ({ ...m, [s.id]: e.target.value }))}
                       />
                     </td>
