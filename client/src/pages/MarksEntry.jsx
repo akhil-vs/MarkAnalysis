@@ -7,6 +7,7 @@ import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
@@ -51,6 +52,7 @@ function StatPill({ label, value, tone }) {
 export default function MarksEntry() {
   const { user } = useAuth();
   const confirm = useConfirm();
+  const toast = useToast();
   const leadership = isLeadership(user.role);
   const isMdUp = useMediaQuery("(min-width: 768px)");
   const [params, setParams] = useSearchParams();
@@ -59,7 +61,6 @@ export default function MarksEntry() {
   const [grid, setGrid] = useState(null);
   const [subjectOptions, setSubjectOptions] = useState([]);
   const [draft, setDraft] = useState({});
-  const [message, setMessage] = useState("");
   const [errors, setErrors] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -107,7 +108,7 @@ export default function MarksEntry() {
         setCatalogReady(true);
       } catch (err) {
         if (!cancelled) {
-          setMessage(err.message || "Could not load the mark register");
+          toast.error(err.message || "Could not load the mark register");
           setCatalogReady(true);
         }
       }
@@ -149,7 +150,6 @@ export default function MarksEntry() {
     }
     setDraft(next);
     setErrors([]);
-    if (!keepMessage) setMessage("");
   }
 
   useEffect(() => {
@@ -167,7 +167,7 @@ export default function MarksEntry() {
       .catch((e) => {
         setGrid(null);
         setDraft({});
-        setMessage(e.message || "Could not load the mark register");
+        toast.error(e.message || "Could not load the mark register");
       })
       .finally(() => setLoading(false));
   }, [catalogReady, classSectionId, examId, subjectId]);
@@ -272,7 +272,7 @@ export default function MarksEntry() {
     if (!grid) return { ok: false };
     const entries = collectChangedEntries({ subjectFilter });
     if (!entries.length) {
-      if (!silent) setMessage("No changes to save");
+      if (!silent) toast.info("No changes to save");
       return { ok: false, empty: true };
     }
 
@@ -304,19 +304,19 @@ export default function MarksEntry() {
       setErrors(failed);
       if (failed.length) {
         if (!silent) {
-          setMessage(`${failed.length} cell${failed.length === 1 ? "" : "s"} failed validation`);
+          toast.error(`${failed.length} cell${failed.length === 1 ? "" : "s"} failed validation`);
         }
         return { ok: false, failed };
       }
       if (!silent) {
-        setMessage(
+        toast.success(
           `Saved ${entries.length} mark${entries.length === 1 ? "" : "s"} as draft`
         );
       }
       await loadGrid({ keepMessage: true });
       return { ok: true, count: entries.length };
     } catch (err) {
-      if (!silent) setMessage(err.message || "Could not save marks");
+      if (!silent) toast.error(err.message || "Could not save marks");
       return { ok: false, error: err };
     } finally {
       setSaving(false);
@@ -326,7 +326,7 @@ export default function MarksEntry() {
   async function submitMarks() {
     const targetSubjectId = subjectId || (grid?.subjects?.length === 1 ? grid.subjects[0].id : "");
     if (!targetSubjectId) {
-      setMessage("Select a subject from the dropdown to submit marks.");
+      toast.info("Select a subject from the dropdown to submit marks.");
       return;
     }
     const subjectName =
@@ -352,7 +352,7 @@ export default function MarksEntry() {
         const saved = await save({ subjectFilter: targetSubjectId, silent: true });
         if (!saved.ok && !saved.empty) {
           if (!saved.cancelled) {
-            setMessage(saved.error?.message || "Could not save changes before submit");
+            toast.error(saved.error?.message || "Could not save changes before submit");
           }
           return;
         }
@@ -361,12 +361,12 @@ export default function MarksEntry() {
         method: "POST",
         body: { examId, classSectionId, subjectId: targetSubjectId },
       });
-      setMessage(
+      toast.success(
         `Submitted ${res.submitted ?? draftCount} mark${(res.submitted ?? draftCount) === 1 ? "" : "s"} for ${subjectName}`
       );
       await loadGrid({ keepMessage: true });
     } catch (err) {
-      setMessage(err.message || "Could not submit marks");
+      toast.error(err.message || "Could not submit marks");
     } finally {
       setSubmitting(false);
     }
@@ -375,14 +375,14 @@ export default function MarksEntry() {
   async function requestEdit() {
     const targetSubjectId = subjectId || (grid?.subjects?.length === 1 ? grid.subjects[0].id : "");
     if (!targetSubjectId) {
-      setMessage("Select a subject to request edit access.");
+      toast.info("Select a subject to request edit access.");
       return;
     }
     const subjectName =
       grid?.subjects?.find((s) => s.id === targetSubjectId)?.name || "this subject";
     const access = grid?.entryAccess?.bySubject?.[targetSubjectId];
     if (access?.editRequestStatus === "PENDING") {
-      setMessage(`${subjectName} edit request is already waiting for approval.`);
+      toast.info(`${subjectName} edit request is already waiting for approval.`);
       return;
     }
 
@@ -392,7 +392,7 @@ export default function MarksEntry() {
         method: "POST",
         body: { examId, classSectionId, subjectId: targetSubjectId, kind: "EDIT" },
       });
-      setMessage(
+      toast.success(
         access?.editRequestStatus === "REJECTED"
           ? `${subjectName} edit requested again. Waiting for principal or coordinator approval.`
           : `${subjectName} edit requested. Waiting for principal or coordinator approval.`
@@ -400,10 +400,10 @@ export default function MarksEntry() {
       await loadGrid({ keepMessage: true });
     } catch (err) {
       if (err.status === 409) {
-        setMessage(`${subjectName} edit request is already waiting for approval.`);
+        toast.info(`${subjectName} edit request is already waiting for approval.`);
         await loadGrid({ keepMessage: true });
       } else {
-        setMessage(err.message || "Could not request edit access");
+        toast.error(err.message || "Could not request edit access");
       }
     } finally {
       setRequestingEdit(false);
@@ -437,12 +437,12 @@ export default function MarksEntry() {
           teacherId: teacher.teacherId,
         },
       });
-      setMessage(
+      toast.success(
         `Approved ${res.approved ?? 0} mark${res.approved === 1 ? "" : "s"} for ${teacherName}`
       );
       await loadGrid({ keepMessage: true });
     } catch (err) {
-      setMessage(err.message || "Could not approve marks");
+      toast.error(err.message || "Could not approve marks");
     } finally {
       setApproving(false);
     }
@@ -452,7 +452,7 @@ export default function MarksEntry() {
     const approvedCount =
       teacher?.count ?? (grid?.marks || []).filter((m) => m.status === "APPROVED").length;
     if (!approvedCount) {
-      setMessage("No approved marks in this view");
+      toast.info("No approved marks in this view");
       return;
     }
     const teacherName = teacher?.name || "this teacher";
@@ -480,12 +480,12 @@ export default function MarksEntry() {
           teacherId: teacher.teacherId,
         },
       });
-      setMessage(
+      toast.success(
         `Reverted ${res.reverted ?? 0} mark${res.reverted === 1 ? "" : "s"} to submitted for ${teacherName}`
       );
       await loadGrid({ keepMessage: true });
     } catch (err) {
-      setMessage(err.message || "Could not unapprove marks");
+      toast.error(err.message || "Could not unapprove marks");
     } finally {
       setApproving(false);
     }
@@ -851,15 +851,6 @@ export default function MarksEntry() {
       {!effectiveSubjectId && grid?.subjects?.length > 1 && !leadership && (
         <p className="mb-3 text-sm text-ink-700/65 rounded-lg border border-ink-900/10 bg-white/70 px-3 py-2">
           Select a subject to submit marks or request edit access.
-        </p>
-      )}
-      {message && (
-        <p
-          className={`mb-3 text-sm rounded-lg px-3 py-2 ${
-            errors.length ? "bg-[#fbf4ec] text-clay-600" : "bg-[#eef5f0] text-moss-600"
-          }`}
-        >
-          {message}
         </p>
       )}
       {errors.length > 0 && (

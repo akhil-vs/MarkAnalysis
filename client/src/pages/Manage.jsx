@@ -4,6 +4,7 @@ import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -56,7 +57,7 @@ function ClassesTab() {
   const [teachers, setTeachers] = useState([]);
   const [form, setForm] = useState(emptyClassForm());
   const [editingId, setEditingId] = useState(null);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const table = useTableSearch(rows, { getSearchText: classSearchText, filterDefs: CLASS_FILTERS });
   const classOptions = useMemo(
@@ -78,7 +79,6 @@ function ClassesTab() {
       section: row.section,
       classTeacherId: row.classTeacherId || "",
     });
-    setMessage("");
   }
 
   function cancelEdit() {
@@ -88,19 +88,19 @@ function ClassesTab() {
 
   async function save(e) {
     e.preventDefault();
-    setMessage("");
     setBusy(true);
     try {
       if (editingId) {
         await api(`/api/classes/${editingId}`, { method: "PATCH", body: form });
-        setMessage("Class updated.");
+        toast.success("Class updated.");
       } else {
         await api("/api/classes", { method: "POST", body: form });
+        toast.success("Class created.");
       }
       cancelEdit();
       await load();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -114,14 +114,14 @@ function ClassesTab() {
       confirmLabel: "Delete",
       tone: "danger",
     }))) return;
-    setMessage("");
     setBusy(true);
     try {
       await api(`/api/classes/${row.id}`, { method: "DELETE" });
+      toast.success("Class deleted.");
       if (editingId === row.id) cancelEdit();
       await load();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -143,7 +143,6 @@ function ClassesTab() {
           </button>
           {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
         </div>
-        {message && <p className="text-sm">{message}</p>}
       </form>
       <div className="lg:col-span-2 card">
         <div className="p-3 border-b border-ink-900/10">
@@ -218,7 +217,7 @@ function SubjectsTab() {
   const confirm = useConfirm();
   const [form, setForm] = useState(emptySubjectForm());
   const [editingId, setEditingId] = useState(null);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const table = useTableSearch(rows, { getSearchText: subjectSearchText, filterDefs: SUBJECT_FILTERS });
   const classOptions = useMemo(
@@ -232,7 +231,6 @@ function SubjectsTab() {
   function startEdit(row) {
     setEditingId(row.id);
     setForm({ name: row.name, className: row.className, maxMarks: row.maxMarks });
-    setMessage("");
   }
 
   function cancelEdit() {
@@ -242,19 +240,19 @@ function SubjectsTab() {
 
   async function save(e) {
     e.preventDefault();
-    setMessage("");
     setBusy(true);
     try {
       if (editingId) {
         await api(`/api/subjects/${editingId}`, { method: "PATCH", body: form });
-        setMessage("Subject updated.");
+        toast.success("Subject updated.");
       } else {
         await api("/api/subjects", { method: "POST", body: form });
+        toast.success("Subject created.");
       }
       cancelEdit();
       await load();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -267,14 +265,14 @@ function SubjectsTab() {
       confirmLabel: "Delete",
       tone: "danger",
     }))) return;
-    setMessage("");
     setBusy(true);
     try {
       await api(`/api/subjects/${row.id}`, { method: "DELETE" });
+      toast.success("Subject deleted.");
       if (editingId === row.id) cancelEdit();
       await load();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -293,7 +291,6 @@ function SubjectsTab() {
           </button>
           {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
         </div>
-        {message && <p className="text-sm">{message}</p>}
       </form>
       <div className="lg:col-span-2 card">
         <div className="p-3 border-b border-ink-900/10">
@@ -372,7 +369,7 @@ function StudentsTab() {
   const [classSectionId, setClassSectionId] = useState("");
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const table = useTableSearch(rows, { getSearchText: studentSearchText, filterDefs: STUDENT_FILTERS });
   const yearOptions = useMemo(
@@ -400,7 +397,6 @@ function StudentsTab() {
       dob: row.dob ? new Date(row.dob).toISOString().slice(0, 10) : "",
       academicYear: row.academicYear || "",
     });
-    setMessage("");
   }
 
   function cancelEdit() {
@@ -410,7 +406,6 @@ function StudentsTab() {
 
   async function save(e) {
     e.preventDefault();
-    setMessage("");
     const body = {
       ...form,
       dob: form.dob || null,
@@ -421,14 +416,15 @@ function StudentsTab() {
     try {
       if (editingId) {
         await api(`/api/students/${editingId}`, { method: "PATCH", body });
-        setMessage("Student updated.");
+        toast.success("Student updated.");
       } else {
         await api("/api/students", { method: "POST", body });
+        toast.success("Student created.");
       }
       cancelEdit();
       await load();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -441,21 +437,21 @@ function StudentsTab() {
       confirmLabel: "Delete",
       tone: "danger",
     }))) return;
-    setMessage("");
     setBusy(true);
     try {
       await api(`/api/students/${row.id}`, { method: "DELETE" });
+      toast.success("Student deleted.");
       if (editingId === row.id) cancelEdit();
       await load();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
   }
 
   async function send(commit) {
-    if (!file) return setMessage("Choose a CSV or Excel file");
+    if (!file) return toast.error("Choose a CSV or Excel file");
     const body = new FormData();
     body.append("file", file);
     if (classSectionId) body.append("classSectionId", classSectionId);
@@ -464,14 +460,14 @@ function StudentsTab() {
     try {
       const data = await api("/api/students/upload", { method: "POST", body });
       setPreview(data);
-      setMessage(
+      toast.success(
         commit
           ? `Added ${data.created} students` + (data.updated ? `, updated ${data.updated}` : "")
           : `Preview: ${data.validCount} valid rows`
       );
       if (commit) await load();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -511,7 +507,6 @@ function StudentsTab() {
           <button type="button" className="btn-ghost" onClick={() => send(false)} disabled={busy}>Preview</button>
           <button type="button" className="btn-primary" onClick={() => send(true)} disabled={busy}>Import students</button>
         </div>
-        {message && <p className="text-sm">{message}</p>}
         {preview?.errors?.length > 0 && (
           <ul className="text-sm text-clay-600 list-disc pl-5">
             {preview.errors.map((e, i) => (
@@ -642,7 +637,7 @@ function ExamsTab() {
   const confirm = useConfirm();
   const [form, setForm] = useState(emptyExamForm());
   const [editingId, setEditingId] = useState(null);
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const table = useTableSearch(rows, { getSearchText: examSearchText, filterDefs: EXAM_FILTERS });
   const yearOptions = useMemo(
@@ -667,7 +662,6 @@ function ExamsTab() {
         ? new Date(row.marksEntryDeadline).toISOString().slice(0, 10)
         : "",
     });
-    setMessage("");
   }
 
   function cancelEdit() {
@@ -677,7 +671,6 @@ function ExamsTab() {
 
   async function save(e) {
     e.preventDefault();
-    setMessage("");
     const body = {
       ...form,
       marksEntryDeadline: form.marksEntryDeadline || null,
@@ -686,14 +679,15 @@ function ExamsTab() {
     try {
       if (editingId) {
         await api(`/api/exams/${editingId}`, { method: "PATCH", body });
-        setMessage("Exam updated.");
+        toast.success("Exam updated.");
       } else {
         await api("/api/exams", { method: "POST", body });
+        toast.success("Exam scheduled.");
       }
       cancelEdit();
       await load();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -706,14 +700,14 @@ function ExamsTab() {
       confirmLabel: "Delete",
       tone: "danger",
     }))) return;
-    setMessage("");
     setBusy(true);
     try {
       await api(`/api/exams/${row.id}`, { method: "DELETE" });
+      toast.success("Exam deleted.");
       if (editingId === row.id) cancelEdit();
       await load();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -748,7 +742,6 @@ function ExamsTab() {
           </button>
           {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
         </div>
-        {message && <p className="text-sm">{message}</p>}
       </form>
       <div className="lg:col-span-2 card">
         <div className="p-3 border-b border-ink-900/10">
@@ -841,7 +834,7 @@ function PromoteTab() {
   const [toYear, setToYear] = useState("");
   const [selected, setSelected] = useState({});
   const [rolls, setRolls] = useState({});
-  const [message, setMessage] = useState("");
+  const toast = useToast();
   const [busy, setBusy] = useState(false);
   const promoteFilters = useMemo(
     () => [
@@ -882,7 +875,7 @@ function PromoteTab() {
   const chosen = students.filter((s) => selected[s.id]);
 
   async function promote() {
-    if (!chosen.length) return setMessage("Select at least one student");
+    if (!chosen.length) return toast.error("Select at least one student");
     const from = classes.find((c) => c.id === fromId);
     const to = classes.find((c) => c.id === toId);
     if (!(await confirm({
@@ -890,7 +883,6 @@ function PromoteTab() {
       message: `Move ${chosen.length} student${chosen.length === 1 ? "" : "s"} from ${from?.className}-${from?.section} to ${to?.className}-${to?.section} for ${toYear || "the next year"}? Past marks stay on the previous class record.`,
       confirmLabel: "Promote",
     }))) return;
-    setMessage("");
     setBusy(true);
     try {
       const data = await api("/api/students/promote", {
@@ -902,10 +894,10 @@ function PromoteTab() {
           students: chosen.map((s) => ({ studentId: s.id, rollNo: rolls[s.id] || s.rollNo })),
         },
       });
-      setMessage(`Promoted ${data.promoted} students to ${data.toClass} (${data.toYear}).`);
+      toast.success(`Promoted ${data.promoted} students to ${data.toClass} (${data.toYear}).`);
       await loadStudents(fromId);
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message);
     } finally {
       setBusy(false);
     }
@@ -945,7 +937,6 @@ function PromoteTab() {
             busyText="Promoting…"
           />
         </button>
-        {message && <p className="text-sm">{message}</p>}
       </div>
       <div className="card">
         <div className="p-3 border-b border-ink-900/10">

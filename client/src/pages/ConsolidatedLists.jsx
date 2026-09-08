@@ -6,6 +6,7 @@ import { EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function cmlStudentSearchText(row) {
@@ -13,6 +14,7 @@ function cmlStudentSearchText(row) {
 }
 
 export default function ConsolidatedLists() {
+  const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState(params.get("examId") || "");
@@ -75,8 +77,11 @@ export default function ConsolidatedLists() {
         `/api/exports/consolidated/${selectedId}?examId=${examId}&format=${format}`,
         `${stem}.${format}`
       );
+      toast.success(`Downloaded ${format.toUpperCase()} mark list.`);
     } catch (e) {
-      setError(e.message || "Download failed");
+      const msg = e.message || "Download failed";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy("");
     }

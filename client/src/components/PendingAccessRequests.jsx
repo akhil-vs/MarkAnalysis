@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { EmptyNote, Panel } from "./DashboardKit.jsx";
 import { BusyLabel, Spinner } from "./Spinner.jsx";
+import { useToast } from "./Toast.jsx";
 
 function kindLabel(kind) {
   return kind === "EDIT" ? "Edit marks" : "Late entry";
@@ -13,10 +14,10 @@ function kindLabel(kind) {
  * Not scoped to the selected analytics exam.
  */
 export default function PendingAccessRequests({ className = "", limit = 8 }) {
+  const toast = useToast();
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
-  const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -35,13 +36,12 @@ export default function PendingAccessRequests({ className = "", limit = 8 }) {
 
   async function review(id, status) {
     setBusyId(id);
-    setMessage("");
     try {
       await api(`/api/mark-access/${id}`, { method: "PATCH", body: { status } });
       setRows((prev) => (prev || []).filter((r) => r.id !== id));
-      setMessage(status === "APPROVED" ? "Request approved." : "Request rejected.");
+      toast.success(status === "APPROVED" ? "Request approved." : "Request rejected.");
     } catch (err) {
-      setMessage(err.message || "Could not update request");
+      toast.error(err.message || "Could not update request");
     } finally {
       setBusyId("");
     }
@@ -83,7 +83,6 @@ export default function PendingAccessRequests({ className = "", limit = 8 }) {
               </div>
             </div>
           )}
-          {message && <p className="text-xs text-moss-600">{message}</p>}
           {shown.map((r) => (
             <div
               key={r.id}

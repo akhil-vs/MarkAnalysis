@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { useToast } from "../components/Toast.jsx";
 
 const ROLE_LABEL = {
   PRINCIPAL: "Principal",
@@ -11,17 +12,16 @@ const ROLE_LABEL = {
 
 export default function Profile() {
   const { user } = useAuth();
+  const toast = useToast();
   const [form, setForm] = useState({
     currentPassword: "",
     newPassword: "",
     confirmPassword: "",
   });
-  const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
   async function onSubmit(e) {
     e.preventDefault();
-    setMessage("");
     setError("");
     if (form.newPassword !== form.confirmPassword) {
       setError("New passwords do not match");
@@ -36,9 +36,10 @@ export default function Profile() {
         },
       });
       setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
-      setMessage("Password updated.");
+      toast.success("Password updated.");
     } catch (err) {
       setError(err.message);
+      toast.error(err.message || "Could not update password");
     }
   }
 
@@ -102,7 +103,6 @@ export default function Profile() {
             />
           </div>
           {error && <p className="text-sm text-clay-600">{error}</p>}
-          {message && <p className="text-sm text-moss-600">{message}</p>}
           <button className="btn-primary">Update password</button>
         </form>
       </div>

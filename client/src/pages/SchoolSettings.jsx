@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
+import { useToast } from "../components/Toast.jsx";
 
 const EMPTY = {
   name: "",
@@ -12,9 +13,8 @@ const EMPTY = {
 };
 
 export default function SchoolSettings() {
+  const toast = useToast();
   const [form, setForm] = useState(EMPTY);
-  const [message, setMessage] = useState("");
-  const [error, setError] = useState("");
 
   useEffect(() => {
     api("/api/school")
@@ -28,7 +28,7 @@ export default function SchoolSettings() {
           email: s.email || "",
         })
       )
-      .catch((err) => setError(err.message));
+      .catch((err) => toast.error(err.message || "Could not load school profile"));
   }, []);
 
   function set(key, value) {
@@ -37,13 +37,11 @@ export default function SchoolSettings() {
 
   async function onSubmit(e) {
     e.preventDefault();
-    setMessage("");
-    setError("");
     try {
       await api("/api/school", { method: "PATCH", body: form });
-      setMessage("School profile saved. Report cards and mark lists will use this name.");
+      toast.success("School profile saved. Report cards and mark lists will use this name.");
     } catch (err) {
-      setError(err.message);
+      toast.error(err.message || "Could not save school profile");
     }
   }
 
@@ -82,8 +80,6 @@ export default function SchoolSettings() {
             <input className="field" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
           </div>
         </div>
-        {error && <p className="text-sm text-clay-600">{error}</p>}
-        {message && <p className="text-sm text-moss-600">{message}</p>}
         <button className="btn-primary">Save profile</button>
       </form>
     </div>

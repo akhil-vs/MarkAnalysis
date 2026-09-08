@@ -5,6 +5,7 @@ import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -48,14 +49,13 @@ function requestSearchText(r) {
 
 export default function LateEntryRequests() {
   const { user } = useAuth();
+  const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [exams, setExams] = useState([]);
   const [examId, setExamId] = useState(searchParams.get("examId") || "");
   const [status, setStatus] = useState(searchParams.get("status") || "PENDING");
   const [kind, setKind] = useState(searchParams.get("kind") || "");
-  const [message, setMessage] = useState("");
-  const [messageTone, setMessageTone] = useState("ok");
   const [busyId, setBusyId] = useState("");
   const [loading, setLoading] = useState(false);
   const [ready, setReady] = useState(false);
@@ -88,8 +88,7 @@ export default function LateEntryRequests() {
         setReady(true);
       })
       .catch((err) => {
-        setMessageTone("error");
-        setMessage(err.message || "Could not load exams");
+        toast.error(err.message || "Could not load exams");
         setReady(true);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -103,14 +102,12 @@ export default function LateEntryRequests() {
     if (kind) next.set("kind", kind);
     setSearchParams(next, { replace: true });
     load(examId, status, kind).catch((e) => {
-      setMessageTone("error");
-      setMessage(e.message);
+      toast.error(e.message);
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [examId, status, kind, ready]);
 
   async function review(id, nextStatus) {
-    setMessage("");
     setBusyId(id);
     try {
       const updated = await api(`/api/mark-access/${id}`, {
@@ -136,10 +133,9 @@ export default function LateEntryRequests() {
         )
       );
 
-      setMessageTone("ok");
       const existing = rows.find((row) => row.id === id);
       const isEdit = (updated.kind || existing?.kind) === "EDIT";
-      setMessage(
+      toast.success(
         nextStatus === "APPROVED"
           ? isEdit
             ? "Edit request approved. The teacher can edit and resubmit marks."
@@ -155,8 +151,7 @@ export default function LateEntryRequests() {
         await load(examId, status, kind);
       }
     } catch (err) {
-      setMessageTone("error");
-      setMessage(err.message || "Could not update late entry request");
+      toast.error(err.message || "Could not update late entry request");
     } finally {
       setBusyId("");
     }
@@ -192,15 +187,6 @@ export default function LateEntryRequests() {
         }
       />
 
-      {message && (
-        <p
-          className={`mb-3 rounded-lg px-3 py-2 text-sm ${
-            messageTone === "error" ? "bg-[#fbf4ec] text-clay-600" : "bg-[#eef5f0] text-moss-600"
-          }`}
-        >
-          {message}
-        </p>
-      )}
 
       <div className="card overflow-hidden">
         {loading && !rows.length ? (

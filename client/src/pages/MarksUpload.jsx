@@ -6,9 +6,11 @@ import { PageHeader } from "../components/Layout.jsx";
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
 import { FilterBar, FilterField } from "../components/TableToolbar.jsx";
+import { useToast } from "../components/Toast.jsx";
 
 export default function MarksUpload() {
   const { user } = useAuth();
+  const toast = useToast();
   const leadership = isLeadership(user.role);
   const [classes, setClasses] = useState([]);
   const [exams, setExams] = useState([]);
@@ -18,7 +20,6 @@ export default function MarksUpload() {
   const [subjects, setSubjects] = useState([]);
   const [file, setFile] = useState(null);
   const [preview, setPreview] = useState(null);
-  const [message, setMessage] = useState("");
 
   useEffect(() => {
     Promise.all([api("/api/classes"), api("/api/exams")])
@@ -28,7 +29,7 @@ export default function MarksUpload() {
         if (c[0]) setClassSectionId(c[0].id);
         if (e.length) setExamId(defaultExamId(e));
       })
-      .catch((err) => setMessage(err.message || "Could not load upload options"));
+      .catch((err) => toast.error(err.message || "Could not load upload options"));
   }, []);
 
   async function loadAccess() {
@@ -51,8 +52,8 @@ export default function MarksUpload() {
     subjects.some((s) => !entryAccess.bySubject?.[s.id]?.canEnter);
 
   async function send(commit) {
-    if (!file) return setMessage("Choose a CSV or Excel file");
-    if (uploadBlocked) return setMessage("Request late entry approval before uploading.");
+    if (!file) return toast.error("Choose a CSV or Excel file");
+    if (uploadBlocked) return toast.error("Request late entry approval before uploading.");
     const body = new FormData();
     body.append("file", file);
     body.append("classSectionId", classSectionId);
@@ -65,9 +66,9 @@ export default function MarksUpload() {
       body,
     });
     const data = await res.json();
-    if (!res.ok) return setMessage(data.error || "Upload failed");
+    if (!res.ok) return toast.error(data.error || "Upload failed");
     setPreview(data);
-    setMessage(commit ? `Committed ${data.saved} marks as draft` : `Preview: ${data.validCount} valid cells`);
+    toast.success(commit ? `Committed ${data.saved} marks as draft` : `Preview: ${data.validCount} valid cells`);
   }
 
   return (
@@ -118,7 +119,6 @@ export default function MarksUpload() {
           <button className="btn-ghost" onClick={() => send(false)} disabled={uploadBlocked}>Preview</button>
           <button className="btn-primary" onClick={() => send(true)} disabled={uploadBlocked}>Commit drafts</button>
         </div>
-        {message && <p className="text-sm">{message}</p>}
         {preview && (
           <div className="text-sm space-y-3">
             {preview.errors?.length > 0 && (
