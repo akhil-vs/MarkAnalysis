@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
+import { BusyLabel } from "./Spinner.jsx";
+import { useToast } from "./Toast.jsx";
 
 export function formatDeadline(deadline) {
   if (!deadline) return "Not set";
@@ -54,6 +56,7 @@ function mergeAccess(entryAccess, overrides) {
 }
 
 export function EntryAccessNotice({ entryAccess, subjects, examId, classSectionId, onChange }) {
+  const toast = useToast();
   const [overrides, setOverrides] = useState({});
   const [busySubjectId, setBusySubjectId] = useState("");
   const [error, setError] = useState("");
@@ -107,11 +110,11 @@ export function EntryAccessNotice({ entryAccess, subjects, examId, classSectionI
           requestId: result?.id || null,
         },
       }));
-      setInfo(
-        result?.alreadyPending
-          ? `${subject.name} is already requested and waiting for approval.`
-          : `${subject.name} late entry requested. Waiting for principal or coordinator approval.`
-      );
+      const infoMsg = result?.alreadyPending
+        ? `${subject.name} is already requested and waiting for approval.`
+        : `${subject.name} late entry requested. Waiting for principal or coordinator approval.`;
+      setInfo(infoMsg);
+      toast.success(infoMsg);
 
       try {
         await onChange?.();
@@ -119,7 +122,9 @@ export function EntryAccessNotice({ entryAccess, subjects, examId, classSectionI
         console.error(reloadErr);
       }
     } catch (err) {
-      setError(err.message || "Could not request late entry");
+      const msg = err.message || "Could not request late entry";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusySubjectId("");
     }
@@ -195,7 +200,7 @@ export function EntryAccessNotice({ entryAccess, subjects, examId, classSectionI
                     disabled={Boolean(busySubjectId)}
                     onClick={() => handleRequest(subject)}
                   >
-                    {busy ? "Requesting…" : rejected ? "Request again" : "Request late entry"}
+                    <BusyLabel busy={busy} idle={rejected ? "Request again" : "Request late entry"} busyText="Requesting…" />
                   </button>
                 )}
               </div>

@@ -4,6 +4,7 @@ import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { canAddCoordinator, isLeadership } from "../lib/roles.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
@@ -79,6 +80,7 @@ function AssignmentSummary({ assignments }) {
 
 export default function Users() {
   const { user } = useAuth();
+  const toast = useToast();
   const canCreateCoordinator = canAddCoordinator(user.role);
   const leadership = isLeadership(user.role);
   const [users, setUsers] = useState([]);
@@ -95,7 +97,6 @@ export default function Users() {
     password: "password123",
     role: "TEACHER",
   });
-  const [message, setMessage] = useState("");
   const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
   const tableBusy = Boolean(busyId) || creating;
 
@@ -119,6 +120,9 @@ export default function Users() {
     try {
       await api(`/api/users/${id}`, { method: "PATCH", body: { status } });
       await load();
+      toast.success(status === "ACTIVE" ? "Staff account approved." : "Staff account rejected.");
+    } catch (err) {
+      toast.error(err.message || "Could not update staff status");
     } finally {
       setBusyId("");
     }
@@ -130,6 +134,9 @@ export default function Users() {
       await api(`/api/users/${userId}`, { method: "PATCH", body: { assignments } });
       setEditing(null);
       await load();
+      toast.success("Assignments saved.");
+    } catch (err) {
+      toast.error(err.message || "Could not save assignments");
     } finally {
       setBusyId("");
     }
@@ -137,7 +144,6 @@ export default function Users() {
 
   async function addStaff(e) {
     e.preventDefault();
-    setMessage("");
     setCreating(true);
     try {
       await api("/api/users", { method: "POST", body: form });
@@ -148,10 +154,10 @@ export default function Users() {
         password: "password123",
         role: "TEACHER",
       });
-      setMessage("Staff account created and active. They can sign in now.");
+      toast.success("Staff account created and active. They can sign in now.");
       await load();
     } catch (err) {
-      setMessage(err.message);
+      toast.error(err.message || "Could not create staff account");
     } finally {
       setCreating(false);
     }
@@ -201,7 +207,6 @@ export default function Users() {
             <BusyLabel busy={creating} idle="Create account" busyText="Creating…" />
           </button>
         </div>
-        {message && <p className="sm:col-span-2 lg:col-span-3 text-sm">{message}</p>}
       </form>
 
       <div className="card">
@@ -355,7 +360,7 @@ export default function Users() {
           onClose={() => setResetting(null)}
           onDone={(msg) => {
             setResetting(null);
-            setMessage(msg);
+            toast.success(msg);
           }}
         />
       )}

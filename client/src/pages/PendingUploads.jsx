@@ -5,6 +5,7 @@ import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -13,10 +14,10 @@ function assignmentSearchText(a) {
 }
 
 export default function PendingUploads() {
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState(searchParams.get("examId") || "");
-  const [message, setMessage] = useState("");
 
   async function load(id) {
     const res = await api(`/api/analytics/pending-uploads${id ? `?examId=${id}` : ""}`);
@@ -50,9 +51,6 @@ export default function PendingUploads() {
           </select>
         }
       />
-      {message && (
-        <p className="mb-3 rounded-lg bg-[#eef5f0] px-3 py-2 text-sm text-moss-600">{message}</p>
-      )}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <Kpi label="Teachers pending" value={data.pendingTeacherCount} warn={data.pendingTeacherCount > 0} />
         <Kpi
@@ -85,8 +83,9 @@ export default function PendingUploads() {
                   teacher={t}
                   mode="awaiting"
                   examId={examId}
-                  onApproved={async (msg) => {
-                    setMessage(msg);
+                  onApproved={async (msg, ok = true) => {
+                    if (ok) toast.success(msg);
+                    else toast.error(msg);
                     await load(examId);
                   }}
                 />
@@ -144,10 +143,11 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
         },
       });
       await onApproved?.(
-        `Approved ${res.approved ?? 0} mark${res.approved === 1 ? "" : "s"} for ${t.name} · ${a.subject}`
+        `Approved ${res.approved ?? 0} mark${res.approved === 1 ? "" : "s"} for ${t.name} · ${a.subject}`,
+        true
       );
     } catch (err) {
-      await onApproved?.(err.message || "Could not approve submitted marks");
+      await onApproved?.(err.message || "Could not approve submitted marks", false);
     } finally {
       setBusyKey("");
     }

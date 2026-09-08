@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { useConfirm } from "./ConfirmDialog.jsx";
 import { EmptyNote, Panel } from "./DashboardKit.jsx";
 import { BusyLabel, Spinner } from "./Spinner.jsx";
+import { useToast } from "./Toast.jsx";
 
 /**
  * Cross-exam submitted marks waiting for leadership approval.
@@ -11,10 +12,10 @@ import { BusyLabel, Spinner } from "./Spinner.jsx";
  */
 export default function PendingSubmittedApprovals({ className = "", limit = 8 }) {
   const confirm = useConfirm();
+  const toast = useToast();
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
   const [busyKey, setBusyKey] = useState("");
-  const [message, setMessage] = useState("");
 
   const load = useCallback(async () => {
     try {
@@ -41,7 +42,6 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
     if (!ok) return;
 
     setBusyKey(key);
-    setMessage("");
     try {
       const res = await api("/api/marks/approve", {
         method: "POST",
@@ -58,11 +58,11 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
           return rKey !== key;
         })
       );
-      setMessage(
+      toast.success(
         `Approved ${res.approved ?? 0} mark${res.approved === 1 ? "" : "s"} for ${row.teacherName} · ${row.subjectName}`
       );
     } catch (err) {
-      setMessage(err.message || "Could not approve submitted marks");
+      toast.error(err.message || "Could not approve submitted marks");
     } finally {
       setBusyKey("");
     }
@@ -104,7 +104,6 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
               </div>
             </div>
           )}
-          {message && <p className="text-xs text-moss-600">{message}</p>}
           {shown.map((r) => {
             const key = `${r.examId}|${r.classSectionId}|${r.subjectId}|${r.teacherId}`;
             return (
