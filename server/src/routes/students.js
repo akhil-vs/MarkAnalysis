@@ -22,14 +22,17 @@ studentsRouter.get("/template", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
   const sheet = workbook.addWorksheet("Students");
   sheet.addRow(["Class", "Section", "Roll No", "Name", "Date of Birth", "Guardian Name", "Guardian Phone"]);
   sheet.getRow(1).font = { bold: true };
+  sheet.getColumn(3).numFmt = "@";
 
   if (selected) {
     for (let i = 0; i < 12; i++) {
-      sheet.addRow([selected.className, selected.section, "", "", "", "", ""]);
+      const row = sheet.addRow([selected.className, selected.section, "", "", "", "", ""]);
+      row.getCell(3).numFmt = "@";
     }
   } else {
     for (const cls of classes) {
-      sheet.addRow([cls.className, cls.section, "01", "", "", "", ""]);
+      const row = sheet.addRow([cls.className, cls.section, "01", "", "", "", ""]);
+      row.getCell(3).numFmt = "@";
     }
   }
   sheet.columns.forEach((col) => {

@@ -1,8 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
-import { parse } from "csv-parse/sync";
 import { prisma } from "../lib/prisma.js";
 import { auth, getAssignments, isLeadership, requireRole, teacherCanAccess } from "../middleware/auth.js";
 import {
@@ -11,9 +9,10 @@ import {
   getMarkEntryAccessMap,
   isLockedMarkStatus,
 } from "../lib/markAccess.js";
-import { auditValueFor, parseMarkInput } from "../lib/markCodes.js";
+import { auditValueFor, formatMarkCell, parseMarkInput } from "../lib/markCodes.js";
 import { studentWhereForExam } from "../lib/studentScope.js";
 import { notifyMarksSubmitted } from "../lib/notifications.js";
+import { findStudentByRoll, parseSpreadsheet, studentRollIndex } from "../lib/upload.js";
 
 export const marksRouter = Router();
 marksRouter.use(auth);
@@ -279,8 +278,11 @@ marksRouter.get("/template", async (req, res) => {
   const headers = ["Roll No", "Name", ...subjects.map((s) => `${s.name} (max ${s.maxMarks})`)];
   sheet.addRow(headers);
   sheet.getRow(1).font = { bold: true };
+  // Keep roll numbers as text so Excel does not strip leading zeros (01 → 1).
+  sheet.getColumn(1).numFmt = "@";
   for (const student of students) {
-    sheet.addRow([student.rollNo, student.name, ...subjects.map(() => "")]);
+    const row = sheet.addRow([String(student.rollNo), student.name, ...subjects.map(() => "")]);
+    row.getCell(1).numFmt = "@";
   }
   sheet.columns.forEach((col) => {
     col.width = 22;
@@ -293,20 +295,18 @@ marksRouter.get("/template", async (req, res) => {
   res.send(Buffer.from(buffer));
 });
 
-function parseUpload(buffer, originalname) {
-  const name = (originalname || "").toLowerCase();
-  if (name.endsWith(".csv")) {
-    const text = buffer.toString("utf8");
-    return parse(text, { columns: true, skip_empty_lines: true, trim: true });
-  }
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(sheet, { defval: "" });
-}
-
 function subjectFromHeader(header, subjects) {
   const clean = String(header).replace(/\s*\(max\s*\d+\)\s*$/i, "").trim();
   return subjects.find((s) => s.name.toLowerCase() === clean.toLowerCase());
+}
+
+function markSampleRows(valid) {
+  return valid.slice(0, 8).map((item) => ({
+    rollNo: item.student.rollNo,
+    name: item.student.name,
+    subject: item.subject.name,
+    value: formatMarkCell(item),
+  }));
 }
 
 marksRouter.post("/upload", upload.single("file"), async (req, res) => {
@@ -332,11 +332,11 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
     where: await studentWhereForExam(classSectionId, exam),
     orderBy: { rollNo: "asc" },
   });
-  const byRoll = new Map(students.map((s) => [String(s.rollNo).trim(), s]));
+  const byRoll = studentRollIndex(students);
 
   let rows;
   try {
-    rows = parseUpload(req.file.buffer, req.file.originalname);
+    rows = parseSpreadsheet(req.file.buffer, req.file.originalname);
   } catch {
     return res.status(400).json({ error: "Could not parse file" });
   }
@@ -352,17 +352,18 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
       errors.push({ row: index + 2, error: "Missing roll number" });
       return;
     }
-    if (seen.has(roll)) {
-      errors.push({ row: index + 2, roll, error: "Duplicate row in file" });
-      return;
-    }
-    seen.add(roll);
-    const student = byRoll.get(roll);
+    const student = findStudentByRoll(byRoll, roll);
     if (!student) {
       errors.push({ row: index + 2, roll, error: "Unknown roll number" });
       return;
     }
-    presentRolls.add(roll);
+    const canonicalRoll = String(student.rollNo).trim();
+    if (seen.has(canonicalRoll)) {
+      errors.push({ row: index + 2, roll: canonicalRoll, error: "Duplicate row in file" });
+      return;
+    }
+    seen.add(canonicalRoll);
+    presentRolls.add(canonicalRoll);
 
     for (const [header, raw] of Object.entries(row)) {
       if (["Roll No", "rollNo", "Roll", "Name", "name"].includes(header)) continue;
@@ -374,7 +375,7 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
       if (parsed.error) {
         errors.push({
           row: index + 2,
-          roll,
+          roll: canonicalRoll,
           subject: subject.name,
           error: parsed.error,
         });
@@ -394,6 +395,7 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
       validCount: valid.length,
       errors,
       missingStudents,
+      sample: markSampleRows(valid),
     });
   }
 
