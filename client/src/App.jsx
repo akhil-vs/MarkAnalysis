@@ -29,6 +29,8 @@ import AuditLog from "./pages/AuditLog.jsx";
 import ConsolidatedLists from "./pages/ConsolidatedLists.jsx";
 import Profile from "./pages/Profile.jsx";
 import SchoolSettings from "./pages/SchoolSettings.jsx";
+import Timetables from "./pages/Timetables.jsx";
+import TeacherTimetable from "./pages/TeacherTimetable.jsx";
 
 function Guard({ roles, children }) {
   const { user, loading } = useAuth();
@@ -121,6 +123,14 @@ export default function App() {
         <Route
           path="late-entry"
           element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><LateEntryRequests /></Guard>}
+        />
+        <Route
+          path="timetables"
+          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><Timetables /></Guard>}
+        />
+        <Route
+          path="timetables/teachers/:id"
+          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><TeacherTimetable /></Guard>}
         />
         <Route path="profile" element={<Profile />} />
         <Route

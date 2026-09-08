@@ -12,6 +12,7 @@ Remaining work that would make this suitable for a live school:
 - **Electives / additional subjects** per student
 - **Class-teacher inbox** for section pending papers (read access to the register is in; dedicated inbox is not)
 - **Moderation / grace marks** with audit reason
++ ~~Teacher daily / weekly / monthly timetables for principal and exam coordinator~~ (Timetables nav + views + seed periods)
 
 ## Product / access
 

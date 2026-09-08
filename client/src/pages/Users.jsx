@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
@@ -324,6 +325,11 @@ export default function Users() {
                             >
                               Assign
                             </button>
+                          )}
+                          {canAssign && u.status === "ACTIVE" && (
+                            <Link to={`/timetables/teachers/${u.id}`} className="btn-ghost">
+                              Timetable
+                            </Link>
                           )}
                           {canReset && (
                             <button

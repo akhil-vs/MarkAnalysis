@@ -127,6 +127,14 @@ const NAV_ICON_PATHS = {
       <path d="M12 11.5v2" strokeLinecap="round" />
     </>
   ),
+  timetable: (
+    <>
+      <rect x="3" y="5" width="18" height="16" rx="1.5" />
+      <path d="M3 10h18" strokeLinecap="round" />
+      <path d="M8 3v4M16 3v4" strokeLinecap="round" />
+      <path d="M7 14h2M11 14h2M15 14h2M7 17h2M11 17h2" strokeLinecap="round" />
+    </>
+  ),
   students: (
     <>
       <path d="M12 3 3 8l9 5 9-5-9-5z" strokeLinejoin="round" />
@@ -216,6 +224,7 @@ export default function Layout() {
   const links = [
     { to: "/", label: "Dashboard", icon: "dashboard", end: true },
     ...(user.role !== "TEACHER" ? [{ to: "/users", label: "Staff", icon: "staff" }] : []),
+    ...(isLeadership ? [{ to: "/timetables", label: "Timetables", icon: "timetable" }] : []),
     ...(isLeadership ? [{ to: "/manage", label: "Records", icon: "records" }] : []),
     ...(isLeadership ? [{ to: "/school", label: "School", icon: "school" }] : []),
     { to: "/marks", label: "Mark register", icon: "register" },
