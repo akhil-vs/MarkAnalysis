@@ -613,15 +613,33 @@ function StudentsTab() {
                 : `Import complete · ${preview.created ?? 0} added` +
                   (preview.updated ? `, ${preview.updated} updated` : "")}
             </div>
+            {preview.preview && preview.sample?.length > 0 && (
+              <div>
+                <div className="font-medium text-ink-800">Sample rows</div>
+                <ul className="list-disc pl-5 text-ink-700/80">
+                  {preview.sample.map((s, i) => (
+                    <li key={i}>
+                      {s.classLabel} · {s.rollNo} {s.name}
+                      {s.guardianName ? ` · ${s.guardianName}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {preview.preview && (preview.validCount ?? 0) === 0 && !preview.errors?.length && (
+              <p className="text-ink-700/70">
+                No student rows found. Fill Roll No and Name (and Class/Section if needed), then preview again.
+              </p>
+            )}
             {preview?.errors?.length > 0 ? (
               <ul className="text-clay-600 list-disc pl-5">
                 {preview.errors.map((e, i) => (
                   <li key={i}>Row {e.row} {e.roll ? `(${e.roll})` : ""} — {e.error}</li>
                 ))}
               </ul>
-            ) : (
+            ) : (preview.validCount ?? preview.created ?? 0) > 0 ? (
               <p className="text-ink-700/70">No row errors.</p>
-            )}
+            ) : null}
           </div>
         )}
       </div>

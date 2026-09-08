@@ -11,6 +11,35 @@ export function parseSpreadsheet(buffer, originalname) {
   return XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
 }
 
+/**
+ * Excel/CSV often strip leading zeros from roll numbers ("01" → "1").
+ * Normalize for matching while keeping the school-stored roll for display.
+ */
+export function normalizeRollKey(roll) {
+  const text = String(roll ?? "").trim();
+  if (!text) return "";
+  const stripped = text.replace(/^0+/, "");
+  return stripped === "" ? "0" : stripped;
+}
+
+/** Map students by exact roll and by zero-stripped roll for spreadsheet matching. */
+export function studentRollIndex(students) {
+  const byRoll = new Map();
+  for (const student of students) {
+    const exact = String(student.rollNo ?? "").trim();
+    if (exact) byRoll.set(exact, student);
+    const key = normalizeRollKey(exact);
+    if (key && !byRoll.has(key)) byRoll.set(key, student);
+  }
+  return byRoll;
+}
+
+export function findStudentByRoll(byRoll, roll) {
+  const exact = String(roll ?? "").trim();
+  if (!exact) return null;
+  return byRoll.get(exact) || byRoll.get(normalizeRollKey(exact)) || null;
+}
+
 export function cell(row, ...names) {
   const entries = Object.entries(row || {});
   const normalized = new Map(

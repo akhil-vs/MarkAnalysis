@@ -206,10 +206,27 @@ export default function MarksUpload() {
                 ? `Preview complete · ${resultCount} valid cell${resultCount === 1 ? "" : "s"}`
                 : `Upload complete · ${resultCount} mark${resultCount === 1 ? "" : "s"} saved as draft`}
             </div>
+            {preview.preview && resultCount === 0 && !preview.errors?.length && (
+              <p className="text-ink-700/70">
+                No marks found in the file. Fill subject cells (or use AB / EX / WH), then preview again.
+              </p>
+            )}
             {!preview.preview && (
               <p className="text-ink-700/70">
                 Drafts are on the mark register. Submit there when ready for leadership approval.
               </p>
+            )}
+            {preview.preview && preview.sample?.length > 0 && (
+              <div>
+                <div className="font-medium text-ink-800">Sample rows</div>
+                <ul className="list-disc pl-5 text-ink-700/80">
+                  {preview.sample.map((s, i) => (
+                    <li key={i}>
+                      {s.rollNo} {s.name} — {s.subject}: {s.value}
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
             {preview.errors?.length > 0 && (
               <div>
@@ -237,7 +254,7 @@ export default function MarksUpload() {
                 </ul>
               </div>
             )}
-            {!preview.errors?.length && !preview.missingStudents?.length && (
+            {resultCount > 0 && !preview.errors?.length && !preview.missingStudents?.length && (
               <p className="text-ink-700/70">No row errors or missing students.</p>
             )}
           </div>
