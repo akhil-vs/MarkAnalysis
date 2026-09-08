@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { useConfirm } from "./ConfirmDialog.jsx";
 import { EmptyNote, Panel } from "./DashboardKit.jsx";
+import { BusyLabel, Spinner } from "./Spinner.jsx";
 
 /**
  * Cross-exam submitted marks waiting for leadership approval.
@@ -51,10 +52,12 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
           teacherId: row.teacherId,
         },
       });
-      setRows((prev) => (prev || []).filter((r) => {
-        const rKey = `${r.examId}|${r.classSectionId}|${r.subjectId}|${r.teacherId}`;
-        return rKey !== key;
-      }));
+      setRows((prev) =>
+        (prev || []).filter((r) => {
+          const rKey = `${r.examId}|${r.classSectionId}|${r.subjectId}|${r.teacherId}`;
+          return rKey !== key;
+        })
+      );
       setMessage(
         `Approved ${res.approved ?? 0} mark${res.approved === 1 ? "" : "s"} for ${row.teacherName} · ${row.subjectName}`
       );
@@ -79,13 +82,28 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
       }
     >
       {rows == null ? (
-        <p className="text-sm text-ink-700/55">Loading submitted marks…</p>
+        <p className="text-sm text-ink-700/55 inline-flex items-center gap-2">
+          <Spinner className="h-3.5 w-3.5" label="" />
+          Loading submitted marks…
+        </p>
       ) : error ? (
         <p className="text-sm text-clay-600">{error}</p>
       ) : shown.length === 0 ? (
         <EmptyNote>No submitted registers waiting for approval across exams.</EmptyNote>
       ) : (
-        <div className="space-y-3">
+        <div className={`relative space-y-3 ${busyKey ? "pointer-events-none" : ""}`}>
+          {busyKey && (
+            <div
+              className="absolute inset-0 z-10 flex items-center justify-center bg-cream/50 rounded-lg"
+              role="status"
+              aria-live="polite"
+            >
+              <div className="inline-flex items-center gap-2 rounded-lg border border-ink-900/10 bg-white/95 px-3 py-2 text-sm text-ink-700 shadow-sm">
+                <Spinner className="h-4 w-4" label="" />
+                Approving…
+              </div>
+            </div>
+          )}
           {message && <p className="text-xs text-moss-600">{message}</p>}
           {shown.map((r) => {
             const key = `${r.examId}|${r.classSectionId}|${r.subjectId}|${r.teacherId}`;
@@ -118,7 +136,7 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
                     disabled={Boolean(busyKey)}
                     onClick={() => approve(r)}
                   >
-                    {busyKey === key ? "Approving…" : "Approve submitted"}
+                    <BusyLabel busy={busyKey === key} idle="Approve submitted" busyText="Approving…" />
                   </button>
                 </div>
               </div>
