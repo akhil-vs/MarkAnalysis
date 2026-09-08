@@ -67,8 +67,9 @@ app.use("/api/exports", exportsRouter);
 app.use((err, _req, res, _next) => {
   console.error(err);
   const status = err.status || 500;
-  // Prisma P2021 = table does not exist (pending migrate deploy).
-  if (err.code === "P2021") {
+  // Prisma P2021 = table does not exist; 22P02 = enum label missing.
+  const pgCode = err?.meta?.code || err?.code;
+  if (pgCode === "P2021" || pgCode === "22P02" || /invalid input value for enum/i.test(String(err?.message || ""))) {
     return res.status(503).json({
       error: "Database schema is out of date. Redeploy so pending migrations can apply.",
     });

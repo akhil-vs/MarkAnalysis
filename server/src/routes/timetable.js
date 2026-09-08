@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { ensureDefaultPeriods } from "../lib/periods.js";
 import { prisma } from "../lib/prisma.js";
-import { ensureTimetableSchema } from "../lib/timetableSchema.js";
+import { ensureTimetableSchema } from "../lib/ensureSchema.js";
 import { auth, isLeadership, publicUser, requireLeadership } from "../middleware/auth.js";
 
 export const timetableRouter = Router();
