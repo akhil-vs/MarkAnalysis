@@ -71,4 +71,13 @@ Open **Mark lists** in the sidebar (or **Consolidated lists** from the school de
 
 Download **Excel** or **PDF**. Incomplete classes can still be previewed; missing or draft papers appear as blanks. Approve remaining registers on the mark register before treating the file as official.
 
+## Notify teachers
+
+Principals and exam coordinators can send in-app notices to teachers about **deadlines**, **incomplete marklists**, or a **custom message**. Teachers see them in the bell and on their dashboard, with a link into the relevant register.
+
+- **Pending uploads** and the leadership dashboards: notify everyone still missing marks, or one teacher
+- **Mark lists**: notify the teachers for an incomplete class
+- **Records → Exams**: send a deadline reminder
+- **Staff**: notify one teacher or all teachers
+
 # MarkAnalysis

@@ -67,10 +67,16 @@ export default function TeacherDashboard() {
 
   const registers = data.registers || [];
   const unreadNotices = notices.filter((n) => !n.readAt);
-  const lateEntryNotices = notices.filter(
-    (n) => n.type === "LATE_ENTRY_APPROVED" || n.type === "LATE_ENTRY_REJECTED"
-  );
-  const dashboardNotices = (unreadNotices.length ? unreadNotices : lateEntryNotices).slice(0, 5);
+  const notableTypes = new Set([
+    "LATE_ENTRY_APPROVED",
+    "LATE_ENTRY_REJECTED",
+    "EDIT_APPROVED",
+    "EDIT_REJECTED",
+    "DEADLINE_REMINDER",
+    "INCOMPLETE_MARKLIST",
+    "STAFF_NOTICE",
+  ]);
+  const dashboardNotices = (unreadNotices.length ? unreadNotices : notices.filter((n) => notableTypes.has(n.type))).slice(0, 5);
   const radar = registers.reduce((acc, row) => {
     let item = acc.find((x) => x.subject === row.subject);
     if (!item) {
@@ -108,8 +114,20 @@ export default function TeacherDashboard() {
         >
           <div className="space-y-2">
             {dashboardNotices.map((notice) => {
-              const approved = notice.type === "LATE_ENTRY_APPROVED";
-              const rejected = notice.type === "LATE_ENTRY_REJECTED";
+              const approved = notice.type === "LATE_ENTRY_APPROVED" || notice.type === "EDIT_APPROVED";
+              const rejected = notice.type === "LATE_ENTRY_REJECTED" || notice.type === "EDIT_REJECTED";
+              const chip =
+                notice.type === "DEADLINE_REMINDER"
+                  ? { label: "Deadline", className: "mark-chip mark-chip-pending" }
+                  : notice.type === "INCOMPLETE_MARKLIST"
+                    ? { label: "Marklist", className: "mark-chip mark-chip-dirty" }
+                    : notice.type === "STAFF_NOTICE"
+                      ? { label: "Notice", className: "mark-chip mark-chip-submitted" }
+                      : approved
+                        ? { label: "Approved", className: "mark-chip mark-chip-approved" }
+                        : rejected
+                          ? { label: "Rejected", className: "mark-chip mark-chip-dirty" }
+                          : null;
               return (
                 <Link
                   key={notice.id}
@@ -125,13 +143,7 @@ export default function TeacherDashboard() {
                       <div className="mt-1 text-sm text-ink-700/70">{notice.body}</div>
                     </div>
                     <div className="text-right">
-                      {(approved || rejected) && (
-                        <span
-                          className={`mark-chip ${approved ? "mark-chip-approved" : "mark-chip-dirty"}`}
-                        >
-                          {approved ? "Approved" : "Rejected"}
-                        </span>
-                      )}
+                      {chip && <span className={chip.className}>{chip.label}</span>}
                       <div className="mt-1 text-[10px] text-ink-700/45">
                         {new Date(notice.createdAt).toLocaleString()}
                       </div>

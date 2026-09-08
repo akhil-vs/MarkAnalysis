@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
+import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
@@ -18,6 +19,7 @@ export default function PendingUploads() {
   const [searchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState(searchParams.get("examId") || "");
+  const [notify, setNotify] = useState(null);
 
   async function load(id) {
     const res = await api(`/api/analytics/pending-uploads${id ? `?examId=${id}` : ""}`);
@@ -42,13 +44,31 @@ export default function PendingUploads() {
         title="Pending mark uploads"
         subtitle={`${data.exam.name} — missing registers and submitted marks waiting for approval`}
         actions={
-          <select className="field-filter" value={examId} onChange={(e) => load(e.target.value)}>
-            {(data.exams || []).map((e) => (
-              <option key={e.id} value={e.id}>
-                {e.name}
-              </option>
-            ))}
-          </select>
+          <>
+            <select className="field-filter" value={examId} onChange={(e) => load(e.target.value)}>
+              {(data.exams || []).map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.name}
+                </option>
+              ))}
+            </select>
+            {(data.teachers || []).length > 0 && (
+              <button
+                type="button"
+                className="btn-accent"
+                onClick={() =>
+                  setNotify({
+                    kind: pending.length ? "INCOMPLETE" : "DEADLINE",
+                    examId,
+                    audience: pending.length ? "PENDING" : "ALL",
+                    exams: data.exams,
+                  })
+                }
+              >
+                Notify teachers
+              </button>
+            )}
+          </>
         }
       />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
@@ -96,17 +116,43 @@ export default function PendingUploads() {
             <section className="space-y-3">
               <h2 className="font-serif text-xl">Still missing marks</h2>
               {pending.map((t) => (
-                <TeacherCard key={`pend-${t.teacherId}`} teacher={t} mode="pending" examId={examId} />
+                <TeacherCard
+                  key={`pend-${t.teacherId}`}
+                  teacher={t}
+                  mode="pending"
+                  examId={examId}
+                  onNotify={() =>
+                    setNotify({
+                      kind: "INCOMPLETE",
+                      examId,
+                      audience: "SELECTED",
+                      teacherIds: [t.teacherId],
+                      teacherName: t.name,
+                      exams: data.exams,
+                    })
+                  }
+                />
               ))}
             </section>
           )}
         </div>
       )}
+      {notify && (
+        <NotifyTeachersDialog
+          {...notify}
+          onClose={() => setNotify(null)}
+          onSent={(result) => {
+            const n = result.sent ?? 0;
+            if (n) toast.success(`Notified ${n} teacher${n === 1 ? "" : "s"}.`);
+            else toast.info("No new notices sent.");
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function TeacherCard({ teacher: t, mode, examId, onApproved }) {
+function TeacherCard({ teacher: t, mode, examId, onApproved, onNotify }) {
   const confirm = useConfirm();
   const [busyKey, setBusyKey] = useState("");
   const rows =
@@ -160,10 +206,17 @@ function TeacherCard({ teacher: t, mode, examId, onApproved }) {
           <div className="font-serif text-xl">{t.name}</div>
           <div className="text-xs text-ink-700/60">{t.email}</div>
         </div>
-        <div className="text-sm text-clay-600">
-          {mode === "awaiting"
-            ? `${t.awaitingApprovalAssignments} register${t.awaitingApprovalAssignments === 1 ? "" : "s"} awaiting approval`
-            : `${t.missingAssignments} register${t.missingAssignments === 1 ? "" : "s"} outstanding`}
+        <div className="flex flex-wrap items-center gap-2">
+          {onNotify && (
+            <button type="button" className="btn-ghost" onClick={onNotify}>
+              Notify
+            </button>
+          )}
+          <div className="text-sm text-clay-600">
+            {mode === "awaiting"
+              ? `${t.awaitingApprovalAssignments} register${t.awaitingApprovalAssignments === 1 ? "" : "s"} awaiting approval`
+              : `${t.missingAssignments} register${t.missingAssignments === 1 ? "" : "s"} outstanding`}
+          </div>
         </div>
       </div>
       <div className="mt-3">

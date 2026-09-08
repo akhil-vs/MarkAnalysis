@@ -7,6 +7,7 @@ import { BusyLabel } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 
 const TABS = ["Classes", "Subjects", "Students", "Exams", "Promote"];
 
@@ -767,6 +768,7 @@ function ExamsTab() {
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [notify, setNotify] = useState(null);
   const table = useTableSearch(rows, { getSearchText: examSearchText, filterDefs: EXAM_FILTERS });
   const yearOptions = useMemo(
     () => [...new Set(rows.map((r) => r.academicYear).filter(Boolean))].sort().reverse(),
@@ -929,6 +931,21 @@ function ExamsTab() {
                     <td>{r.marksEntryDeadline ? new Date(r.marksEntryDeadline).toLocaleDateString() : "—"}</td>
                     <td className="whitespace-nowrap space-x-2">
                       <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        disabled={busy}
+                        onClick={() =>
+                          setNotify({
+                            kind: "DEADLINE",
+                            examId: r.id,
+                            audience: "ALL",
+                            exams: rows,
+                          })
+                        }
+                      >
+                        Notify
+                      </button>
                       <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
                     </td>
                   </tr>
@@ -938,6 +955,17 @@ function ExamsTab() {
           )}
         </PaginatedTable>
       </div>
+      {notify && (
+        <NotifyTeachersDialog
+          {...notify}
+          onClose={() => setNotify(null)}
+          onSent={(result) => {
+            const n = result.sent ?? 0;
+            if (n) toast.success(`Notified ${n} teacher${n === 1 ? "" : "s"}.`);
+            else toast.info("No new notices sent.");
+          }}
+        />
+      )}
     </div>
   );
 }

@@ -24,11 +24,15 @@ import {
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
+import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
+import { useToast } from "../components/Toast.jsx";
 
 export default function CoordinatorDashboard() {
   const { user } = useAuth();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
+  const [notify, setNotify] = useState(null);
 
   async function load(id) {
     const res = await api(`/api/analytics/coordinator${id ? `?examId=${id}` : ""}`);
@@ -109,7 +113,29 @@ export default function CoordinatorDashboard() {
         <Panel
           className="lg:col-span-5"
           title="Upload queue"
-          action={<Link className="text-xs underline text-ink-700/60" to="/pending-uploads">Full list</Link>}
+          action={
+            <div className="flex flex-wrap gap-2">
+              {(pending.length > 0 || awaitingApproval.length > 0) && (
+                <button
+                  type="button"
+                  className="text-xs underline text-ink-700/60"
+                  onClick={() =>
+                    setNotify({
+                      kind: pending.length ? "INCOMPLETE" : "DEADLINE",
+                      examId,
+                      audience: pending.length ? "PENDING" : "ALL",
+                      exams: data.exams,
+                    })
+                  }
+                >
+                  Notify teachers
+                </button>
+              )}
+              <Link className="text-xs underline text-ink-700/60" to="/pending-uploads">
+                Full list
+              </Link>
+            </div>
+          }
         >
           {pending.length || awaitingApproval.length ? (
             <div className="space-y-4">
@@ -137,7 +163,25 @@ export default function CoordinatorDashboard() {
                   <div key={t.teacherId}>
                     <div className="flex justify-between text-sm mb-1">
                       <span className="font-medium">{t.name}</span>
-                      <span className="text-clay-600 text-xs">{holes.length} register{holes.length === 1 ? "" : "s"}</span>
+                      <span className="flex items-center gap-2">
+                        <span className="text-clay-600 text-xs">{holes.length} register{holes.length === 1 ? "" : "s"}</span>
+                        <button
+                          type="button"
+                          className="text-[11px] underline text-ink-700/55"
+                          onClick={() =>
+                            setNotify({
+                              kind: "INCOMPLETE",
+                              examId,
+                              audience: "SELECTED",
+                              teacherIds: [t.teacherId],
+                              teacherName: t.name,
+                              exams: data.exams,
+                            })
+                          }
+                        >
+                          Notify
+                        </button>
+                      </span>
                     </div>
                     <div className="text-[11px] text-ink-700/55">
                       {holes.map((a) => `${a.classLabel} ${a.subject} (${a.uploaded}/${a.expected})`).join(" · ")}
@@ -212,6 +256,17 @@ export default function CoordinatorDashboard() {
           </div>
         </Panel>
       </div>
+      {notify && (
+        <NotifyTeachersDialog
+          {...notify}
+          onClose={() => setNotify(null)}
+          onSent={(result) => {
+            const n = result.sent ?? 0;
+            if (n) toast.success(`Notified ${n} teacher${n === 1 ? "" : "s"}.`);
+            else toast.info("No new notices sent.");
+          }}
+        />
+      )}
     </div>
   );
 }

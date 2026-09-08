@@ -8,6 +8,7 @@ import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { canAddCoordinator, isLeadership } from "../lib/roles.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 
 function userSearchText(u) {
   return searchHaystack(
@@ -88,6 +89,7 @@ export default function Users() {
   const [subjects, setSubjects] = useState([]);
   const [editing, setEditing] = useState(null);
   const [resetting, setResetting] = useState(null);
+  const [notify, setNotify] = useState(null);
   const [busyId, setBusyId] = useState("");
   const [creating, setCreating] = useState(false);
   const [form, setForm] = useState({
@@ -168,6 +170,15 @@ export default function Users() {
       <PageHeader
         title="Staff"
         subtitle="Add staff, activate pending sign-ups, and assign classes"
+        actions={
+          <button
+            type="button"
+            className="btn-accent"
+            onClick={() => setNotify({ kind: "CUSTOM", audience: "ALL" })}
+          >
+            Notify teachers
+          </button>
+        }
       />
 
       <form className="card p-5 mb-5 grid sm:grid-cols-2 lg:grid-cols-3 gap-3" onSubmit={addStaff}>
@@ -315,6 +326,23 @@ export default function Users() {
                               Reject
                             </button>
                           )}
+                          {canAssign && u.status === "ACTIVE" && (
+                            <button
+                              type="button"
+                              className="btn-ghost"
+                              disabled={tableBusy}
+                              onClick={() =>
+                                setNotify({
+                                  kind: "CUSTOM",
+                                  audience: "SELECTED",
+                                  teacherIds: [u.id],
+                                  teacherName: u.name,
+                                })
+                              }
+                            >
+                              Notify
+                            </button>
+                          )}
                           {canAssign && (
                             <button
                               type="button"
@@ -361,6 +389,17 @@ export default function Users() {
           onDone={(msg) => {
             setResetting(null);
             toast.success(msg);
+          }}
+        />
+      )}
+      {notify && (
+        <NotifyTeachersDialog
+          {...notify}
+          onClose={() => setNotify(null)}
+          onSent={(result) => {
+            const n = result.sent ?? 0;
+            if (n) toast.success(`Notified ${n} teacher${n === 1 ? "" : "s"}.`);
+            else toast.info("No new notices sent.");
           }}
         />
       )}
