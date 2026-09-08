@@ -23,6 +23,9 @@ function typeLabel(type) {
   if (type === "EDIT_REJECTED") return "Edit rejected";
   if (type === "EDIT_REQUESTED") return "Edit requested";
   if (type === "MARKS_SUBMITTED") return "Marks submitted";
+  if (type === "DEADLINE_REMINDER") return "Deadline reminder";
+  if (type === "INCOMPLETE_MARKLIST") return "Incomplete marklist";
+  if (type === "STAFF_NOTICE") return "Notice";
   return null;
 }
 

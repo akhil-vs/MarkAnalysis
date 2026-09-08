@@ -8,6 +8,7 @@ import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { Spinner } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
+import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function cmlStudentSearchText(row) {
@@ -42,6 +43,7 @@ export default function ConsolidatedLists() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [previewLoading, setPreviewLoading] = useState(Boolean(params.get("class")));
+  const [notify, setNotify] = useState(null);
 
   async function loadStatus(id) {
     const res = await api(`/api/exports/consolidated${id ? `?examId=${id}` : ""}`);
@@ -209,6 +211,25 @@ export default function ConsolidatedLists() {
               title={`${preview.label} — ${preview.examLabel}`}
               action={
                 <div className="flex flex-wrap gap-2">
+                  {!preview.ready && (
+                    <button
+                      type="button"
+                      className="btn-accent"
+                      disabled={tableBusy}
+                      onClick={() =>
+                        setNotify({
+                          kind: "INCOMPLETE",
+                          examId,
+                          audience: "PENDING",
+                          classSectionId: selected.id,
+                          classLabel: selected.label,
+                          exams: data.exams,
+                        })
+                      }
+                    >
+                      Notify teachers
+                    </button>
+                  )}
                   <button className="btn-primary" disabled={tableBusy} onClick={() => generate("xlsx")}>
                     {busy === "xlsx" ? "Preparing…" : "Excel"}
                   </button>
@@ -243,6 +264,17 @@ export default function ConsolidatedLists() {
           )}
         </div>
       </div>
+      {notify && (
+        <NotifyTeachersDialog
+          {...notify}
+          onClose={() => setNotify(null)}
+          onSent={(result) => {
+            const n = result.sent ?? 0;
+            if (n) toast.success(`Notified ${n} teacher${n === 1 ? "" : "s"}.`);
+            else toast.info("No new notices sent.");
+          }}
+        />
+      )}
     </div>
   );
 }

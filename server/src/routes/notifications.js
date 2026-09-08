@@ -1,9 +1,31 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { auth } from "../middleware/auth.js";
+import { sendTeacherNotices } from "../lib/teacherNotices.js";
+import { auth, requireRole } from "../middleware/auth.js";
 
 export const notificationsRouter = Router();
 notificationsRouter.use(auth);
+
+notificationsRouter.post("/send", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const { kind, examId, audience, teacherIds, classSectionId, message, preview, force } = req.body || {};
+  try {
+    const result = await sendTeacherNotices({
+      kind: kind ? String(kind).toUpperCase() : "",
+      examId: examId || null,
+      audience: audience ? String(audience).toUpperCase() : undefined,
+      teacherIds: Array.isArray(teacherIds) ? teacherIds.filter(Boolean) : [],
+      classSectionId: classSectionId || null,
+      message,
+      sender: req.user,
+      preview: Boolean(preview),
+      force: Boolean(force),
+    });
+    res.status(preview ? 200 : result.sent ? 201 : 200).json(result);
+  } catch (err) {
+    const status = err.status || 500;
+    res.status(status).json({ error: err.message || "Could not send notice" });
+  }
+});
 
 notificationsRouter.get("/", async (req, res) => {
   const limit = Math.min(Number(req.query.limit) || 30, 100);

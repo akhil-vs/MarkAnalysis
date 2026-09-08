@@ -29,13 +29,17 @@ import {
 } from "../components/DashboardKit.jsx";
 import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
+import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { yearDelta } from "../lib/exams.js";
 
 export default function PrincipalDashboard() {
   const { user } = useAuth();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
   const [error, setError] = useState("");
+  const [notify, setNotify] = useState(null);
 
   async function load(id) {
     const q = id ? `?examId=${id}` : "";
@@ -145,7 +149,29 @@ export default function PrincipalDashboard() {
         <Panel
           className="lg:col-span-5"
           title="Needs attention"
-          action={<Link className="text-xs underline text-ink-700/60" to="/pending-uploads">Upload status</Link>}
+          action={
+            <div className="flex flex-wrap gap-2">
+              {(pending.length > 0 || awaitingApproval.length > 0) && (
+                <button
+                  type="button"
+                  className="text-xs underline text-ink-700/60"
+                  onClick={() =>
+                    setNotify({
+                      kind: pending.length ? "INCOMPLETE" : "DEADLINE",
+                      examId,
+                      audience: pending.length ? "PENDING" : "ALL",
+                      exams: data.exams,
+                    })
+                  }
+                >
+                  Notify teachers
+                </button>
+              )}
+              <Link className="text-xs underline text-ink-700/60" to="/pending-uploads">
+                Upload status
+              </Link>
+            </div>
+          }
         >
           {pending.length || awaitingApproval.length ? (
             <div className="space-y-3">
@@ -175,7 +201,25 @@ export default function PrincipalDashboard() {
                       {t.assignments.filter((a) => a.missing > 0).map((a) => `${a.classLabel} ${a.subject}`).join(" · ")}
                     </div>
                   </div>
-                  <div className="text-xs text-clay-600 whitespace-nowrap">{t.missingAssignments} left</div>
+                  <div className="flex flex-col items-end gap-1">
+                    <div className="text-xs text-clay-600 whitespace-nowrap">{t.missingAssignments} left</div>
+                    <button
+                      type="button"
+                      className="text-[11px] underline text-ink-700/55"
+                      onClick={() =>
+                        setNotify({
+                          kind: "INCOMPLETE",
+                          examId,
+                          audience: "SELECTED",
+                          teacherIds: [t.teacherId],
+                          teacherName: t.name,
+                          exams: data.exams,
+                        })
+                      }
+                    >
+                      Notify
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -330,6 +374,17 @@ export default function PrincipalDashboard() {
           ))}
         </Panel>
       </div>
+      {notify && (
+        <NotifyTeachersDialog
+          {...notify}
+          onClose={() => setNotify(null)}
+          onSent={(result) => {
+            const n = result.sent ?? 0;
+            if (n) toast.success(`Notified ${n} teacher${n === 1 ? "" : "s"}.`);
+            else toast.info("No new notices sent.");
+          }}
+        />
+      )}
     </div>
   );
 }
