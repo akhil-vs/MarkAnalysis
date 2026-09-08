@@ -6,7 +6,7 @@ import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
-import { BusyLabel } from "../components/Spinner.jsx";
+import { BusyLabel, Spinner } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { isLeadership } from "../lib/roles.js";
@@ -68,9 +68,11 @@ export default function MarksEntry() {
   const [requestingEdit, setRequestingEdit] = useState(false);
   const [approving, setApproving] = useState(false);
   const [catalogReady, setCatalogReady] = useState(false);
+  const [subjectsReady, setSubjectsReady] = useState(false);
   const inputRefs = useRef({});
   const subjectOptionsRef = useRef([]);
   const subjectCatalogClassRef = useRef("");
+  const loadGenRef = useRef(0);
 
   const requestedClass = params.get("classSectionId") || "";
   const requestedExam = params.get("examId") || "";
@@ -119,7 +121,7 @@ export default function MarksEntry() {
   }, []);
 
   async function loadGrid({ keepMessage = false } = {}) {
-    if (!classSectionId || !examId) return;
+    if (!classSectionId || !examId) return null;
     const q = new URLSearchParams({ classSectionId, examId });
     if (subjectId) q.set("subjectId", subjectId);
     const data = await api(`/api/marks?${q}`);
@@ -128,7 +130,7 @@ export default function MarksEntry() {
       const nextParams = new URLSearchParams(params);
       nextParams.delete("subjectId");
       setParams(nextParams, { replace: true });
-      return;
+      return null;
     }
 
     setGrid(data);
@@ -137,11 +139,15 @@ export default function MarksEntry() {
       subjectOptionsRef.current = data.subjects || [];
       subjectCatalogClassRef.current = classSectionId;
       setSubjectOptions(subjectOptionsRef.current);
+      setSubjectsReady(true);
     } else if (subjectCatalogClassRef.current !== classSectionId) {
       const catalog = await api(`/api/marks?${new URLSearchParams({ classSectionId, examId })}`);
       subjectOptionsRef.current = catalog.subjects || [];
       subjectCatalogClassRef.current = classSectionId;
       setSubjectOptions(subjectOptionsRef.current);
+      setSubjectsReady(true);
+    } else {
+      setSubjectsReady(true);
     }
 
     const next = {};
@@ -150,6 +156,7 @@ export default function MarksEntry() {
     }
     setDraft(next);
     setErrors([]);
+    return data;
   }
 
   useEffect(() => {
@@ -160,16 +167,23 @@ export default function MarksEntry() {
       subjectOptionsRef.current = [];
       subjectCatalogClassRef.current = "";
       setSubjectOptions([]);
+      setSubjectsReady(false);
       return;
     }
+    const gen = ++loadGenRef.current;
     setLoading(true);
+    setSubjectsReady(false);
     loadGrid()
       .catch((e) => {
+        if (gen !== loadGenRef.current) return;
         setGrid(null);
         setDraft({});
+        setSubjectsReady(false);
         toast.error(e.message || "Could not load the mark register");
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (gen === loadGenRef.current) setLoading(false);
+      });
   }, [catalogReady, classSectionId, examId, subjectId]);
 
   function setParam(key, value) {
@@ -181,6 +195,16 @@ export default function MarksEntry() {
       subjectOptionsRef.current = [];
       subjectCatalogClassRef.current = "";
       setSubjectOptions([]);
+      setSubjectsReady(false);
+      setLoading(true);
+    }
+    if (key === "examId") {
+      next.delete("subjectId");
+      setSubjectsReady(false);
+      setLoading(true);
+    }
+    if (key === "subjectId") {
+      setLoading(true);
     }
     setParams(next);
   }
@@ -590,16 +614,22 @@ export default function MarksEntry() {
     Boolean(effectiveSubjectId) &&
     selectedSubjectAccess?.editRequestStatus === "PENDING";
 
-  const tableBusy = saving || submitting || requestingEdit || approving;
-  const tableBusyLabel = saving
-    ? "Saving marks…"
-    : submitting
-      ? "Submitting marks…"
-      : requestingEdit
-        ? "Requesting edit…"
-        : approving
-          ? "Updating approval…"
-          : "Updating…";
+  const tableBusy = loading || saving || submitting || requestingEdit || approving;
+  const tableBusyLabel = loading
+    ? "Loading register…"
+    : saving
+      ? "Saving marks…"
+      : submitting
+        ? "Submitting marks…"
+        : requestingEdit
+          ? "Requesting edit…"
+          : approving
+            ? "Updating approval…"
+            : "Updating…";
+
+  const classSelectReady = catalogReady && classes.length > 0;
+  const examSelectReady = classSelectReady && Boolean(classSectionId);
+  const subjectSelectReady = examSelectReady && Boolean(examId) && subjectsReady && !loading;
 
   return (
     <div>
@@ -760,9 +790,10 @@ export default function MarksEntry() {
             <select
               className="field"
               value={classSectionId}
+              disabled={!classSelectReady || tableBusy}
               onChange={(e) => setParam("classSectionId", e.target.value)}
             >
-              {!classSectionId && <option value="">Select class</option>}
+              {!classSectionId && <option value="">{catalogReady ? "Select class" : "Loading classes…"}</option>}
               {classes.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.className}-{c.section}
@@ -771,8 +802,17 @@ export default function MarksEntry() {
             </select>
           </FilterField>
           <FilterField label="Exam">
-            <select className="field" value={examId} onChange={(e) => setParam("examId", e.target.value)}>
-              {!examId && <option value="">Select exam</option>}
+            <select
+              className="field"
+              value={examId}
+              disabled={!examSelectReady || tableBusy}
+              onChange={(e) => setParam("examId", e.target.value)}
+            >
+              {!examId && (
+                <option value="">
+                  {!classSectionId ? "Select class first" : catalogReady ? "Select exam" : "Loading exams…"}
+                </option>
+              )}
               {exams.map((e) => (
                 <option key={e.id} value={e.id}>
                   {examLabel(e)}
@@ -784,9 +824,16 @@ export default function MarksEntry() {
             <select
               className="field"
               value={subjectId}
+              disabled={!subjectSelectReady || tableBusy}
               onChange={(e) => setParam("subjectId", e.target.value)}
             >
-              <option value="">All assigned subjects</option>
+              <option value="">
+                {!classSectionId || !examId
+                  ? "Select class and exam first"
+                  : loading || !subjectsReady
+                    ? "Loading subjects…"
+                    : "All assigned subjects"}
+              </option>
               {subjectOptions.map((s) => (
                 <option key={s.id} value={s.id}>
                   {s.name}
@@ -795,21 +842,25 @@ export default function MarksEntry() {
             </select>
           </FilterField>
         </FilterBar>
-        {(selectedClass || selectedExam) && (
-          <div className="mt-2.5 text-xs text-ink-700/60">
-            {[
+        <div className="mt-2.5 text-xs text-ink-700/60">
+          {(selectedClass || selectedExam) ? (
+            [
               selectedClass ? `${selectedClass.className}-${selectedClass.section}` : null,
               selectedExam ? examLabel(selectedExam) : null,
               singleSubject
                 ? `${singleSubject.name} · max ${singleSubject.maxMarks}`
                 : grid?.subjects?.length
                   ? `${grid.subjects.length} subjects`
-                  : null,
+                  : loading
+                    ? "Loading…"
+                    : null,
             ]
               .filter(Boolean)
-              .join(" · ")}
-          </div>
-        )}
+              .join(" · ")
+          ) : (
+            <>Choose class, then exam, then subject. The register updates with a spinner after each step.</>
+          )}
+        </div>
       </div>
 
       {grid && (
@@ -868,8 +919,22 @@ export default function MarksEntry() {
             : "No classes assigned. Ask the principal to assign your subjects."}
         </div>
       )}
-      {loading && !grid && <p className="text-ink-700/60">Loading register…</p>}
-      {grid && !grid.subjects?.length && (
+      {loading && !grid && (
+        <div className="card relative overflow-hidden min-h-[12rem]">
+          <div
+            className="absolute inset-0 z-10 flex items-center justify-center bg-cream/55 backdrop-blur-[1px]"
+            role="status"
+            aria-live="polite"
+            aria-label="Loading register"
+          >
+            <div className="inline-flex items-center gap-2 rounded-lg border border-ink-900/10 bg-white/95 px-3 py-2 text-sm text-ink-700 shadow-sm">
+              <Spinner className="h-4 w-4 text-ink-900" label="" />
+              <span>Loading register…</span>
+            </div>
+          </div>
+        </div>
+      )}
+      {grid && !grid.subjects?.length && !loading && (
         <div className="card p-5 text-ink-700/70">No assigned subjects in this class for your account.</div>
       )}
 
