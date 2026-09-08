@@ -2,8 +2,18 @@ import { prisma } from "./prisma.js";
 import { examLabel } from "./stats.js";
 import { studentWhereForExam } from "./studentScope.js";
 import { buildConsolidatedStudentRows } from "./consolidatedRows.js";
+import {
+  buildSubjectStatusCols,
+  studentsForExamScope,
+  summarizeClassStatus,
+} from "./consolidatedStatus.js";
 
 export { buildConsolidatedStudentRows } from "./consolidatedRows.js";
+export {
+  buildSubjectStatusCols,
+  studentsForExamScope,
+  summarizeClassStatus,
+} from "./consolidatedStatus.js";
 
 export async function pickExam(examId) {
   const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
@@ -46,23 +56,7 @@ export async function buildClassConsolidated(classSectionId, examId) {
     assignments.map((a) => [a.subjectId, a.user.name])
   );
 
-  const subjectCols = subjects.map((subject) => {
-    const forSubject = marks.filter((m) => m.subjectId === subject.id);
-    const approved = forSubject.filter((m) => m.status === "APPROVED");
-    const drafts = forSubject.filter((m) => m.status === "DRAFT");
-    return {
-      id: subject.id,
-      name: subject.name,
-      maxMarks: subject.maxMarks,
-      teacher: teacherBySubject[subject.id] || null,
-      entered: forSubject.length,
-      approved: approved.length,
-      drafts: drafts.length,
-      expected: students.length,
-      complete: students.length > 0 && approved.length === students.length,
-    };
-  });
-
+  const subjectCols = buildSubjectStatusCols(subjects, students, marks, teacherBySubject);
   const rows = buildConsolidatedStudentRows(students, subjects, marks);
 
   const complete = subjectCols.length > 0 && subjectCols.every((s) => s.complete);
@@ -85,37 +79,91 @@ export async function buildClassConsolidated(classSectionId, examId) {
   };
 }
 
+/**
+ * Class readiness for the Mark lists sidebar — batched queries only.
+ * Avoids calling buildClassConsolidated per class (that rebuilds full student
+ * rows/ranks and was timing out near Vercel's 30s function limit).
+ */
 export async function buildConsolidatedStatus(examId) {
   const { exams, exam } = await pickExam(examId);
   if (!exam) return { empty: true, exams };
 
-  const classes = await prisma.classSection.findMany({
-    orderBy: [{ className: "asc" }, { section: "asc" }],
-    include: {
-      classTeacher: { select: { id: true, name: true } },
-      _count: { select: { students: { where: { status: "ACTIVE" } } } },
-    },
-  });
+  const [classes, students, subjects, assignments, marks] = await Promise.all([
+    prisma.classSection.findMany({
+      orderBy: [{ className: "asc" }, { section: "asc" }],
+      include: {
+        classTeacher: { select: { id: true, name: true } },
+      },
+    }),
+    prisma.student.findMany({
+      select: { id: true, classSectionId: true, academicYear: true, status: true },
+    }),
+    prisma.subject.findMany({ orderBy: { name: "asc" } }),
+    prisma.teacherAssignment.findMany({
+      include: { user: { select: { name: true } } },
+    }),
+    prisma.mark.findMany({
+      where: { examId: exam.id },
+      select: { studentId: true, subjectId: true, status: true },
+    }),
+  ]);
 
-  const lists = [];
-  for (const cls of classes) {
-    const built = await buildClassConsolidated(cls.id, exam.id);
-    lists.push({
-      id: cls.id,
-      label: `${cls.className}-${cls.section}`,
-      className: cls.className,
-      section: cls.section,
-      teacher: cls.classTeacher?.name || null,
-      studentCount: cls._count.students,
-      complete: built.complete,
-      ready: built.ready,
-      draftCount: built.draftCount,
-      missingSubjects: built.missingSubjects,
-      subjects: built.subjects,
-      approvedSubjects: built.subjects.filter((s) => s.complete).length,
-      totalSubjects: built.subjects.length,
-    });
+  const studentsByClass = new Map();
+  for (const student of students) {
+    const list = studentsByClass.get(student.classSectionId);
+    if (list) list.push(student);
+    else studentsByClass.set(student.classSectionId, [student]);
   }
+
+  const subjectsByClassName = new Map();
+  for (const subject of subjects) {
+    const list = subjectsByClassName.get(subject.className);
+    if (list) list.push(subject);
+    else subjectsByClassName.set(subject.className, [subject]);
+  }
+
+  const teacherByClassSubject = new Map();
+  for (const assignment of assignments) {
+    teacherByClassSubject.set(
+      `${assignment.classSectionId}:${assignment.subjectId}`,
+      assignment.user?.name || null
+    );
+  }
+
+  const marksByStudent = new Map();
+  for (const mark of marks) {
+    const list = marksByStudent.get(mark.studentId);
+    if (list) list.push(mark);
+    else marksByStudent.set(mark.studentId, [mark]);
+  }
+
+  const lists = classes.map((cls) => {
+    const classStudents = studentsByClass.get(cls.id) || [];
+    const scoped = studentsForExamScope(classStudents, exam);
+    const classMarks = [];
+    for (const student of scoped) {
+      const studentMarks = marksByStudent.get(student.id);
+      if (studentMarks) classMarks.push(...studentMarks);
+    }
+
+    const classSubjects = subjectsByClassName.get(cls.className) || [];
+    const teacherBySubject = Object.fromEntries(
+      classSubjects.map((subject) => [
+        subject.id,
+        teacherByClassSubject.get(`${cls.id}:${subject.id}`) || null,
+      ])
+    );
+
+    const activeStudentCount = classStudents.filter((s) => s.status === "ACTIVE").length;
+    return summarizeClassStatus({
+      cls,
+      subjects: classSubjects,
+      students: scoped,
+      marks: classMarks,
+      teacherBySubject,
+      activeStudentCount,
+    });
+  });
 
   return {
     exam,

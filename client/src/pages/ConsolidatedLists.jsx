@@ -93,7 +93,9 @@ export default function ConsolidatedLists() {
   function selectClass(id) {
     setSelectedId(id);
     if (id !== selectedId) {
+      setPreview(null);
       setPreviewLoading(true);
+      setError("");
     }
     const next = new URLSearchParams(params);
     if (examId) next.set("examId", examId);
