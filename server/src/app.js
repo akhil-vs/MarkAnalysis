@@ -15,6 +15,11 @@ import { schoolRouter } from "./routes/school.js";
 
 const app = express();
 
+// Dynamic, auth-scoped JSON should not use Express ETags. Hashing large
+// analytics payloads slows every response, and matching If-None-Match
+// replies with 304 (empty body) which breaks the SPA fetch client.
+app.set("etag", false);
+
 const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
   .split(",")
   .map((o) => o.trim())
@@ -36,6 +41,12 @@ app.use(
   })
 );
 app.use(express.json({ limit: "2mb" }));
+
+app.use("/api", (_req, res, next) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
+  res.set("Pragma", "no-cache");
+  next();
+});
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
 app.use("/api/auth", authRouter);

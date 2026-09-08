@@ -14,6 +14,7 @@ export async function api(path, { method = "GET", body, headers } = {}) {
   const isForm = body instanceof FormData;
   const res = await fetch(path, {
     method,
+    cache: "no-store",
     headers: {
       ...(isForm ? {} : { "Content-Type": "application/json" }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -25,6 +26,13 @@ export async function api(path, { method = "GET", body, headers } = {}) {
   if (res.status === 401) {
     setToken(null);
     if (!path.startsWith("/api/auth")) window.location.assign("/login");
+  }
+
+  // 304 has an empty body; treat it as a failed dynamic API response.
+  if (res.status === 304) {
+    const err = new Error("Stale cached response");
+    err.status = 304;
+    throw err;
   }
 
   const text = await res.text();
@@ -41,6 +49,7 @@ export async function api(path, { method = "GET", body, headers } = {}) {
 export async function download(path, filename) {
   const token = getToken();
   const res = await fetch(path, {
+    cache: "no-store",
     headers: token ? { Authorization: `Bearer ${token}` } : {},
   });
   if (!res.ok) throw new Error("Download failed");
