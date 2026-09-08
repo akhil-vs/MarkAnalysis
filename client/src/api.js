@@ -36,7 +36,22 @@ export async function api(path, { method = "GET", body, headers } = {}) {
   }
 
   const text = await res.text();
-  const data = text ? JSON.parse(text) : {};
+  let data = {};
+  if (text) {
+    try {
+      data = JSON.parse(text);
+    } catch {
+      const err = new Error(
+        res.ok
+          ? "Invalid response from server"
+          : res.status === 504 || res.status === 503
+            ? "Request timed out — try again"
+            : "Request failed"
+      );
+      err.status = res.status;
+      throw err;
+    }
+  }
   if (!res.ok) {
     const err = new Error(data.error || "Request failed");
     err.status = res.status;
