@@ -1,10 +1,19 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
+import { ensureNotificationSchema } from "../lib/ensureSchema.js";
 import { sendTeacherNotices } from "../lib/teacherNotices.js";
 import { auth, requireRole } from "../middleware/auth.js";
 
 export const notificationsRouter = Router();
 notificationsRouter.use(auth);
+notificationsRouter.use(async (_req, _res, next) => {
+  try {
+    await ensureNotificationSchema();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 notificationsRouter.post("/send", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { kind, examId, audience, teacherIds, classSectionId, message, preview, force } = req.body || {};
@@ -23,7 +32,14 @@ notificationsRouter.post("/send", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
     res.status(preview ? 200 : result.sent ? 201 : 200).json(result);
   } catch (err) {
     const status = err.status || 500;
-    res.status(status).json({ error: err.message || "Could not send notice" });
+    const raw = String(err.message || "");
+    const schemaMissing =
+      err?.meta?.code === "22P02" || /invalid input value for enum/i.test(raw);
+    res.status(schemaMissing ? 503 : status).json({
+      error: schemaMissing
+        ? "Database schema is out of date. Redeploy so pending migrations can apply."
+        : err.message || "Could not send notice",
+    });
   }
 });
 
