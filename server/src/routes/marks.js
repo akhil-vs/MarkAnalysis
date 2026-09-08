@@ -1,8 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import * as XLSX from "xlsx";
 import ExcelJS from "exceljs";
-import { parse } from "csv-parse/sync";
 import { prisma } from "../lib/prisma.js";
 import { auth, getAssignments, isLeadership, requireRole, teacherCanAccess } from "../middleware/auth.js";
 import {
@@ -14,6 +12,7 @@ import {
 import { auditValueFor, parseMarkInput } from "../lib/markCodes.js";
 import { studentWhereForExam } from "../lib/studentScope.js";
 import { notifyMarksSubmitted } from "../lib/notifications.js";
+import { parseSpreadsheet } from "../lib/upload.js";
 
 export const marksRouter = Router();
 marksRouter.use(auth);
@@ -293,17 +292,6 @@ marksRouter.get("/template", async (req, res) => {
   res.send(Buffer.from(buffer));
 });
 
-function parseUpload(buffer, originalname) {
-  const name = (originalname || "").toLowerCase();
-  if (name.endsWith(".csv")) {
-    const text = buffer.toString("utf8");
-    return parse(text, { columns: true, skip_empty_lines: true, trim: true });
-  }
-  const workbook = XLSX.read(buffer, { type: "buffer" });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(sheet, { defval: "" });
-}
-
 function subjectFromHeader(header, subjects) {
   const clean = String(header).replace(/\s*\(max\s*\d+\)\s*$/i, "").trim();
   return subjects.find((s) => s.name.toLowerCase() === clean.toLowerCase());
@@ -336,7 +324,7 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
 
   let rows;
   try {
-    rows = parseUpload(req.file.buffer, req.file.originalname);
+    rows = parseSpreadsheet(req.file.buffer, req.file.originalname);
   } catch {
     return res.status(400).json({ error: "Could not parse file" });
   }
@@ -434,6 +422,10 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
     }
   }
 
+  // Leadership bulk upload publishes immediately so totals/ranks/averages appear
+  // on mark lists and analytics. Teachers still commit drafts and submit later.
+  const markStatus = isLeadership(req.user.role) ? "APPROVED" : "DRAFT";
+
   const saved = [];
   for (const item of valid) {
     const existing = await prisma.mark.findUnique({
@@ -460,13 +452,13 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
         marksObtained: item.marksObtained,
         outcome: item.outcome,
         enteredById: req.user.userId,
-        status: "DRAFT",
+        status: markStatus,
       },
       update: {
         marksObtained: item.marksObtained,
         outcome: item.outcome,
         enteredById: req.user.userId,
-        status: "DRAFT",
+        status: markStatus,
       },
     });
     await prisma.markAudit.create({
@@ -483,6 +475,7 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
   res.json({
     preview: false,
     saved: saved.length,
+    status: markStatus,
     errors,
     missingStudents,
   });

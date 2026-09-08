@@ -67,16 +67,21 @@ export default function MarksUpload() {
 
     setBusy(true);
     setBusyMode(commit ? "commit" : "preview");
-    toast.info(commit ? "Uploading and saving drafts…" : "Checking file…");
+    toast.info(commit ? "Uploading marks…" : "Checking file…");
     try {
       const data = await api("/api/marks/upload", { method: "POST", body });
       setPreview(data);
       const errorCount = data.errors?.length || 0;
       const missingCount = data.missingStudents?.length || 0;
       if (commit) {
+        const published = data.status === "APPROVED";
+        const suffix = errorCount
+          ? ` · ${errorCount} row error${errorCount === 1 ? "" : "s"}`
+          : "";
         toast.success(
-          `Committed ${data.saved} mark${data.saved === 1 ? "" : "s"} as draft` +
-            (errorCount ? ` · ${errorCount} row error${errorCount === 1 ? "" : "s"}` : "")
+          published
+            ? `Committed ${data.saved} mark${data.saved === 1 ? "" : "s"} as approved${suffix}`
+            : `Committed ${data.saved} mark${data.saved === 1 ? "" : "s"} as draft${suffix}`
         );
       } else {
         toast.success(
@@ -103,7 +108,11 @@ export default function MarksUpload() {
     <div>
       <PageHeader
         title="Bulk upload"
-        subtitle="One template per class and exam. Preview first, then commit drafts. Use AB, EX, or WH for absent, exempt, or withheld."
+        subtitle={
+          leadership
+            ? "One template per class and exam. Preview first, then commit — leadership uploads are approved so totals, averages, and ranks calculate immediately. Use AB, EX, or WH for absent, exempt, or withheld."
+            : "One template per class and exam. Preview first, then commit drafts. Submit from the mark register for approval. Use AB, EX, or WH for absent, exempt, or withheld."
+        }
       />
       <div className="card p-5 space-y-4 max-w-2xl" aria-busy={busy}>
         <FilterBar>
@@ -189,7 +198,7 @@ export default function MarksUpload() {
             onClick={() => send(true)}
             disabled={busy || uploadBlocked || !file}
           >
-            <BusyLabel busy={busyMode === "commit"} idle="Commit drafts" busyText="Uploading…" />
+            <BusyLabel busy={busyMode === "commit"} idle={leadership ? "Commit & approve" : "Commit drafts"} busyText="Uploading…" />
           </button>
         </div>
         {busy && (
@@ -204,11 +213,15 @@ export default function MarksUpload() {
             <div className="font-medium text-ink-800">
               {preview.preview
                 ? `Preview complete · ${resultCount} valid cell${resultCount === 1 ? "" : "s"}`
-                : `Upload complete · ${resultCount} mark${resultCount === 1 ? "" : "s"} saved as draft`}
+                : preview.status === "APPROVED"
+                  ? `Upload complete · ${resultCount} mark${resultCount === 1 ? "" : "s"} approved`
+                  : `Upload complete · ${resultCount} mark${resultCount === 1 ? "" : "s"} saved as draft`}
             </div>
             {!preview.preview && (
               <p className="text-ink-700/70">
-                Drafts are on the mark register. Submit there when ready for leadership approval.
+                {preview.status === "APPROVED"
+                  ? "Marks are approved. Open Mark lists to see totals, averages, grades, and ranks."
+                  : "Drafts are on the mark register. Submit there when ready for leadership approval. Mark lists show provisional totals until approval."}
               </p>
             )}
             {preview.errors?.length > 0 && (

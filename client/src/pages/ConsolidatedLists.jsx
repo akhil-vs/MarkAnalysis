@@ -169,9 +169,10 @@ export default function ConsolidatedLists() {
                 <p className="text-sm text-moss-600 mb-3">All subject registers are approved. This is the official list.</p>
               ) : (
                 <p className="text-sm text-clay-600 mb-3">
-                  You can still generate a preview. Blank cells are missing or still draft.
+                  Preview with provisional totals from entered marks (including drafts).
                   {preview.missingSubjects?.length ? ` Outstanding: ${preview.missingSubjects.join(", ")}.` : ""}
                   {" "}
+                  Approve remaining registers for the official list.{" "}
                   <Link className="underline" to="/pending-uploads">Pending uploads</Link>
                   {" · "}
                   <Link className="underline" to="/marks">Mark register</Link>
@@ -238,9 +239,13 @@ function CmlStudentTable({ students, subjects, resetKey }) {
                   {subjects.map((s) => {
                     const cell = row.bySubject[s.id];
                     if (!cell || cell.status === "MISSING") return <td key={s.id} className="text-ink-700/35">—</td>;
-                    if (cell.status === "DRAFT") {
+                    if (cell.status === "DRAFT" || cell.status === "SUBMITTED") {
                       return (
-                        <td key={s.id} className="text-clay-600" title="Draft — not approved">
+                        <td
+                          key={s.id}
+                          className="text-clay-600"
+                          title={cell.status === "SUBMITTED" ? "Submitted — awaiting approval" : "Draft — not approved"}
+                        >
                           {cell.display || cell.marks}
                         </td>
                       );
