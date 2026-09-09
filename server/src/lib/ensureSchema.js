@@ -9,6 +9,52 @@ const NOTICES_CHECKSUM = "867d0ea42e804ae4b663581e5ea43311adf72b4b2f0fffde66c344
 
 const STAFF_NOTICE_TYPES = ["DEADLINE_REMINDER", "INCOMPLETE_MARKLIST", "STAFF_NOTICE"];
 
+const ACTIVITY_MIGRATION = "20260909120000_activity_audit";
+const ACTIVITY_CHECKSUM = "6c3703c1838115f588f2dbb9f05e394ff7829f1bd33ed762769ed841ea06a5e0";
+
+const ACTIVITY_ACTIONS = [
+  "MARK_CHANGED",
+  "MARK_DELETED",
+  "MARK_SUBMITTED",
+  "MARK_APPROVED",
+  "MARK_UNAPPROVED",
+  "ACCESS_REQUESTED",
+  "ACCESS_APPROVED",
+  "ACCESS_REJECTED",
+  "USER_CREATED",
+  "USER_STATUS_CHANGED",
+  "USER_ROLE_CHANGED",
+  "USER_PASSWORD_RESET",
+  "EXAM_CREATED",
+  "EXAM_UPDATED",
+  "EXAM_DELETED",
+];
+
+const ACTIVITY_STATEMENTS = [
+  `DO $$ BEGIN
+     CREATE TYPE "AuditAction" AS ENUM (${ACTIVITY_ACTIONS.map((a) => `'${a}'`).join(", ")});
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `CREATE TABLE IF NOT EXISTS "ActivityAudit" (
+    "id" TEXT NOT NULL,
+    "actorId" TEXT NOT NULL,
+    "action" "AuditAction" NOT NULL,
+    "summary" TEXT NOT NULL,
+    "examId" TEXT,
+    "meta" JSONB,
+    "timestamp" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ActivityAudit_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "ActivityAudit_timestamp_idx" ON "ActivityAudit"("timestamp")`,
+  `CREATE INDEX IF NOT EXISTS "ActivityAudit_actorId_timestamp_idx" ON "ActivityAudit"("actorId", "timestamp")`,
+  `CREATE INDEX IF NOT EXISTS "ActivityAudit_examId_timestamp_idx" ON "ActivityAudit"("examId", "timestamp")`,
+];
+
+const ACTIVITY_FK_STATEMENTS = [
+  `ALTER TABLE "ActivityAudit" ADD CONSTRAINT "ActivityAudit_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+];
+
 const TIMETABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "Period" (
     "id" TEXT NOT NULL,
@@ -131,6 +177,32 @@ async function ensureTimetableTables() {
   await recordMigration(TIMETABLE_MIGRATION, TIMETABLE_CHECKSUM);
 }
 
+async function ensureActivityAuditTable() {
+  const hasTable = await tableExists("ActivityAudit");
+  if (hasTable) {
+    const missing = [];
+    for (const label of ACTIVITY_ACTIONS) {
+      if (!(await enumHasLabel("AuditAction", label))) missing.push(label);
+    }
+    for (const label of missing) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS '${label}'`
+        );
+      } catch (err) {
+        if (isAlreadyAppliedError(err)) continue;
+        throw err;
+      }
+    }
+    await recordMigration(ACTIVITY_MIGRATION, ACTIVITY_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(ACTIVITY_STATEMENTS);
+  await applyStatements(ACTIVITY_FK_STATEMENTS);
+  await recordMigration(ACTIVITY_MIGRATION, ACTIVITY_CHECKSUM);
+}
+
 async function ensureStaffNoticeEnum() {
   const missing = [];
   for (const label of STAFF_NOTICE_TYPES) {
@@ -163,6 +235,7 @@ export async function ensurePendingSchema() {
     ensurePromise = (async () => {
       await ensureTimetableTables();
       await ensureStaffNoticeEnum();
+      await ensureActivityAuditTable();
     })().catch((err) => {
       ensurePromise = null;
       throw err;
@@ -173,6 +246,7 @@ export async function ensurePendingSchema() {
 
 export const ensureTimetableSchema = ensurePendingSchema;
 export const ensureNotificationSchema = ensurePendingSchema;
+export const ensureActivityAuditSchema = ensurePendingSchema;
 
 export const __test = {
   TIMETABLE_MIGRATION,
@@ -182,4 +256,9 @@ export const __test = {
   STAFF_NOTICE_TYPES,
   TIMETABLE_STATEMENTS,
   TIMETABLE_FK_STATEMENTS,
+  ACTIVITY_MIGRATION,
+  ACTIVITY_CHECKSUM,
+  ACTIVITY_ACTIONS,
+  ACTIVITY_STATEMENTS,
+  ACTIVITY_FK_STATEMENTS,
 };

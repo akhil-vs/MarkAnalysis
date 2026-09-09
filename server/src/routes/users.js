@@ -2,6 +2,7 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma.js";
 import { auth, publicUser, requireRole } from "../middleware/auth.js";
+import { logActivity } from "../lib/activityAudit.js";
 
 export const usersRouter = Router();
 usersRouter.use(auth);
@@ -78,6 +79,17 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
     where: { id: user.id },
     include: { assignments: { include: { classSection: true, subject: true } } },
   });
+  await logActivity({
+    actorId: req.user.userId,
+    action: "USER_CREATED",
+    summary: `Created ${chosenRole === "EXAM_COORDINATOR" ? "exam coordinator" : "teacher"} account for ${fresh.name}`,
+    meta: {
+      userId: fresh.id,
+      userName: fresh.name,
+      role: fresh.role,
+      status: fresh.status,
+    },
+  });
   res.status(201).json({ ...publicUser(fresh), assignments: fresh.assignments });
 });
 
@@ -127,6 +139,33 @@ usersRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
     where: { id: user.id },
     include: { assignments: { include: { classSection: true, subject: true } } },
   });
+  if (data.status && data.status !== existing.status) {
+    await logActivity({
+      actorId: req.user.userId,
+      action: "USER_STATUS_CHANGED",
+      summary: `${existing.name}: ${existing.status} → ${data.status}`,
+      meta: {
+        userId: existing.id,
+        userName: existing.name,
+        role: fresh.role,
+        from: existing.status,
+        to: data.status,
+      },
+    });
+  }
+  if (data.role && data.role !== existing.role) {
+    await logActivity({
+      actorId: req.user.userId,
+      action: "USER_ROLE_CHANGED",
+      summary: `${existing.name}: ${existing.role} → ${data.role}`,
+      meta: {
+        userId: existing.id,
+        userName: existing.name,
+        from: existing.role,
+        to: data.role,
+      },
+    });
+  }
   res.json({ ...publicUser(fresh), assignments: fresh.assignments });
 });
 
@@ -140,6 +179,12 @@ usersRouter.post("/:id/reset-password", requireRole("PRINCIPAL"), async (req, re
   await prisma.user.update({
     where: { id: existing.id },
     data: { passwordHash: await bcrypt.hash(String(password), 10) },
+  });
+  await logActivity({
+    actorId: req.user.userId,
+    action: "USER_PASSWORD_RESET",
+    summary: `Reset password for ${existing.name}`,
+    meta: { userId: existing.id, userName: existing.name, role: existing.role },
   });
   res.json({ ok: true, message: "Password reset" });
 });
