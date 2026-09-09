@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 
 const EMPTY = {
   name: "",
@@ -48,7 +49,7 @@ export default function SchoolSettings() {
   return (
     <div>
       <PageHeader
-        title="School profile"
+        title={NAV_TITLES.schoolProfile}
         subtitle="Shown on report cards, class summaries, and consolidated mark lists"
       />
       <form className="card p-5 max-w-2xl space-y-3" onSubmit={onSubmit}>

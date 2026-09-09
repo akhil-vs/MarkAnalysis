@@ -8,6 +8,7 @@ import { useToast } from "../components/Toast.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 
 const TABS = ["Classes", "Subjects", "Students", "Exams", "Promote"];
 
@@ -15,7 +16,7 @@ export default function Manage() {
   const [tab, setTab] = useState("Classes");
   return (
     <div>
-      <PageHeader title="School records" subtitle="Classes, subjects, students, and exam schedule" />
+      <PageHeader title={NAV_TITLES.records} subtitle="Classes, subjects, students, and exam schedule" />
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
         {TABS.map((t) => (
           <button

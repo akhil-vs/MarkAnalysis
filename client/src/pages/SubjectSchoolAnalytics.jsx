@@ -110,7 +110,7 @@ export default function SubjectSchoolAnalytics() {
           title="Teachers of this subject"
           action={
             data.teacherCompare?.comparable ? (
-              <Link className="text-xs underline text-ink-700/60" to={`/analysis/compare?tab=teachers&subject=${encodeURIComponent(data.name)}`}>
+              <Link className="text-xs underline text-ink-700/60" to={paths.compareTeachers(data.name)}>
                 Open comparison
               </Link>
             ) : null

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import {
   Area,
   AreaChart,
@@ -32,10 +32,11 @@ import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.j
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { yearDelta } from "../lib/exams.js";
-import { paths } from "../lib/nav.js";
+import { NAV_LABELS, paths } from "../lib/nav.js";
 
 export default function PrincipalDashboard() {
   const { user } = useAuth();
+  const location = useLocation();
   const toast = useToast();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
@@ -85,7 +86,11 @@ export default function PrincipalDashboard() {
   const teachers = [...(data.teacherPerf || [])].sort((a, b) => (b.average ?? 0) - (a.average ?? 0));
   const examPass = data.examPass || [];
 
-  const deskLabel = user.role === "PRINCIPAL" ? "Principal desk" : "Exam coordination";
+  const deskLabel = location.pathname.startsWith("/analysis/school")
+    ? NAV_LABELS.analysisSchool
+    : user.role === "PRINCIPAL"
+      ? "Principal desk"
+      : "Exam coordination";
 
   return (
     <div>
@@ -121,7 +126,7 @@ export default function PrincipalDashboard() {
         <Metric
           label="Teachers pending upload"
           value={data.pendingUploads?.pendingTeacherCount ?? 0}
-          to="/pending-uploads"
+          to={paths.pendingUploads()}
           tone={data.pendingUploads?.pendingTeacherCount ? "alert" : undefined}
           hint={{
             text: data.pendingUploads?.pendingTeacherCount
@@ -168,7 +173,7 @@ export default function PrincipalDashboard() {
                   Notify teachers
                 </button>
               )}
-              <Link className="text-xs underline text-ink-700/60" to="/pending-uploads">
+              <Link className="text-xs underline text-ink-700/60" to={paths.pendingUploads()}>
                 Upload status
               </Link>
             </div>

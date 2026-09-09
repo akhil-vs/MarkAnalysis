@@ -200,7 +200,7 @@ export default function TeacherDashboard() {
                 </div>
                 <div className="mt-3 flex gap-3 text-xs">
                   <Link className="underline" to={paths.classSection(r.classSectionId)}>Class view</Link>
-                  <Link className="underline" to={`/marks?classSectionId=${r.classSectionId}&subjectId=${r.subjectId}`}>
+                  <Link className="underline" to={paths.marks({ classSectionId: r.classSectionId, subjectId: r.subjectId })}>
                     {r.missing ? "Finish register" : r.provisional || r.status === "AWAITING_APPROVAL" ? "Submitted" : "Mark register"}
                   </Link>
                 </div>

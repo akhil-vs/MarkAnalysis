@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { EmptyNote, Panel } from "./DashboardKit.jsx";
 import { BusyLabel, Spinner } from "./Spinner.jsx";
 import { useToast } from "./Toast.jsx";
+import { paths } from "../lib/nav.js";
 
 function kindLabel(kind) {
   return kind === "EDIT" ? "Edit marks" : "Late entry";
@@ -55,7 +56,7 @@ export default function PendingAccessRequests({ className = "", limit = 8 }) {
       className={className}
       title="Access requests to approve"
       action={
-        <Link className="text-xs underline text-ink-700/60" to="/late-entry?status=PENDING">
+        <Link className="text-xs underline text-ink-700/60" to={paths.accessRequests({ status: "PENDING" })}>
           {list.length ? `View all (${list.length})` : "Open queue"}
         </Link>
       }

@@ -8,6 +8,7 @@ import { BusyLabel } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { canAddCoordinator, isLeadership } from "../lib/roles.js";
+import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 
@@ -169,7 +170,7 @@ export default function Users() {
   return (
     <div>
       <PageHeader
-        title="Staff"
+        title={NAV_TITLES.staff}
         subtitle="Add staff, activate pending sign-ups, and assign classes"
         actions={
           <button

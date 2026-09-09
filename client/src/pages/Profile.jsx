@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 
 const ROLE_LABEL = {
   PRINCIPAL: "Principal",
@@ -45,7 +46,7 @@ export default function Profile() {
 
   return (
     <div>
-      <PageHeader title="Your profile" subtitle="Account details and password" />
+      <PageHeader title={NAV_TITLES.profile} subtitle="Account details and password" />
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="card p-5 space-y-3">
           <h3 className="font-serif text-lg">Account</h3>

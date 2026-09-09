@@ -26,6 +26,7 @@ import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { paths } from "../lib/nav.js";
 
 export default function CoordinatorDashboard() {
   const { user } = useAuth();
@@ -75,14 +76,14 @@ export default function CoordinatorDashboard() {
         <Metric
           label="Teachers pending upload"
           value={data.pendingUploads?.pendingTeacherCount ?? 0}
-          to="/pending-uploads"
+          to={paths.pendingUploads()}
           tone={pending.length ? "alert" : undefined}
           hint={{ text: pending.length ? "Open the upload queue" : "All registers in", tone: pending.length ? "down" : "up" }}
         />
         <Metric
           label="Awaiting approval"
           value={awaitingCount}
-          to="/pending-uploads"
+          to={paths.pendingUploads()}
           tone={awaitingCount ? "alert" : undefined}
           hint={{
             text: awaitingCount ? "Submitted — needs your approve" : "Nothing waiting",
@@ -131,7 +132,7 @@ export default function CoordinatorDashboard() {
                   Notify teachers
                 </button>
               )}
-              <Link className="text-xs underline text-ink-700/60" to="/pending-uploads">
+              <Link className="text-xs underline text-ink-700/60" to={paths.pendingUploads()}>
                 Full list
               </Link>
             </div>
@@ -189,7 +190,7 @@ export default function CoordinatorDashboard() {
                   </div>
                 );
               })}
-              <Link className="btn-accent mt-2" to="/pending-uploads">Open approval queue</Link>
+              <Link className="btn-accent mt-2" to={paths.pendingUploads()}>Open approval queue</Link>
             </div>
           ) : (
             <EmptyNote>Every assigned teacher has uploaded and been approved for this exam.</EmptyNote>
