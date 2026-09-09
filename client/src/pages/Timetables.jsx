@@ -277,7 +277,7 @@ function DailyBoard({ date, onDateChange }) {
             <table className="w-full text-sm border-separate border-spacing-1 min-w-[48rem]">
               <thead>
                 <tr>
-                  <th className="text-left font-medium text-ink-700/70 px-2 py-1 sticky left-0 bg-white z-10 min-w-[9rem]">
+                  <th className="text-left font-medium text-ink-700/70 px-2 py-1 sticky left-0 bg-cream z-10 min-w-[9rem]">
                     Teacher
                   </th>
                   {(data.periods || []).map((period) => (
@@ -293,7 +293,7 @@ function DailyBoard({ date, onDateChange }) {
               <tbody>
                 {filteredTeachers.map((teacher) => (
                   <tr key={teacher.id}>
-                    <td className="align-top px-2 py-1 sticky left-0 bg-white z-10">
+                    <td className="align-top px-2 py-1 sticky left-0 bg-cream z-10">
                       <Link
                         to={`/timetables/teachers/${teacher.id}?view=daily&date=${date}`}
                         className="font-medium hover:text-clay-600"
