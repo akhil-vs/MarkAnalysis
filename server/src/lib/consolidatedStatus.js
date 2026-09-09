@@ -50,6 +50,7 @@ export function summarizeClassStatus({
     className: cls.className,
     section: cls.section,
     teacher: cls.classTeacher?.name || null,
+    classTeacherId: cls.classTeacherId || cls.classTeacher?.id || null,
     studentCount: activeStudentCount ?? students.length,
     complete,
     ready: complete && draftCount === 0,

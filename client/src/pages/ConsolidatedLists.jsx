@@ -1,7 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, download } from "../api.js";
+import { useAuth } from "../auth.jsx";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
+import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
@@ -10,6 +12,7 @@ import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { NAV_TITLES, paths } from "../lib/nav.js";
+import { isLeadership } from "../lib/roles.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function cmlStudentSearchText(row) {
@@ -40,6 +43,9 @@ function initialClassSectionId(params) {
 
 export default function ConsolidatedLists() {
   const toast = useToast();
+  const confirm = useConfirm();
+  const { user } = useAuth();
+  const leadership = isLeadership(user?.role);
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState(params.get("examId") || "");
@@ -49,6 +55,16 @@ export default function ConsolidatedLists() {
   const [busy, setBusy] = useState("");
   const [previewLoading, setPreviewLoading] = useState(Boolean(initialClassSectionId(params)));
   const [notify, setNotify] = useState(null);
+  const [maxMarksPanel, setMaxMarksPanel] = useState(null);
+  const [maxMarksDraft, setMaxMarksDraft] = useState({});
+  const [maxMarksBusy, setMaxMarksBusy] = useState(false);
+
+  async function loadMaxMarks() {
+    if (!leadership) return;
+    const res = await api("/api/consolidation/max-marks");
+    setMaxMarksPanel(res);
+    setMaxMarksDraft(Object.fromEntries((res.subjects || []).map((s) => [s.id, s.maxMarks])));
+  }
 
   async function loadStatus(id) {
     const res = await api(`/api/exports/consolidated${id ? `?examId=${id}` : ""}`);
@@ -67,6 +83,9 @@ export default function ConsolidatedLists() {
     try {
       const res = await api(`/api/exports/consolidated/${classId}?examId=${id}&format=json`);
       setPreview(res);
+    } catch (e) {
+      setPreview(null);
+      throw e;
     } finally {
       setPreviewLoading(false);
     }
@@ -74,6 +93,7 @@ export default function ConsolidatedLists() {
 
   useEffect(() => {
     loadStatus(examId).catch((e) => setError(e.message));
+    loadMaxMarks().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -98,6 +118,11 @@ export default function ConsolidatedLists() {
   }
 
   function selectClass(id) {
+    const cls = (data?.classes || []).find((c) => c.id === id);
+    if (!leadership && cls && !cls.ready) {
+      toast.info("Available after all subject registers are submitted and approved.");
+      return;
+    }
     setSelectedId(id);
     if (id !== selectedId) {
       setPreview(null);
@@ -134,38 +159,243 @@ export default function ConsolidatedLists() {
     }
   }
 
+  async function saveMaxMarks() {
+    if (!maxMarksPanel || maxMarksPanel.settings?.maxMarksLocked) return;
+    setMaxMarksBusy(true);
+    try {
+      const subjects = (maxMarksPanel.subjects || []).map((s) => ({
+        id: s.id,
+        maxMarks: Number(maxMarksDraft[s.id] ?? s.maxMarks),
+      }));
+      const res = await api("/api/consolidation/max-marks", {
+        method: "PUT",
+        body: { subjects },
+      });
+      setMaxMarksPanel(res);
+      setMaxMarksDraft(Object.fromEntries((res.subjects || []).map((s) => [s.id, s.maxMarks])));
+      toast.success("Max marks saved.");
+      if (selectedId && examId) {
+        await loadPreview(selectedId, examId).catch(() => {});
+      }
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setMaxMarksBusy(false);
+    }
+  }
+
+  async function lockMaxMarks() {
+    if (
+      !(await confirm({
+        title: "Lock consolidation max marks?",
+        message:
+          "This is a one-time lock. Subject ceilings used for consolidated totals and percentages will not be editable until unlocked.",
+        confirmLabel: "Lock max marks",
+      }))
+    ) {
+      return;
+    }
+    setMaxMarksBusy(true);
+    try {
+      if (!maxMarksPanel.settings?.maxMarksLocked) {
+        const subjects = (maxMarksPanel.subjects || []).map((s) => ({
+          id: s.id,
+          maxMarks: Number(maxMarksDraft[s.id] ?? s.maxMarks),
+        }));
+        const saved = await api("/api/consolidation/max-marks", {
+          method: "PUT",
+          body: { subjects },
+        });
+        setMaxMarksPanel(saved);
+        setMaxMarksDraft(Object.fromEntries((saved.subjects || []).map((s) => [s.id, s.maxMarks])));
+      }
+      const res = await api("/api/consolidation/max-marks/lock", { method: "POST" });
+      setMaxMarksPanel((prev) => ({ ...prev, settings: res.settings }));
+      toast.success("Max marks locked for consolidation.");
+      if (selectedId && examId) {
+        await loadPreview(selectedId, examId).catch(() => {});
+      }
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setMaxMarksBusy(false);
+    }
+  }
+
+  async function unlockMaxMarks() {
+    if (
+      !(await confirm({
+        title: "Unlock max marks?",
+        message: "Unlock only to correct a ceiling, then lock again before publishing official lists.",
+        confirmLabel: "Unlock",
+        tone: "danger",
+      }))
+    ) {
+      return;
+    }
+    setMaxMarksBusy(true);
+    try {
+      const res = await api("/api/consolidation/max-marks/unlock", { method: "POST" });
+      setMaxMarksPanel((prev) => ({ ...prev, settings: res.settings }));
+      toast.success("Max marks unlocked.");
+    } catch (e) {
+      toast.error(e.message);
+    } finally {
+      setMaxMarksBusy(false);
+    }
+  }
+
+  const subjectsByClass = useMemo(() => {
+    const map = new Map();
+    for (const s of maxMarksPanel?.subjects || []) {
+      const list = map.get(s.className) || [];
+      list.push(s);
+      map.set(s.className, list);
+    }
+    return [...map.entries()];
+  }, [maxMarksPanel]);
+
   if (!data && !error) {
     return (
       <div>
         <PageHeader
           title={NAV_TITLES.consolidated}
-          subtitle="After teachers enter and you approve marks, generate the official class list — every student, every subject, totals, grade, and rank."
+          subtitle={
+            leadership
+              ? "Set max marks once, approve registers, then generate the official class list."
+              : "Open your class list after every subject register is submitted and approved."
+          }
         />
         <LoadingShell label="Loading mark lists…" />
       </div>
     );
   }
   if (data?.empty) return <p>No exam data yet.</p>;
+  if (error && !data) {
+    return (
+      <div>
+        <PageHeader title={NAV_TITLES.consolidated} subtitle="Consolidated mark lists" />
+        <p className="text-clay-600 text-sm">{error}</p>
+      </div>
+    );
+  }
 
   const classes = data?.classes || [];
   const selected = classes.find((c) => c.id === selectedId);
   const tableBusy = previewLoading || Boolean(busy);
   const tableBusyLabel = previewLoading ? "Loading mark list…" : "Preparing download…";
+  const locked = Boolean(maxMarksPanel?.settings?.maxMarksLocked);
+  const viewerIsClassTeacher = data?.viewer === "classTeacher" || !leadership;
 
   return (
     <div>
       <PageHeader
         title={NAV_TITLES.consolidated}
-        subtitle="After teachers enter and you approve marks, generate the official class list — every student, every subject, totals, grade, and rank."
+        subtitle={
+          leadership
+            ? "After teachers enter and you approve marks, generate the official class list — every student, every subject, totals, grade, and rank."
+            : "Your section’s consolidated mark list opens only after all subject teachers have submitted and leadership has approved every register."
+        }
         actions={data?.exams ? <ExamSelect exams={data.exams} value={examId} onChange={onExam} /> : null}
       />
 
       {error && <p className="text-clay-600 text-sm mb-3">{error}</p>}
 
+      {leadership && maxMarksPanel && (
+        <Panel
+          className="mb-5"
+          title="Max marks for consolidation"
+          action={
+            <div className="flex flex-wrap gap-2">
+              {!locked && (
+                <>
+                  <button type="button" className="btn-ghost" disabled={maxMarksBusy} onClick={saveMaxMarks}>
+                    {maxMarksBusy ? "Saving…" : "Save"}
+                  </button>
+                  <button type="button" className="btn-primary" disabled={maxMarksBusy} onClick={lockMaxMarks}>
+                    Lock max marks
+                  </button>
+                </>
+              )}
+              {locked && (
+                <button type="button" className="btn-ghost" disabled={maxMarksBusy} onClick={unlockMaxMarks}>
+                  Unlock
+                </button>
+              )}
+            </div>
+          }
+        >
+          {locked ? (
+            <p className="text-sm text-moss-600 mb-3">
+              Locked
+              {maxMarksPanel.settings.lockedBy?.name ? ` by ${maxMarksPanel.settings.lockedBy.name}` : ""}
+              {maxMarksPanel.settings.lockedAt
+                ? ` on ${new Date(maxMarksPanel.settings.lockedAt).toLocaleString()}`
+                : ""}
+              . Consolidated totals and percentages use these per-subject ceilings.
+            </p>
+          ) : (
+            <p className="text-sm text-ink-700/70 mb-3">
+              Set the maximum marks for each subject once, then lock. Consolidation uses these ceilings for
+              totals and percentages.
+            </p>
+          )}
+          {!subjectsByClass.length ? (
+            <EmptyNote>
+              No subjects yet. Add them under <Link className="underline" to="/manage">Records → Subjects</Link>.
+            </EmptyNote>
+          ) : (
+            <div className="space-y-4">
+              {subjectsByClass.map(([className, subjects]) => (
+                <div key={className}>
+                  <div className="text-xs uppercase tracking-wide text-ink-700/55 mb-2">Class {className}</div>
+                  <div className="overflow-x-auto">
+                    <table className="table">
+                      <thead>
+                        <tr>
+                          <th>Subject</th>
+                          <th className="w-28">Max marks</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {subjects.map((s) => (
+                          <tr key={s.id}>
+                            <td>{s.name}</td>
+                            <td>
+                              <input
+                                className="field w-24"
+                                type="number"
+                                min={1}
+                                step={1}
+                                value={maxMarksDraft[s.id] ?? s.maxMarks}
+                                disabled={locked || maxMarksBusy}
+                                onChange={(e) =>
+                                  setMaxMarksDraft((prev) => ({
+                                    ...prev,
+                                    [s.id]: Number(e.target.value),
+                                  }))
+                                }
+                                aria-label={`Max marks for ${s.name} class ${className}`}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </Panel>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
         <div className="card p-4">
           <div className="text-xs uppercase tracking-wide text-ink-700/60">Classes ready</div>
-          <div className="font-serif text-3xl mt-1">{data?.readyCount ?? 0} / {classes.length}</div>
+          <div className="font-serif text-3xl mt-1">
+            {data?.readyCount ?? 0} / {classes.length}
+          </div>
         </div>
         <div className="card p-4">
           <div className="text-xs uppercase tracking-wide text-ink-700/60">Working exam</div>
@@ -174,51 +404,75 @@ export default function ConsolidatedLists() {
         <div className="card p-4">
           <div className="text-xs uppercase tracking-wide text-ink-700/60">How it works</div>
           <p className="text-sm text-ink-700/70 mt-1">
-            Teachers enter registers, leadership approves, then generate Excel or PDF for a class.
+            {leadership
+              ? "Teachers enter registers, leadership approves, then generate Excel or PDF for a class."
+              : "When every paper for your class is approved, open and download the official list here."}
           </p>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-12 gap-4">
-        <Panel className="lg:col-span-4" title="Classes">
+        <Panel className="lg:col-span-4" title={viewerIsClassTeacher ? "Your classes" : "Classes"}>
           <div className="space-y-2">
-            {classes.map((cls) => (
-              <button
-                key={cls.id}
-                type="button"
-                onClick={() => selectClass(cls.id)}
-                className={`w-full text-left rounded-lg border px-3 py-2.5 ${
-                  selectedId === cls.id ? "border-clay-500 bg-[#fbf4ec]" : "border-ink-900/10 hover:border-clay-500"
-                }`}
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-serif text-xl">{cls.label}</span>
-                  <StatusPill ready={cls.ready} complete={cls.complete} drafts={cls.draftCount} />
-                </div>
-                <div className="text-[11px] text-ink-700/55 mt-1">
-                  {cls.approvedSubjects}/{cls.totalSubjects} subjects approved
-                  {cls.teacher ? ` · ${cls.teacher}` : ""} · {cls.studentCount} students
-                </div>
-                {cls.missingSubjects?.length > 0 && (
-                  <div className="text-[11px] text-clay-600 mt-1">Missing: {cls.missingSubjects.join(", ")}</div>
-                )}
-              </button>
-            ))}
-            {!classes.length && <EmptyNote>No classes on roll.</EmptyNote>}
+            {classes.map((cls) => {
+              const blocked = viewerIsClassTeacher && !cls.ready;
+              return (
+                <button
+                  key={cls.id}
+                  type="button"
+                  onClick={() => selectClass(cls.id)}
+                  disabled={blocked && selectedId !== cls.id}
+                  className={`w-full text-left rounded-lg border px-3 py-2.5 ${
+                    selectedId === cls.id
+                      ? "border-clay-500 bg-[#fbf4ec]"
+                      : blocked
+                        ? "border-ink-900/10 opacity-70 cursor-not-allowed"
+                        : "border-ink-900/10 hover:border-clay-500"
+                  }`}
+                >
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="font-serif text-xl">{cls.label}</span>
+                    <StatusPill ready={cls.ready} complete={cls.complete} drafts={cls.draftCount} />
+                  </div>
+                  <div className="text-[11px] text-ink-700/55 mt-1">
+                    {cls.approvedSubjects}/{cls.totalSubjects} subjects approved
+                    {cls.teacher ? ` · ${cls.teacher}` : ""} · {cls.studentCount} students
+                  </div>
+                  {cls.missingSubjects?.length > 0 && (
+                    <div className="text-[11px] text-clay-600 mt-1">
+                      {viewerIsClassTeacher
+                        ? "Waiting for submission and approval"
+                        : `Missing: ${cls.missingSubjects.join(", ")}`}
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+            {!classes.length && (
+              <EmptyNote>
+                {viewerIsClassTeacher
+                  ? "You are not assigned as class teacher for any section."
+                  : "No classes on roll."}
+              </EmptyNote>
+            )}
           </div>
         </Panel>
 
         <div className="lg:col-span-8">
-          {!selected && <EmptyNote>Choose a class to preview its consolidated mark list.</EmptyNote>}
-          {selected && previewLoading && !preview && (
-            <LoadingShell label="Loading mark list…" />
+          {!selected && (
+            <EmptyNote>
+              {viewerIsClassTeacher
+                ? "Choose a ready class to view its consolidated mark list."
+                : "Choose a class to preview its consolidated mark list."}
+            </EmptyNote>
           )}
+          {selected && previewLoading && !preview && <LoadingShell label="Loading mark list…" />}
           {selected && preview && (
             <Panel
               title={`${preview.label} — ${preview.examLabel}`}
               action={
                 <div className="flex flex-wrap gap-2">
-                  {!preview.ready && (
+                  {leadership && !preview.ready && (
                     <button
                       type="button"
                       className="btn-accent"
@@ -247,16 +501,21 @@ export default function ConsolidatedLists() {
               }
             >
               {preview.ready ? (
-                <p className="text-sm text-moss-600 mb-3">All subject registers are approved. This is the official list.</p>
+                <p className="text-sm text-moss-600 mb-3">
+                  All subject registers are approved. This is the official list.
+                </p>
               ) : (
                 <p className="text-sm text-clay-600 mb-3">
                   Preview with provisional totals from entered marks (including drafts).
-                  {preview.missingSubjects?.length ? ` Outstanding: ${preview.missingSubjects.join(", ")}.` : ""}
-                  {" "}
+                  {preview.missingSubjects?.length ? ` Outstanding: ${preview.missingSubjects.join(", ")}.` : ""}{" "}
                   Approve remaining registers for the official list.{" "}
-                  <Link className="underline" to={paths.pendingUploads()}>Pending uploads</Link>
+                  <Link className="underline" to={paths.pendingUploads()}>
+                    Pending uploads
+                  </Link>
                   {" · "}
-                  <Link className="underline" to={paths.marks()}>Mark register</Link>
+                  <Link className="underline" to={paths.marks()}>
+                    Mark register
+                  </Link>
                 </p>
               )}
 
@@ -332,17 +591,28 @@ function CmlStudentTable({ students, subjects, resetKey, busy = false, busyLabel
                   <td>{row.rank ?? "—"}</td>
                   <td>{row.rollNo}</td>
                   <td>
-                    <Link className="underline" to={paths.student(row.studentId)}>{row.name}</Link>
+                    <Link className="underline" to={paths.student(row.studentId)}>
+                      {row.name}
+                    </Link>
                   </td>
                   {subjects.map((s) => {
                     const cell = row.bySubject[s.id];
-                    if (!cell || cell.status === "MISSING") return <td key={s.id} className="text-ink-700/35">—</td>;
+                    if (!cell || cell.status === "MISSING")
+                      return (
+                        <td key={s.id} className="text-ink-700/35">
+                          —
+                        </td>
+                      );
                     if (cell.status === "DRAFT" || cell.status === "SUBMITTED") {
                       return (
                         <td
                           key={s.id}
                           className="text-clay-600"
-                          title={cell.status === "SUBMITTED" ? "Submitted — awaiting approval" : "Draft — not approved"}
+                          title={
+                            cell.status === "SUBMITTED"
+                              ? "Submitted — awaiting approval"
+                              : "Draft — not approved"
+                          }
                         >
                           {cell.display || cell.marks}
                         </td>
@@ -365,6 +635,7 @@ function CmlStudentTable({ students, subjects, resetKey, busy = false, busyLabel
 
 function StatusPill({ ready, complete, drafts }) {
   if (ready) return <span className="text-[10px] uppercase tracking-wide text-moss-600">Ready</span>;
-  if (complete && drafts) return <span className="text-[10px] uppercase tracking-wide text-clay-600">Drafts left</span>;
+  if (complete && drafts)
+    return <span className="text-[10px] uppercase tracking-wide text-clay-600">Drafts left</span>;
   return <span className="text-[10px] uppercase tracking-wide text-ink-700/50">In progress</span>;
 }

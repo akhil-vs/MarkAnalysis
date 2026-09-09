@@ -78,11 +78,13 @@ Deployments generate the Prisma client on Vercel build. If the live database is 
 
 ## Consolidated mark lists
 
-Once teachers have entered marks for an exam (and leadership has approved them), the exam coordinator or principal can generate the official **consolidated mark list** for a class.
+Principal and exam coordinator set **max marks per subject** once on **Consolidated lists**, then **Lock max marks**. After that, consolidated totals and percentages use those ceilings (the same values used on subject records). Unlock only if a ceiling needs correcting.
 
-Open **Consolidated lists** in the sidebar (or from the school desk). Choose an exam and a class. The screen shows every student against every subject, with total, percent, grade, and rank. Classes are marked **Ready** when every subject register is fully approved.
+Once teachers have entered marks for an exam and leadership has **approved** them, the exam coordinator or principal can generate the official **consolidated mark list** for a class. **Class teachers** can open and download the list for their own section only when every subject register for that class is fully approved.
 
-Download **Excel** or **PDF**. Incomplete classes can still be previewed; missing or draft papers appear as blanks. Approve remaining registers on the mark register before treating the file as official.
+Open **Consolidated lists** in the sidebar (or from the school desk / teacher desk). Choose an exam and a class. The screen shows every student against every subject, with total, percent, grade, and rank. Classes are marked **Ready** when every subject register is fully approved.
+
+Download **Excel** or **PDF**. Leadership can still preview incomplete classes; missing or draft papers appear as blanks. Class teachers do not see incomplete lists. Approve remaining registers on the mark register before treating the file as official.
 
 ## Notify teachers
 

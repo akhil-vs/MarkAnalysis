@@ -11,7 +11,9 @@ Remaining work that would make this suitable for a live school:
 - **Configurable grade bands** and pass percent (board-specific)
 - **Electives / additional subjects** per student
 - **Class-teacher inbox** for section pending papers (read access to the register is in; dedicated inbox is not)
++ ~~Class-teacher access to consolidated mark list after all registers are approved~~ (gated CML for class teachers)
 - **Moderation / grace marks** with audit reason
++ ~~One-time consolidation max-marks lock for principal / exam coordinator~~ (Consolidated lists → Max marks)
 + ~~Teacher daily / weekly / monthly timetables for principal and exam coordinator~~ (Timetables nav + views + seed periods)
 + ~~All-teachers daily board + find free teacher for a period~~ (leadership Timetables modes)
 + ~~Configurable bell schedule (periods + timings) for principal and exam coordinator~~ (Timetables → Periods)

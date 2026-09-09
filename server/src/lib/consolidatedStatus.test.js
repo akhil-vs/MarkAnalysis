@@ -83,5 +83,18 @@ describe("buildSubjectStatusCols / summarizeClassStatus", () => {
     assert.equal(summary.complete, true);
     assert.equal(summary.draftCount, 0);
     assert.deepEqual(summary.missingSubjects, []);
+    assert.equal(summary.classTeacherId, null);
+  });
+
+  it("includes classTeacherId from the section", () => {
+    const summary = summarizeClassStatus({
+      cls: { ...cls, classTeacherId: "t1", classTeacher: { id: "t1", name: "Ada" } },
+      subjects,
+      students,
+      marks: [],
+      activeStudentCount: 2,
+    });
+    assert.equal(summary.classTeacherId, "t1");
+    assert.equal(summary.teacher, "Ada");
   });
 });
