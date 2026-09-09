@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { NAV_TITLES } from "../lib/nav.js";
+import { NAV_TITLES, paths } from "../lib/nav.js";
 
 export default function AnalysisTeachers() {
   const [data, setData] = useState(null);
@@ -34,7 +34,7 @@ export default function AnalysisTeachers() {
       />
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {rows.map((t) => (
-          <Link key={t.teacherId} to={`/analysis/teachers/${t.teacherId}`} className="card p-4 hover:border-clay-500">
+          <Link key={t.teacherId} to={paths.teacher(t.teacherId)} className="card p-4 hover:border-clay-500">
             <div className="font-serif text-2xl">{t.name}</div>
             <div className="text-sm text-ink-700/60 mt-1">{t.subjects.join(" · ") || "No assignments"}</div>
             <div className="mt-3 flex justify-between text-sm">

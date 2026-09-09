@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { NAV_TITLES } from "../lib/nav.js";
+import { NAV_TITLES, paths } from "../lib/nav.js";
 
 export default function AnalysisSubjects() {
   const [data, setData] = useState(null);
@@ -35,7 +35,7 @@ export default function AnalysisSubjects() {
           <div key={s.name} className="card p-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <Link className="font-serif text-2xl hover:underline" to={`/analysis/subjects/name/${encodeURIComponent(s.name)}`}>
+                <Link className="font-serif text-2xl hover:underline" to={paths.subjectByName(s.name)}>
                   {s.name}
                 </Link>
                 <div className="text-sm text-ink-700/60 mt-1">
@@ -51,7 +51,7 @@ export default function AnalysisSubjects() {
             <div className="mt-3"><BarTrack value={s.average} /></div>
             <div className="mt-4 grid sm:grid-cols-2 lg:grid-cols-4 gap-2">
               {s.records.map((r) => (
-                <Link key={r.id} to={`/analysis/subjects/${r.id}`} className="rounded-lg border border-ink-900/10 px-3 py-2 text-sm hover:border-clay-500">
+                <Link key={r.id} to={paths.subjectPaper(r.id)} className="rounded-lg border border-ink-900/10 px-3 py-2 text-sm hover:border-clay-500">
                   <div className="font-medium">Class {r.className}</div>
                   <div className="text-ink-700/60">{r.average ?? "—"}% avg · {r.passRate ?? "—"}% pass</div>
                 </Link>

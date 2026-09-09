@@ -32,6 +32,7 @@ import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.j
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { yearDelta } from "../lib/exams.js";
+import { paths } from "../lib/nav.js";
 
 export default function PrincipalDashboard() {
   const { user } = useAuth();
@@ -237,7 +238,7 @@ export default function PrincipalDashboard() {
                   meta={s.classLabel}
                   value={`${s.average}%`}
                   grade={s.grade}
-                  to={`/students/${s.studentId}`}
+                  to={paths.student(s.studentId)}
                 />
               ))}
               {data.atRisk.length === 0 && <EmptyNote>No students currently at risk.</EmptyNote>}
@@ -275,7 +276,7 @@ export default function PrincipalDashboard() {
         <Panel className="lg:col-span-5" title="Class-wise" action={<Link className="text-xs underline text-ink-700/60" to="/analysis/classes">All classes</Link>}>
           <div className="space-y-4">
             {(data.classWise || []).map((s) => (
-              <Link key={s.className} to={`/analysis/classes/group/${encodeURIComponent(s.className)}`} className="block group">
+              <Link key={s.className} to={paths.classGroup(s.className)} className="block group">
                 <div className="flex items-baseline justify-between text-sm mb-1.5">
                   <span className="font-medium group-hover:underline">{s.label}</span>
                   <span className="tabular-nums text-ink-700/70">
@@ -291,7 +292,7 @@ export default function PrincipalDashboard() {
         <Panel className="lg:col-span-7" title="Division-wise">
           <div className="space-y-4">
             {sections.map((s, i) => (
-              <Link key={s.id} to={`/classes/${s.id}`} className="block group">
+              <Link key={s.id} to={paths.classSection(s.id)} className="block group">
                 <div className="flex items-baseline justify-between text-sm mb-1.5">
                   <span className="font-medium group-hover:underline">{s.label}</span>
                   <span className="tabular-nums text-ink-700/70">
@@ -309,7 +310,7 @@ export default function PrincipalDashboard() {
         <Panel className="lg:col-span-7" title="Subject-wise" action={<Link className="text-xs underline text-ink-700/60" to="/analysis/subjects">All subjects</Link>}>
           <div className="space-y-3">
             {(data.subjectWise || []).map((s) => (
-              <Link key={s.name} to={`/analysis/subjects/name/${encodeURIComponent(s.name)}`} className="block group">
+              <Link key={s.name} to={paths.subjectByName(s.name)} className="block group">
                 <div className="flex items-baseline justify-between text-sm mb-1.5">
                   <span className="font-medium group-hover:underline">{s.name}</span>
                   <span className="tabular-nums text-ink-700/70">{s.average ?? "—"}% · {s.passRate ?? "—"}% pass</span>
@@ -350,7 +351,7 @@ export default function PrincipalDashboard() {
               meta={s.classLabel}
               value={`${s.average}%`}
               grade={s.grade}
-              to={`/students/${s.studentId}`}
+              to={paths.student(s.studentId)}
             />
           ))}
         </Panel>
@@ -358,7 +359,7 @@ export default function PrincipalDashboard() {
           {teachers.slice(0, 8).map((row, i) => (
             <Link
               key={`${row.teacher}-${row.classLabel}-${row.subject}`}
-              to={row.teacherId ? `/analysis/teachers/${row.teacherId}` : "/analysis/teachers"}
+              to={row.teacherId ? paths.teacher(row.teacherId) : "/analysis/teachers"}
               className="block py-2.5 border-t border-ink-900/10 first:border-0 hover:bg-white/40 -mx-1 px-1 rounded"
             >
               <div className="flex items-center justify-between text-sm mb-1.5">

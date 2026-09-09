@@ -15,7 +15,7 @@ import { ExamSelect, TeacherCompareTable, YearComparison } from "../components/A
 import { ChartTooltip, EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { FilterBar } from "../components/TableToolbar.jsx";
-import { NAV_TITLES } from "../lib/nav.js";
+import { NAV_TITLES, paths } from "../lib/nav.js";
 
 export default function AnalysisCompare() {
   const [params, setParams] = useSearchParams();
@@ -169,7 +169,7 @@ export default function AnalysisCompare() {
               <div className="grid lg:grid-cols-2 gap-4">
                 <Panel title="Division-wise">
                   {(years.byDivision || []).map((row) => (
-                    <YearMini key={row.id} label={row.label} years={row.years} to={`/classes/${row.id}`} />
+                    <YearMini key={row.id} label={row.label} years={row.years} to={paths.classSection(row.id)} />
                   ))}
                 </Panel>
                 <Panel title="Subject-wise">
@@ -178,7 +178,7 @@ export default function AnalysisCompare() {
                       key={row.name}
                       label={row.name}
                       years={row.years}
-                      to={`/analysis/subjects/name/${encodeURIComponent(row.name)}`}
+                      to={paths.subjectByName(row.name)}
                     />
                   ))}
                 </Panel>
@@ -189,7 +189,7 @@ export default function AnalysisCompare() {
                     key={row.teacherId}
                     label={row.teacher}
                     years={row.years}
-                    to={`/analysis/teachers/${row.teacherId}`}
+                    to={paths.teacher(row.teacherId)}
                   />
                 ))}
               </Panel>
@@ -214,7 +214,7 @@ export default function AnalysisCompare() {
                 key={block.name}
                 title={block.name}
                 action={
-                  <Link className="text-xs underline text-ink-700/60" to={`/analysis/subjects/name/${encodeURIComponent(block.name)}`}>
+                  <Link className="text-xs underline text-ink-700/60" to={paths.subjectByName(block.name)}>
                     Full subject view
                   </Link>
                 }

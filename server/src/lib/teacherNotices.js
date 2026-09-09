@@ -1,4 +1,5 @@
 import { prisma } from "./prisma.js";
+import { marksRegisterLink } from "./appLinks.js";
 import { notifyUsers } from "./notifications.js";
 import { summarizeRegister } from "./registerStatus.js";
 
@@ -41,14 +42,16 @@ export function summarizeOutstanding(assignments, limit = 4) {
 }
 
 export function marksLink(examId, outstanding = []) {
-  if (!examId) return "/marks";
-  const params = new URLSearchParams({ examId });
+  if (!examId) return marksRegisterLink();
   if (outstanding.length === 1) {
     const a = outstanding[0];
-    if (a.classSectionId) params.set("classSectionId", a.classSectionId);
-    if (a.subjectId) params.set("subjectId", a.subjectId);
+    return marksRegisterLink({
+      examId,
+      classSectionId: a.classSectionId || undefined,
+      subjectId: a.subjectId || undefined,
+    });
   }
-  return `/marks?${params.toString()}`;
+  return marksRegisterLink({ examId });
 }
 
 export function defaultAudienceForKind(kind) {
@@ -133,7 +136,7 @@ export function buildNoticeContent({ kind, exam, senderName, message, teacher, p
     type: KIND_TO_TYPE.CUSTOM,
     title: `Notice from ${sender}`,
     body,
-    link: examId ? marksLink(examId, outstanding) : "/marks",
+    link: examId ? marksLink(examId, outstanding) : marksRegisterLink(),
   };
 }
 
