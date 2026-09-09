@@ -205,6 +205,8 @@ export default function TeacherTimetable() {
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/timetables" className="btn-ghost">All teachers</Link>
+            <Link to={`/timetables?mode=daily&date=${date}`} className="btn-ghost">Daily board</Link>
+            <Link to={`/timetables?mode=free&date=${date}`} className="btn-ghost">Find free</Link>
             {VIEWS.map((v) => (
               <button
                 key={v.id}

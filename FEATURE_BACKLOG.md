@@ -13,6 +13,7 @@ Remaining work that would make this suitable for a live school:
 - **Class-teacher inbox** for section pending papers (read access to the register is in; dedicated inbox is not)
 - **Moderation / grace marks** with audit reason
 + ~~Teacher daily / weekly / monthly timetables for principal and exam coordinator~~ (Timetables nav + views + seed periods)
++ ~~All-teachers daily board + find free teacher for a period~~ (leadership Timetables modes)
 
 ## Product / access
 

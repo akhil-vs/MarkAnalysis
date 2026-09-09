@@ -65,7 +65,13 @@ Leadership can review:
 
 ## Teacher timetables
 
-Principals and exam coordinators can open **Timetables** in the sidebar (or **Timetable** from a staff row) to browse each teacher’s schedule. Switch between **Daily**, **Weekly**, and **Monthly** views. Leadership can also add or remove teaching periods on a teacher’s timetable page.
+Principals and exam coordinators can open **Timetables** in the sidebar (or **Timetable** from a staff row) to browse each teacher’s schedule.
+
+- **Teachers** — card list of every active teacher, then open one for **Daily**, **Weekly**, or **Monthly** views
+- **Daily board** — one page with every teacher’s timetable for a chosen day (subject, class, and free slots together)
+- **Find free** — pick a date and period to see which teachers are free (and who is already teaching)
+
+Leadership can also add or remove teaching periods on a teacher’s timetable page.
 
 Deployments generate the Prisma client on Vercel build. If the live database is behind on timetable or staff-notice migrations (common when `DATABASE_URL` is runtime-only), the API applies missing `Period` / `TimetableEntry` tables and `NotificationType` enum values on first Timetables or Notify-teachers request, and seeds a default bell schedule when periods are empty.
 

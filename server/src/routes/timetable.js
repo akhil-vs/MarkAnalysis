@@ -211,6 +211,113 @@ timetableRouter.get("/teachers", requireLeadership(), async (_req, res) => {
   );
 });
 
+/** School-wide daily board: every active teacher × periods for one calendar day. */
+timetableRouter.get("/day", requireLeadership(), async (req, res) => {
+  const date = parseDateParam(req.query.date);
+  if (!date) return res.status(400).json({ error: "date must be YYYY-MM-DD" });
+
+  const dayOfWeek = isoWeekday(date);
+  const [periods, teachers, entries] = await Promise.all([
+    ensureDefaultPeriods(),
+    prisma.user.findMany({
+      where: { role: "TEACHER", status: "ACTIVE" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, email: true, schoolId: true, role: true, status: true },
+    }),
+    prisma.timetableEntry.findMany({
+      where: { dayOfWeek },
+      include: ENTRY_INCLUDE,
+      orderBy: [{ period: { sortOrder: "asc" } }],
+    }),
+  ]);
+
+  const byTeacher = new Map();
+  for (const entry of entries) {
+    if (!byTeacher.has(entry.teacherId)) byTeacher.set(entry.teacherId, {});
+    byTeacher.get(entry.teacherId)[entry.periodId] = serializeEntry(entry);
+  }
+
+  res.json({
+    date: ymd(date),
+    dayOfWeek,
+    dayName: DAY_NAMES[dayOfWeek],
+    periods,
+    dayNames: DAY_NAMES,
+    teachers: teachers.map((t) => {
+      const entriesByPeriodId = byTeacher.get(t.id) || {};
+      return {
+        ...publicUser(t),
+        entriesByPeriodId,
+        taughtCount: Object.keys(entriesByPeriodId).length,
+      };
+    }),
+  });
+});
+
+/** Active teachers with no timetable entry for a given day + teaching period. */
+timetableRouter.get("/free", requireLeadership(), async (req, res) => {
+  const periodId = String(req.query.periodId || "").trim();
+  if (!periodId) return res.status(400).json({ error: "periodId is required" });
+
+  let dayOfWeek = parseDayOfWeek(req.query.dayOfWeek);
+  let dateYmd = null;
+  if (req.query.date) {
+    const date = parseDateParam(req.query.date);
+    if (!date) return res.status(400).json({ error: "date must be YYYY-MM-DD" });
+    dayOfWeek = isoWeekday(date);
+    dateYmd = ymd(date);
+  }
+  if (dayOfWeek == null) {
+    return res.status(400).json({ error: "Provide date (YYYY-MM-DD) or dayOfWeek (1–7)" });
+  }
+
+  const [periods, period, teachers, busyEntries] = await Promise.all([
+    ensureDefaultPeriods(),
+    prisma.period.findUnique({ where: { id: periodId } }),
+    prisma.user.findMany({
+      where: { role: "TEACHER", status: "ACTIVE" },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, email: true, schoolId: true, role: true, status: true },
+    }),
+    prisma.timetableEntry.findMany({
+      where: { dayOfWeek, periodId },
+      include: ENTRY_INCLUDE,
+    }),
+  ]);
+
+  if (!period) return res.status(404).json({ error: "Period not found" });
+  if (period.isBreak) {
+    return res.status(400).json({ error: "Break periods have no teaching assignments; choose a teaching period" });
+  }
+
+  const busyByTeacher = new Map(busyEntries.map((e) => [e.teacherId, serializeEntry(e)]));
+  const free = [];
+  const busy = [];
+  for (const t of teachers) {
+    const entry = busyByTeacher.get(t.id);
+    if (entry) busy.push({ ...publicUser(t), entry });
+    else free.push(publicUser(t));
+  }
+
+  res.json({
+    date: dateYmd,
+    dayOfWeek,
+    dayName: DAY_NAMES[dayOfWeek],
+    period: {
+      id: period.id,
+      name: period.name,
+      sortOrder: period.sortOrder,
+      startTime: period.startTime,
+      endTime: period.endTime,
+      isBreak: period.isBreak,
+    },
+    periods,
+    free,
+    busy,
+    summary: { freeCount: free.length, busyCount: busy.length, teacherCount: teachers.length },
+  });
+});
+
 timetableRouter.get("/teachers/:userId", async (req, res) => {
   const { userId } = req.params;
   if (!canViewTeacher(req, userId)) {
