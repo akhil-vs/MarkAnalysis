@@ -4,15 +4,23 @@ import ExcelJS from "exceljs";
 import { prisma } from "../lib/prisma.js";
 import { auth, getAssignments, isLeadership, requireRole, teacherCanAccess } from "../middleware/auth.js";
 import {
-  assertTeacherCanMutateMark,
   assertTeacherMarkEntryAccess,
   getMarkEntryAccessMap,
   isLockedMarkStatus,
+  mutateBlockFromAccess,
 } from "../lib/markAccess.js";
 import { auditValueFor, formatMarkCell, parseMarkInput } from "../lib/markCodes.js";
+import {
+  mapInChunks,
+  normalizeMarkEntries,
+  planMarkMutations,
+  resultFromPlan,
+} from "../lib/markSave.js";
 import { studentWhereForExam } from "../lib/studentScope.js";
 import { notifyMarksSubmitted } from "../lib/notifications.js";
 import { findStudentByRoll, parseSpreadsheet, studentRollIndex } from "../lib/upload.js";
+
+const WRITE_CHUNK = 25;
 
 export const marksRouter = Router();
 marksRouter.use(auth);
@@ -114,114 +122,112 @@ marksRouter.put("/", async (req, res) => {
     return res.status(400).json({ error: "examId and entries are required" });
   }
 
-  const results = [];
-  for (const entry of entries) {
-    const { studentId, subjectId, marksObtained } = entry;
-    if (!studentId || !subjectId) continue;
+  const uniqueEntries = normalizeMarkEntries(entries);
+  if (!uniqueEntries.length) return res.json({ results: [] });
 
-    const [student, subject] = await Promise.all([
-      prisma.student.findUnique({ where: { id: studentId } }),
-      prisma.subject.findUnique({ where: { id: subjectId } }),
-    ]);
-    if (!student || !subject) {
-      results.push({ studentId, subjectId, error: "Student or subject not found" });
-      continue;
-    }
-    if (req.user.role === "TEACHER") {
-      const ok = await teacherCanAccess(req.user, {
-        classSectionId: student.classSectionId,
-        subjectId,
-        write: true,
-      });
-      if (!ok) {
-        results.push({ studentId, subjectId, error: "Not assigned" });
-        continue;
-      }
-    }
+  const studentIds = [...new Set(uniqueEntries.map((e) => e.studentId))];
+  const subjectIds = [...new Set(uniqueEntries.map((e) => e.subjectId))];
 
-    const existingForLock = await prisma.mark.findUnique({
-      where: { studentId_subjectId_examId: { studentId, subjectId, examId } },
-      select: { id: true, status: true, marksObtained: true },
-    });
-
-    if (req.user.role === "TEACHER") {
-      const blocked = await assertTeacherCanMutateMark(req.user, {
+  const [students, subjects, existingMarks] = await Promise.all([
+    prisma.student.findMany({ where: { id: { in: studentIds } } }),
+    prisma.subject.findMany({ where: { id: { in: subjectIds } } }),
+    prisma.mark.findMany({
+      where: {
         examId,
-        classSectionId: student.classSectionId,
-        subjectId,
-        existingStatus: existingForLock?.status,
+        studentId: { in: studentIds },
+        subjectId: { in: subjectIds },
+      },
+    }),
+  ]);
+
+  const studentMap = new Map(students.map((s) => [s.id, s]));
+  const subjectMap = new Map(subjects.map((s) => [s.id, s]));
+  const markMap = new Map(existingMarks.map((m) => [`${m.studentId}:${m.subjectId}`, m]));
+
+  let writableKeys = null;
+  let accessBySubject = null;
+  if (req.user.role === "TEACHER") {
+    const assignments = await getAssignments(req.user.userId);
+    writableKeys = new Set(assignments.map((a) => `${a.classSectionId}:${a.subjectId}`));
+
+    // Register saves are per class; prefetch access once per class section present.
+    const classSectionIds = [
+      ...new Set(students.map((s) => s.classSectionId).filter(Boolean)),
+    ];
+    accessBySubject = {};
+    for (const classSectionId of classSectionIds) {
+      const map = await getMarkEntryAccessMap(req.user, examId, classSectionId, subjectIds, {
+        writableSubjectIds: assignments
+          .filter((a) => a.classSectionId === classSectionId)
+          .map((a) => a.subjectId),
       });
-      if (blocked) {
-        results.push({ studentId, subjectId, error: blocked });
-        continue;
-      }
+      Object.assign(accessBySubject, map.bySubject || {});
     }
-    const parsed = parseMarkInput(marksObtained, subject.maxMarks);
-    if (parsed.empty) {
-      const existing = await prisma.mark.findUnique({
-        where: { studentId_subjectId_examId: { studentId, subjectId, examId } },
-      });
-      if (existing) {
-        await prisma.markAudit.create({
+  }
+
+  const plans = planMarkMutations({
+    entries: uniqueEntries,
+    studentMap,
+    subjectMap,
+    markMap,
+    writableKeys,
+    accessBySubject,
+  });
+
+  const results = await mapInChunks(plans, WRITE_CHUNK, async (plan) => {
+    if (plan.type === "error" || plan.type === "unchanged" || plan.type === "noop") {
+      return resultFromPlan(plan);
+    }
+
+    if (plan.type === "delete") {
+      await prisma.$transaction([
+        prisma.markAudit.create({
           data: {
-            markId: existing.id,
+            markId: plan.existing.id,
             changedById: req.user.userId,
-            oldValue: auditValueFor(existing.outcome, existing.marksObtained),
+            oldValue: plan.auditOld,
             newValue: -1,
           },
-        });
-        await prisma.mark.delete({ where: { id: existing.id } });
-      }
-      results.push({ studentId, subjectId, deleted: true });
-      continue;
-    }
-    if (parsed.error) {
-      results.push({ studentId, subjectId, error: parsed.error });
-      continue;
-    }
-
-    const existing = await prisma.mark.findUnique({
-      where: { studentId_subjectId_examId: { studentId, subjectId, examId } },
-    });
-
-    const sameScore =
-      existing &&
-      existing.outcome === parsed.outcome &&
-      existing.marksObtained === parsed.marksObtained;
-    if (sameScore) {
-      results.push({ studentId, subjectId, mark: existing, unchanged: true });
-      continue;
+        }),
+        prisma.mark.delete({ where: { id: plan.existing.id } }),
+      ]);
+      return resultFromPlan(plan);
     }
 
     const mark = await prisma.mark.upsert({
-      where: { studentId_subjectId_examId: { studentId, subjectId, examId } },
+      where: {
+        studentId_subjectId_examId: {
+          studentId: plan.studentId,
+          subjectId: plan.subjectId,
+          examId,
+        },
+      },
       create: {
-        studentId,
-        subjectId,
+        studentId: plan.studentId,
+        subjectId: plan.subjectId,
         examId,
-        marksObtained: parsed.marksObtained,
-        outcome: parsed.outcome,
+        marksObtained: plan.parsed.marksObtained,
+        outcome: plan.parsed.outcome,
         enteredById: req.user.userId,
         status: "DRAFT",
       },
       update: {
-        marksObtained: parsed.marksObtained,
-        outcome: parsed.outcome,
+        marksObtained: plan.parsed.marksObtained,
+        outcome: plan.parsed.outcome,
         enteredById: req.user.userId,
         status: "DRAFT",
       },
     });
-
     await prisma.markAudit.create({
       data: {
         markId: mark.id,
         changedById: req.user.userId,
-        oldValue: existing ? auditValueFor(existing.outcome, existing.marksObtained) : null,
-        newValue: auditValueFor(parsed.outcome, parsed.marksObtained),
+        oldValue: plan.auditOld,
+        newValue: plan.auditNew,
       },
     });
-    results.push({ studentId, subjectId, mark });
-  }
+    return resultFromPlan(plan, mark);
+  });
 
   res.json({ results });
 });
@@ -399,36 +405,39 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
     });
   }
 
+  const validStudentIds = [...new Set(valid.map((v) => v.student.id))];
+  const validSubjectIds = [...new Set(valid.map((v) => v.subject.id))];
+  const existingMarks =
+    valid.length === 0
+      ? []
+      : await prisma.mark.findMany({
+          where: {
+            examId,
+            studentId: { in: validStudentIds },
+            subjectId: { in: validSubjectIds },
+          },
+        });
+  const existingByKey = new Map(
+    existingMarks.map((m) => [`${m.studentId}:${m.subjectId}`, m])
+  );
+
   if (req.user.role === "TEACHER") {
-    const subjectIds = [...new Set(valid.map((v) => v.subject.id))];
-    for (const subjectId of subjectIds) {
-      const blocked = await assertTeacherMarkEntryAccess(req.user, {
-        examId,
-        classSectionId,
-        subjectId,
-      });
+    const entryAccess = await getMarkEntryAccessMap(req.user, examId, classSectionId, validSubjectIds, {
+      writableSubjectIds: subjects.map((s) => s.id),
+    });
+    for (const subjectId of validSubjectIds) {
+      const blocked = mutateBlockFromAccess(entryAccess.bySubject?.[subjectId], null);
       if (blocked) {
         return res.status(403).json({ error: blocked });
       }
     }
     for (const item of valid) {
-      const existing = await prisma.mark.findUnique({
-        where: {
-          studentId_subjectId_examId: {
-            studentId: item.student.id,
-            subjectId: item.subject.id,
-            examId,
-          },
-        },
-        select: { status: true },
-      });
+      const existing = existingByKey.get(`${item.student.id}:${item.subject.id}`);
       if (isLockedMarkStatus(existing?.status)) {
-        const editBlocked = await assertTeacherCanMutateMark(req.user, {
-          examId,
-          classSectionId,
-          subjectId: item.subject.id,
-          existingStatus: existing.status,
-        });
+        const editBlocked = mutateBlockFromAccess(
+          entryAccess.bySubject?.[item.subject.id],
+          existing.status
+        );
         if (editBlocked) {
           return res.status(403).json({ error: editBlocked });
         }
@@ -440,17 +449,9 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
   // on mark lists and analytics. Teachers still commit drafts and submit later.
   const markStatus = isLeadership(req.user.role) ? "APPROVED" : "DRAFT";
 
-  const saved = [];
-  for (const item of valid) {
-    const existing = await prisma.mark.findUnique({
-      where: {
-        studentId_subjectId_examId: {
-          studentId: item.student.id,
-          subjectId: item.subject.id,
-          examId,
-        },
-      },
-    });
+  const saved = await mapInChunks(valid, WRITE_CHUNK, async (item) => {
+    const key = `${item.student.id}:${item.subject.id}`;
+    const existing = existingByKey.get(key);
     const mark = await prisma.mark.upsert({
       where: {
         studentId_subjectId_examId: {
@@ -483,8 +484,8 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
         newValue: auditValueFor(item.outcome, item.marksObtained),
       },
     });
-    saved.push(mark);
-  }
+    return mark;
+  });
 
   res.json({
     preview: false,

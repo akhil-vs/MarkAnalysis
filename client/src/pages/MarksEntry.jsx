@@ -389,7 +389,11 @@ export default function MarksEntry() {
       toast.success(
         `Submitted ${res.submitted ?? draftCount} mark${(res.submitted ?? draftCount) === 1 ? "" : "s"} for ${subjectName}`
       );
-      await loadGrid({ keepMessage: true });
+      try {
+        await loadGrid({ keepMessage: true });
+      } catch (reloadErr) {
+        toast.info(reloadErr.message || "Submitted — refresh if the register looks stale");
+      }
     } catch (err) {
       toast.error(err.message || "Could not submit marks");
     } finally {

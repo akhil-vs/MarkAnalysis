@@ -131,10 +131,23 @@ export async function getMarkEntryAccessMap(user, examId, classSectionId, subjec
   return { deadline, pastDeadline, bySubject };
 }
 
+export const LATE_ENTRY_BLOCKED =
+  "Mark entry deadline has passed. Request approval from the principal or coordinator.";
+
+export const EDIT_LOCKED_BLOCKED =
+  "These marks are submitted and locked. Request edit access from the principal or coordinator.";
+
+/** Sync check against a prefetched entryAccess.bySubject[subjectId] row. */
+export function mutateBlockFromAccess(access, existingStatus) {
+  if (!access || access.canEnter === false) return LATE_ENTRY_BLOCKED;
+  if (isLockedMarkStatus(existingStatus) && !access.canEditLocked) return EDIT_LOCKED_BLOCKED;
+  return null;
+}
+
 export async function assertTeacherMarkEntryAccess(user, { examId, classSectionId, subjectId }) {
   const ok = await teacherHasMarkEntryAccess(user, { examId, classSectionId, subjectId });
   if (ok) return null;
-  return "Mark entry deadline has passed. Request approval from the principal or coordinator.";
+  return LATE_ENTRY_BLOCKED;
 }
 
 export async function assertTeacherCanMutateMark(
@@ -152,5 +165,5 @@ export async function assertTeacherCanMutateMark(
 
   const canEdit = await teacherHasEditAccess(user, { examId, classSectionId, subjectId });
   if (canEdit) return null;
-  return "These marks are submitted and locked. Request edit access from the principal or coordinator.";
+  return EDIT_LOCKED_BLOCKED;
 }
