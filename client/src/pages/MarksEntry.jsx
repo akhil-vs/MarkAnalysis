@@ -12,6 +12,7 @@ import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
 import { formatMarkCell } from "../lib/markCodes.js";
+import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function markStudentSearchText(s) {
@@ -634,7 +635,7 @@ export default function MarksEntry() {
   return (
     <div>
       <PageHeader
-        title="Mark register"
+        title={NAV_TITLES.marks}
         subtitle="Enter marks by class and subject. Save progress as draft, then submit for leadership approval."
         actions={
           <div className="hidden lg:flex flex-wrap gap-2">

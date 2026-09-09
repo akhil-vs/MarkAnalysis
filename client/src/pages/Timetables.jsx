@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 const MODES = [
@@ -135,7 +136,7 @@ export default function Timetables() {
   return (
     <div>
       <PageHeader
-        title="Teacher timetables"
+        title={NAV_TITLES.timetables}
         subtitle="Browse every teacher, the full daily board, or who is free for a period"
         actions={<ModeTabs mode={mode} onChange={setMode} />}
       />

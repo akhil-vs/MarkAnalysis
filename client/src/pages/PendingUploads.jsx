@@ -8,6 +8,7 @@ import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { paths, NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function assignmentSearchText(a) {
@@ -41,7 +42,7 @@ export default function PendingUploads() {
   return (
     <div>
       <PageHeader
-        title="Pending mark uploads"
+        title={NAV_TITLES.pendingUploads}
         subtitle={`${data.exam.name} — missing registers and submitted marks waiting for approval`}
         actions={
           <>
@@ -266,9 +267,11 @@ function TeacherCard({ teacher: t, mode, examId, onApproved, onNotify }) {
                     <td className="space-x-2 whitespace-nowrap">
                       <Link
                         className="underline text-xs"
-                        to={`/marks?classSectionId=${a.classSectionId}&examId=${examId}${
-                          a.subjectId ? `&subjectId=${a.subjectId}` : ""
-                        }`}
+                        to={paths.marks({
+                          classSectionId: a.classSectionId,
+                          examId,
+                          subjectId: a.subjectId || undefined,
+                        })}
                       >
                         Open register
                       </Link>

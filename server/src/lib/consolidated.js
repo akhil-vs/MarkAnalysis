@@ -80,7 +80,7 @@ export async function buildClassConsolidated(classSectionId, examId) {
 }
 
 /**
- * Class readiness for the Mark lists sidebar — batched queries only.
+ * Class readiness for the Consolidated lists sidebar — batched queries only.
  * Avoids calling buildClassConsolidated per class (that rebuilds full student
  * rows/ranks and was timing out near Vercel's 30s function limit).
  */

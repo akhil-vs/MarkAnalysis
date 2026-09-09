@@ -7,6 +7,7 @@ import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function statusTone(status) {
@@ -160,7 +161,7 @@ export default function LateEntryRequests() {
   return (
     <div>
       <PageHeader
-        title="Access requests"
+        title={NAV_TITLES.accessRequests}
         subtitle="Approve late entry after the deadline or edit access for submitted registers — across every exam."
         actions={
           <>

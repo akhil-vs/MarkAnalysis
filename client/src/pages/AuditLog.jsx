@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { describeAuditValue } from "../lib/markCodes.js";
@@ -42,7 +43,7 @@ export default function AuditLog() {
   return (
     <div>
       <PageHeader
-        title="Audit log"
+        title={NAV_TITLES.audit}
         subtitle="Who changed what, and when"
         actions={
           <select

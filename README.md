@@ -32,7 +32,7 @@ npm run dev
 
 Open [http://localhost:5173](http://localhost:5173).
 
-Leadership can set the **school name and board** under School (used on report cards and consolidated lists). After a year, use **Records → Promote** to move a class to the next section without losing last year’s marks. On the mark register, type `AB`, `EX`, or `WH` for absent, exempt, or withheld. Class teachers can open their section’s full register (read-only for papers they do not teach).
+Leadership can set the **school name and board** under **School profile** (used on report cards and consolidated lists). After a year, use **Records → Promote** to move a class to the next section without losing last year’s marks. On the mark register, type `AB`, `EX`, or `WH` for absent, exempt, or withheld. Class teachers can open their section’s full register (read-only for papers they do not teach).
 
 ## Seed logins
 
@@ -79,7 +79,7 @@ Deployments generate the Prisma client on Vercel build. If the live database is 
 
 Once teachers have entered marks for an exam (and leadership has approved them), the exam coordinator or principal can generate the official **consolidated mark list** for a class.
 
-Open **Mark lists** in the sidebar (or **Consolidated lists** from the school desk). Choose an exam and a class. The screen shows every student against every subject, with total, percent, grade, and rank. Classes are marked **Ready** when every subject register is fully approved.
+Open **Consolidated lists** in the sidebar (or from the school desk). Choose an exam and a class. The screen shows every student against every subject, with total, percent, grade, and rank. Classes are marked **Ready** when every subject register is fully approved.
 
 Download **Excel** or **PDF**. Incomplete classes can still be previewed; missing or draft papers appear as blanks. Approve remaining registers on the mark register before treating the file as official.
 
@@ -88,7 +88,7 @@ Download **Excel** or **PDF**. Incomplete classes can still be previewed; missin
 Principals and exam coordinators can send in-app notices to teachers about **deadlines**, **incomplete marklists**, or a **custom message**. Teachers see them in the bell and on their dashboard, with a link into the relevant register.
 
 - **Pending uploads** and the leadership dashboards: notify everyone still missing marks, or one teacher
-- **Mark lists**: notify the teachers for an incomplete class
+- **Consolidated lists**: notify the teachers for an incomplete class
 - **Records → Exams**: send a deadline reminder
 - **Staff**: notify one teacher or all teachers
 

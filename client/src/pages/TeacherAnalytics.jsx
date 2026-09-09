@@ -5,8 +5,8 @@ import { ExamSelect, TeacherCompareTable, YearComparison } from "../components/A
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { BarTrack, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { NAV_LABELS } from "../lib/nav.js";
 import { useAuth } from "../auth.jsx";
+import { NAV_LABELS, paths } from "../lib/nav.js";
 import { isLeadership } from "../lib/roles.js";
 
 function statusTone(status) {
@@ -80,7 +80,11 @@ export default function TeacherAnalytics() {
           {(data.registers || []).map((r) => (
             <Link
               key={r.id}
-              to={`/marks?classSectionId=${r.classSectionId}&subjectId=${r.subjectId}&examId=${examId}`}
+              to={paths.marks({
+                classSectionId: r.classSectionId,
+                subjectId: r.subjectId,
+                examId,
+              })}
               className="rounded-xl border border-ink-900/10 p-4 hover:border-clay-500"
             >
               <div className="flex justify-between gap-2">
@@ -113,7 +117,7 @@ export default function TeacherAnalytics() {
           className="mb-4"
           title={`${block.subject} — same subject, other teachers`}
           action={
-            <Link className="text-xs underline text-ink-700/60" to={`/analysis/compare?tab=teachers&subject=${encodeURIComponent(block.subject)}`}>
+            <Link className="text-xs underline text-ink-700/60" to={paths.compareTeachers(block.subject)}>
               Full comparison
             </Link>
           }

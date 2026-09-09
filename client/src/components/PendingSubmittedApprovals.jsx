@@ -5,6 +5,7 @@ import { useConfirm } from "./ConfirmDialog.jsx";
 import { EmptyNote, Panel } from "./DashboardKit.jsx";
 import { BusyLabel, Spinner } from "./Spinner.jsx";
 import { useToast } from "./Toast.jsx";
+import { paths } from "../lib/nav.js";
 
 /**
  * Cross-exam submitted marks waiting for leadership approval.
@@ -76,7 +77,7 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
       className={className}
       title="Submitted marks to approve"
       action={
-        <Link className="text-xs underline text-ink-700/60" to="/pending-uploads">
+        <Link className="text-xs underline text-ink-700/60" to={paths.pendingUploads()}>
           {list.length ? `View all (${list.length})` : "Open upload queue"}
         </Link>
       }
@@ -123,9 +124,11 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
                 <div className="flex flex-wrap gap-2 shrink-0">
                   <Link
                     className="btn-ghost text-xs"
-                    to={`/marks?examId=${encodeURIComponent(r.examId)}&classSectionId=${encodeURIComponent(
-                      r.classSectionId
-                    )}&subjectId=${encodeURIComponent(r.subjectId)}`}
+                    to={paths.marks({
+                      examId: r.examId,
+                      classSectionId: r.classSectionId,
+                      subjectId: r.subjectId,
+                    })}
                   >
                     Open register
                   </Link>

@@ -9,7 +9,7 @@ import { Spinner } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
-import { paths } from "../lib/nav.js";
+import { NAV_TITLES, paths } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function cmlStudentSearchText(row) {
@@ -138,7 +138,7 @@ export default function ConsolidatedLists() {
     return (
       <div>
         <PageHeader
-          title="Consolidated mark lists"
+          title={NAV_TITLES.consolidated}
           subtitle="After teachers enter and you approve marks, generate the official class list — every student, every subject, totals, grade, and rank."
         />
         <LoadingShell label="Loading mark lists…" />
@@ -155,7 +155,7 @@ export default function ConsolidatedLists() {
   return (
     <div>
       <PageHeader
-        title="Consolidated mark lists"
+        title={NAV_TITLES.consolidated}
         subtitle="After teachers enter and you approve marks, generate the official class list — every student, every subject, totals, grade, and rank."
         actions={data?.exams ? <ExamSelect exams={data.exams} value={examId} onChange={onExam} /> : null}
       />
@@ -254,9 +254,9 @@ export default function ConsolidatedLists() {
                   {preview.missingSubjects?.length ? ` Outstanding: ${preview.missingSubjects.join(", ")}.` : ""}
                   {" "}
                   Approve remaining registers for the official list.{" "}
-                  <Link className="underline" to="/pending-uploads">Pending uploads</Link>
+                  <Link className="underline" to={paths.pendingUploads()}>Pending uploads</Link>
                   {" · "}
-                  <Link className="underline" to="/marks">Mark register</Link>
+                  <Link className="underline" to={paths.marks()}>Mark register</Link>
                 </p>
               )}
 

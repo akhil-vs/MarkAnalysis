@@ -6,6 +6,7 @@ import { PageHeader } from "../components/Layout.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
+import { NAV_TITLES } from "../lib/nav.js";
 import { FilterBar, FilterField } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
 
@@ -107,7 +108,7 @@ export default function MarksUpload() {
   return (
     <div>
       <PageHeader
-        title="Bulk upload"
+        title={NAV_TITLES.upload}
         subtitle={
           leadership
             ? "One template per class and exam. Preview first, then commit — leadership uploads are approved so totals, averages, and ranks calculate immediately. Use AB, EX, or WH for absent, exempt, or withheld."
@@ -225,8 +226,8 @@ export default function MarksUpload() {
             {!preview.preview && (
               <p className="text-ink-700/70">
                 {preview.status === "APPROVED"
-                  ? "Marks are approved. Open Mark lists to see totals, averages, grades, and ranks."
-                  : "Drafts are on the mark register. Submit there when ready for leadership approval. Mark lists show provisional totals until approval."}
+                  ? "Marks are approved. Open Consolidated lists to see totals, averages, grades, and ranks."
+                  : "Drafts are on the mark register. Submit there when ready for leadership approval. Consolidated lists show provisional totals until approval."}
               </p>
             )}
             {preview.preview && preview.sample?.length > 0 && (

@@ -2,7 +2,7 @@ import { isLeadership } from "./roles.js";
 
 export const LEADERSHIP_ROLES = ["PRINCIPAL", "EXAM_COORDINATOR"];
 
-/** Canonical frontend paths for nested analysis detail pages. */
+/** Canonical frontend paths for nested analysis detail pages and deep-links. */
 export const paths = {
   classSection: (id) => `/analysis/classes/${id}`,
   classGroup: (className) => `/analysis/classes/group/${encodeURIComponent(className)}`,
@@ -10,6 +10,26 @@ export const paths = {
   subjectByName: (name) => `/analysis/subjects/name/${encodeURIComponent(name)}`,
   subjectPaper: (id) => `/analysis/subjects/${id}`,
   teacher: (id) => `/analysis/teachers/${id}`,
+  marks: ({ examId, classSectionId, subjectId } = {}) => {
+    const params = new URLSearchParams();
+    if (examId) params.set("examId", examId);
+    if (classSectionId) params.set("classSectionId", classSectionId);
+    if (subjectId) params.set("subjectId", subjectId);
+    const q = params.toString();
+    return q ? `/marks?${q}` : "/marks";
+  },
+  pendingUploads: ({ examId } = {}) =>
+    examId ? `/pending-uploads?examId=${encodeURIComponent(examId)}` : "/pending-uploads",
+  accessRequests: ({ status = "PENDING", kind, examId } = {}) => {
+    const params = new URLSearchParams();
+    if (status) params.set("status", status);
+    if (kind) params.set("kind", kind);
+    if (examId) params.set("examId", examId);
+    const q = params.toString();
+    return q ? `/late-entry?${q}` : "/late-entry";
+  },
+  compareTeachers: (subject) =>
+    `/analysis/compare?tab=teachers&subject=${encodeURIComponent(subject)}`,
 };
 
 /** Canonical labels — sidebar, hub cards, and page titles share these. */

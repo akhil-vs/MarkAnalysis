@@ -1,4 +1,7 @@
-/** Canonical SPA paths used in notification deep-links (keep in sync with client/src/lib/nav.js `paths`). */
+/**
+ * Canonical SPA paths for notification deep-links.
+ * Keep in sync with `client/src/lib/nav.js` `paths` — enforced by appLinks.sync.test.js.
+ */
 
 export function marksRegisterLink({ examId, classSectionId, subjectId } = {}) {
   const params = new URLSearchParams();
@@ -32,4 +35,16 @@ export function studentAnalysisLink(id) {
 
 export function teacherAnalysisLink(id) {
   return `/analysis/teachers/${id}`;
+}
+
+export function classGroupAnalysisLink(className) {
+  return `/analysis/classes/group/${encodeURIComponent(className)}`;
+}
+
+export function subjectByNameLink(name) {
+  return `/analysis/subjects/name/${encodeURIComponent(name)}`;
+}
+
+export function compareTeachersLink(subject) {
+  return `/analysis/compare?tab=teachers&subject=${encodeURIComponent(subject)}`;
 }

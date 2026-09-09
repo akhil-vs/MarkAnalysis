@@ -2,10 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   accessRequestsLink,
+  classGroupAnalysisLink,
   classSectionAnalysisLink,
+  compareTeachersLink,
   marksRegisterLink,
   pendingUploadsLink,
   studentAnalysisLink,
+  subjectByNameLink,
   teacherAnalysisLink,
 } from "./appLinks.js";
 
@@ -32,4 +35,7 @@ test("analysis detail links nest under /analysis", () => {
   assert.equal(classSectionAnalysisLink("c1"), "/analysis/classes/c1");
   assert.equal(studentAnalysisLink("s1"), "/analysis/students/s1");
   assert.equal(teacherAnalysisLink("t1"), "/analysis/teachers/t1");
+  assert.equal(classGroupAnalysisLink("10"), "/analysis/classes/group/10");
+  assert.equal(subjectByNameLink("Math"), "/analysis/subjects/name/Math");
+  assert.equal(compareTeachersLink("Physics"), "/analysis/compare?tab=teachers&subject=Physics");
 });
