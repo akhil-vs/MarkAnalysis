@@ -31,6 +31,7 @@ async function main() {
     );
   }
 
+  await prisma.activityAudit.deleteMany();
   await prisma.markAudit.deleteMany();
   await prisma.mark.deleteMany();
   await prisma.notification.deleteMany();
@@ -303,6 +304,97 @@ async function main() {
   });
   await prisma.mark.createMany({ data: markRows });
 
+  const currentFinal = exams.find((e) => e.academicYear === "2025-26" && e.name === "Final Exam") || exams.at(-1);
+  const sampleMarks = await prisma.mark.findMany({
+    where: { examId: currentFinal.id, enteredById: anita.id },
+    take: 6,
+    orderBy: { id: "asc" },
+  });
+  if (sampleMarks.length) {
+    await prisma.markAudit.createMany({
+      data: sampleMarks.map((m, i) => ({
+        markId: m.id,
+        changedById: m.enteredById,
+        oldValue: i === 0 ? null : Math.max(0, (m.marksObtained || 0) - 3),
+        newValue: m.marksObtained,
+        timestamp: new Date(Date.now() - (sampleMarks.length - i) * 36e5),
+      })),
+    });
+  }
+
+  const math10A = sections.find((s) => s.className === "10" && s.section === "A");
+  const math10 = subjectByKey["10:Mathematics"];
+  const bio9A = sections.find((s) => s.className === "9" && s.section === "A");
+  const bio9 = subjectByKey["9:Biology"];
+  const now = Date.now();
+  await prisma.activityAudit.createMany({
+    data: [
+      {
+        actorId: coordinator.id,
+        action: "MARK_APPROVED",
+        summary: "Approved 12 submitted marks for Anita Sharma · 10-A Mathematics · Final Exam",
+        examId: currentFinal.id,
+        meta: {
+          teacherId: anita.id,
+          teacherName: "Anita Sharma",
+          classSectionId: math10A?.id,
+          classLabel: "10-A",
+          subjectId: math10?.id,
+          subjectName: "Mathematics",
+          examName: "Final Exam",
+          count: 12,
+        },
+        timestamp: new Date(now - 50 * 6e4),
+      },
+      {
+        actorId: coordinator.id,
+        action: "ACCESS_APPROVED",
+        summary: "Approved late entry for Meera Iyer · 9-A Biology",
+        examId: currentFinal.id,
+        meta: {
+          teacherId: meera.id,
+          teacherName: "Meera Iyer",
+          classSectionId: bio9A?.id,
+          classLabel: "9-A",
+          subjectId: bio9?.id,
+          subjectName: "Biology",
+          examName: "Final Exam",
+          kind: "LATE_ENTRY",
+          status: "APPROVED",
+        },
+        timestamp: new Date(now - 40 * 6e4),
+      },
+      {
+        actorId: coordinator.id,
+        action: "EXAM_UPDATED",
+        summary: "Updated exam Final Exam (2025-26)",
+        examId: currentFinal.id,
+        meta: { examName: "Final Exam", academicYear: "2025-26", type: "FINAL" },
+        timestamp: new Date(now - 30 * 6e4),
+      },
+      {
+        actorId: coordinator.id,
+        action: "USER_STATUS_CHANGED",
+        summary: "Kiran Bose: PENDING → ACTIVE",
+        meta: {
+          userId: kiran.id,
+          userName: "Kiran Bose",
+          role: "TEACHER",
+          from: "PENDING",
+          to: "ACTIVE",
+        },
+        timestamp: new Date(now - 20 * 6e4),
+      },
+      {
+        actorId: principal.id,
+        action: "USER_PASSWORD_RESET",
+        summary: "Reset password for Sanjay Menon",
+        meta: { userId: coordinator.id, userName: "Sanjay Menon", role: "EXAM_COORDINATOR" },
+        timestamp: new Date(now - 10 * 6e4),
+      },
+    ],
+  });
+
   console.log("Seeded:");
   console.log(`  Principal: ${principal.email}`);
   console.log(`  Coordinator: ${coordinator.email}`);
@@ -311,6 +403,8 @@ async function main() {
   console.log(`  Students: ${students.length}`);
   console.log(`  Exams: ${exams.map((e) => `${e.name} ${e.academicYear}`).join(", ")}`);
   console.log(`  Marks: ${markRows.length}`);
+  console.log(`  Mark audits: ${sampleMarks.length}`);
+  console.log(`  Activity audits: 5 (including exam coordinator)`);
   console.log(`  Periods: ${periods.length}`);
   console.log(`  Timetable slots: ${timetableRows.length}`);
   console.log("  Password for all seed users: password123");

@@ -8,6 +8,7 @@ import {
   notifyEditRequested,
   notifyEditReviewed,
 } from "../lib/notifications.js";
+import { logActivity } from "../lib/activityAudit.js";
 
 export const markAccessRouter = Router();
 markAccessRouter.use(auth);
@@ -170,6 +171,22 @@ markAccessRouter.post("/", async (req, res) => {
   }
 
   const decorated = await decorateRequest(created);
+  const kindLabel = kind === "EDIT" ? "edit access" : "late entry";
+  await logActivity({
+    actorId: req.user.userId,
+    action: "ACCESS_REQUESTED",
+    summary: `Requested ${kindLabel} · ${decorated.classLabel} ${created.subject?.name || ""} · ${created.exam?.name || ""}`.replace(/\s+/g, " ").trim(),
+    examId,
+    meta: {
+      kind,
+      classSectionId,
+      classLabel: decorated.classLabel,
+      subjectId,
+      subjectName: created.subject?.name,
+      examName: created.exam?.name,
+      teacherId: req.user.userId,
+    },
+  });
   try {
     if (kind === "EDIT") await notifyEditRequested(decorated);
     else await notifyLateEntryRequested(decorated);
@@ -222,6 +239,24 @@ markAccessRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
   }
 
   const decorated = await decorateRequest(updated);
+  const kindLabel = (existing.kind === "EDIT" ? "edit access" : "late entry");
+  await logActivity({
+    actorId: req.user.userId,
+    action: status === "APPROVED" ? "ACCESS_APPROVED" : "ACCESS_REJECTED",
+    summary: `${status === "APPROVED" ? "Approved" : "Rejected"} ${kindLabel} for ${updated.teacher?.name || "teacher"} · ${decorated.classLabel} ${updated.subject?.name || ""}`.replace(/\s+/g, " ").trim(),
+    examId: existing.examId,
+    meta: {
+      kind: existing.kind,
+      teacherId: existing.teacherId,
+      teacherName: updated.teacher?.name,
+      classSectionId: existing.classSectionId,
+      classLabel: decorated.classLabel,
+      subjectId: existing.subjectId,
+      subjectName: updated.subject?.name,
+      examName: updated.exam?.name,
+      status,
+    },
+  });
   let notified = false;
   try {
     if (existing.kind === "EDIT") await notifyEditReviewed(decorated, status);

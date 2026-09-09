@@ -3,6 +3,7 @@ import { prisma } from "../lib/prisma.js";
 import { auth, requireRole } from "../middleware/auth.js";
 import { parseDeadlineInput } from "../lib/markAccess.js";
 import { academicYearFromDate } from "../lib/stats.js";
+import { logActivity } from "../lib/activityAudit.js";
 
 export const examsRouter = Router();
 examsRouter.use(auth);
@@ -33,6 +34,13 @@ examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
       marksEntryDeadline: deadline,
     },
   });
+  await logActivity({
+    actorId: req.user.userId,
+    action: "EXAM_CREATED",
+    summary: `Created exam ${created.name} (${created.academicYear})`,
+    examId: created.id,
+    meta: { examName: created.name, academicYear: created.academicYear, type: created.type },
+  });
   res.status(201).json(created);
 });
 
@@ -56,10 +64,29 @@ examsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
     where: { id: req.params.id },
     data,
   });
+  await logActivity({
+    actorId: req.user.userId,
+    action: "EXAM_UPDATED",
+    summary: `Updated exam ${updated.name} (${updated.academicYear})`,
+    examId: updated.id,
+    meta: { examName: updated.name, academicYear: updated.academicYear, type: updated.type },
+  });
   res.json(updated);
 });
 
 examsRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const existing = await prisma.exam.findUnique({
+    where: { id: req.params.id },
+    select: { id: true, name: true, academicYear: true },
+  });
   await prisma.exam.delete({ where: { id: req.params.id } });
+  if (existing) {
+    await logActivity({
+      actorId: req.user.userId,
+      action: "EXAM_DELETED",
+      summary: `Deleted exam ${existing.name} (${existing.academicYear})`,
+      meta: { examName: existing.name, academicYear: existing.academicYear },
+    });
+  }
   res.json({ ok: true });
 });

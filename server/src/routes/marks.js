@@ -18,6 +18,15 @@ import {
 } from "../lib/markSave.js";
 import { studentWhereForExam } from "../lib/studentScope.js";
 import { notifyMarksSubmitted } from "../lib/notifications.js";
+import {
+  AUDIT_LIMIT,
+  actorFilterForViewer,
+  logRegisterActivity,
+  mapActivityAudit,
+  mapMarkAudit,
+  mergeAuditFeeds,
+} from "../lib/activityAudit.js";
+import { ensureActivityAuditSchema } from "../lib/ensureSchema.js";
 import { findStudentByRoll, parseSpreadsheet, studentRollIndex } from "../lib/upload.js";
 
 const WRITE_CHUNK = 25;
@@ -233,28 +242,58 @@ marksRouter.put("/", async (req, res) => {
 });
 
 marksRouter.get("/audit", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { examId, classSectionId } = req.query;
-  const where = {};
-  if (examId) where.mark = { examId };
-  if (classSectionId) {
-    where.mark = { ...(where.mark || {}), student: { classSectionId } };
+  await ensureActivityAuditSchema();
+  const { examId, classSectionId, actorId, role: actorRole } = req.query;
+  const actorWhere = actorFilterForViewer(req.user.role, actorRole, actorId);
+
+  const markWhere = {};
+  if (examId || classSectionId) {
+    markWhere.mark = {
+      ...(examId && { examId }),
+      ...(classSectionId && { student: { classSectionId } }),
+    };
   }
-  const audits = await prisma.markAudit.findMany({
-    where,
-    orderBy: { timestamp: "desc" },
-    take: 200,
-    include: {
-      changedBy: { select: { id: true, name: true, role: true } },
-      mark: {
-        include: {
-          student: { select: { name: true, rollNo: true } },
-          subject: { select: { name: true } },
-          exam: { select: { name: true } },
+  if (actorWhere) markWhere.changedBy = actorWhere;
+
+  const activityWhere = {};
+  if (examId) activityWhere.examId = examId;
+  if (actorWhere) activityWhere.actor = actorWhere;
+
+  const [markAudits, activityAudits] = await Promise.all([
+    prisma.markAudit.findMany({
+      where: markWhere,
+      orderBy: { timestamp: "desc" },
+      take: AUDIT_LIMIT,
+      include: {
+        changedBy: { select: { id: true, name: true, role: true } },
+        mark: {
+          include: {
+            student: { select: { name: true, rollNo: true } },
+            subject: { select: { name: true } },
+            exam: { select: { id: true, name: true } },
+          },
         },
       },
-    },
+    }),
+    prisma.activityAudit.findMany({
+      where: activityWhere,
+      orderBy: { timestamp: "desc" },
+      take: AUDIT_LIMIT,
+      include: {
+        actor: { select: { id: true, name: true, role: true } },
+      },
+    }),
+  ]);
+
+  const rows = mergeAuditFeeds(
+    markAudits.filter((row) => row.mark).map(mapMarkAudit),
+    activityAudits.map(mapActivityAudit)
+  );
+
+  res.json({
+    scope: req.user.role === "PRINCIPAL" ? "all-users" : "teachers",
+    rows,
   });
-  res.json(audits);
 });
 
 marksRouter.get("/template", async (req, res) => {
@@ -587,6 +626,16 @@ marksRouter.post("/submit", async (req, res) => {
     console.error("Failed to notify leadership of mark submit", err);
   }
 
+  await logRegisterActivity({
+    actorId: req.user.userId,
+    action: "MARK_SUBMITTED",
+    examId,
+    classSectionId,
+    subjectId,
+    teacherId,
+    count: result.count,
+  });
+
   res.json({ submitted: result.count, teacherId });
 });
 
@@ -612,6 +661,17 @@ marksRouter.post("/approve", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
     },
     data: { status: "APPROVED" },
   });
+  if (result.count) {
+    await logRegisterActivity({
+      actorId: req.user.userId,
+      action: "MARK_APPROVED",
+      examId,
+      classSectionId,
+      subjectId,
+      teacherId,
+      count: result.count,
+    });
+  }
   res.json({ approved: result.count, teacherId });
 });
 
@@ -637,5 +697,16 @@ marksRouter.post("/unapprove", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
     },
     data: { status: "SUBMITTED" },
   });
+  if (result.count) {
+    await logRegisterActivity({
+      actorId: req.user.userId,
+      action: "MARK_UNAPPROVED",
+      examId,
+      classSectionId,
+      subjectId,
+      teacherId,
+      count: result.count,
+    });
+  }
   res.json({ reverted: result.count, teacherId });
 });

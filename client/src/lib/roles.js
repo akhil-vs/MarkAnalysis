@@ -5,3 +5,7 @@ export function isLeadership(role) {
 export function canAddCoordinator(role) {
   return role === "PRINCIPAL";
 }
+
+export function canViewAllAudits(role) {
+  return role === "PRINCIPAL";
+}

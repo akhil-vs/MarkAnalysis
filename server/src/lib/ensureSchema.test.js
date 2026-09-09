@@ -33,4 +33,16 @@ describe("ensureSchema bootstrap", () => {
       "STAFF_NOTICE",
     ]);
   });
+
+  it("embeds activity audit statements matching the prisma migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260909120000_activity_audit/migration.sql")
+    );
+    assert.equal(__test.ACTIVITY_CHECKSUM, createHash("sha256").update(file).digest("hex"));
+    assert.equal(__test.ACTIVITY_MIGRATION, "20260909120000_activity_audit");
+    assert.ok(__test.ACTIVITY_STATEMENTS[1].includes('CREATE TABLE IF NOT EXISTS "ActivityAudit"'));
+    assert.equal(__test.ACTIVITY_FK_STATEMENTS.length, 1);
+    assert.ok(__test.ACTIVITY_ACTIONS.includes("MARK_APPROVED"));
+    assert.ok(__test.ACTIVITY_ACTIONS.includes("USER_STATUS_CHANGED"));
+  });
 });
