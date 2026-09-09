@@ -2,8 +2,12 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api } from "../api.js";
 import { ExamSelect, TeacherCompareTable, YearComparison } from "../components/AnalysisPanels.jsx";
+import Breadcrumb from "../components/Breadcrumb.jsx";
 import { BarTrack, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { NAV_LABELS } from "../lib/nav.js";
+import { useAuth } from "../auth.jsx";
+import { isLeadership } from "../lib/roles.js";
 
 function statusTone(status) {
   if (status === "APPROVED") return "text-moss-700";
@@ -14,6 +18,8 @@ function statusTone(status) {
 
 export default function TeacherAnalytics() {
   const { id } = useParams();
+  const { user } = useAuth();
+  const leadership = isLeadership(user.role);
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
 
@@ -35,6 +41,17 @@ export default function TeacherAnalytics() {
       <PageHeader
         title={data.teacher.name}
         subtitle={`${data.exam.name} · ${data.exam.academicYear || ""}`}
+        breadcrumb={
+          <Breadcrumb
+            items={[
+              { label: NAV_LABELS.analysis, to: "/analysis" },
+              leadership
+                ? { label: NAV_LABELS.analysisTeachers, to: "/analysis/teachers" }
+                : { label: NAV_LABELS.analysisTeachers },
+              { label: data.teacher.name },
+            ]}
+          />
+        }
         actions={<ExamSelect exams={data.exams} value={examId} onChange={load} />}
       />
 

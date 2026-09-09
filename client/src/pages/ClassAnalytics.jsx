@@ -18,9 +18,11 @@ import {
 import { api, download } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { ExamSelect, YearComparison } from "../components/AnalysisPanels.jsx";
+import Breadcrumb from "../components/Breadcrumb.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { NAV_LABELS } from "../lib/nav.js";
 import { isLeadership } from "../lib/roles.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -147,16 +149,31 @@ export default function ClassAnalytics() {
   if (data.empty) return <p>No data for this class yet.</p>;
   const grades = Object.entries(data.gradeDist || {}).map(([grade, count]) => ({ grade, count }));
 
+  const label = `${data.classSection.className}-${data.classSection.section}`;
+
   return (
     <div>
       <PageHeader
-        title={`${data.classSection.className}-${data.classSection.section}`}
+        title={label}
         subtitle={data.exam.name}
+        breadcrumb={
+          <Breadcrumb
+            items={[
+              { label: NAV_LABELS.analysis, to: "/analysis" },
+              { label: NAV_LABELS.analysisClasses, to: "/analysis/classes" },
+              {
+                label: `Class ${data.classSection.className}`,
+                to: `/analysis/classes/group/${encodeURIComponent(data.classSection.className)}`,
+              },
+              { label },
+            ]}
+          />
+        }
         actions={
           <>
             <ExamSelect exams={data.exams} value={examId} onChange={load} />
             {leadership && (
-              <Link className="btn-primary" to={`/consolidated?examId=${examId}&class=${id}`}>
+              <Link className="btn-primary" to={`/consolidated?examId=${examId}&classSectionId=${id}`}>
                 Consolidated list
               </Link>
             )}

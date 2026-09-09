@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function studentSearchText(s) {
@@ -20,7 +21,7 @@ export default function AnalysisStudents() {
 
   return (
     <div>
-      <PageHeader title="Student analysis" subtitle="Search a student for trends, rank, and a report card" />
+      <PageHeader title={NAV_TITLES.analysisStudents} subtitle="Search a student for trends, rank, and a report card" />
       <div className="card">
         <div className="p-3 border-b border-ink-900/10">
           <TableToolbar

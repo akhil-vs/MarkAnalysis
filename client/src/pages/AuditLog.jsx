@@ -42,7 +42,7 @@ export default function AuditLog() {
   return (
     <div>
       <PageHeader
-        title="Marks audit"
+        title="Audit log"
         subtitle="Who changed what, and when"
         actions={
           <select

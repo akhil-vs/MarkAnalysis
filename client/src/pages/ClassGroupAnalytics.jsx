@@ -18,10 +18,12 @@ import {
 } from "recharts";
 import { api } from "../api.js";
 import { ExamSelect, YearComparison } from "../components/AnalysisPanels.jsx";
+import Breadcrumb from "../components/Breadcrumb.jsx";
 import { GRADE_COLORS, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { NAV_LABELS } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
@@ -143,6 +145,15 @@ export default function ClassGroupAnalytics() {
       <PageHeader
         title={data.label}
         subtitle={`${data.kpis.sections} divisions · ${data.exam.name} · ${data.exam.academicYear || ""}`}
+        breadcrumb={
+          <Breadcrumb
+            items={[
+              { label: NAV_LABELS.analysis, to: "/analysis" },
+              { label: NAV_LABELS.analysisClasses, to: "/analysis/classes" },
+              { label: data.label },
+            ]}
+          />
+        }
         actions={<ExamSelect exams={data.exams} value={examId} onChange={load} />}
       />
 

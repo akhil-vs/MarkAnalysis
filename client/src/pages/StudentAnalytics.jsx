@@ -11,10 +11,12 @@ import {
   YAxis,
 } from "recharts";
 import { api, download } from "../api.js";
+import Breadcrumb from "../components/Breadcrumb.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { examLabel } from "../lib/exams.js";
+import { NAV_LABELS } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a", "#4a6fa5"];
@@ -96,6 +98,15 @@ export default function StudentAnalytics() {
       <PageHeader
         title={s.name}
         subtitle={`Roll ${s.rollNo} · ${s.classSection.className}-${s.classSection.section}`}
+        breadcrumb={
+          <Breadcrumb
+            items={[
+              { label: NAV_LABELS.analysis, to: "/analysis" },
+              { label: NAV_LABELS.analysisStudents, to: "/analysis/students" },
+              { label: s.name },
+            ]}
+          />
+        }
         actions={
           <>
             <select className="field-filter" value={examId} onChange={(e) => setExamId(e.target.value)}>

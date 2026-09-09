@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 
 export default function AnalysisSubjects() {
   const [data, setData] = useState(null);
@@ -25,7 +26,7 @@ export default function AnalysisSubjects() {
   return (
     <div>
       <PageHeader
-        title="Subject analysis"
+        title={NAV_TITLES.analysisSubjects}
         subtitle="School-wide results for each subject, then drill into a class paper"
         actions={<ExamSelect exams={data.exams} value={examId} onChange={load} />}
       />

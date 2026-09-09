@@ -15,6 +15,7 @@ import { ExamSelect, TeacherCompareTable, YearComparison } from "../components/A
 import { ChartTooltip, EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { FilterBar } from "../components/TableToolbar.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 
 export default function AnalysisCompare() {
   const [params, setParams] = useSearchParams();
@@ -22,13 +23,22 @@ export default function AnalysisCompare() {
   const [years, setYears] = useState(null);
   const [teachers, setTeachers] = useState(null);
   const [examId, setExamId] = useState("");
-  const [className, setClassName] = useState(params.get("class") || "");
+  const [className, setClassName] = useState(params.get("className") || params.get("class") || "");
   const [subjectName, setSubjectName] = useState(params.get("subject") || "");
 
-  function setTab(next) {
+  function syncFilters({ tab: nextTab = tab, cls = className, subject = subjectName } = {}) {
     const nextParams = new URLSearchParams(params);
-    nextParams.set("tab", next);
-    setParams(nextParams);
+    nextParams.set("tab", nextTab);
+    if (cls) nextParams.set("className", cls);
+    else nextParams.delete("className");
+    nextParams.delete("class");
+    if (subject) nextParams.set("subject", subject);
+    else nextParams.delete("subject");
+    setParams(nextParams, { replace: true });
+  }
+
+  function setTab(next) {
+    syncFilters({ tab: next });
   }
 
   async function loadYears(id = examId, cls = className, subject = subjectName) {
@@ -64,12 +74,14 @@ export default function AnalysisCompare() {
 
   function onClass(value) {
     setClassName(value);
+    syncFilters({ cls: value });
     loadYears(examId, value, subjectName);
     loadTeachers(examId, value, subjectName);
   }
 
   function onSubject(value) {
     setSubjectName(value);
+    syncFilters({ subject: value });
     loadYears(examId, className, value);
     loadTeachers(examId, className, value);
   }
@@ -92,7 +104,7 @@ export default function AnalysisCompare() {
   return (
     <div>
       <PageHeader
-        title="Comparisons"
+        title={NAV_TITLES.analysisCompare}
         subtitle="Previous years for the same exam type, and marks in the same subject across teachers"
         actions={
           <ExamSelect
