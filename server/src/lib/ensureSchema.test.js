@@ -45,4 +45,14 @@ describe("ensureSchema bootstrap", () => {
     assert.ok(__test.ACTIVITY_ACTIONS.includes("MARK_APPROVED"));
     assert.ok(__test.ACTIVITY_ACTIONS.includes("USER_STATUS_CHANGED"));
   });
+
+  it("embeds consolidation settings migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260909220000_consolidation_max_marks_lock/migration.sql")
+    );
+    assert.equal(__test.CONSOLIDATION_CHECKSUM, createHash("sha256").update(file).digest("hex"));
+    assert.equal(__test.CONSOLIDATION_MIGRATION, "20260909220000_consolidation_max_marks_lock");
+    assert.ok(__test.CONSOLIDATION_STATEMENTS[0].includes('CREATE TABLE IF NOT EXISTS "ConsolidationSettings"'));
+    assert.equal(__test.CONSOLIDATION_FK_STATEMENTS.length, 1);
+  });
 });

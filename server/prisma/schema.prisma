@@ -76,6 +76,7 @@ model User {
   notifications  Notification[]
   timetableEntries TimetableEntry[]
   activityAudits ActivityAudit[]
+  consolidationLocks ConsolidationSettings[] @relation("ConsolidationLockedBy")
 }
 
 model ClassSection {
@@ -254,6 +255,17 @@ model SchoolProfile {
   phone         String?
   email         String?
   updatedAt     DateTime @updatedAt
+}
+
+/// One-time consolidation max-marks lock. When locked, subject maxMarks
+/// cannot change — CML totals/% use those fixed per-subject ceilings.
+model ConsolidationSettings {
+  id           String    @id @default("default")
+  maxMarksLocked Boolean @default(false)
+  lockedAt     DateTime?
+  lockedById   String?
+  lockedBy     User?     @relation("ConsolidationLockedBy", fields: [lockedById], references: [id], onDelete: SetNull)
+  updatedAt    DateTime  @updatedAt
 }
 
 enum NotificationType {

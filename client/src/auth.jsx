@@ -6,12 +6,14 @@ const AuthContext = createContext(null);
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [assignments, setAssignments] = useState([]);
+  const [classTeacherOf, setClassTeacherOf] = useState([]);
   const [loading, setLoading] = useState(true);
 
   async function refresh() {
     if (!getToken()) {
       setUser(null);
       setAssignments([]);
+      setClassTeacherOf([]);
       setLoading(false);
       return;
     }
@@ -19,9 +21,11 @@ export function AuthProvider({ children }) {
       const data = await api("/api/auth/me");
       setUser(data.user);
       setAssignments(data.assignments || []);
+      setClassTeacherOf(data.classTeacherOf || []);
     } catch {
       setToken(null);
       setUser(null);
+      setClassTeacherOf([]);
     } finally {
       setLoading(false);
     }
@@ -35,6 +39,7 @@ export function AuthProvider({ children }) {
     () => ({
       user,
       assignments,
+      classTeacherOf,
       loading,
       async login(payload) {
         const data = await api("/api/auth/login", { method: "POST", body: payload });
@@ -55,9 +60,10 @@ export function AuthProvider({ children }) {
         setToken(null);
         setUser(null);
         setAssignments([]);
+        setClassTeacherOf([]);
       },
     }),
-    [user, assignments, loading]
+    [user, assignments, classTeacherOf, loading]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

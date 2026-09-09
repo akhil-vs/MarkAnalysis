@@ -26,7 +26,7 @@ import { paths } from "../lib/nav.js";
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
 
 export default function TeacherDashboard() {
-  const { user, assignments } = useAuth();
+  const { user, assignments, classTeacherOf } = useAuth();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
   const [notices, setNotices] = useState([]);
@@ -172,6 +172,34 @@ export default function TeacherDashboard() {
           }}
         />
       </div>
+
+      {classTeacherOf?.length > 0 && (
+        <Panel
+          className="mb-5"
+          title="Class teacher — consolidated lists"
+          action={
+            <Link className="text-xs underline text-ink-700/60" to={`/consolidated${examId ? `?examId=${examId}` : ""}`}>
+              Open lists
+            </Link>
+          }
+        >
+          <p className="text-sm text-ink-700/70 mb-3">
+            Your section list opens only after every subject teacher has submitted marks and the principal or
+            exam coordinator has approved them.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {classTeacherOf.map((c) => (
+              <Link
+                key={c.id}
+                className="btn-ghost"
+                to={`/consolidated?examId=${examId}&classSectionId=${c.id}`}
+              >
+                {c.label || `${c.className}-${c.section}`}
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      )}
 
       <div className="grid lg:grid-cols-12 gap-4 mb-4">
         <Panel className="lg:col-span-7" title="Your registers">

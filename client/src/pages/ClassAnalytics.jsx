@@ -130,8 +130,10 @@ function SearchableRankTable({ rows, showRank = true }) {
 
 export default function ClassAnalytics() {
   const { id } = useParams();
-  const { user } = useAuth();
+  const { user, classTeacherOf } = useAuth();
   const leadership = isLeadership(user.role);
+  const isClassTeacher = (classTeacherOf || []).some((c) => c.id === id);
+  const canOpenCml = leadership || isClassTeacher;
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
 
@@ -172,7 +174,7 @@ export default function ClassAnalytics() {
         actions={
           <>
             <ExamSelect exams={data.exams} value={examId} onChange={load} />
-            {leadership && (
+            {canOpenCml && (
               <Link className="btn-primary" to={`/consolidated?examId=${examId}&classSectionId=${id}`}>
                 Consolidated list
               </Link>

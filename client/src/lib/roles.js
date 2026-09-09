@@ -9,3 +9,9 @@ export function canAddCoordinator(role) {
 export function canViewAllAudits(role) {
   return role === "PRINCIPAL";
 }
+
+/** Leadership always; teachers only when they are class teacher of at least one section. */
+export function canAccessConsolidated(role, classTeacherOf = []) {
+  if (isLeadership(role)) return true;
+  return role === "TEACHER" && Array.isArray(classTeacherOf) && classTeacherOf.length > 0;
+}
