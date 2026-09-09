@@ -164,9 +164,9 @@ export default function TeacherDashboard() {
           label="Registers to finish"
           value={data.kpis?.pendingRegisters ?? 0}
           tone={data.kpis?.pendingRegisters ? "alert" : undefined}
-          to={user.id ? `/analysis/teachers/${user.id}` : undefined}
+          to="/marks"
           hint={{
-            text: data.kpis?.pendingRegisters ? "Marks still missing" : "All assigned rows entered",
+            text: data.kpis?.pendingRegisters ? "Open mark register" : "All assigned rows entered",
             tone: data.kpis?.pendingRegisters ? "down" : "up",
           }}
         />

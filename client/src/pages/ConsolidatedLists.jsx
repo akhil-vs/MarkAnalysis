@@ -33,16 +33,20 @@ function LoadingShell({ label }) {
   );
 }
 
+function initialClassSectionId(params) {
+  return params.get("classSectionId") || params.get("class") || "";
+}
+
 export default function ConsolidatedLists() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState(params.get("examId") || "");
-  const [selectedId, setSelectedId] = useState(params.get("class") || "");
+  const [selectedId, setSelectedId] = useState(initialClassSectionId(params));
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
-  const [previewLoading, setPreviewLoading] = useState(Boolean(params.get("class")));
+  const [previewLoading, setPreviewLoading] = useState(Boolean(initialClassSectionId(params)));
   const [notify, setNotify] = useState(null);
 
   async function loadStatus(id) {
@@ -101,7 +105,9 @@ export default function ConsolidatedLists() {
     }
     const next = new URLSearchParams(params);
     if (examId) next.set("examId", examId);
-    next.set("class", id);
+    if (id) next.set("classSectionId", id);
+    else next.delete("classSectionId");
+    next.delete("class");
     setParams(next, { replace: true });
   }
 

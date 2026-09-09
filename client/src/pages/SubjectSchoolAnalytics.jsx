@@ -12,8 +12,10 @@ import {
 } from "recharts";
 import { api } from "../api.js";
 import { ExamSelect, TeacherCompareTable, YearComparison, comparableNote } from "../components/AnalysisPanels.jsx";
+import Breadcrumb from "../components/Breadcrumb.jsx";
 import { GRADE_COLORS, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { NAV_LABELS } from "../lib/nav.js";
 
 export default function SubjectSchoolAnalytics() {
   const { name } = useParams();
@@ -41,6 +43,15 @@ export default function SubjectSchoolAnalytics() {
       <PageHeader
         title={data.name}
         subtitle={`Whole-school analysis · ${data.exam.name} · ${data.exam.academicYear || ""}`}
+        breadcrumb={
+          <Breadcrumb
+            items={[
+              { label: NAV_LABELS.analysis, to: "/analysis" },
+              { label: NAV_LABELS.analysisSubjects, to: "/analysis/subjects" },
+              { label: data.name },
+            ]}
+          />
+        }
         actions={<ExamSelect exams={data.exams} value={examId} onChange={load} />}
       />
 

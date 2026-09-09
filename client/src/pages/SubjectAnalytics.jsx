@@ -11,7 +11,9 @@ import {
 } from "recharts";
 import { api } from "../api.js";
 import { ExamSelect, TeacherCompareTable, YearComparison, comparableNote } from "../components/AnalysisPanels.jsx";
+import Breadcrumb from "../components/Breadcrumb.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { NAV_LABELS } from "../lib/nav.js";
 
 export default function SubjectAnalytics() {
   const { id } = useParams();
@@ -36,6 +38,19 @@ export default function SubjectAnalytics() {
       <PageHeader
         title={data.subject.name}
         subtitle={`Class ${data.subject.className} · ${data.exam.name} · ${data.exam.academicYear || ""}`}
+        breadcrumb={
+          <Breadcrumb
+            items={[
+              { label: NAV_LABELS.analysis, to: "/analysis" },
+              { label: NAV_LABELS.analysisSubjects, to: "/analysis/subjects" },
+              {
+                label: data.subject.name,
+                to: `/analysis/subjects/name/${encodeURIComponent(data.subject.name)}`,
+              },
+              { label: data.subject.className || "Paper" },
+            ]}
+          />
+        }
         actions={
           <ExamSelect exams={data.exams} value={examId} onChange={load} />
         }

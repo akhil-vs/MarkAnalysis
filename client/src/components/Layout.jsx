@@ -2,6 +2,8 @@ import { useEffect, useId, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import { isAnalysisPath, navGroupsForRole } from "../lib/nav.js";
+import { isLeadership } from "../lib/roles.js";
 import NotificationBell from "./NotificationBell.jsx";
 import PoweredBy from "./PoweredBy.jsx";
 
@@ -178,11 +180,10 @@ export default function Layout() {
   const [lateEntryCount, setLateEntryCount] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
   const navId = useId();
-  const isLeadership = user.role !== "TEACHER";
-  const analysisOpen =
-    location.pathname.startsWith("/analysis") ||
-    location.pathname.startsWith("/students") ||
-    location.pathname.startsWith("/classes");
+  const leadership = isLeadership(user.role);
+  const analysisOpen = isAnalysisPath(location.pathname);
+  const groups = navGroupsForRole(user.role);
+  const badges = { pending: pendingCount, lateEntry: lateEntryCount };
 
   useEffect(() => {
     setNavOpen(false);
@@ -208,7 +209,7 @@ export default function Layout() {
   }, [navOpen]);
 
   useEffect(() => {
-    if (!isLeadership) return;
+    if (!leadership) return;
     api("/api/analytics/awaiting-approvals")
       .then((d) => setPendingCount(Number(d.count) || 0))
       .catch(() => {
@@ -219,29 +220,7 @@ export default function Layout() {
     api("/api/mark-access?status=PENDING")
       .then((rows) => setLateEntryCount(rows.length))
       .catch(() => setLateEntryCount(null));
-  }, [isLeadership, location.pathname]);
-
-  const links = [
-    { to: "/", label: "Dashboard", icon: "dashboard", end: true },
-    ...(user.role !== "TEACHER" ? [{ to: "/users", label: "Staff", icon: "staff" }] : []),
-    ...(isLeadership ? [{ to: "/timetables", label: "Timetables", icon: "timetable" }] : []),
-    ...(isLeadership ? [{ to: "/manage", label: "Records", icon: "records" }] : []),
-    ...(isLeadership ? [{ to: "/school", label: "School", icon: "school" }] : []),
-    { to: "/marks", label: "Mark register", icon: "register" },
-    { to: "/upload", label: "Bulk upload", icon: "upload" },
-    ...(isLeadership ? [{ to: "/consolidated", label: "Mark lists", icon: "lists" }] : []),
-    ...(isLeadership ? [{ to: "/audit", label: "Audit log", icon: "audit" }] : []),
-    ...(isLeadership ? [{ to: "/late-entry", label: "Late entry", icon: "late", badge: lateEntryCount }] : []),
-  ];
-
-  const analysisLinks = [
-    ...(isLeadership ? [{ to: "/analysis/school", label: "School", icon: "school" }] : []),
-    { to: "/analysis/classes", label: "Classes", icon: "classes" },
-    ...(isLeadership ? [{ to: "/analysis/subjects", label: "Subjects", icon: "subjects" }] : []),
-    ...(isLeadership ? [{ to: "/analysis/teachers", label: "Teachers", icon: "teachers" }] : []),
-    { to: "/analysis/students", label: "Students", icon: "students" },
-    ...(isLeadership ? [{ to: "/analysis/compare", label: "Compare", icon: "compare" }] : []),
-  ];
+  }, [leadership, location.pathname]);
 
   function closeNav() {
     setNavOpen(false);
@@ -263,54 +242,39 @@ export default function Layout() {
           <MenuIcon open />
         </button>
       </div>
-      <nav id={navId} className="flex-1 min-h-0 px-3 py-4 space-y-1 overflow-y-auto overscroll-contain">
-        {links.slice(0, 1).map((l) => (
-          <SideLink key={l.to} {...l} onNavigate={closeNav} />
-        ))}
-        <div>
-          <NavLink
-            to="/analysis"
-            onClick={closeNav}
-            className={({ isActive }) =>
-              `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm ${
-                isActive || analysisOpen ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
-              }`
-            }
-          >
-            <NavIcon name="analysis" />
-            <span>Marks analysis</span>
-          </NavLink>
-          {(analysisOpen || location.pathname === "/analysis") && (
-            <div className="ml-3 mt-1 space-y-0.5 border-l border-white/10 pl-2">
-              {analysisLinks.map((l) => (
-                <SideLink key={l.to} {...l} onNavigate={closeNav} />
-              ))}
-            </div>
-          )}
-        </div>
-        {isLeadership && (
-          <NavLink
-            to="/pending-uploads"
-            onClick={closeNav}
-            className={({ isActive }) =>
-              `flex items-center justify-between gap-2 rounded-lg px-3 py-2.5 text-sm ${
-                isActive ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
-              }`
-            }
-          >
-            <span className="flex min-w-0 items-center gap-2.5">
-              <NavIcon name="pending" />
-              <span>Pending uploads</span>
-            </span>
-            {pendingCount != null && (
-              <span className={`rounded-full px-1.5 py-0.5 text-[10px] ${pendingCount ? "bg-clay-500 text-white" : "bg-white/10 text-cream/70"}`}>
-                {pendingCount}
-              </span>
+      <nav id={navId} className="flex-1 min-h-0 px-3 py-4 space-y-4 overflow-y-auto overscroll-contain">
+        {groups.map((group) => (
+          <div key={group.id}>
+            {group.label && (
+              <div className="px-3 mb-1.5 text-[10px] font-medium uppercase tracking-wider text-cream/40">
+                {group.label}
+              </div>
             )}
-          </NavLink>
-        )}
-        {links.slice(1).map((l) => (
-          <SideLink key={l.to} {...l} onNavigate={closeNav} />
+            <div className="space-y-0.5">
+              {group.items.map((item) =>
+                item.expandable ? (
+                  <AnalysisNav
+                    key={item.id}
+                    item={item}
+                    analysisOpen={analysisOpen}
+                    pathname={location.pathname}
+                    onNavigate={closeNav}
+                  />
+                ) : (
+                  <SideLink
+                    key={item.id}
+                    to={item.to}
+                    label={item.label}
+                    end={item.end}
+                    icon={item.icon}
+                    badge={item.badgeKey ? badges[item.badgeKey] : null}
+                    showZeroBadge={item.badgeKey === "pending"}
+                    onNavigate={closeNav}
+                  />
+                )
+              )}
+            </div>
+          </div>
         ))}
       </nav>
       <div className="px-5 py-4 border-t border-white/10 shrink-0 safe-pb">
@@ -391,7 +355,35 @@ export default function Layout() {
   );
 }
 
-function SideLink({ to, label, end, badge, icon, onNavigate }) {
+function AnalysisNav({ item, analysisOpen, pathname, onNavigate }) {
+  const open = analysisOpen || pathname === item.to;
+  return (
+    <div>
+      <NavLink
+        to={item.to}
+        onClick={onNavigate}
+        className={({ isActive }) =>
+          `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm ${
+            isActive || analysisOpen ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
+          }`
+        }
+      >
+        <NavIcon name={item.icon} />
+        <span>{item.label}</span>
+      </NavLink>
+      {open && item.children?.length > 0 && (
+        <div className="ml-3 mt-1 space-y-0.5 border-l border-white/10 pl-2">
+          {item.children.map((child) => (
+            <SideLink key={child.id} to={child.to} label={child.label} icon={child.icon} onNavigate={onNavigate} />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SideLink({ to, label, end, badge, icon, onNavigate, showZeroBadge }) {
+  const showBadge = badge != null && (showZeroBadge || badge > 0);
   return (
     <NavLink
       to={to}
@@ -407,21 +399,32 @@ function SideLink({ to, label, end, badge, icon, onNavigate }) {
         {icon && <NavIcon name={icon} />}
         <span className="truncate">{label}</span>
       </span>
-      {badge != null && badge > 0 && (
-        <span className="rounded-full px-1.5 py-0.5 text-[10px] bg-clay-500 text-white">{badge}</span>
+      {showBadge && (
+        <span
+          className={`rounded-full px-1.5 py-0.5 text-[10px] ${
+            badge > 0 ? "bg-clay-500 text-white" : "bg-white/10 text-cream/70"
+          }`}
+        >
+          {badge}
+        </span>
       )}
     </NavLink>
   );
 }
 
-export function PageHeader({ title, subtitle, actions }) {
+export function PageHeader({ title, subtitle, actions, breadcrumb }) {
   return (
-    <div className="mb-5 sm:mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
-      <div className="min-w-0">
-        <h1 className="font-serif text-2xl sm:text-3xl leading-tight">{title}</h1>
-        {subtitle && <p className="mt-1 text-sm text-ink-700/70">{subtitle}</p>}
+    <div className="mb-5 sm:mb-6">
+      {breadcrumb}
+      <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
+        <div className="min-w-0">
+          <h1 className="font-serif text-2xl sm:text-3xl leading-tight">{title}</h1>
+          {subtitle && <p className="mt-1 text-sm text-ink-700/70">{subtitle}</p>}
+        </div>
+        {actions && (
+          <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:max-w-none sm:justify-end">{actions}</div>
+        )}
       </div>
-      {actions && <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto sm:max-w-none sm:justify-end">{actions}</div>}
     </div>
   );
 }

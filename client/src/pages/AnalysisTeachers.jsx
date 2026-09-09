@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
-import { useAuth } from "../auth.jsx";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 
 export default function AnalysisTeachers() {
-  const { user } = useAuth();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
 
@@ -29,7 +28,7 @@ export default function AnalysisTeachers() {
   return (
     <div>
       <PageHeader
-        title="Teacher analysis"
+        title={NAV_TITLES.analysisTeachers}
         subtitle={`How each teacher’s registers look in ${data.exam.name}`}
         actions={<ExamSelect exams={data.exams} value={examId} onChange={load} />}
       />
@@ -47,11 +46,9 @@ export default function AnalysisTeachers() {
         ))}
         {!rows.length && <EmptyNote>No active teachers.</EmptyNote>}
       </div>
-      {user.role === "TEACHER" ? null : (
-        <p className="text-xs text-ink-700/50 mt-4">
-          Open a teacher to see year-on-year change and same-subject comparison with colleagues.
-        </p>
-      )}
+      <p className="text-xs text-ink-700/50 mt-4">
+        Open a teacher to see year-on-year change and same-subject comparison with colleagues.
+      </p>
     </div>
   );
 }

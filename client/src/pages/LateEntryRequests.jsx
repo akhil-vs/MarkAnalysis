@@ -160,7 +160,7 @@ export default function LateEntryRequests() {
   return (
     <div>
       <PageHeader
-        title="Mark access requests"
+        title="Access requests"
         subtitle="Approve late entry after the deadline or edit access for submitted registers — across every exam."
         actions={
           <>

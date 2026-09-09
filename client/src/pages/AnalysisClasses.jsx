@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 
 export default function AnalysisClasses() {
   const [data, setData] = useState(null);
@@ -25,7 +26,7 @@ export default function AnalysisClasses() {
   return (
     <div>
       <PageHeader
-        title="Class & division analysis"
+        title={NAV_TITLES.analysisClasses}
         subtitle="Open a whole class, or a single division, for subject stats and rankings"
         actions={<ExamSelect exams={data.exams} value={examId} onChange={load} />}
       />
