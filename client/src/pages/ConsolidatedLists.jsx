@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api, download } from "../api.js";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
@@ -38,11 +38,49 @@ function initialClassSectionId(params) {
   return params.get("classSectionId") || params.get("class") || "";
 }
 
+function groupClassesByName(sections) {
+  const byName = new Map();
+  for (const section of sections) {
+    const key = section.className;
+    if (!byName.has(key)) {
+      byName.set(key, {
+        className: key,
+        label: key,
+        divisions: [],
+        studentCount: 0,
+        readyCount: 0,
+        draftCount: 0,
+        approvedSubjects: 0,
+        totalSubjects: 0,
+      });
+    }
+    const group = byName.get(key);
+    group.divisions.push(section);
+    group.studentCount += section.studentCount || 0;
+    group.draftCount += section.draftCount || 0;
+    group.approvedSubjects += section.approvedSubjects || 0;
+    group.totalSubjects += section.totalSubjects || 0;
+    if (section.ready) group.readyCount += 1;
+  }
+  return [...byName.values()].map((group) => {
+    const divisionCount = group.divisions.length;
+    const ready = divisionCount > 0 && group.readyCount === divisionCount;
+    const complete = divisionCount > 0 && group.divisions.every((d) => d.complete);
+    return {
+      ...group,
+      divisionCount,
+      ready,
+      complete,
+    };
+  });
+}
+
 export default function ConsolidatedLists() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState(params.get("examId") || "");
+  const [selectedClassName, setSelectedClassName] = useState(params.get("className") || "");
   const [selectedId, setSelectedId] = useState(initialClassSectionId(params));
   const [preview, setPreview] = useState(null);
   const [error, setError] = useState("");
@@ -87,29 +125,72 @@ export default function ConsolidatedLists() {
     }
   }, [selectedId, examId]);
 
+  const sections = data?.classes;
+  const classGroups = useMemo(() => groupClassesByName(sections || []), [sections]);
+
+  useEffect(() => {
+    if (!sections?.length) return;
+    if (selectedId) {
+      const match = sections.find((c) => c.id === selectedId);
+      if (match && match.className !== selectedClassName) {
+        setSelectedClassName(match.className);
+      }
+      return;
+    }
+    if (selectedClassName && !classGroups.some((g) => g.className === selectedClassName)) {
+      setSelectedClassName("");
+    }
+  }, [sections, selectedId, selectedClassName, classGroups]);
+
+  function syncParams({ exam = examId, className = selectedClassName, classSectionId = selectedId } = {}) {
+    const next = new URLSearchParams(params);
+    if (exam) next.set("examId", exam);
+    else next.delete("examId");
+    if (className) next.set("className", className);
+    else next.delete("className");
+    if (classSectionId) next.set("classSectionId", classSectionId);
+    else next.delete("classSectionId");
+    next.delete("class");
+    setParams(next, { replace: true });
+  }
+
   function onExam(id) {
     setExamId(id);
     setPreview(null);
     if (selectedId) setPreviewLoading(true);
-    const next = new URLSearchParams(params);
-    next.set("examId", id);
-    setParams(next, { replace: true });
+    syncParams({ exam: id });
     loadStatus(id).catch((e) => setError(e.message));
   }
 
-  function selectClass(id) {
+  function selectClassGroup(className) {
+    setSelectedClassName(className);
+    setSelectedId("");
+    setPreview(null);
+    setPreviewLoading(false);
+    setError("");
+    syncParams({ className, classSectionId: "" });
+  }
+
+  function clearClassGroup() {
+    setSelectedClassName("");
+    setSelectedId("");
+    setPreview(null);
+    setPreviewLoading(false);
+    setError("");
+    syncParams({ className: "", classSectionId: "" });
+  }
+
+  function selectDivision(id) {
     setSelectedId(id);
     if (id !== selectedId) {
       setPreview(null);
-      setPreviewLoading(true);
+      setPreviewLoading(Boolean(id));
       setError("");
     }
-    const next = new URLSearchParams(params);
-    if (examId) next.set("examId", examId);
-    if (id) next.set("classSectionId", id);
-    else next.delete("classSectionId");
-    next.delete("class");
-    setParams(next, { replace: true });
+    const match = (data?.classes || []).find((c) => c.id === id);
+    const className = match?.className || selectedClassName;
+    if (className) setSelectedClassName(className);
+    syncParams({ className, classSectionId: id || "" });
   }
 
   async function generate(format) {
@@ -147,8 +228,10 @@ export default function ConsolidatedLists() {
   }
   if (data?.empty) return <p>No exam data yet.</p>;
 
-  const classes = data?.classes || [];
-  const selected = classes.find((c) => c.id === selectedId);
+  const allSections = sections || [];
+  const selectedClass = classGroups.find((g) => g.className === selectedClassName) || null;
+  const divisions = selectedClass?.divisions || [];
+  const selected = divisions.find((c) => c.id === selectedId) || allSections.find((c) => c.id === selectedId);
   const tableBusy = previewLoading || Boolean(busy);
   const tableBusyLabel = previewLoading ? "Loading mark list…" : "Preparing download…";
 
@@ -164,8 +247,8 @@ export default function ConsolidatedLists() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
         <div className="card p-4">
-          <div className="text-xs uppercase tracking-wide text-ink-700/60">Classes ready</div>
-          <div className="font-serif text-3xl mt-1">{data?.readyCount ?? 0} / {classes.length}</div>
+          <div className="text-xs uppercase tracking-wide text-ink-700/60">Divisions ready</div>
+          <div className="font-serif text-3xl mt-1">{data?.readyCount ?? 0} / {allSections.length}</div>
         </div>
         <div className="card p-4">
           <div className="text-xs uppercase tracking-wide text-ink-700/60">Working exam</div>
@@ -174,42 +257,86 @@ export default function ConsolidatedLists() {
         <div className="card p-4">
           <div className="text-xs uppercase tracking-wide text-ink-700/60">How it works</div>
           <p className="text-sm text-ink-700/70 mt-1">
-            Teachers enter registers, leadership approves, then generate Excel or PDF for a class.
+            Pick a class, then a division. Teachers enter registers, leadership approves, then generate Excel or PDF.
           </p>
         </div>
       </div>
 
       <div className="grid lg:grid-cols-12 gap-4">
-        <Panel className="lg:col-span-4" title="Classes">
-          <div className="space-y-2">
-            {classes.map((cls) => (
-              <button
-                key={cls.id}
-                type="button"
-                onClick={() => selectClass(cls.id)}
-                className={`w-full text-left rounded-lg border px-3 py-2.5 ${
-                  selectedId === cls.id ? "border-clay-500 bg-[#fbf4ec]" : "border-ink-900/10 hover:border-clay-500"
-                }`}
-              >
-                <div className="flex items-baseline justify-between gap-2">
-                  <span className="font-serif text-xl">{cls.label}</span>
-                  <StatusPill ready={cls.ready} complete={cls.complete} drafts={cls.draftCount} />
-                </div>
-                <div className="text-[11px] text-ink-700/55 mt-1">
-                  {cls.approvedSubjects}/{cls.totalSubjects} subjects approved
-                  {cls.teacher ? ` · ${cls.teacher}` : ""} · {cls.studentCount} students
-                </div>
-                {cls.missingSubjects?.length > 0 && (
-                  <div className="text-[11px] text-clay-600 mt-1">Missing: {cls.missingSubjects.join(", ")}</div>
-                )}
+        <Panel
+          className="lg:col-span-4"
+          title={selectedClass ? `Divisions · ${selectedClass.label}` : "Classes"}
+          action={
+            selectedClass ? (
+              <button type="button" className="btn-ghost text-xs" onClick={clearClassGroup}>
+                Change class
               </button>
-            ))}
-            {!classes.length && <EmptyNote>No classes on roll.</EmptyNote>}
+            ) : null
+          }
+        >
+          <div className="space-y-2">
+            {!selectedClass ? (
+              <>
+                <p className="text-xs text-ink-700/55 mb-1">Select a class to see its divisions.</p>
+                {classGroups.map((group) => (
+                  <button
+                    key={group.className}
+                    type="button"
+                    onClick={() => selectClassGroup(group.className)}
+                    className="w-full text-left rounded-lg border border-ink-900/10 px-3 py-2.5 hover:border-clay-500"
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-serif text-xl">{group.label}</span>
+                      <StatusPill ready={group.ready} complete={group.complete} drafts={group.draftCount} />
+                    </div>
+                    <div className="text-[11px] text-ink-700/55 mt-1">
+                      {group.divisionCount} division{group.divisionCount === 1 ? "" : "s"}
+                      {group.readyCount < group.divisionCount
+                        ? ` · ${group.readyCount}/${group.divisionCount} ready`
+                        : ""}
+                      {" · "}
+                      {group.studentCount} students
+                    </div>
+                  </button>
+                ))}
+                {!classGroups.length && <EmptyNote>No classes on roll.</EmptyNote>}
+              </>
+            ) : (
+              <>
+                <p className="text-xs text-ink-700/55 mb-1">Select a division to open its consolidated mark list.</p>
+                {divisions.map((cls) => (
+                  <button
+                    key={cls.id}
+                    type="button"
+                    onClick={() => selectDivision(cls.id)}
+                    className={`w-full text-left rounded-lg border px-3 py-2.5 ${
+                      selectedId === cls.id ? "border-clay-500 bg-[#fbf4ec]" : "border-ink-900/10 hover:border-clay-500"
+                    }`}
+                  >
+                    <div className="flex items-baseline justify-between gap-2">
+                      <span className="font-serif text-xl">{cls.section}</span>
+                      <StatusPill ready={cls.ready} complete={cls.complete} drafts={cls.draftCount} />
+                    </div>
+                    <div className="text-[11px] text-ink-700/55 mt-1">
+                      {cls.approvedSubjects}/{cls.totalSubjects} subjects approved
+                      {cls.teacher ? ` · ${cls.teacher}` : ""} · {cls.studentCount} students
+                    </div>
+                    {cls.missingSubjects?.length > 0 && (
+                      <div className="text-[11px] text-clay-600 mt-1">Missing: {cls.missingSubjects.join(", ")}</div>
+                    )}
+                  </button>
+                ))}
+                {!divisions.length && <EmptyNote>No divisions in this class.</EmptyNote>}
+              </>
+            )}
           </div>
         </Panel>
 
         <div className="lg:col-span-8">
-          {!selected && <EmptyNote>Choose a class to preview its consolidated mark list.</EmptyNote>}
+          {!selectedClass && <EmptyNote>Choose a class, then a division, to preview its consolidated mark list.</EmptyNote>}
+          {selectedClass && !selected && (
+            <EmptyNote>Choose a division of {selectedClass.label} to preview its consolidated mark list.</EmptyNote>
+          )}
           {selected && previewLoading && !preview && (
             <LoadingShell label="Loading mark list…" />
           )}

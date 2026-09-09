@@ -80,9 +80,9 @@ Deployments generate the Prisma client on Vercel build. If the live database is 
 
 Once teachers have entered marks for an exam (and leadership has approved them), the exam coordinator or principal can generate the official **consolidated mark list** for a class.
 
-Open **Consolidated lists** in the sidebar (or from the school desk). Choose an exam and a class. The screen shows every student against every subject, with total, percent, grade, and rank. Classes are marked **Ready** when every subject register is fully approved.
+Open **Consolidated lists** in the sidebar (or from the school desk). Choose an exam, then a class, then a division. The screen shows every student against every subject, with total, percent, grade, and rank. Divisions are marked **Ready** when every subject register is fully approved.
 
-Download **Excel** or **PDF**. Incomplete classes can still be previewed; missing or draft papers appear as blanks. Approve remaining registers on the mark register before treating the file as official.
+Download **Excel** or **PDF**. Incomplete divisions can still be previewed; missing or draft papers appear as blanks. Approve remaining registers on the mark register before treating the file as official.
 
 ## Notify teachers
 
