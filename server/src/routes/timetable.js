@@ -1,5 +1,10 @@
 import { Router } from "express";
-import { ensureDefaultPeriods } from "../lib/periods.js";
+import {
+  ensureDefaultPeriods,
+  isValidPeriodTime,
+  listPeriodsWithCounts,
+  parseTimeToMinutes,
+} from "../lib/periods.js";
 import { prisma } from "../lib/prisma.js";
 import { ensureTimetableSchema } from "../lib/ensureSchema.js";
 import { auth, isLeadership, publicUser, requireLeadership } from "../middleware/auth.js";
@@ -113,13 +118,17 @@ async function loadTeacherOr404(teacherId, res) {
 }
 
 timetableRouter.get("/periods", async (_req, res) => {
-  const periods = await ensureDefaultPeriods();
+  await ensureDefaultPeriods();
+  const periods = await listPeriodsWithCounts();
   res.json(periods);
 });
 
 timetableRouter.put("/periods", requireLeadership(), async (req, res) => {
   const rows = Array.isArray(req.body?.periods) ? req.body.periods : null;
   if (!rows) return res.status(400).json({ error: "periods array is required" });
+  if (!rows.length) {
+    return res.status(400).json({ error: "Keep at least one period in the bell schedule" });
+  }
 
   const cleaned = [];
   const seenOrders = new Set();
@@ -131,6 +140,12 @@ timetableRouter.put("/periods", requireLeadership(), async (req, res) => {
     const isBreak = Boolean(row?.isBreak);
     if (!name || !startTime || !endTime || !Number.isInteger(sortOrder) || sortOrder < 0) {
       return res.status(400).json({ error: "Each period needs name, sortOrder, startTime, and endTime" });
+    }
+    if (!isValidPeriodTime(startTime) || !isValidPeriodTime(endTime)) {
+      return res.status(400).json({ error: "Times must use HH:MM (24-hour)" });
+    }
+    if (parseTimeToMinutes(startTime) >= parseTimeToMinutes(endTime)) {
+      return res.status(400).json({ error: `End time must be after start time for ${name}` });
     }
     if (seenOrders.has(sortOrder)) {
       return res.status(400).json({ error: "Period sortOrder values must be unique" });
@@ -179,7 +194,7 @@ timetableRouter.put("/periods", requireLeadership(), async (req, res) => {
     }
   });
 
-  const periods = await prisma.period.findMany({ orderBy: { sortOrder: "asc" } });
+  const periods = await listPeriodsWithCounts();
   res.json(periods);
 });
 

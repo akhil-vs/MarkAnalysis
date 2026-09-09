@@ -13,6 +13,32 @@ export const DEFAULT_PERIODS = [
   { name: "Period 8", sortOrder: 10, startTime: "14:10", endTime: "14:55", isBreak: false },
 ];
 
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Parse HH:MM to minutes from midnight; returns null if invalid. */
+export function parseTimeToMinutes(value) {
+  const s = String(value || "").trim();
+  if (!TIME_RE.test(s)) return null;
+  const [h, m] = s.split(":").map(Number);
+  return h * 60 + m;
+}
+
+export function isValidPeriodTime(value) {
+  return parseTimeToMinutes(value) != null;
+}
+
+/** List periods with teaching-slot counts for leadership editing. */
+export async function listPeriodsWithCounts() {
+  const periods = await prisma.period.findMany({
+    orderBy: { sortOrder: "asc" },
+    include: { _count: { select: { entries: true } } },
+  });
+  return periods.map(({ _count, ...period }) => ({
+    ...period,
+    entryCount: _count.entries,
+  }));
+}
+
 /** Ensure the school has a bell schedule so timetable grids are usable after migrate. */
 export async function ensureDefaultPeriods() {
   const existing = await prisma.period.findMany({ orderBy: { sortOrder: "asc" } });

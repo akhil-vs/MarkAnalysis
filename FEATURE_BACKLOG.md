@@ -14,6 +14,7 @@ Remaining work that would make this suitable for a live school:
 - **Moderation / grace marks** with audit reason
 + ~~Teacher daily / weekly / monthly timetables for principal and exam coordinator~~ (Timetables nav + views + seed periods)
 + ~~All-teachers daily board + find free teacher for a period~~ (leadership Timetables modes)
++ ~~Configurable bell schedule (periods + timings) for principal and exam coordinator~~ (Timetables → Periods)
 
 ## Product / access
 

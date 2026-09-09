@@ -207,6 +207,7 @@ export default function TeacherTimetable() {
             <Link to="/timetables" className="btn-ghost">All teachers</Link>
             <Link to={`/timetables?mode=daily&date=${date}`} className="btn-ghost">Daily board</Link>
             <Link to={`/timetables?mode=free&date=${date}`} className="btn-ghost">Find free</Link>
+            <Link to="/timetables?mode=periods" className="btn-ghost">Periods</Link>
             {VIEWS.map((v) => (
               <button
                 key={v.id}
