@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { NAV_TITLES } from "../lib/nav.js";
+import { NAV_TITLES, paths } from "../lib/nav.js";
 
 export default function AnalysisClasses() {
   const [data, setData] = useState(null);
@@ -34,7 +34,7 @@ export default function AnalysisClasses() {
       <h2 className="font-serif text-xl mb-3">Class-wise</h2>
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-8">
         {(data.classWise || []).map((c) => (
-          <Link key={c.className} to={`/analysis/classes/group/${encodeURIComponent(c.className)}`} className="card p-4 hover:border-clay-500">
+          <Link key={c.className} to={paths.classGroup(c.className)} className="card p-4 hover:border-clay-500">
             <div className="font-serif text-2xl">{c.label}</div>
             <div className="text-sm text-ink-700/60 mt-1">
               {c.sectionCount} division{c.sectionCount === 1 ? "" : "s"} · {c.studentCount} students
@@ -52,7 +52,7 @@ export default function AnalysisClasses() {
       <h2 className="font-serif text-xl mb-3">Division-wise</h2>
       <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-3">
         {(data.divisionWise || []).map((c) => (
-          <Link key={c.id} to={`/classes/${c.id}`} className="card p-4 hover:border-clay-500">
+          <Link key={c.id} to={paths.classSection(c.id)} className="card p-4 hover:border-clay-500">
             <div className="font-serif text-2xl">{c.label}</div>
             <div className="text-sm text-ink-700/60 mt-1">
               {c.studentCount} students{c.teacher ? ` · ${c.teacher}` : ""}

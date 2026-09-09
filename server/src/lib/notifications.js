@@ -1,4 +1,5 @@
 import { prisma } from "./prisma.js";
+import { accessRequestsLink, marksRegisterLink, pendingUploadsLink } from "./appLinks.js";
 
 export async function createNotification({ userId, type, title, body, link = null, meta = null }) {
   return prisma.notification.create({
@@ -49,9 +50,7 @@ export async function notifyLateEntryRequested(request) {
     type: "LATE_ENTRY_REQUESTED",
     title: "Late mark entry requested",
     body: `${teacherName} requested late entry for ${examName} · ${classLabel} · ${subjectName}.`,
-    link: request.examId
-      ? `/late-entry?status=PENDING&examId=${encodeURIComponent(request.examId)}`
-      : "/late-entry?status=PENDING",
+    link: accessRequestsLink({ status: "PENDING", examId: request.examId || undefined }),
     meta: {
       requestId: request.id,
       examId: request.examId,
@@ -72,9 +71,14 @@ export async function notifyLateEntryReviewed(request, status) {
   const subjectName = request.subject?.name || "a subject";
   const classLabel = request.classLabel || request.classSectionId;
   const approved = status === "APPROVED";
-  const marksLink = request.classSectionId && request.subjectId && request.examId
-    ? `/marks?classSectionId=${encodeURIComponent(request.classSectionId)}&examId=${encodeURIComponent(request.examId)}&subjectId=${encodeURIComponent(request.subjectId)}`
-    : "/marks";
+  const marksLink =
+    request.classSectionId && request.subjectId && request.examId
+      ? marksRegisterLink({
+          classSectionId: request.classSectionId,
+          examId: request.examId,
+          subjectId: request.subjectId,
+        })
+      : marksRegisterLink();
 
   return createNotification({
     userId: teacherUserId,
@@ -105,9 +109,7 @@ export async function notifyEditRequested(request) {
     type: "EDIT_REQUESTED",
     title: "Mark edit requested",
     body: `${teacherName} requested edit access for ${examName} · ${classLabel} · ${subjectName}.`,
-    link: request.examId
-      ? `/late-entry?status=PENDING&kind=EDIT&examId=${encodeURIComponent(request.examId)}`
-      : "/late-entry?status=PENDING&kind=EDIT",
+    link: accessRequestsLink({ status: "PENDING", kind: "EDIT", examId: request.examId || undefined }),
     meta: {
       requestId: request.id,
       kind: "EDIT",
@@ -129,9 +131,14 @@ export async function notifyEditReviewed(request, status) {
   const subjectName = request.subject?.name || "a subject";
   const classLabel = request.classLabel || request.classSectionId;
   const approved = status === "APPROVED";
-  const marksLink = request.classSectionId && request.subjectId && request.examId
-    ? `/marks?classSectionId=${encodeURIComponent(request.classSectionId)}&examId=${encodeURIComponent(request.examId)}&subjectId=${encodeURIComponent(request.subjectId)}`
-    : "/marks";
+  const marksLink =
+    request.classSectionId && request.subjectId && request.examId
+      ? marksRegisterLink({
+          classSectionId: request.classSectionId,
+          examId: request.examId,
+          subjectId: request.subjectId,
+        })
+      : marksRegisterLink();
 
   return createNotification({
     userId: teacherUserId,
@@ -177,10 +184,8 @@ export async function notifyMarksSubmitted({
       body: `${teacher} submitted ${count} mark${count === 1 ? "" : "s"} for ${exam} · ${label} · ${subject}.`,
       link:
         examId && classSectionId && subjectId
-          ? `/marks?examId=${encodeURIComponent(examId)}&classSectionId=${encodeURIComponent(classSectionId)}&subjectId=${encodeURIComponent(subjectId)}`
-          : examId
-            ? `/pending-uploads?examId=${encodeURIComponent(examId)}`
-            : "/pending-uploads",
+          ? marksRegisterLink({ examId, classSectionId, subjectId })
+          : pendingUploadsLink({ examId }),
       meta: {
         examId,
         classSectionId,

@@ -9,6 +9,7 @@ import { Spinner } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
+import { paths } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function cmlStudentSearchText(row) {
@@ -331,7 +332,7 @@ function CmlStudentTable({ students, subjects, resetKey, busy = false, busyLabel
                   <td>{row.rank ?? "—"}</td>
                   <td>{row.rollNo}</td>
                   <td>
-                    <Link className="underline" to={`/students/${row.studentId}`}>{row.name}</Link>
+                    <Link className="underline" to={paths.student(row.studentId)}>{row.name}</Link>
                   </td>
                   {subjects.map((s) => {
                     const cell = row.bySubject[s.id];

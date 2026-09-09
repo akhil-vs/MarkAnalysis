@@ -1,5 +1,17 @@
 import { isLeadership } from "./roles.js";
 
+export const LEADERSHIP_ROLES = ["PRINCIPAL", "EXAM_COORDINATOR"];
+
+/** Canonical frontend paths for nested analysis detail pages. */
+export const paths = {
+  classSection: (id) => `/analysis/classes/${id}`,
+  classGroup: (className) => `/analysis/classes/group/${encodeURIComponent(className)}`,
+  student: (id) => `/analysis/students/${id}`,
+  subjectByName: (name) => `/analysis/subjects/name/${encodeURIComponent(name)}`,
+  subjectPaper: (id) => `/analysis/subjects/${id}`,
+  teacher: (id) => `/analysis/teachers/${id}`,
+};
+
 /** Canonical labels — sidebar, hub cards, and page titles share these. */
 export const NAV_LABELS = {
   dashboard: "Dashboard",
@@ -238,11 +250,55 @@ export const NAV_GROUPS = [
   },
 ];
 
+/**
+ * Extra nested routes that inherit leadership from a parent nav item
+ * but are not listed as sidebar entries.
+ */
+export const EXTRA_ROUTE_GUARDS = {
+  "analysis/subjects/name/:name": "leadership",
+  "analysis/subjects/:id": "leadership",
+  "timetables/teachers/:id": "leadership",
+};
+
 export function roleAllows(itemRoles, userRole) {
   if (!itemRoles || itemRoles === "all") return true;
   if (itemRoles === "leadership") return isLeadership(userRole);
   if (Array.isArray(itemRoles)) return itemRoles.includes(userRole);
   return false;
+}
+
+/** Convert nav role shorthand to a Guard `roles` array, or null for all authenticated. */
+export function rolesForGuard(itemRoles) {
+  if (!itemRoles || itemRoles === "all") return null;
+  if (itemRoles === "leadership") return LEADERSHIP_ROLES;
+  if (Array.isArray(itemRoles)) return itemRoles;
+  return null;
+}
+
+function collectNavGuards(items, out = {}) {
+  for (const item of items || []) {
+    if (item.to) {
+      const key = item.to.replace(/^\//, "");
+      out[key] = item.roles || "all";
+    }
+    if (item.children) collectNavGuards(item.children, out);
+  }
+  return out;
+}
+
+/** Map of route path (no leading slash) → role shorthand, derived from nav + extras. */
+export function routeGuardMap() {
+  const fromNav = {};
+  for (const group of NAV_GROUPS) {
+    collectNavGuards(group.items, fromNav);
+  }
+  return { ...fromNav, ...EXTRA_ROUTE_GUARDS };
+}
+
+export function guardRolesForRoute(routePath) {
+  const map = routeGuardMap();
+  const key = routePath.replace(/^\//, "");
+  return rolesForGuard(map[key] ?? "all");
 }
 
 export function filterNavItems(items, userRole) {

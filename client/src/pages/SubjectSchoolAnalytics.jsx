@@ -15,7 +15,7 @@ import { ExamSelect, TeacherCompareTable, YearComparison, comparableNote } from 
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { GRADE_COLORS, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { NAV_LABELS } from "../lib/nav.js";
+import { NAV_LABELS, paths } from "../lib/nav.js";
 
 export default function SubjectSchoolAnalytics() {
   const { name } = useParams();
@@ -99,7 +99,7 @@ export default function SubjectSchoolAnalytics() {
         <Panel title="Division-wise">
           <div className="space-y-2">
             {(data.byDivision || []).map((row) => (
-              <Link key={row.classSectionId} to={`/classes/${row.classSectionId}`} className="flex justify-between text-sm py-1.5 border-t border-ink-900/10 first:border-0 hover:underline">
+              <Link key={row.classSectionId} to={paths.classSection(row.classSectionId)} className="flex justify-between text-sm py-1.5 border-t border-ink-900/10 first:border-0 hover:underline">
                 <span>{row.label}</span>
                 <span>{row.average ?? "—"}% · {row.passRate ?? "—"}% pass</span>
               </Link>

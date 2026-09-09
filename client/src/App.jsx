@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes, useParams } from "react-router-dom";
 import { useAuth } from "./auth.jsx";
 import Layout from "./components/Layout.jsx";
+import { guardRolesForRoute, paths } from "./lib/nav.js";
 import Login from "./pages/Login.jsx";
 import Signup from "./pages/Signup.jsx";
 import Pending from "./pages/Pending.jsx";
@@ -41,6 +42,10 @@ function Guard({ roles, children }) {
   return children;
 }
 
+function Guarded({ route, children }) {
+  return <Guard roles={guardRolesForRoute(route)}>{children}</Guard>;
+}
+
 function Home() {
   const { user } = useAuth();
   if (user.role === "PRINCIPAL") return <PrincipalDashboard />;
@@ -52,9 +57,19 @@ function TeacherAnalyticsGuard() {
   const { user } = useAuth();
   const { id } = useParams();
   if (user.role === "TEACHER" && user.id !== id) {
-    return <Navigate to={`/analysis/teachers/${user.id}`} replace />;
+    return <Navigate to={paths.teacher(user.id)} replace />;
   }
   return <TeacherAnalytics />;
+}
+
+function RedirectClasses() {
+  const { id } = useParams();
+  return <Navigate to={paths.classSection(id)} replace />;
+}
+
+function RedirectStudents() {
+  const { id } = useParams();
+  return <Navigate to={paths.student(id)} replace />;
 }
 
 export default function App() {
@@ -72,73 +87,64 @@ export default function App() {
         }
       >
         <Route index element={<Home />} />
-        <Route path="users" element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><Users /></Guard>} />
-        <Route
-          path="manage"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><Manage /></Guard>}
-        />
+        <Route path="users" element={<Guarded route="users"><Users /></Guarded>} />
+        <Route path="manage" element={<Guarded route="manage"><Manage /></Guarded>} />
         <Route path="marks" element={<MarksEntry />} />
         <Route path="upload" element={<MarksUpload />} />
-        <Route
-          path="audit"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><AuditLog /></Guard>}
-        />
+        <Route path="audit" element={<Guarded route="audit"><AuditLog /></Guarded>} />
         <Route path="analysis" element={<AnalysisHub />} />
         <Route
           path="analysis/school"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><PrincipalDashboard /></Guard>}
+          element={<Guarded route="analysis/school"><PrincipalDashboard /></Guarded>}
         />
         <Route path="analysis/classes" element={<AnalysisClasses />} />
         <Route path="analysis/classes/group/:className" element={<ClassGroupAnalytics />} />
+        <Route path="analysis/classes/:id" element={<ClassAnalytics />} />
         <Route
           path="analysis/subjects"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><AnalysisSubjects /></Guard>}
+          element={<Guarded route="analysis/subjects"><AnalysisSubjects /></Guarded>}
         />
         <Route
           path="analysis/subjects/name/:name"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><SubjectSchoolAnalytics /></Guard>}
+          element={<Guarded route="analysis/subjects/name/:name"><SubjectSchoolAnalytics /></Guarded>}
         />
         <Route
           path="analysis/subjects/:id"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><SubjectAnalytics /></Guard>}
+          element={<Guarded route="analysis/subjects/:id"><SubjectAnalytics /></Guarded>}
         />
         <Route
           path="analysis/teachers"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><AnalysisTeachers /></Guard>}
+          element={<Guarded route="analysis/teachers"><AnalysisTeachers /></Guarded>}
         />
         <Route path="analysis/teachers/:id" element={<TeacherAnalyticsGuard />} />
         <Route
           path="analysis/compare"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><AnalysisCompare /></Guard>}
+          element={<Guarded route="analysis/compare"><AnalysisCompare /></Guarded>}
         />
         <Route path="analysis/students" element={<AnalysisStudents />} />
+        <Route path="analysis/students/:id" element={<StudentAnalytics />} />
         <Route
           path="consolidated"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><ConsolidatedLists /></Guard>}
+          element={<Guarded route="consolidated"><ConsolidatedLists /></Guarded>}
         />
         <Route
           path="pending-uploads"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><PendingUploads /></Guard>}
+          element={<Guarded route="pending-uploads"><PendingUploads /></Guarded>}
         />
         <Route
           path="late-entry"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><LateEntryRequests /></Guard>}
+          element={<Guarded route="late-entry"><LateEntryRequests /></Guarded>}
         />
-        <Route
-          path="timetables"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><Timetables /></Guard>}
-        />
+        <Route path="timetables" element={<Guarded route="timetables"><Timetables /></Guarded>} />
         <Route
           path="timetables/teachers/:id"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><TeacherTimetable /></Guard>}
+          element={<Guarded route="timetables/teachers/:id"><TeacherTimetable /></Guarded>}
         />
         <Route path="profile" element={<Profile />} />
-        <Route
-          path="school"
-          element={<Guard roles={["PRINCIPAL", "EXAM_COORDINATOR"]}><SchoolSettings /></Guard>}
-        />
-        <Route path="students/:id" element={<StudentAnalytics />} />
-        <Route path="classes/:id" element={<ClassAnalytics />} />
+        <Route path="school" element={<Guarded route="school"><SchoolSettings /></Guarded>} />
+        {/* Legacy bookmarks */}
+        <Route path="students/:id" element={<RedirectStudents />} />
+        <Route path="classes/:id" element={<RedirectClasses />} />
       </Route>
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>

@@ -21,6 +21,7 @@ import {
   RankRow,
   greeting,
 } from "../components/DashboardKit.jsx";
+import { paths } from "../lib/nav.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
 
@@ -198,7 +199,7 @@ export default function TeacherDashboard() {
                   />
                 </div>
                 <div className="mt-3 flex gap-3 text-xs">
-                  <Link className="underline" to={`/classes/${r.classSectionId}`}>Class view</Link>
+                  <Link className="underline" to={paths.classSection(r.classSectionId)}>Class view</Link>
                   <Link className="underline" to={`/marks?classSectionId=${r.classSectionId}&subjectId=${r.subjectId}`}>
                     {r.missing ? "Finish register" : r.provisional || r.status === "AWAITING_APPROVAL" ? "Submitted" : "Mark register"}
                   </Link>
@@ -241,7 +242,7 @@ export default function TeacherDashboard() {
               name={s.name}
               meta={`${s.rollNo}${s.declining ? " · slipping" : ""}${s.atRisk ? " · below 55%" : ""}`}
               value={s.latest != null ? `${s.latest}%` : "—"}
-              to={`/students/${s.studentId}`}
+              to={paths.student(s.studentId)}
             />
           ))
         ) : (

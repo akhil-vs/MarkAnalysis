@@ -13,7 +13,7 @@ import { api } from "../api.js";
 import { ExamSelect, TeacherCompareTable, YearComparison, comparableNote } from "../components/AnalysisPanels.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { NAV_LABELS } from "../lib/nav.js";
+import { NAV_LABELS, paths } from "../lib/nav.js";
 
 export default function SubjectAnalytics() {
   const { id } = useParams();
@@ -45,7 +45,7 @@ export default function SubjectAnalytics() {
               { label: NAV_LABELS.analysisSubjects, to: "/analysis/subjects" },
               {
                 label: data.subject.name,
-                to: `/analysis/subjects/name/${encodeURIComponent(data.subject.name)}`,
+                to: paths.subjectByName(data.subject.name),
               },
               { label: data.subject.className || "Paper" },
             ]}
@@ -82,7 +82,7 @@ export default function SubjectAnalytics() {
       {data.schoolSubject && (
         <p className="text-sm text-ink-700/60 mt-4">
           School-wide {data.schoolSubject.name} average is {data.schoolSubject.average ?? "—"}%.{" "}
-          <Link className="underline" to={`/analysis/subjects/name/${encodeURIComponent(data.subject.name)}`}>Open full school view</Link>
+          <Link className="underline" to={paths.subjectByName(data.subject.name)}>Open full school view</Link>
         </p>
       )}
       <div className="mt-4">

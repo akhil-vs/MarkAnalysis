@@ -22,7 +22,7 @@ import Breadcrumb from "../components/Breadcrumb.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
-import { NAV_LABELS } from "../lib/nav.js";
+import { NAV_LABELS, paths } from "../lib/nav.js";
 import { isLeadership } from "../lib/roles.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -115,7 +115,7 @@ function SearchableRankTable({ rows, showRank = true }) {
               {page.map((s) => (
                 <tr key={s.studentId}>
                   {showRank && <td>{s.rank}</td>}
-                  <td><Link className="underline" to={`/students/${s.studentId}`}>{s.name}</Link></td>
+                  <td><Link className="underline" to={paths.student(s.studentId)}>{s.name}</Link></td>
                   <td>{s.average}%</td>
                   <td>{s.grade}</td>
                 </tr>
@@ -163,7 +163,7 @@ export default function ClassAnalytics() {
               { label: NAV_LABELS.analysisClasses, to: "/analysis/classes" },
               {
                 label: `Class ${data.classSection.className}`,
-                to: `/analysis/classes/group/${encodeURIComponent(data.classSection.className)}`,
+                to: paths.classGroup(data.classSection.className),
               },
               { label },
             ]}

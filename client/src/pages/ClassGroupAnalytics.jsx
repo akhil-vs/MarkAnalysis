@@ -23,7 +23,7 @@ import { GRADE_COLORS, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
-import { NAV_LABELS } from "../lib/nav.js";
+import { NAV_LABELS, paths } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
@@ -107,7 +107,7 @@ function SearchableRankTable({ rows, showRank = true, showClass = true }) {
               {page.map((s) => (
                 <tr key={s.studentId}>
                   {showRank && <td>{s.rank}</td>}
-                  <td><Link className="underline" to={`/students/${s.studentId}`}>{s.name}</Link></td>
+                  <td><Link className="underline" to={paths.student(s.studentId)}>{s.name}</Link></td>
                   {showClass && <td>{s.classLabel}</td>}
                   <td>{s.average}%</td>
                   <td>{s.grade}</td>
@@ -168,7 +168,7 @@ export default function ClassGroupAnalytics() {
         <Panel title="Divisions">
           <div className="space-y-3">
             {(data.divisions || []).map((d) => (
-              <Link key={d.id} to={`/classes/${d.id}`} className="block rounded-lg border border-ink-900/10 p-3 hover:border-clay-500">
+              <Link key={d.id} to={paths.classSection(d.id)} className="block rounded-lg border border-ink-900/10 p-3 hover:border-clay-500">
                 <div className="flex justify-between text-sm">
                   <span className="font-medium">{d.label}</span>
                   <span>{d.average ?? "—"}% · {d.passRate ?? "—"}% pass</span>

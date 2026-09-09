@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
-import { NAV_TITLES } from "../lib/nav.js";
+import { NAV_TITLES, paths } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function studentSearchText(s) {
@@ -50,7 +50,7 @@ export default function AnalysisStudents() {
                     <td>{s.name}</td>
                     <td>{s.classSection.className}-{s.classSection.section}</td>
                     <td className="text-right">
-                      <Link className="underline" to={`/students/${s.id}`}>Open analysis</Link>
+                      <Link className="underline" to={paths.student(s.id)}>Open analysis</Link>
                     </td>
                   </tr>
                 ))}
