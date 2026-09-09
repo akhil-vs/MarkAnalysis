@@ -70,6 +70,7 @@ Principals and exam coordinators can open **Timetables** in the sidebar (or **Ti
 - **Teachers** — card list of every active teacher, then open one for **Daily**, **Weekly**, or **Monthly** views
 - **Daily board** — one page with every teacher’s timetable for a chosen day (subject, class, and free slots together)
 - **Find free** — pick a date and period to see which teachers are free (and who is already teaching)
+- **Periods** — edit the school bell schedule (names, start/end times, and breaks). Defaults are seeded only when the schedule is empty
 
 Leadership can also add or remove teaching periods on a teacher’s timetable page.
 
