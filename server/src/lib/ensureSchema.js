@@ -136,8 +136,17 @@ const TIMETABLE_STATEMENTS = [
   `CREATE UNIQUE INDEX IF NOT EXISTS "Period_sortOrder_key" ON "Period"("sortOrder")`,
   `CREATE INDEX IF NOT EXISTS "TimetableEntry_teacherId_dayOfWeek_idx" ON "TimetableEntry"("teacherId", "dayOfWeek")`,
   `CREATE INDEX IF NOT EXISTS "TimetableEntry_dayOfWeek_periodId_idx" ON "TimetableEntry"("dayOfWeek", "periodId")`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "TimetableEntry_teacherId_dayOfWeek_periodId_key" ON "TimetableEntry"("teacherId", "dayOfWeek", "periodId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "TimetableEntry_teacherId_dayOfWeek_periodId_classSectionId_key" ON "TimetableEntry"("teacherId", "dayOfWeek", "periodId", "classSectionId")`,
   `CREATE UNIQUE INDEX IF NOT EXISTS "TimetableEntry_classSectionId_dayOfWeek_periodId_key" ON "TimetableEntry"("classSectionId", "dayOfWeek", "periodId")`,
+];
+
+const MULTI_CLASS_PERIOD_MIGRATION = "20260910213800_timetable_multi_class_per_period";
+const MULTI_CLASS_PERIOD_CHECKSUM =
+  "1ac3b7c6d0931bea3831ca37c721f6f133b5fc2622f2450df6eb200e7cd9e6af";
+
+const MULTI_CLASS_PERIOD_STATEMENTS = [
+  `DROP INDEX IF EXISTS "TimetableEntry_teacherId_dayOfWeek_periodId_key"`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "TimetableEntry_teacherId_dayOfWeek_periodId_classSectionId_key" ON "TimetableEntry"("teacherId", "dayOfWeek", "periodId", "classSectionId")`,
 ];
 
 const TIMETABLE_FK_STATEMENTS = [
@@ -233,6 +242,33 @@ async function ensureTimetableTables() {
   await applyStatements(TIMETABLE_STATEMENTS);
   await applyStatements(TIMETABLE_FK_STATEMENTS);
   await recordMigration(TIMETABLE_MIGRATION, TIMETABLE_CHECKSUM);
+}
+
+async function indexExists(indexName) {
+  const rows = await prisma.$queryRaw`
+    SELECT EXISTS (
+      SELECT 1
+      FROM pg_catalog.pg_class c
+      JOIN pg_catalog.pg_namespace n ON n.oid = c.relnamespace
+      WHERE n.nspname = 'public'
+        AND c.relkind = 'i'
+        AND c.relname = ${indexName}
+    ) AS "present"
+  `;
+  return Boolean(rows?.[0]?.present);
+}
+
+/** Drop one-class-per-teacher-period unique; allow multiple class sections per slot. */
+async function ensureMultiClassPerPeriod() {
+  const hasOld = await indexExists("TimetableEntry_teacherId_dayOfWeek_periodId_key");
+  const hasNew = await indexExists("TimetableEntry_teacherId_dayOfWeek_periodId_classSectionId_key");
+  if (!hasOld && hasNew) {
+    await recordMigration(MULTI_CLASS_PERIOD_MIGRATION, MULTI_CLASS_PERIOD_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(MULTI_CLASS_PERIOD_STATEMENTS);
+  await recordMigration(MULTI_CLASS_PERIOD_MIGRATION, MULTI_CLASS_PERIOD_CHECKSUM);
 }
 
 async function ensureActivityAuditTable() {
@@ -350,6 +386,7 @@ export async function ensurePendingSchema() {
   if (!ensurePromise) {
     ensurePromise = (async () => {
       await ensureTimetableTables();
+      await ensureMultiClassPerPeriod();
       await ensureStaffNoticeEnum();
       await ensureActivityAuditTable();
       await ensureConsolidationSettingsTable();
@@ -393,4 +430,7 @@ export const __test = {
   SCHOOL_GRADING_CHECKSUM,
   SCHOOL_PROFILE_TABLE_STATEMENTS,
   SCHOOL_GRADING_STATEMENTS,
+  MULTI_CLASS_PERIOD_MIGRATION,
+  MULTI_CLASS_PERIOD_CHECKSUM,
+  MULTI_CLASS_PERIOD_STATEMENTS,
 };

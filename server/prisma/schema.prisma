@@ -335,7 +335,9 @@ model TimetableEntry {
   subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   period       Period       @relation(fields: [periodId], references: [id], onDelete: Cascade)
 
-  @@unique([teacherId, dayOfWeek, periodId])
+  /// Same teacher may teach multiple classes in one period (e.g. combined sections).
+  @@unique([teacherId, dayOfWeek, periodId, classSectionId])
+  /// A class section still has at most one subject/teacher per period.
   @@unique([classSectionId, dayOfWeek, periodId])
   @@index([teacherId, dayOfWeek])
   @@index([dayOfWeek, periodId])

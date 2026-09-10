@@ -119,8 +119,9 @@ function DateNav({ date, dayName, onChange }) {
   );
 }
 
-function SlotCell({ entry }) {
-  if (!entry) {
+function SlotCell({ entries }) {
+  const list = Array.isArray(entries) ? entries : entries ? [entries] : [];
+  if (!list.length) {
     return (
       <div className="min-h-[3.25rem] rounded-lg bg-moss-500/10 px-2 py-1.5 text-[11px] text-moss-600">
         Free
@@ -128,10 +129,17 @@ function SlotCell({ entry }) {
     );
   }
   return (
-    <div className="min-h-[3.25rem] rounded-lg border border-ink-900/10 bg-white px-2 py-1.5">
-      <div className="text-sm font-medium leading-snug">{entry.subject?.name}</div>
-      <div className="text-xs text-ink-700/65">{entry.classSection?.label}</div>
-      {entry.room && <div className="text-[10px] text-ink-700/45">{entry.room}</div>}
+    <div className="flex flex-col gap-1">
+      {list.map((entry) => (
+        <div
+          key={entry.id}
+          className="min-h-[3.25rem] rounded-lg border border-ink-900/10 bg-white px-2 py-1.5"
+        >
+          <div className="text-sm font-medium leading-snug">{entry.subject?.name}</div>
+          <div className="text-xs text-ink-700/65">{entry.classSection?.label}</div>
+          {entry.room && <div className="text-[10px] text-ink-700/45">{entry.room}</div>}
+        </div>
+      ))}
     </div>
   );
 }
@@ -631,7 +639,7 @@ function DailyBoard({ date, onDateChange }) {
                             {period.name}
                           </div>
                         ) : (
-                          <SlotCell entry={teacher.entriesByPeriodId?.[period.id]} />
+                          <SlotCell entries={teacher.entriesByPeriodId?.[period.id]} />
                         )}
                       </td>
                     ))}
@@ -787,21 +795,24 @@ function FreeFinder({ date, periodId, onDateChange, onPeriodChange }) {
                     </tr>
                   </thead>
                   <tbody>
-                    {result.busy.map((t) => (
-                      <tr key={t.id}>
-                        <td>
-                          <Link
-                            to={`/timetables/teachers/${t.id}?view=daily&date=${date}`}
-                            className="hover:text-clay-600"
-                          >
-                            {t.name}
-                          </Link>
-                        </td>
-                        <td>{t.entry?.subject?.name || "—"}</td>
-                        <td>{t.entry?.classSection?.label || "—"}</td>
-                        <td>{t.entry?.room || "—"}</td>
-                      </tr>
-                    ))}
+                    {result.busy.flatMap((t) => {
+                      const entries = t.entries?.length ? t.entries : t.entry ? [t.entry] : [];
+                      return entries.map((entry) => (
+                        <tr key={entry.id || `${t.id}-${entry.subject?.id}-${entry.classSection?.id}`}>
+                          <td>
+                            <Link
+                              to={`/timetables/teachers/${t.id}?view=daily&date=${date}`}
+                              className="hover:text-clay-600"
+                            >
+                              {t.name}
+                            </Link>
+                          </td>
+                          <td>{entry.subject?.name || "—"}</td>
+                          <td>{entry.classSection?.label || "—"}</td>
+                          <td>{entry.room || "—"}</td>
+                        </tr>
+                      ));
+                    })}
                   </tbody>
                 </table>
               </div>
