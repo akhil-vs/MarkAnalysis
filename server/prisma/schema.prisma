@@ -249,14 +249,22 @@ model ActivityAudit {
 }
 
 model SchoolProfile {
-  id            String   @id @default("school")
-  name          String
-  board         String?
-  affiliationNo String?
-  address       String?
-  phone         String?
-  email         String?
-  updatedAt     DateTime @updatedAt
+  id              String   @id @default("school")
+  name            String
+  board           String?
+  affiliationNo   String?
+  address         String?
+  phone           String?
+  email           String?
+  /// Pass threshold used in analytics (percent).
+  passPercent     Float    @default(50)
+  /// Distinction / high-achievement threshold (percent).
+  distinctionMin  Float    @default(90)
+  /// Optional override of letter-grade bands: [{ grade, min }, ...] sorted high→low.
+  gradeBands      Json?
+  /// Weights for annual composite by ExamType: { UNIT_TEST, MID_TERM, FINAL }.
+  examWeights     Json?
+  updatedAt       DateTime @updatedAt
 }
 
 /// One-time consolidation max-marks lock. When locked, subject

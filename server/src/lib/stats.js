@@ -22,14 +22,14 @@ export function meanOf(values) {
   return mean((values || []).filter((v) => v != null && !Number.isNaN(v)));
 }
 
-export function summarize(percents) {
+export function summarize(percents, { passPercent = PASS_PERCENT } = {}) {
   return {
     average: round1(mean(percents)),
     median: round1(median(percents)),
     highest: percents.length ? round1(Math.max(...percents)) : null,
     lowest: percents.length ? round1(Math.min(...percents)) : null,
     passRate: percents.length
-      ? round1((percents.filter((p) => p >= PASS_PERCENT).length / percents.length) * 100)
+      ? round1((percents.filter((p) => p >= passPercent).length / percents.length) * 100)
       : 0,
     count: percents.length,
   };
@@ -45,7 +45,7 @@ export function groupBy(list, keyFn) {
   return map;
 }
 
-export function studentTotals(marksByStudent) {
+export function studentTotals(marksByStudent, { gradeFn = gradeFromPercent } = {}) {
   return [...marksByStudent.entries()].map(([studentId, marks]) => {
     const scored = marks.filter(isScoredMark);
     const percents = percentsOf(scored);
@@ -54,7 +54,7 @@ export function studentTotals(marksByStudent) {
       studentId,
       student: marks[0].student,
       avg: round1(avg),
-      grade: gradeFromPercent(avg),
+      grade: gradeFn(avg),
       total: scored.reduce((s, m) => s + (m.marksObtained || 0), 0),
       count: scored.length,
     };
@@ -81,10 +81,11 @@ export function applyTiedRanks(rows, getScore = (r) => r.percent) {
   return ranked;
 }
 
-export function gradeDistFromStudents(studentAvgs) {
-  const gradeDist = Object.fromEntries(GRADE_BANDS.map((b) => [b.grade, 0]));
+export function gradeDistFromStudents(studentAvgs, bands = GRADE_BANDS) {
+  const list = bands?.length ? bands : GRADE_BANDS;
+  const gradeDist = Object.fromEntries(list.map((b) => [b.grade, 0]));
   for (const s of studentAvgs) {
-    if (s.grade) gradeDist[s.grade] += 1;
+    if (s.grade) gradeDist[s.grade] = (gradeDist[s.grade] || 0) + 1;
   }
   return gradeDist;
 }

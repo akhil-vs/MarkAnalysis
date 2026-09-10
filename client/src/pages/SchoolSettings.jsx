@@ -13,13 +13,26 @@ const EMPTY = {
   email: "",
 };
 
+const DEFAULT_BANDS = [
+  { grade: "A+", min: 90 },
+  { grade: "A", min: 80 },
+  { grade: "B", min: 70 },
+  { grade: "C", min: 60 },
+  { grade: "D", min: 50 },
+  { grade: "F", min: 0 },
+];
+
 export default function SchoolSettings() {
   const toast = useToast();
   const [form, setForm] = useState(EMPTY);
+  const [passPercent, setPassPercent] = useState(50);
+  const [distinctionMin, setDistinctionMin] = useState(90);
+  const [bands, setBands] = useState(DEFAULT_BANDS);
+  const [weights, setWeights] = useState({ UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 });
 
   useEffect(() => {
     api("/api/school")
-      .then((s) =>
+      .then((s) => {
         setForm({
           name: s.name || "",
           board: s.board || "",
@@ -27,8 +40,13 @@ export default function SchoolSettings() {
           address: s.address || "",
           phone: s.phone || "",
           email: s.email || "",
-        })
-      )
+        });
+        const g = s.grading || {};
+        setPassPercent(g.passPercent ?? 50);
+        setDistinctionMin(g.distinctionMin ?? 90);
+        setBands(g.gradeBands?.length ? g.gradeBands : DEFAULT_BANDS);
+        setWeights(g.examWeights || { UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 });
+      })
       .catch((err) => toast.error(err.message || "Could not load school profile"));
   }, []);
 
@@ -39,20 +57,51 @@ export default function SchoolSettings() {
   async function onSubmit(e) {
     e.preventDefault();
     try {
-      await api("/api/school", { method: "PATCH", body: form });
-      toast.success("School profile saved. Report cards and mark lists will use this name.");
+      await api("/api/school", {
+        method: "PATCH",
+        body: {
+          ...form,
+          passPercent: Number(passPercent),
+          distinctionMin: Number(distinctionMin),
+          gradeBands: bands.map((b) => ({ grade: b.grade, min: Number(b.min) })),
+          examWeights: {
+            UNIT_TEST: Number(weights.UNIT_TEST),
+            MID_TERM: Number(weights.MID_TERM),
+            FINAL: Number(weights.FINAL),
+          },
+        },
+      });
+      toast.success("School profile and grading settings saved.");
     } catch (err) {
       toast.error(err.message || "Could not save school profile");
     }
+  }
+
+  async function resetGrading() {
+    try {
+      const s = await api("/api/school/grading/reset", { method: "POST", body: {} });
+      const g = s.grading || {};
+      setPassPercent(g.passPercent ?? 50);
+      setDistinctionMin(g.distinctionMin ?? 90);
+      setBands(g.gradeBands?.length ? g.gradeBands : DEFAULT_BANDS);
+      setWeights(g.examWeights || { UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 });
+      toast.success("Grading defaults restored.");
+    } catch (err) {
+      toast.error(err.message || "Could not reset grading");
+    }
+  }
+
+  function updateBand(i, key, value) {
+    setBands((list) => list.map((b, idx) => (idx === i ? { ...b, [key]: value } : b)));
   }
 
   return (
     <div>
       <PageHeader
         title={NAV_TITLES.schoolProfile}
-        subtitle="Shown on report cards, class summaries, and consolidated mark lists"
+        subtitle="School identity plus pass bands and annual composite weights used in analytics"
       />
-      <form className="card p-5 max-w-2xl space-y-3" onSubmit={onSubmit}>
+      <form className="card p-5 max-w-2xl space-y-3 mb-6" onSubmit={onSubmit}>
         <div>
           <label className="label">School name</label>
           <input className="field" required value={form.name} onChange={(e) => set("name", e.target.value)} />
@@ -81,7 +130,108 @@ export default function SchoolSettings() {
             <input className="field" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
           </div>
         </div>
-        <button className="btn-primary">Save profile</button>
+
+        <div className="pt-4 border-t border-ink-900/10">
+          <h3 className="font-serif text-xl mb-2">Analytics grading</h3>
+          <p className="text-sm text-ink-700/65 mb-3">
+            These thresholds drive pass rates, distinction lists, letter grades, and weighted annual composites across Insights.
+          </p>
+          <div className="grid sm:grid-cols-2 gap-3 mb-3">
+            <div>
+              <label className="label">Pass percent</label>
+              <input
+                className="field"
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                value={passPercent}
+                onChange={(e) => setPassPercent(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="label">Distinction minimum %</label>
+              <input
+                className="field"
+                type="number"
+                min={0}
+                max={100}
+                step={0.5}
+                value={distinctionMin}
+                onChange={(e) => setDistinctionMin(e.target.value)}
+              />
+            </div>
+          </div>
+          <div className="mb-3">
+            <label className="label">Grade bands (high → low)</label>
+            <div className="space-y-2">
+              {bands.map((b, i) => (
+                <div key={i} className="grid grid-cols-2 gap-2">
+                  <input
+                    className="field"
+                    value={b.grade}
+                    onChange={(e) => updateBand(i, "grade", e.target.value)}
+                    placeholder="Grade"
+                  />
+                  <input
+                    className="field"
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={b.min}
+                    onChange={(e) => updateBand(i, "min", e.target.value)}
+                    placeholder="Min %"
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="label">Annual exam weights</label>
+            <div className="grid sm:grid-cols-3 gap-2">
+              <div>
+                <div className="text-[11px] text-ink-700/55 mb-1">Unit test</div>
+                <input
+                  className="field"
+                  type="number"
+                  min={0}
+                  step={0.05}
+                  value={weights.UNIT_TEST}
+                  onChange={(e) => setWeights((w) => ({ ...w, UNIT_TEST: e.target.value }))}
+                />
+              </div>
+              <div>
+                <div className="text-[11px] text-ink-700/55 mb-1">Mid term</div>
+                <input
+                  className="field"
+                  type="number"
+                  min={0}
+                  step={0.05}
+                  value={weights.MID_TERM}
+                  onChange={(e) => setWeights((w) => ({ ...w, MID_TERM: e.target.value }))}
+                />
+              </div>
+              <div>
+                <div className="text-[11px] text-ink-700/55 mb-1">Final</div>
+                <input
+                  className="field"
+                  type="number"
+                  min={0}
+                  step={0.05}
+                  value={weights.FINAL}
+                  onChange={(e) => setWeights((w) => ({ ...w, FINAL: e.target.value }))}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2 pt-2">
+          <button className="btn-primary">Save profile</button>
+          <button type="button" className="btn-ghost" onClick={resetGrading}>
+            Reset grading defaults
+          </button>
+        </div>
       </form>
     </div>
   );

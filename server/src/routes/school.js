@@ -2,12 +2,21 @@ import { Router } from "express";
 import { auth, requireRole } from "../middleware/auth.js";
 import { getSchoolProfile } from "../lib/school.js";
 import { prisma } from "../lib/prisma.js";
+import {
+  DEFAULT_DISTINCTION_MIN,
+  DEFAULT_EXAM_WEIGHTS,
+  DEFAULT_GRADE_BANDS,
+  DEFAULT_PASS_PERCENT,
+  parseGradingPatch,
+  publicGradingConfig,
+} from "../lib/gradingConfig.js";
 
 export const schoolRouter = Router();
 schoolRouter.use(auth);
 
 schoolRouter.get("/", async (_req, res) => {
-  res.json(await getSchoolProfile());
+  const profile = await getSchoolProfile();
+  res.json({ ...profile, grading: publicGradingConfig(profile) });
 });
 
 schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
@@ -15,6 +24,9 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
   if (name !== undefined && !String(name).trim()) {
     return res.status(400).json({ error: "School name is required" });
   }
+  const gradingPatch = parseGradingPatch(req.body || {});
+  if (gradingPatch.error) return res.status(400).json({ error: gradingPatch.error });
+
   await getSchoolProfile();
   const updated = await prisma.schoolProfile.update({
     where: { id: "school" },
@@ -25,7 +37,22 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
       ...(address !== undefined && { address: address ? String(address).trim() : null }),
       ...(phone !== undefined && { phone: phone ? String(phone).trim() : null }),
       ...(email !== undefined && { email: email ? String(email).trim() : null }),
+      ...gradingPatch.data,
     },
   });
-  res.json(updated);
+  res.json({ ...updated, grading: publicGradingConfig(updated) });
+});
+
+schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (_req, res) => {
+  await getSchoolProfile();
+  const updated = await prisma.schoolProfile.update({
+    where: { id: "school" },
+    data: {
+      passPercent: DEFAULT_PASS_PERCENT,
+      distinctionMin: DEFAULT_DISTINCTION_MIN,
+      gradeBands: DEFAULT_GRADE_BANDS,
+      examWeights: DEFAULT_EXAM_WEIGHTS,
+    },
+  });
+  res.json({ ...updated, grading: publicGradingConfig(updated) });
 });

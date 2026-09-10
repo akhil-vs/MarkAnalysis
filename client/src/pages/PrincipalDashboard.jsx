@@ -101,6 +101,9 @@ export default function PrincipalDashboard() {
         actions={
           <>
             <ExamSelect exams={data.exams} value={examId} onChange={load} />
+            <Link className="btn-ghost" to="/analysis/deep">
+              Deep insights
+            </Link>
             <Link className="btn-ghost" to={`/consolidated?examId=${examId}`}>
               Consolidated lists
             </Link>
@@ -119,26 +122,23 @@ export default function PrincipalDashboard() {
           hint={{ text: `${data.kpis.students} students on roll`, tone: "flat" }}
         />
         <Metric
-          label="Strongest section"
-          value={bestSection ? `${bestSection.label}` : "—"}
-          hint={bestSection ? { text: `${bestSection.average}% average`, tone: "up" } : null}
+          label="Distinction / fail"
+          value={`${data.boardSummary?.distinction ?? 0} / ${data.boardSummary?.fail ?? 0}`}
+          hint={{
+            text: `≥${data.boardSummary?.distinctionMin ?? 90}% · <${data.boardSummary?.passPercent ?? 50}%`,
+            tone: "flat",
+          }}
         />
         <Metric
-          label="Teachers pending upload"
-          value={data.pendingUploads?.pendingTeacherCount ?? 0}
-          to={paths.pendingUploads()}
-          tone={data.pendingUploads?.pendingTeacherCount ? "alert" : undefined}
+          label="Registers approved"
+          value={data.readiness?.kpis?.approvedPct != null ? `${data.readiness.kpis.approvedPct}%` : "—"}
+          to="/analysis/deep?tab=readiness"
+          tone={data.readiness?.kpis?.breached ? "alert" : undefined}
           hint={{
-            text: data.pendingUploads?.pendingTeacherCount
-              ? "Registers still empty for this exam"
-              : data.pendingUploads?.awaitingApprovalTeacherCount
-                ? `${data.pendingUploads.awaitingApprovalTeacherCount} awaiting approval`
-                : "All assigned registers submitted",
-            tone: data.pendingUploads?.pendingTeacherCount
-              ? "down"
-              : data.pendingUploads?.awaitingApprovalTeacherCount
-                ? "down"
-                : "up",
+            text: data.readiness?.pastDeadline
+              ? `${data.readiness.kpis?.breached ?? 0} past deadline incomplete`
+              : `${data.readiness?.kpis?.awaiting ?? 0} awaiting approval`,
+            tone: data.readiness?.kpis?.breached ? "down" : "flat",
           }}
         />
       </div>
@@ -234,7 +234,9 @@ export default function PrincipalDashboard() {
           )}
           {data.atRisk?.length > 0 && (
             <div className="mt-5 pt-4 border-t border-ink-900/10">
-              <div className="text-[11px] uppercase tracking-wider text-ink-700/50 mb-2">Students below 50%</div>
+              <div className="text-[11px] uppercase tracking-wider text-ink-700/50 mb-2">
+                Students below {data.boardSummary?.passPercent ?? 50}%
+              </div>
               {data.atRisk.slice(0, 4).map((s, i) => (
                 <RankRow
                   key={s.studentId}
@@ -341,6 +343,38 @@ export default function PrincipalDashboard() {
           </ResponsiveContainer>
         </Panel>
       </div>
+
+      {(data.markBands?.length > 0 || data.outcomes) && (
+        <div className="grid lg:grid-cols-12 gap-4 mb-4">
+          <Panel
+            className="lg:col-span-7"
+            title="Mark-band distribution"
+            action={
+              <Link className="text-xs underline text-ink-700/60" to="/analysis/deep?tab=outcomes">
+                Distinction & fail lists
+              </Link>
+            }
+          >
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data.markBands || []}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
+                <XAxis dataKey="key" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
+                <Tooltip content={<ChartTooltip />} />
+                <Bar dataKey="count" name="Marks" fill="#1b2437" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Panel>
+          <Panel className="lg:col-span-5" title="Outcomes">
+            <div className="space-y-2 text-sm">
+              <div>Scored: {data.outcomes?.rates?.scored ?? 0}%</div>
+              <div>Absent: {data.outcomes?.rates?.absent ?? 0}%</div>
+              <div>Exempt: {data.outcomes?.rates?.exempt ?? 0}%</div>
+              <div>Withheld: {data.outcomes?.rates?.withheld ?? 0}%</div>
+            </div>
+          </Panel>
+        </div>
+      )}
 
       <div className="mb-4">
         <YearComparison series={data.yearComparison} title="Same exam type versus previous years" />

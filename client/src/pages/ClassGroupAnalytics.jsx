@@ -220,6 +220,77 @@ export default function ClassGroupAnalytics() {
         <YearComparison series={data.yearComparison} title="This class versus previous years" />
       </div>
 
+      {data.gapMatrix?.matrix?.length > 0 && (
+        <div className="mb-4">
+          <Panel
+            title="Division gap matrix"
+            action={
+              <Link className="text-xs underline text-ink-700/60" to={`/analysis/deep?tab=division`}>
+                Full deep view
+              </Link>
+            }
+          >
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    {(data.gapMatrix.sections || []).map((s) => (
+                      <th key={s}>{s}</th>
+                    ))}
+                    <th>Gap</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.gapMatrix.matrix.map((row) => (
+                    <tr key={row.subject}>
+                      <td>{row.subject}</td>
+                      {(data.gapMatrix.sections || []).map((s) => (
+                        <td key={s}>{row.sections[s]?.average ?? "—"}</td>
+                      ))}
+                      <td>{row.gap ?? "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        </div>
+      )}
+
+      {data.completeness?.length > 0 && (
+        <div className="mb-4">
+          <Panel title="Subject completeness">
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Paper</th>
+                    <th>Teacher</th>
+                    <th>Status</th>
+                    <th>Approved</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {data.completeness.slice(0, 20).map((r, i) => (
+                    <tr key={`${r.classSectionId}-${r.subjectId}-${i}`}>
+                      <td>
+                        {r.classLabel} · {r.subject}
+                      </td>
+                      <td>{r.teacher}</td>
+                      <td>{r.status}</td>
+                      <td>
+                        {r.approved}/{r.expected}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </Panel>
+        </div>
+      )}
+
       <div className="grid lg:grid-cols-2 gap-4">
         <Panel title="Top 10">
           <SearchableRankTable rows={data.top10} showRank showClass />

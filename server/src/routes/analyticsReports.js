@@ -1,5 +1,5 @@
 import { prisma } from "../lib/prisma.js";
-import { getAssignments, getTeacherClassIds, isLeadership } from "../middleware/auth.js";
+import { getTeacherClassIds, isLeadership } from "../middleware/auth.js";
 import { summarizeRegister } from "../lib/registerStatus.js";
 import {
   classLabel,
@@ -14,6 +14,17 @@ import {
   withTeacherDeltas,
   yearSeries,
 } from "../lib/stats.js";
+import { getGradingConfig, gradingHelpers } from "../lib/gradingConfig.js";
+import {
+  completenessHeatmap,
+  divisionGapMatrix,
+  outcomeBreakdown,
+  passFailMatrix,
+  registerVelocity,
+  teacherLoadOutcomes,
+} from "../lib/analyticsExtras.js";
+import { mean, round1 } from "../lib/grades.js";
+import { enrichMarksInsights } from "./analyticsInsights.js";
 
 async function loadExams(examId) {
   const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
@@ -103,6 +114,8 @@ export function registerAnalysisReports(router) {
     const { exams, exam } = await loadExams(req.query.examId);
     if (!exam) return res.json({ empty: true, className, sections });
 
+    const grading = gradingHelpers(await getGradingConfig());
+    const { passPercent, gradeFn, gradeBands } = grading;
     const sectionIds = sections.map((s) => s.id);
     const marks = await prisma.mark.findMany({
       where: { examId: exam.id, status: "APPROVED", student: { classSectionId: { in: sectionIds } } },
@@ -113,17 +126,32 @@ export function registerAnalysisReports(router) {
       include: { student: { include: { classSection: true } }, subject: true, exam: true },
     });
     const subjects = await prisma.subject.findMany({ where: { className }, orderBy: { name: "asc" } });
+    const allMarks = await prisma.mark.findMany({
+      where: { examId: exam.id, student: { classSectionId: { in: sectionIds } } },
+      include: { student: true, subject: true },
+    });
+    const assignments = await prisma.teacherAssignment.findMany({
+      where: { classSectionId: { in: sectionIds } },
+      include: { user: true, subject: true, classSection: true },
+    });
+    const activeStudents = await prisma.student.findMany({
+      where: { classSectionId: { in: sectionIds }, status: "ACTIVE" },
+      select: { id: true, classSectionId: true },
+    });
+    const studentsByClass = groupBy(activeStudents, (s) => s.classSectionId);
 
     const divisions = sections.map((cls) => {
       const list = marks.filter((m) => m.student.classSectionId === cls.id);
-      const ranked = studentTotals(groupBy(list, (m) => m.studentId)).sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
+      const ranked = studentTotals(groupBy(list, (m) => m.studentId), { gradeFn }).sort(
+        (a, b) => (b.avg ?? 0) - (a.avg ?? 0)
+      );
       return {
         id: cls.id,
         label: classLabel(cls),
         section: cls.section,
         teacher: cls.classTeacher?.name || null,
         studentCount: cls._count.students,
-        ...summarize(percentsOf(list)),
+        ...summarize(percentsOf(list), { passPercent }),
         topStudent: ranked[0]
           ? { studentId: ranked[0].studentId, name: ranked[0].student.name, average: ranked[0].avg }
           : null,
@@ -133,19 +161,29 @@ export function registerAnalysisReports(router) {
     const perSubject = subjects.map((subject) => ({
       subject: subject.name,
       subjectId: subject.id,
-      ...summarize(percentsOf(marks.filter((m) => m.subjectId === subject.id))),
+      ...summarize(percentsOf(marks.filter((m) => m.subjectId === subject.id)), { passPercent }),
     }));
 
-    const ranked = studentTotals(groupBy(marks, (m) => m.studentId)).sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
+    const ranked = studentTotals(groupBy(marks, (m) => m.studentId), { gradeFn }).sort(
+      (a, b) => (b.avg ?? 0) - (a.avg ?? 0)
+    );
     const radar = subjects.map((subject) => {
       const point = { subject: subject.name };
       for (const cls of sections) {
         point[classLabel(cls)] =
-          summarize(percentsOf(marks.filter((m) => m.subjectId === subject.id && m.student.classSectionId === cls.id)))
-            .average ?? 0;
+          summarize(
+            percentsOf(marks.filter((m) => m.subjectId === subject.id && m.student.classSectionId === cls.id)),
+            { passPercent }
+          ).average ?? 0;
       }
       return point;
     });
+
+    const subjectNames = subjects.map((s) => s.name);
+    const gapMatrix = divisionGapMatrix(marks, sections, subjectNames);
+    const passFail = passFailMatrix(marks, subjectNames, { passPercent });
+    const completeness = completenessHeatmap(assignments, studentsByClass, allMarks, exam.id);
+    const extras = await enrichMarksInsights(marks, grading);
 
     res.json({
       className,
@@ -153,13 +191,13 @@ export function registerAnalysisReports(router) {
       exam,
       exams,
       kpis: {
-        ...summarize(percentsOf(marks)),
+        ...summarize(percentsOf(marks), { passPercent }),
         students: sections.reduce((s, c) => s + c._count.students, 0),
         sections: sections.length,
       },
       divisions,
       perSubject,
-      gradeDist: gradeDistFromStudents(ranked),
+      gradeDist: gradeDistFromStudents(ranked, gradeBands),
       radar,
       sections: sections.map((c) => classLabel(c)),
       top10: ranked.slice(0, 10).map((s, i) => ({
@@ -180,6 +218,10 @@ export function registerAnalysisReports(router) {
         grade: s.grade,
       })),
       yearComparison: yearSeries(allApproved, exams, exam),
+      gapMatrix,
+      passFail,
+      completeness,
+      ...extras,
     });
   });
 
@@ -397,21 +439,61 @@ export function registerAnalysisReports(router) {
     const scopedApproved = marks.filter((m) => ownMarks(m) && m.status === "APPROVED");
     const scopedAll = marks.filter(ownMarks);
     const kpiMarks = scopedApproved.length ? scopedApproved : scopedAll;
+    const grading = gradingHelpers(await getGradingConfig());
+    const studentsByClass = groupBy(
+      students.filter((s) => s.status === "ACTIVE"),
+      (s) => s.classSectionId
+    );
+    const loadRows = teacherLoadOutcomes(
+      teacher.assignments.map((a) => ({ ...a, user: teacher })),
+      scopedApproved,
+      studentsByClass,
+      { passPercent: grading.passPercent }
+    );
+    const velocity = registerVelocity(
+      teacher.assignments.map((a) => ({ ...a, user: teacher })),
+      scopedAll,
+      exam,
+      studentsByClass
+    );
+    const accessRequests = await prisma.markEntryAccessRequest.findMany({
+      where: { examId: exam.id, teacherId: teacher.id },
+    });
+
     res.json({
       teacher: { id: teacher.id, name: teacher.name, email: teacher.email },
       exam,
       exams,
       kpis: {
-        ...summarize(percentsOf(kpiMarks)),
+        ...summarize(percentsOf(kpiMarks), { passPercent: grading.passPercent }),
         sections: classIds.length,
         students: students.length,
         provisional: scopedApproved.length === 0 && scopedAll.length > 0,
         awaitingApproval: registers.filter((r) => r.status === "AWAITING_APPROVAL" || (r.draft > 0 && r.approved < r.expected)).length,
+        studentsTaught: loadRows[0]?.studentsTaught ?? students.length,
+        absenceRate: loadRows[0]?.absenceRate ?? null,
+        avgDaysToFirst: (() => {
+          const days = velocity.map((v) => v.daysToFirst).filter((d) => d != null);
+          return days.length ? round1(mean(days)) : null;
+        })(),
+        accessRequestCount: accessRequests.length,
       },
       registers,
-      gradeDist: gradeDistFromStudents(studentTotals(groupBy(kpiMarks, (m) => m.studentId))),
+      gradeDist: gradeDistFromStudents(
+        studentTotals(groupBy(kpiMarks, (m) => m.studentId), { gradeFn: grading.gradeFn }),
+        grading.gradeBands
+      ),
       yearComparison: yearSeries(allApproved, exams, exam, ownMarks),
       peerCompare,
+      outcomes: outcomeBreakdown(scopedAll),
+      load: loadRows[0] || null,
+      velocity,
+      accessRequests: {
+        total: accessRequests.length,
+        pending: accessRequests.filter((r) => r.status === "PENDING").length,
+        lateEntry: accessRequests.filter((r) => r.kind !== "EDIT").length,
+        edit: accessRequests.filter((r) => r.kind === "EDIT").length,
+      },
     });
   });
 

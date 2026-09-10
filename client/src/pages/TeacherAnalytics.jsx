@@ -67,13 +67,31 @@ export default function TeacherAnalytics() {
           value={data.kpis.average != null ? `${data.kpis.average}%` : "—"}
         />
         <Metric label="Pass rate" value={data.kpis.passRate != null ? `${data.kpis.passRate}%` : "—"} />
-        <Metric label="Sections" value={data.kpis.sections} />
+        <Metric label="Students taught" value={data.kpis.studentsTaught ?? data.kpis.students} />
         <Metric
-          label="Awaiting approval"
-          value={data.kpis.awaitingApproval ?? 0}
-          tone={data.kpis.awaitingApproval ? "alert" : undefined}
+          label="Days to first entry"
+          value={data.kpis.avgDaysToFirst ?? "—"}
+          tone={data.accessRequests?.pending ? "alert" : undefined}
         />
       </div>
+
+      {(data.load || data.outcomes) && (
+        <div className="grid sm:grid-cols-3 gap-3 mb-4 text-sm">
+          <div className="card p-3">
+            Absence rate: <strong>{data.load?.absenceRate ?? data.kpis.absenceRate ?? "—"}%</strong>
+          </div>
+          <div className="card p-3">
+            Access requests: <strong>{data.accessRequests?.total ?? 0}</strong>
+            {data.accessRequests?.pending ? ` (${data.accessRequests.pending} pending)` : ""}
+          </div>
+          <div className="card p-3">
+            Outcomes AB/EX/WH:{" "}
+            <strong>
+              {data.outcomes?.ABSENT ?? 0}/{data.outcomes?.EXEMPT ?? 0}/{data.outcomes?.WITHHELD ?? 0}
+            </strong>
+          </div>
+        </div>
+      )}
 
       <Panel title="Registers" className="mb-4">
         <div className="grid sm:grid-cols-2 gap-3">

@@ -21,6 +21,7 @@ import AnalysisSubjects from "./pages/AnalysisSubjects.jsx";
 import AnalysisStudents from "./pages/AnalysisStudents.jsx";
 import AnalysisTeachers from "./pages/AnalysisTeachers.jsx";
 import AnalysisCompare from "./pages/AnalysisCompare.jsx";
+import AnalysisDeepInsights from "./pages/AnalysisDeepInsights.jsx";
 import ClassGroupAnalytics from "./pages/ClassGroupAnalytics.jsx";
 import SubjectSchoolAnalytics from "./pages/SubjectSchoolAnalytics.jsx";
 import TeacherAnalytics from "./pages/TeacherAnalytics.jsx";
@@ -120,6 +121,10 @@ export default function App() {
         <Route
           path="analysis/compare"
           element={<Guarded route="analysis/compare"><AnalysisCompare /></Guarded>}
+        />
+        <Route
+          path="analysis/deep"
+          element={<Guarded route="analysis/deep"><AnalysisDeepInsights /></Guarded>}
         />
         <Route path="analysis/students" element={<AnalysisStudents />} />
         <Route path="analysis/students/:id" element={<StudentAnalytics />} />

@@ -123,10 +123,41 @@ export default function StudentAnalytics() {
       />
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
         <Kpi label="Latest average" value={data.latestAverage != null ? `${data.latestAverage}%` : "—"} />
-        <Kpi label="Grade" value={data.latestGrade} />
+        <Kpi label="Effective avg (scored)" value={data.effectiveAverage != null ? `${data.effectiveAverage}%` : "—"} />
         <Kpi label="Class rank" value={data.rank ? `${data.rank} / ${data.classSize}` : "—"} />
-        <Kpi label="Strongest / weakest" value={`${data.strongest?.subject || "—"} / ${data.weakest?.subject || "—"}`} />
+        <Kpi
+          label="Consistency"
+          value={data.consistency?.score != null ? `${data.consistency.score}` : "—"}
+        />
       </div>
+      {(data.outcomes || data.annualComposite) && (
+        <div className="grid sm:grid-cols-2 gap-3 mb-4">
+          <div className="card p-4 text-sm">
+            <div className="font-medium mb-2">Outcomes</div>
+            <div>Absent {data.outcomes?.ABSENT ?? 0} · Exempt {data.outcomes?.EXEMPT ?? 0} · Withheld {data.outcomes?.WITHHELD ?? 0}</div>
+            <div className="text-ink-700/60 mt-1">
+              Strongest {data.strongest?.subject || "—"} · Weakest {data.weakest?.subject || "—"}
+            </div>
+          </div>
+          <div className="card p-4 text-sm">
+            <div className="font-medium mb-2">Weighted annual</div>
+            {data.annualComposite ? (
+              <>
+                <div>
+                  {data.annualComposite.composite}% · {data.annualComposite.grade}
+                </div>
+                <div className="text-ink-700/60 mt-1">
+                  {(data.annualComposite.components || [])
+                    .map((c) => `${c.type.replace("_", " ")} ${c.average}%×${c.weight}`)
+                    .join(" · ")}
+                </div>
+              </>
+            ) : (
+              <div className="text-ink-700/60">Not enough exam-type marks for a composite yet.</div>
+            )}
+          </div>
+        </div>
+      )}
       <div className="card p-4 mb-4">
         <h3 className="font-serif text-lg mb-3">Subject trends</h3>
         <ResponsiveContainer width="100%" height={280}>

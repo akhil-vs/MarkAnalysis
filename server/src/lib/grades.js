@@ -9,12 +9,13 @@ export const GRADE_BANDS = [
 
 export const PASS_PERCENT = 50;
 
-export function gradeFromPercent(percent) {
+export function gradeFromPercent(percent, bands = GRADE_BANDS) {
   if (percent == null || Number.isNaN(percent)) return null;
-  for (const band of GRADE_BANDS) {
+  const list = bands?.length ? bands : GRADE_BANDS;
+  for (const band of list) {
     if (percent >= band.min) return band.grade;
   }
-  return "F";
+  return list.at(-1)?.grade || "F";
 }
 
 export function percentOf(marks, maxMarks) {

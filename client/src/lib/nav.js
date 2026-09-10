@@ -42,6 +42,7 @@ export const NAV_LABELS = {
   analysisTeachers: "Teachers",
   analysisStudents: "Students",
   analysisCompare: "Compare",
+  analysisDeep: "Deep insights",
   pendingUploads: "Pending uploads",
   marks: "Mark register",
   upload: "Bulk upload",
@@ -64,6 +65,7 @@ export const NAV_TITLES = {
   analysisTeachers: "Teacher analysis",
   analysisStudents: "Student analysis",
   analysisCompare: "Comparisons",
+  analysisDeep: "Deep insights",
   pendingUploads: "Pending mark uploads",
   marks: "Mark register",
   upload: "Bulk upload",
@@ -84,6 +86,8 @@ export const NAV_BODIES = {
   analysisTeachers: "Each teacher’s averages, registers, and how they compare in shared subjects.",
   analysisStudents: "Subject trends, rank, strengths and weaknesses, report cards.",
   analysisCompare: "Previous years for the same exam type, and same-subject results across teachers.",
+  analysisDeep:
+    "Outcomes and mark bands, exam readiness, division gaps, improvement cohorts, teacher load, and weighted annuals.",
 };
 
 /**
@@ -217,6 +221,15 @@ export const NAV_GROUPS = [
             roles: "leadership",
             body: NAV_BODIES.analysisCompare,
             title: NAV_TITLES.analysisCompare,
+          },
+          {
+            id: "analysisDeep",
+            to: "/analysis/deep",
+            label: NAV_LABELS.analysisDeep,
+            icon: "analysis",
+            roles: "leadership",
+            body: NAV_BODIES.analysisDeep,
+            title: NAV_TITLES.analysisDeep,
           },
         ],
       },

@@ -1,0 +1,5 @@
+-- Analytics grading config on school profile
+ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "passPercent" DOUBLE PRECISION NOT NULL DEFAULT 50;
+ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "distinctionMin" DOUBLE PRECISION NOT NULL DEFAULT 90;
+ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "gradeBands" JSONB;
+ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "examWeights" JSONB;
