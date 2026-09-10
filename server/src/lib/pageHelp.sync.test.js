@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   DEEP_INSIGHT_HELP,
+  DEEP_INSIGHT_PANEL_HELP,
   PAGE_HELP,
   helpForPath,
   helpIdForPath,
@@ -49,5 +50,47 @@ test("each deep insight tab explains what it is and how it is useful", () => {
     assert.ok(help.title);
     assert.ok(help.about?.length > 60, `${id} about is too short`);
     assert.ok(help.useful?.length > 40, `${id} useful is too short`);
+  }
+});
+
+test("each deep insight panel explains what it is and how it is useful", () => {
+  const panels = [
+    "markBands",
+    "boardCounts",
+    "distinction",
+    "fail",
+    "heatmap",
+    "lateByTeacher",
+    "subjectSectionAverages",
+    "largestGaps",
+    "passFail",
+    "subjectCompleteness",
+    "improving",
+    "declining",
+    "recovered",
+    "slipped",
+    "carryForward",
+    "loadVsOutcome",
+    "registerVelocity",
+    "weightedAnnual",
+  ];
+  assert.deepEqual(Object.keys(DEEP_INSIGHT_PANEL_HELP).sort(), [...panels].sort());
+  for (const id of panels) {
+    const help = DEEP_INSIGHT_PANEL_HELP[id];
+    assert.ok(help, `missing DEEP_INSIGHT_PANEL_HELP.${id}`);
+    assert.ok(help.title);
+    assert.ok(help.about?.length > 60, `${id} about is too short`);
+    assert.ok(help.useful?.length > 40, `${id} useful is too short`);
+  }
+});
+
+test("Deep insights page wires every panel help key", async () => {
+  const { readFileSync } = await import("node:fs");
+  const { dirname, join } = await import("node:path");
+  const { fileURLToPath } = await import("node:url");
+  const here = dirname(fileURLToPath(import.meta.url));
+  const src = readFileSync(join(here, "../../../client/src/pages/AnalysisDeepInsights.jsx"), "utf8");
+  for (const id of Object.keys(DEEP_INSIGHT_PANEL_HELP)) {
+    assert.ok(src.includes(`PANEL_HELP.${id}`), `AnalysisDeepInsights should use PANEL_HELP.${id}`);
   }
 });
