@@ -10,6 +10,8 @@ describe("grades", () => {
     assert.equal(gradeFromPercent(49.9), "F");
     assert.equal(percentOf(36, 80), 45);
     assert.equal(percentOf(null, 100), null);
+    assert.equal(percentOf(90, 80), 100);
+    assert.equal(percentOf(0, 100), 0);
   });
 });
 
