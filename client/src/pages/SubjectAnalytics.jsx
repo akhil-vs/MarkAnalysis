@@ -10,7 +10,8 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../api.js";
-import { ExamSelect, TeacherCompareTable, YearComparison, comparableNote } from "../components/AnalysisPanels.jsx";
+import { ExamSelect } from "../components/ExamSelect.jsx";
+import { TeacherCompareTable, YearComparison, comparableNote } from "../components/AnalysisPanels.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { NAV_LABELS, paths } from "../lib/nav.js";

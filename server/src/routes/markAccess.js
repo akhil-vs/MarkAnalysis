@@ -25,6 +25,23 @@ async function decorateRequest(row) {
 }
 
 
+markAccessRouter.get("/count", async (req, res) => {
+  const { status, examId, kind } = req.query;
+  const where = {};
+  if (examId) where.examId = examId;
+  if (status) where.status = status;
+  if (kind) where.kind = kind;
+
+  if (req.user.role === "TEACHER") {
+    where.teacherId = req.user.userId;
+  } else if (!isLeadership(req.user.role)) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const count = await prisma.markEntryAccessRequest.count({ where });
+  res.json({ count });
+});
+
 markAccessRouter.get("/", async (req, res) => {
   const { status, examId, kind } = req.query;
   const where = {};

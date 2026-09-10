@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
-import { ExamSelect } from "../components/AnalysisPanels.jsx";
+import { ExamSelect } from "../components/ExamSelect.jsx";
 import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { NAV_TITLES, paths } from "../lib/nav.js";

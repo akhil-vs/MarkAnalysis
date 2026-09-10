@@ -11,7 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../api.js";
-import { ExamSelect, TeacherCompareTable, YearComparison, comparableNote } from "../components/AnalysisPanels.jsx";
+import { ExamSelect } from "../components/ExamSelect.jsx";
+import { TeacherCompareTable, YearComparison, comparableNote } from "../components/AnalysisPanels.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { GRADE_COLORS, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";

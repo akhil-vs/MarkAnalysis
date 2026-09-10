@@ -11,7 +11,8 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../api.js";
-import { ExamSelect, TeacherCompareTable, YearComparison } from "../components/AnalysisPanels.jsx";
+import { ExamSelect } from "../components/ExamSelect.jsx";
+import { TeacherCompareTable, YearComparison } from "../components/AnalysisPanels.jsx";
 import { ChartTooltip, EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { FilterBar } from "../components/TableToolbar.jsx";

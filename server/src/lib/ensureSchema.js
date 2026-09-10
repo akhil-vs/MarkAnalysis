@@ -385,13 +385,17 @@ async function ensureSchoolGradingColumns() {
 export async function ensurePendingSchema() {
   if (!ensurePromise) {
     ensurePromise = (async () => {
+      // Timetable table must exist before period uniqueness migrate.
       await ensureTimetableTables();
       await ensureMultiClassPerPeriod();
-      await ensureStaffNoticeEnum();
-      await ensureActivityAuditTable();
-      await ensureConsolidationSettingsTable();
-      await ensureSubjectConsolidationMaxMarksColumn();
-      await ensureSchoolGradingColumns();
+      // Remaining catch-ups are independent and can run together.
+      await Promise.all([
+        ensureStaffNoticeEnum(),
+        ensureActivityAuditTable(),
+        ensureConsolidationSettingsTable(),
+        ensureSubjectConsolidationMaxMarksColumn(),
+        ensureSchoolGradingColumns(),
+      ]);
     })().catch((err) => {
       ensurePromise = null;
       throw err;
