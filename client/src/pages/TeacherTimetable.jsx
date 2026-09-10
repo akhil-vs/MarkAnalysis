@@ -47,18 +47,28 @@ function EntryCell({ entries }) {
   if (!list.length) {
     return <div className="min-h-[3.25rem] rounded-lg bg-ink-900/[0.03]" />;
   }
+
+  const subjectNames = [...new Set(list.map((e) => e.subject?.name).filter(Boolean))];
+  const sharedSubject = subjectNames.length === 1 ? subjectNames[0] : null;
+
   return (
-    <div className="flex flex-col gap-1">
-      {list.map((entry) => (
-        <div
-          key={entry.id}
-          className="min-h-[3.25rem] rounded-lg border border-ink-900/10 bg-white px-2 py-1.5"
-        >
-          <div className="text-sm font-medium leading-snug">{entry.subject?.name}</div>
-          <div className="text-xs text-ink-700/65">{entry.classSection?.label}</div>
-          {entry.room && <div className="text-[10px] text-ink-700/45">{entry.room}</div>}
-        </div>
-      ))}
+    <div className="min-h-[3.25rem] rounded-lg border border-ink-900/10 bg-white px-2 py-1.5">
+      {sharedSubject && (
+        <div className="text-sm font-medium leading-snug">{sharedSubject}</div>
+      )}
+      <div className={sharedSubject ? "mt-0.5 space-y-0.5" : "space-y-1"}>
+        {list.map((entry) => (
+          <div key={entry.id}>
+            {!sharedSubject && (
+              <div className="text-sm font-medium leading-snug">{entry.subject?.name}</div>
+            )}
+            <div className="text-xs text-ink-700/65">
+              {entry.classSection?.label}
+              {entry.room ? ` · ${entry.room}` : ""}
+            </div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
