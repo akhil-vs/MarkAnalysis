@@ -60,7 +60,7 @@ export const PAGE_HELP = {
   analysisDeep: {
     title: "What's on this page",
     about: "Leadership insights built from marks you already have: outcomes and mark bands, exam readiness, division gaps, improvement cohorts, promotion carry-forward, teacher load, and weighted annuals.",
-    useful: "Use the hint icon on each tab to see what that insight measures and how to act on it. Open this after registers are in, or use Exam readiness to see what is still missing.",
+    useful: "Use the hint icon on each tab, and on each panel, to see what that measure is and how to act on it. Open this after registers are in, or use Exam readiness to see what is still missing.",
   },
   pendingUploads: {
     title: "What's on this page",
@@ -157,6 +157,102 @@ export const DEEP_INSIGHT_HELP = {
     title: "Annual composite",
     about: "A single year-long score per student using the unit / mid / final weights set in School profile, with distinction and below-pass counts on that composite.",
     useful: "Use a year view instead of one exam for ranking, awards, and students still below pass on the composite. Change weights under School profile if your board uses different proportions.",
+  },
+};
+
+/**
+ * Per-panel copy on Deep insights (and the matching Weighted annual card on a student).
+ */
+export const DEEP_INSIGHT_PANEL_HELP = {
+  markBands: {
+    title: "Mark-band histogram",
+    about: "Counts of scored marks in ten-point bands (0–9 through 90–100). Absent, exempt, and withheld papers are left out, so the shape is of marks that were actually awarded.",
+    useful: "See whether results cluster high, sit in the middle, or pile up near the pass line — a pattern a single school average hides.",
+  },
+  boardCounts: {
+    title: "Board-style counts",
+    about: "Pass, distinction, and fail counts using the pass percent and distinction minimum from School profile. A dual-ceiling note appears when a subject’s exam max differs from its consolidation max.",
+    useful: "Match board reporting language before you print lists. If maxima have drifted, correct them under Records → Subjects so entry and consolidation stay aligned.",
+  },
+  distinction: {
+    title: "Distinction list",
+    about: "Students whose exam average meets or exceeds the distinction threshold set in School profile.",
+    useful: "A shortlist for awards or mention. Open a name to see subject strengths on the student page.",
+  },
+  fail: {
+    title: "Fail list",
+    about: "Students whose exam average is below the school pass percent.",
+    useful: "The first remedial list after this exam: who needs follow-up, not only who is last in class.",
+  },
+  heatmap: {
+    title: "Completeness heatmap",
+    about: "Every assigned paper for this exam: teacher, class and subject, register status (approved, awaiting approval, partial, or missing), and how many marks are approved versus expected.",
+    useful: "Find the papers still blocking publication. Status colour shows who to chase without opening every register.",
+  },
+  lateByTeacher: {
+    title: "Late / edit requests by teacher",
+    about: "Access requests for this exam grouped by teacher: pending, late-entry, and edit counts.",
+    useful: "See who is waiting on a grant after the deadline, and whether late work is concentrated on a few staff.",
+  },
+  subjectSectionAverages: {
+    title: "Subject × section averages",
+    about: "For the selected class, each subject’s average in every division, plus the gap between the strongest and weakest section on that paper.",
+    useful: "Spot a division that is behind in one subject — often a teaching or coverage issue — instead of treating the whole class as one number.",
+  },
+  largestGaps: {
+    title: "Largest section gaps",
+    about: "Subjects with the widest spread between the leading and trailing division in this class, with both averages.",
+    useful: "Start equalisation work here: the papers where one section is furthest behind another.",
+  },
+  passFail: {
+    title: "Pass / fail by subject",
+    about: "For this class, pass, fail, and absent counts per subject, plus pass rate against the school pass percent.",
+    useful: "See which papers are pulling the class down, and how much absence is inflating the picture.",
+  },
+  subjectCompleteness: {
+    title: "Subject completeness",
+    about: "Register status for each paper in this class: teacher, approved versus expected marks, and whether the paper is ready.",
+    useful: "Do not read a section gap as a teaching problem until the trailing division’s paper is actually complete.",
+  },
+  improving: {
+    title: "Improving cohort",
+    about: "Students whose exam average rose by 4 percentage points or more versus the previous exam of the same type.",
+    useful: "Recognise movement, not only rank. These names are often not the ones already on a topper list.",
+  },
+  declining: {
+    title: "Declining cohort",
+    about: "Students whose exam average fell by 4 percentage points or more versus the previous exam of the same type.",
+    useful: "Target intervention at students who are sliding, including those still above pass who would not appear on a fail list.",
+  },
+  recovered: {
+    title: "Recovered (fail → pass)",
+    about: "Students who were below pass on the previous exam of the same type and are at or above pass now.",
+    useful: "Check whether remedial work stuck. These recoveries are easy to miss if you only look at toppers.",
+  },
+  slipped: {
+    title: "Slipped (pass → fail)",
+    about: "Students who were at or above pass last exam and have now fallen below pass.",
+    useful: "Urgent follow-up: they were coping and are not now. Parent meetings and subject support start here.",
+  },
+  carryForward: {
+    title: "Carry-forward averages",
+    about: "Promoted students with last year’s average next to this year’s, and the change after the class jump.",
+    useful: "See who is coping in the new class. A drop after promotion is common; a large drop flags extra support.",
+  },
+  loadVsOutcome: {
+    title: "Load vs outcome",
+    about: "Each teacher’s student and paper load beside their average, pass rate, absence rate, days to first mark entry, and access-request count for this exam.",
+    useful: "Give context before a review conversation. A weak result may sit with a heavy load, slow entry, or many late requests, not only with teaching quality.",
+  },
+  registerVelocity: {
+    title: "Register velocity",
+    about: "How quickly each paper was started after the exam date, and how late the last entry was relative to the marks deadline.",
+    useful: "Find papers that sat empty until after the deadline so you can tighten the next exam’s chase list.",
+  },
+  weightedAnnual: {
+    title: "Weighted annual",
+    about: "A year-long composite per student: unit, mid, and final averages mixed with the weights in School profile. Distinction and below-pass use that composite, not a single exam.",
+    useful: "Use this for ranking, awards, and students still below pass across the year. Change the mix under School profile if your board uses different proportions.",
   },
 };
 

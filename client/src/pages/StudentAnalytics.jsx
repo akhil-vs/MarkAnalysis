@@ -12,11 +12,13 @@ import {
 } from "recharts";
 import { api, download } from "../api.js";
 import Breadcrumb from "../components/Breadcrumb.jsx";
+import { HelpHint } from "../components/HelpHint.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { examLabel } from "../lib/exams.js";
 import { NAV_LABELS } from "../lib/nav.js";
+import { DEEP_INSIGHT_PANEL_HELP } from "../lib/pageHelp.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a", "#4a6fa5"];
@@ -140,7 +142,10 @@ export default function StudentAnalytics() {
             </div>
           </div>
           <div className="card p-4 text-sm">
-            <div className="font-medium mb-2">Weighted annual</div>
+            <div className="font-medium mb-2 flex items-center gap-1.5">
+              Weighted annual
+              <HelpHint help={DEEP_INSIGHT_PANEL_HELP.weightedAnnual} label="About Weighted annual" size="sm" />
+            </div>
             {data.annualComposite ? (
               <>
                 <div>
