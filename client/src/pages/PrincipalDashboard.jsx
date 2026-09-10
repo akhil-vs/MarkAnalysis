@@ -14,7 +14,8 @@ import {
 } from "recharts";
 import { api, download } from "../api.js";
 import { useAuth } from "../auth.jsx";
-import { ExamSelect, YearComparison } from "../components/AnalysisPanels.jsx";
+import { ExamSelect } from "../components/ExamSelect.jsx";
+import { YearComparison } from "../components/AnalysisPanels.jsx";
 import {
   BarTrack,
   ChartTooltip,

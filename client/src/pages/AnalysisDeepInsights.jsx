@@ -10,7 +10,7 @@ import {
   YAxis,
 } from "recharts";
 import { api } from "../api.js";
-import { ExamSelect } from "../components/AnalysisPanels.jsx";
+import { ExamSelect } from "../components/ExamSelect.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { ChartTooltip, EmptyNote, Metric, Panel } from "../components/DashboardKit.jsx";
 import { HelpHint } from "../components/HelpHint.jsx";

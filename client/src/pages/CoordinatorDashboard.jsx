@@ -21,7 +21,7 @@ import {
   Panel,
   greeting,
 } from "../components/DashboardKit.jsx";
-import { ExamSelect } from "../components/AnalysisPanels.jsx";
+import { ExamSelect } from "../components/ExamSelect.jsx";
 import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";

@@ -1,6 +1,15 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 
 function relativeTime(iso) {
@@ -29,35 +38,42 @@ function typeLabel(type) {
   return null;
 }
 
-export default function NotificationBell() {
-  const navigate = useNavigate();
-  const location = useLocation();
-  const [open, setOpen] = useState(false);
+const NotificationContext = createContext(null);
+
+/** Shared notification state so mobile + desktop bells do not double-fetch. */
+export function NotificationProvider({ children }) {
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(false);
-  const [coords, setCoords] = useState(null);
-  const buttonRef = useRef(null);
-  const panelRef = useRef(null);
+  const [listLoaded, setListLoaded] = useState(false);
 
-  const load = useCallback(async () => {
+  const refreshUnread = useCallback(async () => {
+    try {
+      const data = await api("/api/notifications/unread-count");
+      setUnreadCount(Number(data.unreadCount) || 0);
+    } catch {
+      // keep last known count
+    }
+  }, []);
+
+  const loadList = useCallback(async () => {
     try {
       const data = await api("/api/notifications?limit=20");
       setItems(Array.isArray(data.items) ? data.items : []);
       setUnreadCount(Number(data.unreadCount) || 0);
+      setListLoaded(true);
     } catch {
-      // keep last known items on transient errors
+      // keep last known items
     }
   }, []);
 
   useEffect(() => {
-    load();
-    const id = setInterval(load, 15000);
+    refreshUnread();
+    const id = setInterval(refreshUnread, 30000);
     function onFocus() {
-      load();
+      refreshUnread();
     }
     function onVisibility() {
-      if (document.visibilityState === "visible") load();
+      if (document.visibilityState === "visible") refreshUnread();
     }
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
@@ -66,11 +82,38 @@ export default function NotificationBell() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [load]);
+  }, [refreshUnread]);
 
-  useEffect(() => {
-    load();
-  }, [location.pathname, load]);
+  const value = useMemo(
+    () => ({
+      items,
+      unreadCount,
+      listLoaded,
+      loadList,
+      refreshUnread,
+      setItems,
+      setUnreadCount,
+    }),
+    [items, unreadCount, listLoaded, loadList, refreshUnread]
+  );
+
+  return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
+}
+
+function useNotifications() {
+  const ctx = useContext(NotificationContext);
+  if (!ctx) throw new Error("NotificationBell requires NotificationProvider");
+  return ctx;
+}
+
+export default function NotificationBell() {
+  const navigate = useNavigate();
+  const { items, unreadCount, listLoaded, loadList, setItems, setUnreadCount } = useNotifications();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [coords, setCoords] = useState(null);
+  const buttonRef = useRef(null);
+  const panelRef = useRef(null);
 
   useLayoutEffect(() => {
     if (!open || !buttonRef.current) {
@@ -132,7 +175,7 @@ export default function NotificationBell() {
     setOpen(next);
     if (next) {
       setLoading(true);
-      await load();
+      await loadList();
       setLoading(false);
     }
   }
@@ -184,7 +227,7 @@ export default function NotificationBell() {
               )}
             </div>
             <div className="overflow-y-auto" style={{ maxHeight: coords.maxHeight - 42 }}>
-              {loading && !items.length ? (
+              {loading && !listLoaded ? (
                 <p className="px-3 py-4 text-sm text-cream/50">Loading…</p>
               ) : items.length === 0 ? (
                 <p className="px-3 py-4 text-sm text-cream/50">No notifications yet.</p>

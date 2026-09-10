@@ -176,6 +176,7 @@ model MarkEntryAccessRequest {
   reviewedBy   User?        @relation("MarkEntryReviewer", fields: [reviewedById], references: [id])
 
   @@unique([examId, teacherId, classSectionId, subjectId])
+  @@index([status, requestedAt])
 }
 
 model Mark {
@@ -197,6 +198,7 @@ model Mark {
 
   @@unique([studentId, subjectId, examId])
   @@index([examId, status])
+  @@index([status])
   @@index([studentId])
 }
 

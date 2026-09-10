@@ -17,7 +17,8 @@ import {
 } from "recharts";
 import { api, download } from "../api.js";
 import { useAuth } from "../auth.jsx";
-import { ExamSelect, YearComparison } from "../components/AnalysisPanels.jsx";
+import { ExamSelect } from "../components/ExamSelect.jsx";
+import { YearComparison } from "../components/AnalysisPanels.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";

@@ -11,18 +11,9 @@ import {
 import { ChartTooltip, EmptyNote, Panel } from "./DashboardKit.jsx";
 import { PaginatedTable } from "./PaginatedTable.jsx";
 import { TableToolbar } from "./TableToolbar.jsx";
-import { examLabel } from "../lib/exams.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
-export function ExamSelect({ exams = [], value, onChange }) {
-  return (
-    <select className="field-filter" value={value} onChange={(e) => onChange(e.target.value)}>
-      {exams.map((exam) => (
-        <option key={exam.id} value={exam.id}>{examLabel(exam)}</option>
-      ))}
-    </select>
-  );
-}
+export { ExamSelect } from "./ExamSelect.jsx";
 
 function yearRowSearchText(row) {
   return searchHaystack(row.academicYear, row.examName, row.average, row.passRate);

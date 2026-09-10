@@ -5,7 +5,7 @@ import { useAuth } from "../auth.jsx";
 import { isAnalysisPath, navGroupsForRole } from "../lib/nav.js";
 import { isLeadership } from "../lib/roles.js";
 import { PageHelpHint } from "./HelpHint.jsx";
-import NotificationBell from "./NotificationBell.jsx";
+import NotificationBell, { NotificationProvider } from "./NotificationBell.jsx";
 import PoweredBy from "./PoweredBy.jsx";
 
 const ROLE_LABEL = {
@@ -212,17 +212,52 @@ export default function Layout() {
 
   useEffect(() => {
     if (!leadership) return;
-    api("/api/analytics/awaiting-approvals")
-      .then((d) => setPendingCount(Number(d.count) || 0))
-      .catch(() => {
-        api("/api/analytics/pending-uploads")
-          .then((d) => setPendingCount((d.pendingTeacherCount ?? 0) + (d.awaitingApprovalTeacherCount ?? 0)))
-          .catch(() => setPendingCount(null));
-      });
-    api("/api/mark-access?status=PENDING")
-      .then((rows) => setLateEntryCount(rows.length))
-      .catch(() => setLateEntryCount(null));
-  }, [leadership, location.pathname]);
+    let cancelled = false;
+
+    async function loadBadges() {
+      try {
+        const d = await api("/api/analytics/awaiting-approvals?countOnly=1");
+        if (!cancelled) setPendingCount(Number(d.count) || 0);
+      } catch {
+        try {
+          const d = await api("/api/analytics/pending-uploads");
+          if (!cancelled) {
+            setPendingCount((d.pendingTeacherCount ?? 0) + (d.awaitingApprovalTeacherCount ?? 0));
+          }
+        } catch {
+          if (!cancelled) setPendingCount(null);
+        }
+      }
+      try {
+        const d = await api("/api/mark-access/count?status=PENDING");
+        if (!cancelled) setLateEntryCount(Number(d.count) || 0);
+      } catch {
+        try {
+          const rows = await api("/api/mark-access?status=PENDING");
+          if (!cancelled) setLateEntryCount(Array.isArray(rows) ? rows.length : 0);
+        } catch {
+          if (!cancelled) setLateEntryCount(null);
+        }
+      }
+    }
+
+    loadBadges();
+    const id = setInterval(loadBadges, 60000);
+    function onFocus() {
+      loadBadges();
+    }
+    function onVisibility() {
+      if (document.visibilityState === "visible") loadBadges();
+    }
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      cancelled = true;
+      clearInterval(id);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [leadership]);
 
   function closeNav() {
     setNavOpen(false);
@@ -309,51 +344,53 @@ export default function Layout() {
   );
 
   return (
-    <div className="h-[100dvh] flex overflow-hidden bg-paper">
-      <header className="lg:hidden fixed top-0 inset-x-0 z-40 border-b border-ink-900/10 bg-ink-950 text-cream">
-        <div className="safe-pt">
-          <div className="flex h-14 items-center gap-2 px-3">
-            <button
-              type="button"
-              className="rounded-lg p-2 text-cream/80 hover:bg-white/5 hover:text-cream"
-              aria-label={navOpen ? "Close menu" : "Open menu"}
-              aria-expanded={navOpen}
-              aria-controls={navId}
-              onClick={() => setNavOpen((v) => !v)}
-            >
-              <MenuIcon open={navOpen} />
-            </button>
-            <Link to="/" className="min-w-0 flex-1" onClick={closeNav}>
-              <div className="font-serif text-lg leading-tight truncate">Marks Analytics</div>
-            </Link>
-            <NotificationBell />
+    <NotificationProvider>
+      <div className="h-[100dvh] flex overflow-hidden bg-paper">
+        <header className="lg:hidden fixed top-0 inset-x-0 z-40 border-b border-ink-900/10 bg-ink-950 text-cream">
+          <div className="safe-pt">
+            <div className="flex h-14 items-center gap-2 px-3">
+              <button
+                type="button"
+                className="rounded-lg p-2 text-cream/80 hover:bg-white/5 hover:text-cream"
+                aria-label={navOpen ? "Close menu" : "Open menu"}
+                aria-expanded={navOpen}
+                aria-controls={navId}
+                onClick={() => setNavOpen((v) => !v)}
+              >
+                <MenuIcon open={navOpen} />
+              </button>
+              <Link to="/" className="min-w-0 flex-1" onClick={closeNav}>
+                <div className="font-serif text-lg leading-tight truncate">Marks Analytics</div>
+              </Link>
+              <NotificationBell />
+            </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {navOpen && (
-        <button
-          type="button"
-          className="lg:hidden fixed inset-0 z-40 bg-ink-950/50 backdrop-blur-[1px]"
-          aria-label="Close menu overlay"
-          onClick={closeNav}
-        />
-      )}
+        {navOpen && (
+          <button
+            type="button"
+            className="lg:hidden fixed inset-0 z-40 bg-ink-950/50 backdrop-blur-[1px]"
+            aria-label="Close menu overlay"
+            onClick={closeNav}
+          />
+        )}
 
-      <aside
-        className={`fixed lg:static inset-y-0 left-0 z-50 flex h-full w-[min(18rem,88vw)] shrink-0 flex-col overflow-hidden bg-ink-950 text-cream shadow-2xl transition-transform duration-200 ease-out lg:w-64 lg:shadow-none lg:translate-x-0 ${
-          navOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
-      >
-        {sidebar}
-      </aside>
+        <aside
+          className={`fixed lg:static inset-y-0 left-0 z-50 flex h-full w-[min(18rem,88vw)] shrink-0 flex-col overflow-hidden bg-ink-950 text-cream shadow-2xl transition-transform duration-200 ease-out lg:w-64 lg:shadow-none lg:translate-x-0 ${
+            navOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
+        >
+          {sidebar}
+        </aside>
 
-      <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-y-contain pt-[calc(3.5rem+env(safe-area-inset-top,0px))] lg:pt-0">
-        <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 sm:py-8">
-          <Outlet />
-        </div>
-      </main>
-    </div>
+        <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-y-contain pt-[calc(3.5rem+env(safe-area-inset-top,0px))] lg:pt-0">
+          <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 sm:py-8">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </NotificationProvider>
   );
 }
 
