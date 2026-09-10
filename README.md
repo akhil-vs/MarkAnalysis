@@ -78,7 +78,7 @@ Deployments generate the Prisma client on Vercel build. If the live database is 
 
 ## Consolidated mark lists
 
-Principal and exam coordinator set **max marks per subject** once on **Consolidated lists**, then **Lock max marks**. After that, consolidated totals and percentages use those ceilings (the same values used on subject records). Unlock only if a ceiling needs correcting.
+Principal and exam coordinator set **max marks per subject** under **Records → Subjects**, then **Lock for consolidation**. After that, consolidated totals and percentages use those ceilings. Unlock only if a ceiling needs correcting.
 
 Once teachers have entered marks for an exam and leadership has **approved** them, the exam coordinator or principal can generate the official **consolidated mark list** for a class. **Class teachers** can open and download the list for their own section only when every subject register for that class is fully approved.
 
