@@ -3,7 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { api, download } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
-import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
@@ -72,7 +71,6 @@ function groupClassesByName(sections) {
 
 export default function ConsolidatedLists() {
   const toast = useToast();
-  const confirm = useConfirm();
   const { user } = useAuth();
   const leadership = isLeadership(user?.role);
   const [params, setParams] = useSearchParams();
@@ -86,14 +84,11 @@ export default function ConsolidatedLists() {
   const [previewLoading, setPreviewLoading] = useState(Boolean(initialClassSectionId(params)));
   const [notify, setNotify] = useState(null);
   const [maxMarksPanel, setMaxMarksPanel] = useState(null);
-  const [maxMarksDraft, setMaxMarksDraft] = useState({});
-  const [maxMarksBusy, setMaxMarksBusy] = useState(false);
 
   async function loadMaxMarks() {
     if (!leadership) return;
     const res = await api("/api/consolidation/max-marks");
     setMaxMarksPanel(res);
-    setMaxMarksDraft(Object.fromEntries((res.subjects || []).map((s) => [s.id, s.maxMarks])));
   }
 
   async function loadStatus(id) {
@@ -231,102 +226,6 @@ export default function ConsolidatedLists() {
     }
   }
 
-  async function saveMaxMarks() {
-    if (!maxMarksPanel || maxMarksPanel.settings?.maxMarksLocked) return;
-    setMaxMarksBusy(true);
-    try {
-      const subjects = (maxMarksPanel.subjects || []).map((s) => ({
-        id: s.id,
-        maxMarks: Number(maxMarksDraft[s.id] ?? s.maxMarks),
-      }));
-      const res = await api("/api/consolidation/max-marks", {
-        method: "PUT",
-        body: { subjects },
-      });
-      setMaxMarksPanel(res);
-      setMaxMarksDraft(Object.fromEntries((res.subjects || []).map((s) => [s.id, s.maxMarks])));
-      toast.success("Max marks saved.");
-      if (selectedId && examId) {
-        await loadPreview(selectedId, examId).catch(() => {});
-      }
-    } catch (e) {
-      toast.error(e.message);
-    } finally {
-      setMaxMarksBusy(false);
-    }
-  }
-
-  async function lockMaxMarks() {
-    if (
-      !(await confirm({
-        title: "Lock consolidation max marks?",
-        message:
-          "This is a one-time lock. Subject ceilings used for consolidated totals and percentages will not be editable until unlocked.",
-        confirmLabel: "Lock max marks",
-      }))
-    ) {
-      return;
-    }
-    setMaxMarksBusy(true);
-    try {
-      if (!maxMarksPanel.settings?.maxMarksLocked) {
-        const subjects = (maxMarksPanel.subjects || []).map((s) => ({
-          id: s.id,
-          maxMarks: Number(maxMarksDraft[s.id] ?? s.maxMarks),
-        }));
-        const saved = await api("/api/consolidation/max-marks", {
-          method: "PUT",
-          body: { subjects },
-        });
-        setMaxMarksPanel(saved);
-        setMaxMarksDraft(Object.fromEntries((saved.subjects || []).map((s) => [s.id, s.maxMarks])));
-      }
-      const res = await api("/api/consolidation/max-marks/lock", { method: "POST" });
-      setMaxMarksPanel((prev) => ({ ...prev, settings: res.settings }));
-      toast.success("Max marks locked for consolidation.");
-      if (selectedId && examId) {
-        await loadPreview(selectedId, examId).catch(() => {});
-      }
-    } catch (e) {
-      toast.error(e.message);
-    } finally {
-      setMaxMarksBusy(false);
-    }
-  }
-
-  async function unlockMaxMarks() {
-    if (
-      !(await confirm({
-        title: "Unlock max marks?",
-        message: "Unlock only to correct a ceiling, then lock again before publishing official lists.",
-        confirmLabel: "Unlock",
-        tone: "danger",
-      }))
-    ) {
-      return;
-    }
-    setMaxMarksBusy(true);
-    try {
-      const res = await api("/api/consolidation/max-marks/unlock", { method: "POST" });
-      setMaxMarksPanel((prev) => ({ ...prev, settings: res.settings }));
-      toast.success("Max marks unlocked.");
-    } catch (e) {
-      toast.error(e.message);
-    } finally {
-      setMaxMarksBusy(false);
-    }
-  }
-
-  const subjectsByClass = useMemo(() => {
-    const map = new Map();
-    for (const s of maxMarksPanel?.subjects || []) {
-      const list = map.get(s.className) || [];
-      list.push(s);
-      map.set(s.className, list);
-    }
-    return [...map.entries()];
-  }, [maxMarksPanel]);
-
   if (!data && !error) {
     return (
       <div>
@@ -375,93 +274,20 @@ export default function ConsolidatedLists() {
 
       {error && <p className="text-clay-600 text-sm mb-3">{error}</p>}
 
-      {leadership && maxMarksPanel && (
-        <Panel
-          className="mb-5"
-          title="Max marks for consolidation"
-          action={
-            <div className="flex flex-wrap gap-2">
-              {!locked && (
-                <>
-                  <button type="button" className="btn-ghost" disabled={maxMarksBusy} onClick={saveMaxMarks}>
-                    {maxMarksBusy ? "Saving…" : "Save"}
-                  </button>
-                  <button type="button" className="btn-primary" disabled={maxMarksBusy} onClick={lockMaxMarks}>
-                    Lock max marks
-                  </button>
-                </>
-              )}
-              {locked && (
-                <button type="button" className="btn-ghost" disabled={maxMarksBusy} onClick={unlockMaxMarks}>
-                  Unlock
-                </button>
-              )}
-            </div>
-          }
-        >
-          {locked ? (
-            <p className="text-sm text-moss-600 mb-3">
-              Locked
-              {maxMarksPanel.settings.lockedBy?.name ? ` by ${maxMarksPanel.settings.lockedBy.name}` : ""}
-              {maxMarksPanel.settings.lockedAt
-                ? ` on ${new Date(maxMarksPanel.settings.lockedAt).toLocaleString()}`
-                : ""}
-              . Consolidated totals and percentages use these per-subject ceilings.
+      {leadership && (
+        <div className="card p-4 mb-5 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="font-medium text-ink-900">Max marks for consolidation</div>
+            <p className="text-sm text-ink-700/70 mt-0.5">
+              {locked
+                ? "Subject ceilings are locked. Edit them under Records → Subjects."
+                : "Set and lock per-subject max marks under Records → Subjects (one-time consolidation setting)."}
             </p>
-          ) : (
-            <p className="text-sm text-ink-700/70 mb-3">
-              Set the maximum marks for each subject once, then lock. Consolidation uses these ceilings for
-              totals and percentages.
-            </p>
-          )}
-          {!subjectsByClass.length ? (
-            <EmptyNote>
-              No subjects yet. Add them under <Link className="underline" to="/manage">Records → Subjects</Link>.
-            </EmptyNote>
-          ) : (
-            <div className="space-y-4">
-              {subjectsByClass.map(([className, subjects]) => (
-                <div key={className}>
-                  <div className="text-xs uppercase tracking-wide text-ink-700/55 mb-2">Class {className}</div>
-                  <div className="overflow-x-auto">
-                    <table className="table">
-                      <thead>
-                        <tr>
-                          <th>Subject</th>
-                          <th className="w-28">Max marks</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {subjects.map((s) => (
-                          <tr key={s.id}>
-                            <td>{s.name}</td>
-                            <td>
-                              <input
-                                className="field w-24"
-                                type="number"
-                                min={1}
-                                step={1}
-                                value={maxMarksDraft[s.id] ?? s.maxMarks}
-                                disabled={locked || maxMarksBusy}
-                                onChange={(e) =>
-                                  setMaxMarksDraft((prev) => ({
-                                    ...prev,
-                                    [s.id]: Number(e.target.value),
-                                  }))
-                                }
-                                aria-label={`Max marks for ${s.name} class ${className}`}
-                              />
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Panel>
+          </div>
+          <Link className="btn-ghost" to="/manage?tab=Subjects">
+            {locked ? "View subjects" : "Set max marks"}
+          </Link>
+        </div>
       )}
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mb-5">
