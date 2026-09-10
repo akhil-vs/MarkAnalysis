@@ -11,6 +11,14 @@ import { auth, requireLeadership } from "../middleware/auth.js";
 export const consolidationSettingsRouter = Router();
 consolidationSettingsRouter.use(auth);
 
+const SUBJECT_SELECT = {
+  id: true,
+  name: true,
+  className: true,
+  maxMarks: true,
+  consolidationMaxMarks: true,
+};
+
 async function ensureReady(req, res, next) {
   try {
     await ensureConsolidationSchema();
@@ -28,7 +36,7 @@ consolidationSettingsRouter.get("/max-marks", async (_req, res) => {
     getConsolidationSettings(),
     prisma.subject.findMany({
       orderBy: [{ className: "asc" }, { name: "asc" }],
-      select: { id: true, name: true, className: true, maxMarks: true },
+      select: SUBJECT_SELECT,
     }),
   ]);
   res.json({
@@ -37,44 +45,55 @@ consolidationSettingsRouter.get("/max-marks", async (_req, res) => {
   });
 });
 
-/** Batch-update subject max marks (only while unlocked). Leadership only. */
+/** Batch-update consolidation max marks (only while unlocked). Leadership only. */
 consolidationSettingsRouter.put("/max-marks", requireLeadership(), async (req, res) => {
   const lockedMsg = await assertMaxMarksEditable();
   if (lockedMsg) return res.status(409).json({ error: lockedMsg });
 
   const items = Array.isArray(req.body?.subjects) ? req.body.subjects : null;
   if (!items?.length) {
-    return res.status(400).json({ error: "Provide subjects: [{ id, maxMarks }, ...]" });
+    return res.status(400).json({
+      error: "Provide subjects: [{ id, consolidationMaxMarks }, ...]",
+    });
   }
 
   const updates = [];
   for (const item of items) {
     const id = item?.id;
-    const maxMarks = Number(item?.maxMarks);
-    if (!id || !Number.isFinite(maxMarks) || maxMarks <= 0 || !Number.isInteger(maxMarks)) {
-      return res.status(400).json({ error: "Each subject needs id and a positive integer maxMarks" });
+    const consolidationMaxMarks = Number(
+      item?.consolidationMaxMarks ?? item?.maxMarks
+    );
+    if (
+      !id ||
+      !Number.isFinite(consolidationMaxMarks) ||
+      consolidationMaxMarks <= 0 ||
+      !Number.isInteger(consolidationMaxMarks)
+    ) {
+      return res.status(400).json({
+        error: "Each subject needs id and a positive integer consolidationMaxMarks",
+      });
     }
-    updates.push({ id, maxMarks });
+    updates.push({ id, consolidationMaxMarks });
   }
 
   await prisma.$transaction(
     updates.map((u) =>
       prisma.subject.update({
         where: { id: u.id },
-        data: { maxMarks: u.maxMarks },
+        data: { consolidationMaxMarks: u.consolidationMaxMarks },
       })
     )
   );
 
   const subjects = await prisma.subject.findMany({
     orderBy: [{ className: "asc" }, { name: "asc" }],
-    select: { id: true, name: true, className: true, maxMarks: true },
+    select: SUBJECT_SELECT,
   });
   const settings = await getConsolidationSettings();
   res.json({ settings: publicConsolidationSettings(settings), subjects });
 });
 
-/** One-time lock: freeze subject max marks for consolidation. */
+/** One-time lock: freeze consolidation max marks. */
 consolidationSettingsRouter.post("/max-marks/lock", requireLeadership(), async (req, res) => {
   await getConsolidationSettings();
   const settings = await prisma.consolidationSettings.update({

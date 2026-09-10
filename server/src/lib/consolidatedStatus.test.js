@@ -32,8 +32,8 @@ describe("studentsForExamScope", () => {
 
 describe("buildSubjectStatusCols / summarizeClassStatus", () => {
   const subjects = [
-    { id: "bio", name: "Biology", maxMarks: 100 },
-    { id: "math", name: "Math", maxMarks: 100 },
+    { id: "bio", name: "Biology", maxMarks: 100, consolidationMaxMarks: 100 },
+    { id: "math", name: "Math", maxMarks: 100, consolidationMaxMarks: 100 },
   ];
   const students = [
     { id: "a", academicYear: "2025-26", status: "ACTIVE" },

@@ -74,6 +74,16 @@ const CONSOLIDATION_FK_STATEMENTS = [
   `ALTER TABLE "ConsolidationSettings" ADD CONSTRAINT "ConsolidationSettings_lockedById_fkey" FOREIGN KEY ("lockedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
 ];
 
+const SUBJECT_CONSOL_MAX_MIGRATION = "20260910083000_subject_consolidation_max_marks";
+const SUBJECT_CONSOL_MAX_CHECKSUM =
+  "22acbcb6f06bdea261bfac42cf34c485887a0e3bf0f7e9ac1334e0f3cbc48114";
+
+const SUBJECT_CONSOL_MAX_STATEMENTS = [
+  `ALTER TABLE "Subject" ADD COLUMN IF NOT EXISTS "consolidationMaxMarks" INTEGER`,
+  `UPDATE "Subject" SET "consolidationMaxMarks" = "maxMarks" WHERE "consolidationMaxMarks" IS NULL`,
+  `ALTER TABLE "Subject" ALTER COLUMN "consolidationMaxMarks" SET NOT NULL`,
+];
+
 const TIMETABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "Period" (
     "id" TEXT NOT NULL,
@@ -245,6 +255,19 @@ async function ensureStaffNoticeEnum() {
   await recordMigration(NOTICES_MIGRATION, NOTICES_CHECKSUM);
 }
 
+async function columnExists(tableName, columnName) {
+  const rows = await prisma.$queryRaw`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = ${tableName}
+        AND column_name = ${columnName}
+    ) AS "present"
+  `;
+  return Boolean(rows?.[0]?.present);
+}
+
 async function ensureConsolidationSettingsTable() {
   const hasTable = await tableExists("ConsolidationSettings");
   if (hasTable) {
@@ -255,6 +278,17 @@ async function ensureConsolidationSettingsTable() {
   await applyStatements(CONSOLIDATION_STATEMENTS);
   await applyStatements(CONSOLIDATION_FK_STATEMENTS);
   await recordMigration(CONSOLIDATION_MIGRATION, CONSOLIDATION_CHECKSUM);
+}
+
+async function ensureSubjectConsolidationMaxMarksColumn() {
+  const hasColumn = await columnExists("Subject", "consolidationMaxMarks");
+  if (hasColumn) {
+    await recordMigration(SUBJECT_CONSOL_MAX_MIGRATION, SUBJECT_CONSOL_MAX_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(SUBJECT_CONSOL_MAX_STATEMENTS);
+  await recordMigration(SUBJECT_CONSOL_MAX_MIGRATION, SUBJECT_CONSOL_MAX_CHECKSUM);
 }
 
 /**
@@ -268,6 +302,7 @@ export async function ensurePendingSchema() {
       await ensureStaffNoticeEnum();
       await ensureActivityAuditTable();
       await ensureConsolidationSettingsTable();
+      await ensureSubjectConsolidationMaxMarksColumn();
     })().catch((err) => {
       ensurePromise = null;
       throw err;
@@ -298,4 +333,7 @@ export const __test = {
   CONSOLIDATION_CHECKSUM,
   CONSOLIDATION_STATEMENTS,
   CONSOLIDATION_FK_STATEMENTS,
+  SUBJECT_CONSOL_MAX_MIGRATION,
+  SUBJECT_CONSOL_MAX_CHECKSUM,
+  SUBJECT_CONSOL_MAX_STATEMENTS,
 };

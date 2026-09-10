@@ -2,9 +2,19 @@ import { gradeFromPercent, percentOf, round1 } from "./grades.js";
 import { formatMarkCell, isScoredMark } from "./markCodes.js";
 import { applyTiedRanks } from "./stats.js";
 
+/**
+ * Ceiling used for consolidated totals and percentages.
+ * Falls back to entry maxMarks when the consolidation field is missing.
+ */
+export function subjectConsolidationMax(subject) {
+  if (!subject) return null;
+  const value = subject.consolidationMaxMarks ?? subject.maxMarks;
+  return value == null ? null : Number(value);
+}
+
 function markPercent(mark, subject) {
   if (!isScoredMark(mark)) return null;
-  return percentOf(mark?.marksObtained, subject.maxMarks);
+  return percentOf(mark?.marksObtained, subjectConsolidationMax(subject));
 }
 
 /**
@@ -21,12 +31,13 @@ export function buildConsolidatedStudentRows(students, subjects, marks) {
     let approvedPapers = 0;
     for (const subject of subjects) {
       const mark = marks.find((m) => m.studentId === student.id && m.subjectId === subject.id);
+      const ceil = subjectConsolidationMax(subject);
       const percent = mark ? markPercent(mark, subject) : null;
       bySubject[subject.id] = {
         marks: mark && isScoredMark(mark) ? mark.marksObtained : null,
         display: formatMarkCell(mark),
         outcome: mark?.outcome || null,
-        max: subject.maxMarks,
+        max: ceil,
         percent,
         grade: gradeFromPercent(percent),
         status: mark ? mark.status : "MISSING",
@@ -36,7 +47,7 @@ export function buildConsolidatedStudentRows(students, subjects, marks) {
         papers += 1;
         if (isScoredMark(mark)) {
           obtained += mark.marksObtained || 0;
-          maxForEntered += subject.maxMarks;
+          maxForEntered += ceil || 0;
         }
       }
     }
@@ -47,7 +58,9 @@ export function buildConsolidatedStudentRows(students, subjects, marks) {
       name: student.name,
       bySubject,
       total: papers ? round1(obtained) : null,
-      maxTotal: papers ? maxForEntered : subjects.reduce((s, x) => s + x.maxMarks, 0),
+      maxTotal: papers
+        ? maxForEntered
+        : subjects.reduce((s, x) => s + (subjectConsolidationMax(x) || 0), 0),
       percent,
       grade: gradeFromPercent(percent),
       papers,
