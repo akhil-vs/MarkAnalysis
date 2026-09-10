@@ -2,18 +2,11 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { assertMaxMarksEditable } from "../lib/consolidationMaxMarks.js";
 import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
+import { parsePositiveInt } from "../lib/numbers.js";
 import { auth, requireRole } from "../middleware/auth.js";
 
 export const subjectsRouter = Router();
 subjectsRouter.use(auth);
-
-function parsePositiveInt(value, label) {
-  const n = Number(value);
-  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) {
-    return { error: `${label} must be a positive integer` };
-  }
-  return { value: n };
-}
 
 subjectsRouter.get("/", async (req, res) => {
   await ensureConsolidationSchema();

@@ -11,7 +11,8 @@ import { useToast } from "../components/Toast.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
-import { formatMarkCell } from "../lib/markCodes.js";
+import { formatMarkCell, markInputIssue, parseMarkInput } from "../lib/markCodes.js";
+import { rejectNegativeKey } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -47,6 +48,50 @@ function StatPill({ label, value, tone }) {
       <div className="text-[10px] uppercase tracking-wide text-ink-700/55">{label}</div>
       <div className="mt-0.5 font-serif text-xl leading-tight">{value}</div>
     </div>
+  );
+}
+
+function MarkCellInput({
+  cellKey,
+  student,
+  subject,
+  value,
+  editable,
+  dirty,
+  issue,
+  inputRefs,
+  widthClass,
+  onChange,
+  onKeyDown,
+  showMessage,
+}) {
+  const errorId = issue ? `mark-error-${cellKey}` : undefined;
+  return (
+    <>
+      <input
+        ref={(el) => {
+          inputRefs.current[cellKey] = el;
+        }}
+        className={`field ${widthClass || "w-24"} text-center tabular-nums ${
+          issue ? "field-invalid" : dirty ? "border-clay-500 ring-2 ring-clay-500/15" : ""
+        }`}
+        inputMode="decimal"
+        value={value ?? ""}
+        disabled={!editable}
+        placeholder="AB/EX"
+        aria-label={`${student.name} ${subject.name}`}
+        aria-invalid={Boolean(issue)}
+        aria-describedby={errorId}
+        title={issue || `0 to ${subject.maxMarks}, or AB / EX / WH`}
+        onChange={(e) => onChange(cellKey, e.target.value)}
+        onKeyDown={onKeyDown}
+      />
+      {showMessage && issue ? (
+        <span id={errorId} className="max-w-[9rem] text-center text-[10px] leading-tight text-clay-600" role="alert">
+          {issue}
+        </span>
+      ) : null}
+    </>
   );
 }
 
@@ -241,6 +286,19 @@ export default function MarksEntry() {
     return set;
   }, [grid, draft, markMeta]);
 
+  const draftIssues = useMemo(() => {
+    const map = {};
+    if (!grid) return map;
+    for (const student of grid.students || []) {
+      for (const subject of grid.subjects || []) {
+        const key = `${student.id}:${subject.id}`;
+        const issue = markInputIssue(draft[key], subject.maxMarks);
+        if (issue) map[key] = issue;
+      }
+    }
+    return map;
+  }, [grid, draft]);
+
   const stats = useMemo(() => {
     if (!grid?.students?.length || !grid?.subjects?.length) {
       return { cells: 0, entered: 0, draft: 0, submitted: 0, approved: 0, empty: 0, dirty: 0 };
@@ -293,12 +351,49 @@ export default function MarksEntry() {
     return entries;
   }
 
+  function validateEntries(entries) {
+    const failed = [];
+    const subjectById = new Map((grid?.subjects || []).map((s) => [s.id, s]));
+    const studentById = new Map((grid?.students || []).map((s) => [s.id, s]));
+    for (const entry of entries) {
+      const subject = subjectById.get(entry.subjectId);
+      const parsed = parseMarkInput(entry.marksObtained, subject?.maxMarks);
+      if (parsed.error) {
+        const student = studentById.get(entry.studentId);
+        failed.push({
+          studentId: entry.studentId,
+          subjectId: entry.subjectId,
+          error: parsed.error,
+          label: [student?.name, subject?.name].filter(Boolean).join(" · "),
+        });
+      }
+    }
+    return failed;
+  }
+
+  function setMarkDraft(key, value) {
+    setDraft((d) => ({ ...d, [key]: value }));
+  }
+
   async function save({ subjectFilter, silent = false } = {}) {
     if (!grid) return { ok: false };
     const entries = collectChangedEntries({ subjectFilter });
     if (!entries.length) {
       if (!silent) toast.info("No changes to save");
       return { ok: false, empty: true };
+    }
+
+    const invalid = validateEntries(entries);
+    if (invalid.length) {
+      setErrors(invalid);
+      if (!silent) {
+        toast.error(
+          invalid.length === 1
+            ? invalid[0].error
+            : `${invalid.length} cells need a valid mark (0 or more, up to the subject max)`
+        );
+      }
+      return { ok: false, failed: invalid };
     }
 
     let touchingLocked = false;
@@ -377,7 +472,10 @@ export default function MarksEntry() {
         const saved = await save({ subjectFilter: targetSubjectId, silent: true });
         if (!saved.ok && !saved.empty) {
           if (!saved.cancelled) {
-            toast.error(saved.error?.message || "Could not save changes before submit");
+            const first = saved.failed?.[0];
+            toast.error(
+              first?.error || saved.error?.message || "Could not save changes before submit"
+            );
           }
           return;
         }
@@ -541,6 +639,8 @@ export default function MarksEntry() {
   }
 
   function onMarkKeyDown(e, studentIndex, subjectIndex) {
+    rejectNegativeKey(e);
+    if (e.defaultPrevented) return;
     if (e.key === "Enter" || e.key === "ArrowDown") {
       e.preventDefault();
       focusCell(studentIndex + 1, subjectIndex);
@@ -912,7 +1012,9 @@ export default function MarksEntry() {
       {errors.length > 0 && (
         <ul className="mb-3 text-sm text-clay-600 list-disc pl-5">
           {errors.map((e, i) => (
-            <li key={i}>{e.error}</li>
+            <li key={`${e.studentId}:${e.subjectId}:${i}`}>
+              {e.label ? `${e.label}: ${e.error}` : e.error}
+            </li>
           ))}
         </ul>
       )}
@@ -996,24 +1098,30 @@ export default function MarksEntry() {
                           </div>
                           <div className="min-w-0 flex-1 font-medium">{student.name}</div>
                         </div>
-                        <div className="flex items-center gap-2 sm:ml-auto">
-                          <input
-                            ref={(el) => {
-                              inputRefs.current[key] = el;
-                            }}
-                            className={`field w-24 text-center tabular-nums ${
-                              dirty ? "border-clay-500 ring-2 ring-clay-500/15" : ""
-                            }`}
-                            inputMode="decimal"
-                            value={draft[key] ?? ""}
-                            disabled={!editable}
-                            placeholder="AB/EX"
-                            aria-label={`${student.name} ${singleSubject.name}`}
-                            onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+                        <div className="flex flex-col items-end gap-1 sm:ml-auto">
+                          <div className="flex items-center gap-2">
+                          <MarkCellInput
+                            cellKey={key}
+                            student={student}
+                            subject={singleSubject}
+                            value={draft[key]}
+                            editable={editable}
+                            dirty={dirty}
+                            issue={draftIssues[key]}
+                            inputRefs={inputRefs}
+                            widthClass="w-24"
+                            showMessage={false}
+                            onChange={setMarkDraft}
                             onKeyDown={(e) => onMarkKeyDown(e, studentIndex, 0)}
                           />
                           <span className="text-[11px] text-ink-700/40">/ {singleSubject.maxMarks}</span>
                           <StatusChip status={meta?.status} dirty={dirty} />
+                          </div>
+                          {draftIssues[key] ? (
+                            <span className="text-[10px] text-clay-600" role="alert">
+                              {draftIssues[key]}
+                            </span>
+                          ) : null}
                         </div>
                       </div>
                     );
@@ -1080,22 +1188,30 @@ export default function MarksEntry() {
                                   <div className="text-sm font-medium truncate">{subject.name}</div>
                                   <div className="text-[10px] text-ink-700/45">max {subject.maxMarks}</div>
                                 </div>
-                                <input
-                                  ref={(el) => {
-                                    inputRefs.current[key] = el;
-                                  }}
-                                  className={`field w-[4.75rem] text-center tabular-nums ${
-                                    dirty ? "border-clay-500 ring-2 ring-clay-500/15" : ""
-                                  }`}
-                                  inputMode="decimal"
-                                  value={draft[key] ?? ""}
-                                  disabled={!editable}
-                                  placeholder="AB/EX"
-                                  aria-label={`${student.name} ${subject.name}`}
-                                  onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
-                                  onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
-                                />
-                                <StatusChip status={meta?.status} dirty={dirty} />
+                                <div className="flex flex-col items-end gap-0.5">
+                                  <div className="flex items-center gap-2">
+                                  <MarkCellInput
+                                    cellKey={key}
+                                    student={student}
+                                    subject={subject}
+                                    value={draft[key]}
+                                    editable={editable}
+                                    dirty={dirty}
+                                    issue={draftIssues[key]}
+                                    inputRefs={inputRefs}
+                                    widthClass="w-[4.75rem]"
+                                    showMessage={false}
+                                    onChange={setMarkDraft}
+                                    onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
+                                  />
+                                  <StatusChip status={meta?.status} dirty={dirty} />
+                                  </div>
+                                  {draftIssues[key] ? (
+                                    <span className="text-[10px] text-clay-600" role="alert">
+                                      {draftIssues[key]}
+                                    </span>
+                                  ) : null}
+                                </div>
                               </div>
                             );
                           })}
@@ -1137,19 +1253,18 @@ export default function MarksEntry() {
                             return (
                               <td key={subject.id} className="align-top">
                                 <div className="flex flex-col items-center gap-1 py-1">
-                                  <input
-                                    ref={(el) => {
-                                      inputRefs.current[key] = el;
-                                    }}
-                                    className={`field w-20 text-center tabular-nums ${
-                                      dirty ? "border-clay-500 ring-2 ring-clay-500/15" : ""
-                                    }`}
-                                    inputMode="decimal"
-                                    value={draft[key] ?? ""}
-                                    disabled={!editable}
-                                    placeholder="AB/EX"
-                                    aria-label={`${student.name} ${subject.name}`}
-                                    onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+                                  <MarkCellInput
+                                    cellKey={key}
+                                    student={student}
+                                    subject={subject}
+                                    value={draft[key]}
+                                    editable={editable}
+                                    dirty={dirty}
+                                    issue={draftIssues[key]}
+                                    inputRefs={inputRefs}
+                                    widthClass="w-20"
+                                    showMessage
+                                    onChange={setMarkDraft}
                                     onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
                                   />
                                   <StatusChip status={meta?.status} dirty={dirty} />

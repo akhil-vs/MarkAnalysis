@@ -3,6 +3,8 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { FieldError } from "../components/FieldError.jsx";
+import { firstError, parsePassword } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
 
 const ROLE_LABEL = {
@@ -24,6 +26,14 @@ export default function Profile() {
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
+    const current = parsePassword(form.currentPassword, { label: "Current password", minLength: 1 });
+    const next = parsePassword(form.newPassword, { label: "New password" });
+    const confirm = parsePassword(form.confirmPassword, { label: "Confirm password" });
+    const err = firstError(current, next, confirm);
+    if (err) {
+      setError(err);
+      return;
+    }
     if (form.newPassword !== form.confirmPassword) {
       setError("New passwords do not match");
       return;
@@ -103,7 +113,7 @@ export default function Profile() {
               onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
             />
           </div>
-          {error && <p className="text-sm text-clay-600">{error}</p>}
+          {error && <FieldError message={error} />}
           <button className="btn-primary">Update password</button>
         </form>
       </div>

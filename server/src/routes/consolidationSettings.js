@@ -6,6 +6,7 @@ import {
   publicConsolidationSettings,
 } from "../lib/consolidationMaxMarks.js";
 import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
+import { parsePositiveInt } from "../lib/numbers.js";
 import { auth, requireLeadership } from "../middleware/auth.js";
 
 export const consolidationSettingsRouter = Router();
@@ -60,20 +61,17 @@ consolidationSettingsRouter.put("/max-marks", requireLeadership(), async (req, r
   const updates = [];
   for (const item of items) {
     const id = item?.id;
-    const consolidationMaxMarks = Number(
-      item?.consolidationMaxMarks ?? item?.maxMarks
-    );
-    if (
-      !id ||
-      !Number.isFinite(consolidationMaxMarks) ||
-      consolidationMaxMarks <= 0 ||
-      !Number.isInteger(consolidationMaxMarks)
-    ) {
+    if (!id) {
       return res.status(400).json({
         error: "Each subject needs id and a positive integer consolidationMaxMarks",
       });
     }
-    updates.push({ id, consolidationMaxMarks });
+    const parsed = parsePositiveInt(
+      item?.consolidationMaxMarks ?? item?.maxMarks,
+      "Max marks [consolidation]"
+    );
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    updates.push({ id, consolidationMaxMarks: parsed.value });
   }
 
   await prisma.$transaction(

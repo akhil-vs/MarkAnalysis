@@ -41,6 +41,19 @@ describe("parseGradingPatch", () => {
     assert.equal(parseGradingPatch({ passPercent: 140 }).error, "Pass percent must be between 0 and 100");
   });
 
+  it("rejects negative percents, band mins, and weights", () => {
+    assert.equal(parseGradingPatch({ passPercent: -5 }).error, "Pass percent cannot be negative");
+    assert.equal(parseGradingPatch({ distinctionMin: -1 }).error, "Distinction minimum cannot be negative");
+    assert.equal(
+      parseGradingPatch({ gradeBands: [{ grade: "A", min: -10 }] }).error,
+      "Grade band minimums must be between 0 and 100"
+    );
+    assert.equal(
+      parseGradingPatch({ examWeights: { UNIT_TEST: -0.2, MID_TERM: 0.3, FINAL: 0.9 } }).error,
+      "Exam weights cannot be negative"
+    );
+  });
+
   it("accepts valid weights", () => {
     const { data } = parseGradingPatch({ examWeights: { UNIT_TEST: 1, MID_TERM: 0, FINAL: 0 } });
     assert.equal(data.examWeights.UNIT_TEST, 1);

@@ -47,6 +47,10 @@ body {
   @apply w-full rounded-lg border border-ink-900/15 bg-white px-3 py-2.5 sm:py-2 text-sm outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-500/20 min-h-[2.75rem] sm:min-h-0;
 }
 
+.field-invalid {
+  @apply border-clay-500 bg-[#fdf6f0] ring-2 ring-clay-500/20 focus:border-clay-600;
+}
+
 /* Compact selects/inputs for toolbars and filter strips — intrinsic width, not full bleed */
 .field-filter {
   @apply inline-block w-auto max-w-full min-w-[7.5rem] shrink-0 rounded-lg border border-ink-900/15 bg-white px-2.5 py-2 text-sm outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-500/20 min-h-[2.5rem] sm:min-h-0 sm:py-1.5;
