@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
+import { FieldError } from "../components/FieldError.jsx";
+import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
 import { AuthShell } from "./Login.jsx";
 
 export default function Signup() {
@@ -23,8 +25,26 @@ export default function Signup() {
   async function onSubmit(e) {
     e.preventDefault();
     setError("");
+    const name = requiredText(form.name, "Full name");
+    const password = parsePassword(form.password);
+    const email = parseEmail(form.email);
+    if (!form.email.trim() && !form.schoolId.trim()) {
+      setError("Provide an email or school ID");
+      return;
+    }
+    const err = firstError(name, password, email);
+    if (err) {
+      setError(err);
+      return;
+    }
     try {
-      const data = await signup(form);
+      const data = await signup({
+        ...form,
+        name: name.value,
+        email: email.value,
+        schoolId: form.schoolId.trim(),
+        password: password.value,
+      });
       if (data.token) navigate("/");
       else {
         setMessage(data.message);
@@ -40,19 +60,19 @@ export default function Signup() {
       <form onSubmit={onSubmit} className="space-y-3">
         <div>
           <label className="label">Full name</label>
-          <input className="field" required value={form.name} onChange={(e) => set("name", e.target.value)} />
+          <input className="field" required minLength={2} autoComplete="name" value={form.name} onChange={(e) => set("name", e.target.value)} />
         </div>
         <div>
           <label className="label">Email</label>
-          <input className="field" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+          <input className="field" type="email" autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
         </div>
         <div>
           <label className="label">School ID (optional)</label>
-          <input className="field" value={form.schoolId} onChange={(e) => set("schoolId", e.target.value)} />
+          <input className="field" autoComplete="username" value={form.schoolId} onChange={(e) => set("schoolId", e.target.value)} />
         </div>
         <div>
           <label className="label">Password</label>
-          <input className="field" type="password" required value={form.password} onChange={(e) => set("password", e.target.value)} />
+          <input className="field" type="password" required minLength={8} autoComplete="new-password" value={form.password} onChange={(e) => set("password", e.target.value)} />
         </div>
         <div>
           <label className="label">Role</label>
@@ -62,7 +82,7 @@ export default function Signup() {
           </select>
           <p className="mt-1 text-xs text-ink-700/60">Principal accounts are created by an existing principal, not via public signup.</p>
         </div>
-        {error && <p className="text-sm text-clay-600">{error}</p>}
+        {error && <FieldError message={error} />}
         {message && <p className="text-sm text-moss-600">{message}</p>}
         <button className="btn-primary w-full">Create account</button>
         <p className="text-sm text-ink-700/70">

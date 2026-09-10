@@ -45,14 +45,33 @@ export function parseOutcomeToken(raw) {
   return OUTCOME_TOKENS[key] || null;
 }
 
+const SCORE_PATTERN = /^\+?\d+(\.\d+)?$/;
+
 export function parseMarkInput(raw, maxMarks) {
-  if (raw == null || raw === "") return { empty: true };
-  const outcome = parseOutcomeToken(raw);
+  if (raw == null) return { empty: true };
+  const text = String(raw).trim();
+  if (text === "") return { empty: true };
+
+  const outcome = parseOutcomeToken(text);
   if (outcome) return { outcome, marksObtained: null };
-  const value = Number(raw);
-  if (Number.isNaN(value) || value < 0) return { error: "Invalid marks" };
-  if (maxMarks != null && value > maxMarks) {
-    return { error: `Marks exceed max (${maxMarks})` };
+
+  if (text === "-" || text.startsWith("-")) {
+    return { error: "Marks cannot be negative" };
+  }
+
+  if (!SCORE_PATTERN.test(text)) {
+    return { error: "Enter a number or AB, EX, or WH" };
+  }
+
+  const value = Number(text);
+  if (!Number.isFinite(value)) {
+    return { error: "Enter a number or AB, EX, or WH" };
+  }
+  if (value < 0) {
+    return { error: "Marks cannot be negative" };
+  }
+  if (maxMarks != null && maxMarks !== "" && Number.isFinite(Number(maxMarks)) && value > Number(maxMarks)) {
+    return { error: `Marks exceed max (${Number(maxMarks)})` };
   }
   return { outcome: "SCORED", marksObtained: value };
 }

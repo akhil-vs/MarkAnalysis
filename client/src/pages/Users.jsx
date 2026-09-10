@@ -6,6 +6,8 @@ import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { FieldError } from "../components/FieldError.jsx";
+import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { canAddCoordinator, isLeadership } from "../lib/roles.js";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -101,6 +103,7 @@ export default function Users() {
     password: "password123",
     role: "TEACHER",
   });
+  const [formError, setFormError] = useState("");
   const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
   const tableBusy = Boolean(busyId) || creating;
 
@@ -148,6 +151,22 @@ export default function Users() {
 
   async function addStaff(e) {
     e.preventDefault();
+    const name = requiredText(form.name, "Full name");
+    const password = parsePassword(form.password, { label: "Temporary password" });
+    const email = parseEmail(form.email);
+    if (!form.email.trim() && !form.schoolId.trim()) {
+      const msg = "Provide an email or school ID";
+      setFormError(msg);
+      toast.error(msg);
+      return;
+    }
+    const err = firstError(name, password, email);
+    if (err) {
+      setFormError(err);
+      toast.error(err);
+      return;
+    }
+    setFormError("");
     setCreating(true);
     try {
       await api("/api/users", { method: "POST", body: form });
@@ -190,11 +209,11 @@ export default function Users() {
         </div>
         <div>
           <label className="label">Full name</label>
-          <input className="field" required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
+          <input className="field" required minLength={2} autoComplete="name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
         </div>
         <div>
           <label className="label">Email</label>
-          <input className="field" type="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+          <input className="field" type="email" autoComplete="email" value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
         </div>
         <div>
           <label className="label">School ID</label>
@@ -202,7 +221,7 @@ export default function Users() {
         </div>
         <div>
           <label className="label">Temporary password</label>
-          <input className="field" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
+          <input className="field" type="password" required minLength={8} autoComplete="new-password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} />
         </div>
         <div>
           <label className="label">Role</label>
@@ -220,6 +239,11 @@ export default function Users() {
             <BusyLabel busy={creating} idle="Create account" busyText="Creating…" />
           </button>
         </div>
+        {formError && (
+          <div className="sm:col-span-2 lg:col-span-3">
+            <FieldError message={formError} />
+          </div>
+        )}
       </form>
 
       <div className="card">
@@ -524,6 +548,11 @@ function ResetPasswordModal({ user, onClose, onDone }) {
   async function save(e) {
     e.preventDefault();
     setError("");
+    const parsed = parsePassword(password, { label: "Password" });
+    if (parsed.error) {
+      setError(parsed.error);
+      return;
+    }
     setBusy(true);
     try {
       await api(`/api/users/${user.id}/reset-password`, { method: "POST", body: { password } });
@@ -549,7 +578,7 @@ function ResetPasswordModal({ user, onClose, onDone }) {
           disabled={busy}
           onChange={(e) => setPassword(e.target.value)}
         />
-        {error && <p className="text-sm text-clay-600">{error}</p>}
+        {error && <FieldError message={error} />}
         <div className="flex flex-wrap gap-2">
           <button className="btn-primary flex-1 sm:flex-none" disabled={busy}>
             <BusyLabel busy={busy} idle="Reset password" busyText="Saving…" />

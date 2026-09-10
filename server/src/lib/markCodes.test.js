@@ -17,8 +17,16 @@ describe("parseMarkInput", () => {
 
   it("parses scores and rejects over max", () => {
     assert.deepEqual(parseMarkInput("72", 100), { outcome: "SCORED", marksObtained: 72 });
+    assert.deepEqual(parseMarkInput("72.5", 100), { outcome: "SCORED", marksObtained: 72.5 });
     assert.equal(parseMarkInput("110", 100).error, "Marks exceed max (100)");
-    assert.equal(parseMarkInput("nope", 100).error, "Invalid marks");
+    assert.equal(parseMarkInput("nope", 100).error, "Enter a number or AB, EX, or WH");
+  });
+
+  it("rejects negative marks", () => {
+    assert.equal(parseMarkInput("-1", 100).error, "Marks cannot be negative");
+    assert.equal(parseMarkInput(-8, 80).error, "Marks cannot be negative");
+    assert.equal(parseMarkInput("-0.5", 100).error, "Marks cannot be negative");
+    assert.equal(parseMarkInput("-", 100).error, "Marks cannot be negative");
   });
 
   it("parses absent / exempt / withheld tokens", () => {

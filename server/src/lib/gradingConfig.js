@@ -3,6 +3,7 @@ import {
   PASS_PERCENT as DEFAULT_PASS_PERCENT,
   gradeFromPercent as defaultGradeFromPercent,
 } from "./grades.js";
+import { parsePercent } from "./numbers.js";
 import { getSchoolProfile } from "./school.js";
 
 export const DEFAULT_EXAM_WEIGHTS = {
@@ -33,6 +34,24 @@ function normalizeWeights(raw) {
     out[key] = Number.isFinite(n) && n >= 0 ? n : DEFAULT_EXAM_WEIGHTS[key];
   }
   return out;
+}
+
+function parseWeightMap(raw) {
+  if (!raw || typeof raw !== "object") {
+    return { error: "Invalid exam weights" };
+  }
+  const out = {};
+  for (const key of ["UNIT_TEST", "MID_TERM", "FINAL"]) {
+    if (raw[key] == null || raw[key] === "") {
+      out[key] = DEFAULT_EXAM_WEIGHTS[key];
+      continue;
+    }
+    const n = Number(raw[key]);
+    if (!Number.isFinite(n)) return { error: "Exam weights must be numbers" };
+    if (n < 0) return { error: "Exam weights cannot be negative" };
+    out[key] = n;
+  }
+  return { value: out };
 }
 
 export function publicGradingConfig(profile) {
@@ -76,23 +95,29 @@ export function gradingHelpers(config) {
 export function parseGradingPatch(body = {}) {
   const data = {};
   if (body.passPercent !== undefined) {
-    const n = Number(body.passPercent);
-    if (!Number.isFinite(n) || n < 0 || n > 100) {
-      return { error: "Pass percent must be between 0 and 100" };
-    }
-    data.passPercent = n;
+    const parsed = parsePercent(body.passPercent, "Pass percent");
+    if (parsed.error) return { error: parsed.error };
+    data.passPercent = parsed.value;
   }
   if (body.distinctionMin !== undefined) {
-    const n = Number(body.distinctionMin);
-    if (!Number.isFinite(n) || n < 0 || n > 100) {
-      return { error: "Distinction minimum must be between 0 and 100" };
-    }
-    data.distinctionMin = n;
+    const parsed = parsePercent(body.distinctionMin, "Distinction minimum");
+    if (parsed.error) return { error: parsed.error };
+    data.distinctionMin = parsed.value;
   }
   if (body.gradeBands !== undefined) {
     if (body.gradeBands === null) {
       data.gradeBands = null;
     } else {
+      if (!Array.isArray(body.gradeBands) || !body.gradeBands.length) {
+        return { error: "Invalid grade bands" };
+      }
+      for (const band of body.gradeBands) {
+        const grade = String(band?.grade || "").trim();
+        const min = Number(band?.min);
+        if (!grade) return { error: "Each grade band needs a grade name" };
+        if (!Number.isFinite(min)) return { error: "Grade band minimums must be numbers" };
+        if (min < 0 || min > 100) return { error: "Grade band minimums must be between 0 and 100" };
+      }
       const bands = normalizeBands(body.gradeBands);
       if (!bands.length) return { error: "Invalid grade bands" };
       data.gradeBands = bands;
@@ -102,7 +127,9 @@ export function parseGradingPatch(body = {}) {
     if (body.examWeights === null) {
       data.examWeights = null;
     } else {
-      data.examWeights = normalizeWeights(body.examWeights);
+      const parsed = parseWeightMap(body.examWeights);
+      if (parsed.error) return { error: parsed.error };
+      data.examWeights = parsed.value;
     }
   }
   return { data };

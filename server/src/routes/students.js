@@ -186,7 +186,7 @@ studentsRouter.get("/:id", async (req, res) => {
 
 studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { name, rollNo, classSectionId, dob, guardianName, guardianPhone, academicYear } = req.body || {};
-  if (!name || !rollNo || !classSectionId) {
+  if (!String(name || "").trim() || !String(rollNo || "").trim() || !classSectionId) {
     return res.status(400).json({ error: "Name, roll number, and class are required" });
   }
   const year = String(academicYear || "").trim() || academicYearFromDate(new Date()) || "2025-26";

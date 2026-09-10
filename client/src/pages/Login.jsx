@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
+import { FieldError } from "../components/FieldError.jsx";
+import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
 import PoweredBy from "../components/PoweredBy.jsx";
 
 const DEMO_PASSWORD = "password123";
@@ -46,8 +48,22 @@ export default function Login() {
 
   async function onSubmit(e) {
     e.preventDefault();
+    const passwordCheck = parsePassword(password, { minLength: 1, label: "Password" });
+    const identity =
+      mode === "email"
+        ? parseEmail(email, { required: true })
+        : requiredText(schoolId, "School ID");
+    const err = firstError(identity, passwordCheck);
+    if (err) {
+      setError(err);
+      return;
+    }
     setBusy("form");
-    await signIn(mode === "email" ? { email, password } : { schoolId, password });
+    await signIn(
+      mode === "email"
+        ? { email: identity.value, password: passwordCheck.value }
+        : { schoolId: identity.value, password: passwordCheck.value }
+    );
   }
 
   async function quickLogin(account) {
@@ -79,19 +95,41 @@ export default function Login() {
         {mode === "email" ? (
           <div>
             <label className="label">Email</label>
-            <input className="field" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="name@school.edu" />
+            <input
+              className="field"
+              type="email"
+              autoComplete="email"
+              required
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="name@school.edu"
+            />
           </div>
         ) : (
           <div>
             <label className="label">School ID</label>
-            <input className="field" value={schoolId} onChange={(e) => setSchoolId(e.target.value)} placeholder="SCH-T01" />
+            <input
+              className="field"
+              autoComplete="username"
+              required
+              value={schoolId}
+              onChange={(e) => setSchoolId(e.target.value)}
+              placeholder="SCH-T01"
+            />
           </div>
         )}
         <div>
           <label className="label">Password</label>
-          <input className="field" type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <input
+            className="field"
+            type="password"
+            autoComplete="current-password"
+            required
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
         </div>
-        {error && <p className="text-sm text-clay-600">{error}</p>}
+        {error && <FieldError message={error} />}
         <button className="btn-primary w-full" disabled={Boolean(busy)}>
           {busy === "form" ? "Signing in…" : "Sign in"}
         </button>

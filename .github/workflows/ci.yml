@@ -23,8 +23,9 @@ jobs:
           npm ci
           npx prisma generate
           npm test
-      - name: Client build
+      - name: Client tests and build
         working-directory: client
         run: |
           npm ci
+          npm test
           npm run build

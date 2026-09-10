@@ -1,17 +1,28 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma.js";
+import { parseEmail } from "../lib/numbers.js";
 import { auth, publicUser, signToken } from "../middleware/auth.js";
 
 export const authRouter = Router();
 
 authRouter.post("/signup", async (req, res) => {
   const { name, email, schoolId, password, role } = req.body || {};
-  if (!name || !password) {
-    return res.status(400).json({ error: "Name and password are required" });
+  if (!name || !String(name).trim()) {
+    return res.status(400).json({ error: "Name is required" });
+  }
+  if (!password) {
+    return res.status(400).json({ error: "Password is required" });
+  }
+  if (String(password).length < 8) {
+    return res.status(400).json({ error: "Password must be at least 8 characters" });
   }
   if (!email && !schoolId) {
     return res.status(400).json({ error: "Provide an email or school ID" });
+  }
+  if (email) {
+    const parsedEmail = parseEmail(email, { required: true });
+    if (parsedEmail.error) return res.status(400).json({ error: parsedEmail.error });
   }
   const allowed = ["TEACHER", "EXAM_COORDINATOR"];
   if (role === "PRINCIPAL") {

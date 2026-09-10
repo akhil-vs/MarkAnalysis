@@ -134,6 +134,19 @@ describe("planMarkMutations", () => {
     });
   });
 
+  it("rejects negative marks", () => {
+    const plans = planMarkMutations({
+      entries: [{ studentId: "s1", subjectId: "math", marksObtained: "-5" }],
+      studentMap,
+      subjectMap,
+      markMap: new Map(),
+      writableKeys: new Set(["c1:math"]),
+      accessBySubject: { math: { canEnter: true, canEditLocked: true } },
+    });
+    assert.equal(plans[0].type, "error");
+    assert.equal(plans[0].error, "Marks cannot be negative");
+  });
+
   it("rejects unassigned teacher writes", () => {
     const plans = planMarkMutations({
       entries: [{ studentId: "s1", subjectId: "math", marksObtained: "10" }],

@@ -9,7 +9,16 @@ import { useToast } from "../components/Toast.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
-import { NAV_TITLES } from "../lib/nav.js";
+import { FieldError, fieldClass } from "../components/FieldError.jsx";
+import {
+  acceptNonNegativeInput,
+  firstError,
+  parseAcademicYear,
+  parsePhone,
+  parsePositiveInt,
+  rejectNegativeKey,
+  requiredText,
+} from "../lib/formValidation.js";
 
 const TABS = ["Classes", "Subjects", "Students", "Exams", "Promote"];
 
@@ -107,6 +116,13 @@ function ClassesTab() {
 
   async function save(e) {
     e.preventDefault();
+    const name = requiredText(form.className, "Class");
+    const section = requiredText(form.section, "Section");
+    const err = firstError(name, section);
+    if (err) {
+      toast.error(err);
+      return;
+    }
     setBusy(true);
     try {
       if (editingId) {
@@ -243,6 +259,7 @@ function SubjectsTab() {
   const [settings, setSettings] = useState({ maxMarksLocked: false, lockedAt: null, lockedBy: null });
   const confirm = useConfirm();
   const [form, setForm] = useState(emptySubjectForm());
+  const [formError, setFormError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -281,6 +298,7 @@ function SubjectsTab() {
 
   function startEdit(row) {
     setEditingId(row.id);
+    setFormError("");
     setForm({
       name: row.name,
       className: row.className,
@@ -291,6 +309,7 @@ function SubjectsTab() {
 
   function cancelEdit() {
     setEditingId(null);
+    setFormError("");
     setForm(emptySubjectForm(classOptions[0] || ""));
   }
 
@@ -300,16 +319,41 @@ function SubjectsTab() {
       toast.error("Create a class first, then choose it here.");
       return;
     }
+    const name = requiredText(form.name, "Subject name");
+    const maxMarks = parsePositiveInt(form.maxMarks, "Max marks");
+    const consolidationMaxMarks = maxMarksLocked && editingId
+      ? { value: form.consolidationMaxMarks }
+      : parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]");
+    const err = firstError(name, maxMarks, consolidationMaxMarks);
+    if (err) {
+      setFormError(err);
+      toast.error(err);
+      return;
+    }
+    setFormError("");
     setBusy(true);
     try {
       if (editingId) {
         const body = maxMarksLocked
-          ? { name: form.name, className: form.className, maxMarks: form.maxMarks }
-          : form;
+          ? { name: name.value, className: form.className, maxMarks: maxMarks.value }
+          : {
+              name: name.value,
+              className: form.className,
+              maxMarks: maxMarks.value,
+              consolidationMaxMarks: consolidationMaxMarks.value,
+            };
         await api(`/api/subjects/${editingId}`, { method: "PATCH", body });
         toast.success("Subject updated.");
       } else {
-        await api("/api/subjects", { method: "POST", body: form });
+        await api("/api/subjects", {
+          method: "POST",
+          body: {
+            name: name.value,
+            className: form.className,
+            maxMarks: maxMarks.value,
+            consolidationMaxMarks: consolidationMaxMarks.value,
+          },
+        });
         toast.success("Subject created.");
       }
       cancelEdit();
@@ -341,8 +385,24 @@ function SubjectsTab() {
     }
   }
 
+  function validateConsolidationDraft() {
+    for (const s of rows) {
+      const parsed = parsePositiveInt(
+        maxDraft[s.id] ?? s.consolidationMaxMarks ?? s.maxMarks,
+        `Max marks [consolidation] for ${s.name}`
+      );
+      if (parsed.error) return parsed.error;
+    }
+    return null;
+  }
+
   async function saveMaxMarks() {
     if (maxMarksLocked) return;
+    const err = validateConsolidationDraft();
+    if (err) {
+      toast.error(err);
+      return;
+    }
     setBusy(true);
     try {
       const subjects = rows.map((s) => ({
@@ -378,6 +438,13 @@ function SubjectsTab() {
       }))
     ) {
       return;
+    }
+    if (!maxMarksLocked && rows.length) {
+      const err = validateConsolidationDraft();
+      if (err) {
+        toast.error(err);
+        return;
+      }
     }
     setBusy(true);
     try {
@@ -477,7 +544,7 @@ function SubjectsTab() {
           <div>
             <label className="label">Subject name</label>
             <input
-              className="field"
+              className={fieldClass(!form.name.trim() && formError)}
               placeholder="e.g. Mathematics"
               value={form.name}
               onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -510,28 +577,48 @@ function SubjectsTab() {
           <div>
             <label className="label">Max marks</label>
             <input
-              className="field"
+              className={fieldClass(formError && parsePositiveInt(form.maxMarks, "Max marks").error)}
               type="number"
               min={1}
               step={1}
+              inputMode="numeric"
               placeholder="Max marks"
               value={form.maxMarks}
-              onChange={(e) => setForm({ ...form, maxMarks: Number(e.target.value) })}
+              onKeyDown={rejectNegativeKey}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  maxMarks: acceptNonNegativeInput(e.target.value, form.maxMarks, { integer: true }),
+                })
+              }
               required
               disabled={busy}
             />
-            <p className="mt-1 text-xs text-ink-700/55">Ceiling for mark entry and register validation.</p>
+            <p className="mt-1 text-xs text-ink-700/55">Ceiling for mark entry and register validation. Must be 1 or more.</p>
           </div>
           <div>
             <label className="label">Max marks [consolidation]</label>
             <input
-              className="field"
+              className={fieldClass(
+                formError && parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]").error
+              )}
               type="number"
               min={1}
               step={1}
+              inputMode="numeric"
               placeholder="Consolidation max"
               value={form.consolidationMaxMarks}
-              onChange={(e) => setForm({ ...form, consolidationMaxMarks: Number(e.target.value) })}
+              onKeyDown={rejectNegativeKey}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  consolidationMaxMarks: acceptNonNegativeInput(
+                    e.target.value,
+                    form.consolidationMaxMarks,
+                    { integer: true }
+                  ),
+                })
+              }
               required
               disabled={busy || (editingId && maxMarksLocked)}
             />
@@ -541,10 +628,11 @@ function SubjectsTab() {
               </p>
             ) : (
               <p className="mt-1 text-xs text-ink-700/55">
-                Ceiling used for consolidated totals and percentages.
+                Ceiling used for consolidated totals and percentages. Must be 1 or more.
               </p>
             )}
           </div>
+          {formError && <FieldError message={formError} />}
           {classOptions.length === 0 && (
             <p className="text-sm text-clay-600">Add a class section under Classes before creating subjects.</p>
           )}
@@ -604,12 +692,18 @@ function SubjectsTab() {
                             type="number"
                             min={1}
                             step={1}
+                            inputMode="numeric"
                             value={maxDraft[r.id] ?? r.consolidationMaxMarks ?? r.maxMarks}
                             disabled={busy}
+                            onKeyDown={rejectNegativeKey}
                             onChange={(e) =>
                               setMaxDraft((prev) => ({
                                 ...prev,
-                                [r.id]: Number(e.target.value),
+                                [r.id]: acceptNonNegativeInput(
+                                  e.target.value,
+                                  prev[r.id] ?? r.consolidationMaxMarks ?? r.maxMarks,
+                                  { integer: true }
+                                ),
                               }))
                             }
                             aria-label={`Consolidation max marks for ${r.name} class ${r.className}`}
@@ -699,11 +793,24 @@ function StudentsTab() {
 
   async function save(e) {
     e.preventDefault();
+    const name = requiredText(form.name, "Name");
+    const rollNo = requiredText(form.rollNo, "Roll number");
+    const classSection = requiredText(form.classSectionId, "Class");
+    const phone = parsePhone(form.guardianPhone, { label: "Guardian phone" });
+    const year = parseAcademicYear(form.academicYear);
+    const err = firstError(name, rollNo, classSection, phone, year);
+    if (err) {
+      toast.error(err);
+      return;
+    }
     const body = {
       ...form,
+      name: name.value,
+      rollNo: rollNo.value,
       dob: form.dob || null,
       guardianName: form.guardianName || null,
-      guardianPhone: form.guardianPhone || null,
+      guardianPhone: phone.value || null,
+      academicYear: year.value,
     };
     setBusy(true);
     try {
@@ -874,7 +981,7 @@ function StudentsTab() {
           <h3 className="font-serif text-lg">{editingId ? "Edit student" : "Add one student"}</h3>
           <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
           <input className="field" placeholder="Roll no" value={form.rollNo} onChange={(e) => setForm({ ...form, rollNo: e.target.value })} required disabled={busy} />
-          <select className="field" value={form.classSectionId} onChange={(e) => setForm({ ...form, classSectionId: e.target.value })} disabled={busy}>
+          <select className="field" value={form.classSectionId} onChange={(e) => setForm({ ...form, classSectionId: e.target.value })} required disabled={busy}>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.className}-{c.section}</option>)}
           </select>
           <div>
@@ -882,8 +989,8 @@ function StudentsTab() {
             <input className="field" type="date" value={form.dob} onChange={(e) => setForm({ ...form, dob: e.target.value })} disabled={busy} />
           </div>
           <input className="field" placeholder="Guardian name" value={form.guardianName} onChange={(e) => setForm({ ...form, guardianName: e.target.value })} disabled={busy} />
-          <input className="field" placeholder="Guardian phone" value={form.guardianPhone} onChange={(e) => setForm({ ...form, guardianPhone: e.target.value })} disabled={busy} />
-          <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} disabled={busy} />
+          <input className="field" type="tel" inputMode="tel" placeholder="Guardian phone" value={form.guardianPhone} onChange={(e) => setForm({ ...form, guardianPhone: e.target.value })} disabled={busy} />
+          <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} pattern="\d{4}-\d{2}" title="Use a year like 2025-26" disabled={busy} />
           <div className="flex gap-2">
             <button className="btn-primary" disabled={busy}>
               <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
@@ -1025,8 +1132,20 @@ function ExamsTab() {
 
   async function save(e) {
     e.preventDefault();
+    const name = requiredText(form.name, "Exam name");
+    const term = requiredText(form.term, "Term");
+    const date = requiredText(form.date, "Exam date");
+    const year = parseAcademicYear(form.academicYear);
+    const err = firstError(name, term, date, year);
+    if (err) {
+      toast.error(err);
+      return;
+    }
     const body = {
       ...form,
+      name: name.value,
+      term: term.value,
+      academicYear: year.value,
       marksEntryDeadline: form.marksEntryDeadline || null,
     };
     setBusy(true);
@@ -1073,7 +1192,7 @@ function ExamsTab() {
         <h3 className="font-serif text-lg">{editingId ? "Edit exam" : "Schedule exam"}</h3>
         <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
         <input className="field" placeholder="Term" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} required disabled={busy} />
-        <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} disabled={busy} />
+        <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} pattern="\d{4}-\d{2}" title="Use a year like 2025-26" disabled={busy} />
         <input className="field" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required disabled={busy} />
         <select className="field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} disabled={busy}>
           <option value="UNIT_TEST">Unit test</option>
