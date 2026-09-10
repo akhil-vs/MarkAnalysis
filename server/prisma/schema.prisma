@@ -95,10 +95,12 @@ model ClassSection {
 }
 
 model Subject {
-  id        String @id @default(cuid())
-  name      String
-  className String
-  maxMarks  Int
+  id                    String @id @default(cuid())
+  name                  String
+  className             String
+  maxMarks              Int
+  /// Ceiling used for consolidated mark-list totals and percentages.
+  consolidationMaxMarks Int
 
   assignments TeacherAssignment[]
   marks       Mark[]
@@ -257,8 +259,8 @@ model SchoolProfile {
   updatedAt     DateTime @updatedAt
 }
 
-/// One-time consolidation max-marks lock. When locked, subject maxMarks
-/// cannot change — CML totals/% use those fixed per-subject ceilings.
+/// One-time consolidation max-marks lock. When locked, subject
+/// consolidationMaxMarks cannot change — CML totals/% use those ceilings.
 model ConsolidationSettings {
   id           String    @id @default("default")
   maxMarksLocked Boolean @default(false)

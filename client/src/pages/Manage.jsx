@@ -222,11 +222,11 @@ function ClassesTab() {
 }
 
 function emptySubjectForm(className = "") {
-  return { name: "", className, maxMarks: 100 };
+  return { name: "", className, maxMarks: 100, consolidationMaxMarks: 100 };
 }
 
 function subjectSearchText(r) {
-  return searchHaystack(r.name, r.className, r.maxMarks);
+  return searchHaystack(r.name, r.className, r.maxMarks, r.consolidationMaxMarks);
 }
 
 function uniqueClassNames(sections = []) {
@@ -266,7 +266,11 @@ function SubjectsTab() {
     setRows(subjects);
     setClassSections(classes);
     setSettings(consolidation?.settings || { maxMarksLocked: false, lockedAt: null, lockedBy: null });
-    setMaxDraft(Object.fromEntries((subjects || []).map((s) => [s.id, s.maxMarks])));
+    setMaxDraft(
+      Object.fromEntries(
+        (subjects || []).map((s) => [s.id, s.consolidationMaxMarks ?? s.maxMarks])
+      )
+    );
     const options = uniqueClassNames(classes);
     setForm((f) => {
       if (f.className && options.includes(f.className)) return f;
@@ -277,7 +281,12 @@ function SubjectsTab() {
 
   function startEdit(row) {
     setEditingId(row.id);
-    setForm({ name: row.name, className: row.className, maxMarks: row.maxMarks });
+    setForm({
+      name: row.name,
+      className: row.className,
+      maxMarks: row.maxMarks,
+      consolidationMaxMarks: row.consolidationMaxMarks ?? row.maxMarks,
+    });
   }
 
   function cancelEdit() {
@@ -295,7 +304,7 @@ function SubjectsTab() {
     try {
       if (editingId) {
         const body = maxMarksLocked
-          ? { name: form.name, className: form.className }
+          ? { name: form.name, className: form.className, maxMarks: form.maxMarks }
           : form;
         await api(`/api/subjects/${editingId}`, { method: "PATCH", body });
         toast.success("Subject updated.");
@@ -338,14 +347,18 @@ function SubjectsTab() {
     try {
       const subjects = rows.map((s) => ({
         id: s.id,
-        maxMarks: Number(maxDraft[s.id] ?? s.maxMarks),
+        consolidationMaxMarks: Number(maxDraft[s.id] ?? s.consolidationMaxMarks ?? s.maxMarks),
       }));
       const res = await api("/api/consolidation/max-marks", {
         method: "PUT",
         body: { subjects },
       });
-      setRows(res.subjects || subjects);
-      setMaxDraft(Object.fromEntries((res.subjects || []).map((s) => [s.id, s.maxMarks])));
+      setRows(res.subjects || rows);
+      setMaxDraft(
+        Object.fromEntries(
+          (res.subjects || []).map((s) => [s.id, s.consolidationMaxMarks ?? s.maxMarks])
+        )
+      );
       setSettings(res.settings || settings);
       toast.success("Consolidation max marks saved.");
     } catch (err) {
@@ -360,7 +373,7 @@ function SubjectsTab() {
       !(await confirm({
         title: "Lock consolidation max marks?",
         message:
-          "This is a one-time lock for consolidation. Subject ceilings used for totals and percentages will stay fixed until you unlock them.",
+          "This is a one-time lock for consolidation. Consolidation ceilings used for totals and percentages will stay fixed until you unlock them. Entry max marks remain editable.",
         confirmLabel: "Lock max marks",
       }))
     ) {
@@ -371,18 +384,22 @@ function SubjectsTab() {
       if (!maxMarksLocked && rows.length) {
         const subjects = rows.map((s) => ({
           id: s.id,
-          maxMarks: Number(maxDraft[s.id] ?? s.maxMarks),
+          consolidationMaxMarks: Number(maxDraft[s.id] ?? s.consolidationMaxMarks ?? s.maxMarks),
         }));
         const saved = await api("/api/consolidation/max-marks", {
           method: "PUT",
           body: { subjects },
         });
         setRows(saved.subjects || rows);
-        setMaxDraft(Object.fromEntries((saved.subjects || []).map((s) => [s.id, s.maxMarks])));
+        setMaxDraft(
+          Object.fromEntries(
+            (saved.subjects || []).map((s) => [s.id, s.consolidationMaxMarks ?? s.maxMarks])
+          )
+        );
       }
       const res = await api("/api/consolidation/max-marks/lock", { method: "POST" });
       setSettings(res.settings || { maxMarksLocked: true });
-      toast.success("Max marks locked for consolidation.");
+      toast.success("Consolidation max marks locked.");
       await load();
     } catch (err) {
       toast.error(err.message);
@@ -394,8 +411,8 @@ function SubjectsTab() {
   async function unlockMaxMarks() {
     if (
       !(await confirm({
-        title: "Unlock max marks?",
-        message: "Unlock only to correct a ceiling, then lock again before publishing official lists.",
+        title: "Unlock consolidation max marks?",
+        message: "Unlock only to correct a consolidation ceiling, then lock again before publishing official lists.",
         confirmLabel: "Unlock",
         tone: "danger",
       }))
@@ -406,7 +423,7 @@ function SubjectsTab() {
     try {
       const res = await api("/api/consolidation/max-marks/unlock", { method: "POST" });
       setSettings(res.settings || { maxMarksLocked: false });
-      toast.success("Max marks unlocked.");
+      toast.success("Consolidation max marks unlocked.");
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -419,18 +436,18 @@ function SubjectsTab() {
       <div className="card p-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h3 className="font-serif text-lg">Max marks for consolidation</h3>
+            <h3 className="font-serif text-lg">Max marks [consolidation]</h3>
             {maxMarksLocked ? (
               <p className="mt-1 text-sm text-moss-600">
                 Locked
                 {settings.lockedBy?.name ? ` by ${settings.lockedBy.name}` : ""}
                 {settings.lockedAt ? ` on ${new Date(settings.lockedAt).toLocaleString()}` : ""}.
-                Consolidated totals and percentages use these per-subject ceilings.
+                Consolidated totals and percentages use these ceilings. Entry max marks can still be edited per subject.
               </p>
             ) : (
               <p className="mt-1 text-sm text-ink-700/70">
-                Set the maximum marks for each subject (used for mark entry and consolidated lists), then lock
-                once. This is a one-time consolidation setting.
+                Set Max marks [consolidation] for each subject (used only for consolidated lists), then lock once.
+                Max marks for mark entry are separate.
               </p>
             )}
           </div>
@@ -438,7 +455,7 @@ function SubjectsTab() {
             {!maxMarksLocked && (
               <>
                 <button type="button" className="btn-ghost" disabled={busy || !rows.length} onClick={saveMaxMarks}>
-                  <BusyLabel busy={busy} idle="Save max marks" busyText="Saving…" />
+                  <BusyLabel busy={busy} idle="Save consolidation max" busyText="Saving…" />
                 </button>
                 <button type="button" className="btn-primary" disabled={busy || !rows.length} onClick={lockMaxMarks}>
                   Lock for consolidation
@@ -491,19 +508,40 @@ function SubjectsTab() {
             </p>
           </div>
           <div>
-            <label className="label">Max marks (consolidation)</label>
+            <label className="label">Max marks</label>
             <input
               className="field"
               type="number"
+              min={1}
+              step={1}
               placeholder="Max marks"
               value={form.maxMarks}
               onChange={(e) => setForm({ ...form, maxMarks: Number(e.target.value) })}
               required
+              disabled={busy}
+            />
+            <p className="mt-1 text-xs text-ink-700/55">Ceiling for mark entry and register validation.</p>
+          </div>
+          <div>
+            <label className="label">Max marks [consolidation]</label>
+            <input
+              className="field"
+              type="number"
+              min={1}
+              step={1}
+              placeholder="Consolidation max"
+              value={form.consolidationMaxMarks}
+              onChange={(e) => setForm({ ...form, consolidationMaxMarks: Number(e.target.value) })}
+              required
               disabled={busy || (editingId && maxMarksLocked)}
             />
-            {maxMarksLocked && editingId && (
+            {maxMarksLocked && editingId ? (
               <p className="mt-1 text-xs text-clay-600">
-                Max marks are locked for consolidation. Unlock above to change ceilings.
+                Consolidation max is locked. Unlock above to change it.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-ink-700/55">
+                Ceiling used for consolidated totals and percentages.
               </p>
             )}
           </div>
@@ -547,6 +585,7 @@ function SubjectsTab() {
                     <th>Subject</th>
                     <th>Class</th>
                     <th>Max marks</th>
+                    <th>Max marks [consolidation]</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -555,16 +594,17 @@ function SubjectsTab() {
                     <tr key={r.id}>
                       <td>{r.name}</td>
                       <td>{r.className}</td>
+                      <td>{r.maxMarks}</td>
                       <td>
                         {maxMarksLocked ? (
-                          r.maxMarks
+                          r.consolidationMaxMarks ?? r.maxMarks
                         ) : (
                           <input
                             className="field w-24"
                             type="number"
                             min={1}
                             step={1}
-                            value={maxDraft[r.id] ?? r.maxMarks}
+                            value={maxDraft[r.id] ?? r.consolidationMaxMarks ?? r.maxMarks}
                             disabled={busy}
                             onChange={(e) =>
                               setMaxDraft((prev) => ({
@@ -572,7 +612,7 @@ function SubjectsTab() {
                                 [r.id]: Number(e.target.value),
                               }))
                             }
-                            aria-label={`Max marks for ${r.name} class ${r.className}`}
+                            aria-label={`Consolidation max marks for ${r.name} class ${r.className}`}
                           />
                         )}
                       </td>

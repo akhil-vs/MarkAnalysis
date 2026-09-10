@@ -1,3 +1,5 @@
+import { subjectConsolidationMax } from "./consolidatedRows.js";
+
 /**
  * Pure helpers for consolidated mark-list readiness (no student rows / ranks).
  * Used by the class list endpoint so it does not rebuild every CML preview.
@@ -21,7 +23,7 @@ export function buildSubjectStatusCols(subjects, students, marks, teacherBySubje
     return {
       id: subject.id,
       name: subject.name,
-      maxMarks: subject.maxMarks,
+      maxMarks: subjectConsolidationMax(subject),
       teacher: teacherBySubject[subject.id] || null,
       entered: forSubject.length,
       approved: approved.length,

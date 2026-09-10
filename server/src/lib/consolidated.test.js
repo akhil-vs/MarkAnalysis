@@ -4,8 +4,8 @@ import { buildConsolidatedStudentRows } from "./consolidatedRows.js";
 
 describe("buildConsolidatedStudentRows", () => {
   const subjects = [
-    { id: "math", name: "Math", maxMarks: 100 },
-    { id: "eng", name: "English", maxMarks: 100 },
+    { id: "math", name: "Math", maxMarks: 100, consolidationMaxMarks: 100 },
+    { id: "eng", name: "English", maxMarks: 100, consolidationMaxMarks: 100 },
   ];
   const students = [
     { id: "a", rollNo: "1", name: "Ada" },
@@ -61,5 +61,22 @@ describe("buildConsolidatedStudentRows", () => {
     assert.equal(rows[0].percent, null);
     assert.equal(rows[0].rank, null);
     assert.equal(rows[0].maxTotal, 200);
+  });
+
+  it("uses consolidationMaxMarks for totals and percent when it differs from entry max", () => {
+    const papers = [
+      { id: "math", name: "Math", maxMarks: 80, consolidationMaxMarks: 100 },
+      { id: "eng", name: "English", maxMarks: 80, consolidationMaxMarks: 100 },
+    ];
+    const marks = [
+      { studentId: "a", subjectId: "math", marksObtained: 80, outcome: "SCORED", status: "APPROVED" },
+      { studentId: "a", subjectId: "eng", marksObtained: 80, outcome: "SCORED", status: "APPROVED" },
+    ];
+    const rows = buildConsolidatedStudentRows(students, papers, marks);
+    const ada = rows.find((r) => r.studentId === "a");
+    assert.equal(ada.total, 160);
+    assert.equal(ada.maxTotal, 200);
+    assert.equal(ada.percent, 80);
+    assert.equal(ada.bySubject.math.max, 100);
   });
 });

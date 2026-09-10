@@ -22,12 +22,13 @@ export async function isMaxMarksLocked() {
 }
 
 /**
- * Reject subject maxMarks edits once consolidation ceilings are locked.
+ * Reject consolidation maxMarks edits once consolidation ceilings are locked.
+ * Entry maxMarks remain editable.
  * @returns {Promise<string|null>} error message or null when allowed
  */
 export async function assertMaxMarksEditable() {
   if (await isMaxMarksLocked()) {
-    return "Consolidation max marks are locked. Unlock them before changing subject ceilings.";
+    return "Consolidation max marks are locked. Unlock them before changing consolidation ceilings.";
   }
   return null;
 }
