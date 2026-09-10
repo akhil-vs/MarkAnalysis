@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { HelpHint, PageHelpHint } from "./HelpHint.jsx";
 
 export const GRADE_COLORS = {
   "A+": "#2f5440",
@@ -61,11 +62,14 @@ export function Metric({ label, value, hint, tone, to }) {
   return to ? <Link to={to} className="block h-full">{body}</Link> : body;
 }
 
-export function Panel({ title, action, children, className = "" }) {
+export function Panel({ title, action, children, className = "", help }) {
   return (
     <section className={`card p-4 sm:p-5 ${className}`}>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between sm:gap-3 mb-4">
-        <h3 className="font-serif text-lg sm:text-xl leading-tight">{title}</h3>
+        <h3 className="font-serif text-lg sm:text-xl leading-tight flex items-center gap-2">
+          <span>{title}</span>
+          {help && <HelpHint help={help} label={`About ${typeof title === "string" ? title : "this section"}`} size="sm" />}
+        </h3>
         {action && <div className="flex flex-wrap gap-2 shrink-0">{action}</div>}
       </div>
       {children}
@@ -114,12 +118,15 @@ export function EmptyNote({ children }) {
   return <p className="text-sm text-ink-700/60 py-4">{children}</p>;
 }
 
-export function DashboardHero({ kicker, title, subtitle, actions }) {
+export function DashboardHero({ kicker, title, subtitle, actions, help }) {
   return (
     <div className="mb-5 sm:mb-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">
       <div className="min-w-0">
         {kicker && <div className="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 mb-1">{kicker}</div>}
-        <h1 className="font-serif text-2xl sm:text-4xl leading-tight">{title}</h1>
+        <h1 className="font-serif text-2xl sm:text-4xl leading-tight flex items-center gap-2.5 flex-wrap">
+          <span>{title}</span>
+          <PageHelpHint help={help} />
+        </h1>
         {subtitle && <p className="mt-1.5 text-sm text-ink-700/65 max-w-xl">{subtitle}</p>}
       </div>
       {actions && <div className="flex flex-wrap gap-2 w-full sm:w-auto">{actions}</div>}
