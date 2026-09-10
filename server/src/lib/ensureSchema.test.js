@@ -75,4 +75,30 @@ describe("ensureSchema bootstrap", () => {
     assert.ok(__test.SCHOOL_GRADING_STATEMENTS[1].includes("distinctionMin"));
     assert.ok(__test.SCHOOL_PROFILE_TABLE_STATEMENTS[0].includes('CREATE TABLE IF NOT EXISTS "SchoolProfile"'));
   });
+
+  it("embeds multi-class-per-period timetable migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260910213800_timetable_multi_class_per_period/migration.sql")
+    );
+    assert.equal(
+      __test.MULTI_CLASS_PERIOD_CHECKSUM,
+      createHash("sha256").update(file).digest("hex")
+    );
+    assert.equal(__test.MULTI_CLASS_PERIOD_MIGRATION, "20260910213800_timetable_multi_class_per_period");
+    assert.ok(
+      __test.MULTI_CLASS_PERIOD_STATEMENTS[0].includes(
+        'DROP INDEX IF EXISTS "TimetableEntry_teacherId_dayOfWeek_periodId_key"'
+      )
+    );
+    assert.ok(
+      __test.MULTI_CLASS_PERIOD_STATEMENTS[1].includes(
+        "TimetableEntry_teacherId_dayOfWeek_periodId_classSectionId_key"
+      )
+    );
+    assert.ok(
+      __test.TIMETABLE_STATEMENTS.some((s) =>
+        s.includes("TimetableEntry_teacherId_dayOfWeek_periodId_classSectionId_key")
+      )
+    );
+  });
 });

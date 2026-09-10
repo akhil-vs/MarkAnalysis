@@ -249,7 +249,9 @@ timetableRouter.get("/day", requireLeadership(), async (req, res) => {
   const byTeacher = new Map();
   for (const entry of entries) {
     if (!byTeacher.has(entry.teacherId)) byTeacher.set(entry.teacherId, {});
-    byTeacher.get(entry.teacherId)[entry.periodId] = serializeEntry(entry);
+    const periods = byTeacher.get(entry.teacherId);
+    if (!periods[entry.periodId]) periods[entry.periodId] = [];
+    periods[entry.periodId].push(serializeEntry(entry));
   }
 
   res.json({
@@ -305,13 +307,24 @@ timetableRouter.get("/free", requireLeadership(), async (req, res) => {
     return res.status(400).json({ error: "Break periods have no teaching assignments; choose a teaching period" });
   }
 
-  const busyByTeacher = new Map(busyEntries.map((e) => [e.teacherId, serializeEntry(e)]));
+  const busyByTeacher = new Map();
+  for (const entry of busyEntries) {
+    if (!busyByTeacher.has(entry.teacherId)) busyByTeacher.set(entry.teacherId, []);
+    busyByTeacher.get(entry.teacherId).push(serializeEntry(entry));
+  }
   const free = [];
   const busy = [];
   for (const t of teachers) {
-    const entry = busyByTeacher.get(t.id);
-    if (entry) busy.push({ ...publicUser(t), entry });
-    else free.push(publicUser(t));
+    const teacherEntries = busyByTeacher.get(t.id);
+    if (teacherEntries?.length) {
+      busy.push({
+        ...publicUser(t),
+        entries: teacherEntries,
+        entry: teacherEntries[0],
+      });
+    } else {
+      free.push(publicUser(t));
+    }
   }
 
   res.json({
@@ -474,7 +487,9 @@ timetableRouter.post("/entries", requireLeadership(), async (req, res) => {
     res.status(201).json(serializeEntry(entry));
   } catch (err) {
     if (err.code === "P2002") {
-      return res.status(409).json({ error: "That period is already booked for this teacher or class" });
+      return res.status(409).json({
+        error: "That class is already booked for this period, or this assignment was already added",
+      });
     }
     throw err;
   }
@@ -517,7 +532,9 @@ timetableRouter.patch("/entries/:id", requireLeadership(), async (req, res) => {
     res.json(serializeEntry(entry));
   } catch (err) {
     if (err.code === "P2002") {
-      return res.status(409).json({ error: "That period is already booked for this teacher or class" });
+      return res.status(409).json({
+        error: "That class is already booked for this period, or this assignment was already added",
+      });
     }
     throw err;
   }

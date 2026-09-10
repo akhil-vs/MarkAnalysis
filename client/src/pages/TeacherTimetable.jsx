@@ -42,15 +42,23 @@ function shiftMonth(ymd, delta) {
   return `${yy}-${mm}-01`;
 }
 
-function EntryCell({ entry }) {
-  if (!entry) {
+function EntryCell({ entries }) {
+  const list = Array.isArray(entries) ? entries : entries ? [entries] : [];
+  if (!list.length) {
     return <div className="min-h-[3.25rem] rounded-lg bg-ink-900/[0.03]" />;
   }
   return (
-    <div className="min-h-[3.25rem] rounded-lg border border-ink-900/10 bg-white px-2 py-1.5">
-      <div className="text-sm font-medium leading-snug">{entry.subject?.name}</div>
-      <div className="text-xs text-ink-700/65">{entry.classSection?.label}</div>
-      {entry.room && <div className="text-[10px] text-ink-700/45">{entry.room}</div>}
+    <div className="flex flex-col gap-1">
+      {list.map((entry) => (
+        <div
+          key={entry.id}
+          className="min-h-[3.25rem] rounded-lg border border-ink-900/10 bg-white px-2 py-1.5"
+        >
+          <div className="text-sm font-medium leading-snug">{entry.subject?.name}</div>
+          <div className="text-xs text-ink-700/65">{entry.classSection?.label}</div>
+          {entry.room && <div className="text-[10px] text-ink-700/45">{entry.room}</div>}
+        </div>
+      ))}
     </div>
   );
 }
@@ -142,7 +150,9 @@ export default function TeacherTimetable() {
     if (!data || view !== "weekly") return null;
     const map = new Map();
     for (const e of data.entries || []) {
-      map.set(`${e.dayOfWeek}|${e.period?.id}`, e);
+      const key = `${e.dayOfWeek}|${e.period?.id}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(e);
     }
     return { map, days: WEEKDAY_ORDER };
   }, [data, view]);
@@ -444,7 +454,7 @@ function WeeklyView({ data, grid, teachingPeriods }) {
                       {period.name}
                     </div>
                   ) : (
-                    <EntryCell entry={grid.map.get(`${day}|${period.id}`)} />
+                    <EntryCell entries={grid.map.get(`${day}|${period.id}`)} />
                   )}
                 </td>
               ))}
