@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildConsolidatedStudentRows } from "./consolidatedRows.js";
+import { buildConsolidatedStudentRows, scaleMarksToConsolidation } from "./consolidatedRows.js";
 
 describe("buildConsolidatedStudentRows", () => {
   const subjects = [
@@ -63,7 +63,7 @@ describe("buildConsolidatedStudentRows", () => {
     assert.equal(rows[0].maxTotal, 200);
   });
 
-  it("uses consolidationMaxMarks for totals and percent when it differs from entry max", () => {
+  it("scales a full 80-mark paper onto a 100 consolidation ceiling", () => {
     const papers = [
       { id: "math", name: "Math", maxMarks: 80, consolidationMaxMarks: 100 },
       { id: "eng", name: "English", maxMarks: 80, consolidationMaxMarks: 100 },
@@ -74,9 +74,47 @@ describe("buildConsolidatedStudentRows", () => {
     ];
     const rows = buildConsolidatedStudentRows(students, papers, marks);
     const ada = rows.find((r) => r.studentId === "a");
-    assert.equal(ada.total, 160);
+    assert.equal(ada.bySubject.math.marks, 100);
+    assert.equal(ada.bySubject.math.percent, 100);
+    assert.equal(ada.total, 200);
     assert.equal(ada.maxTotal, 200);
-    assert.equal(ada.percent, 80);
+    assert.equal(ada.percent, 100);
     assert.equal(ada.bySubject.math.max, 100);
+  });
+
+  it("does not let percentages exceed 100 when consolidation max is below entry max", () => {
+    const papers = [
+      { id: "chem", name: "Chemistry", maxMarks: 100, consolidationMaxMarks: 80 },
+      { id: "eng", name: "English", maxMarks: 100, consolidationMaxMarks: 80 },
+    ];
+    const marks = [
+      { studentId: "a", subjectId: "chem", marksObtained: 90, outcome: "SCORED", status: "APPROVED" },
+      { studentId: "a", subjectId: "eng", marksObtained: 90, outcome: "SCORED", status: "APPROVED" },
+    ];
+    const rows = buildConsolidatedStudentRows(students, papers, marks);
+    const ada = rows.find((r) => r.studentId === "a");
+    assert.equal(ada.bySubject.chem.marks, 72);
+    assert.equal(ada.bySubject.chem.percent, 90);
+    assert.equal(ada.total, 144);
+    assert.equal(ada.maxTotal, 160);
+    assert.equal(ada.percent, 90);
+    assert.ok(ada.percent <= 100);
+    assert.ok(ada.bySubject.chem.marks <= 80);
+  });
+});
+
+describe("scaleMarksToConsolidation", () => {
+  it("leaves marks unchanged when ceilings match", () => {
+    assert.equal(scaleMarksToConsolidation(90, { maxMarks: 100, consolidationMaxMarks: 100 }), 90);
+  });
+
+  it("scales down so chemistry marks stay within a 80-point consolidation ceiling", () => {
+    assert.equal(scaleMarksToConsolidation(90, { maxMarks: 100, consolidationMaxMarks: 80 }), 72);
+    assert.equal(scaleMarksToConsolidation(100, { maxMarks: 100, consolidationMaxMarks: 80 }), 80);
+  });
+
+  it("caps raw marks that already exceed the consolidation ceiling", () => {
+    assert.equal(scaleMarksToConsolidation(110, { maxMarks: 100, consolidationMaxMarks: 100 }), 100);
+    assert.equal(scaleMarksToConsolidation(110, { maxMarks: 100, consolidationMaxMarks: 80 }), 80);
   });
 });

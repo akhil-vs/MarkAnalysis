@@ -20,7 +20,11 @@ export function gradeFromPercent(percent, bands = GRADE_BANDS) {
 
 export function percentOf(marks, maxMarks) {
   if (maxMarks == null || maxMarks <= 0 || marks == null) return null;
-  return Math.round((Number(marks) / Number(maxMarks)) * 1000) / 10;
+  const p = Math.round((Number(marks) / Number(maxMarks)) * 1000) / 10;
+  if (!Number.isFinite(p)) return null;
+  if (p < 0) return 0;
+  if (p > 100) return 100;
+  return p;
 }
 
 export function median(values) {
