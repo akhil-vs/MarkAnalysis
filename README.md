@@ -82,9 +82,9 @@ Principal and exam coordinator set **max marks per subject** once on **Consolida
 
 Once teachers have entered marks for an exam and leadership has **approved** them, the exam coordinator or principal can generate the official **consolidated mark list** for a class. **Class teachers** can open and download the list for their own section only when every subject register for that class is fully approved.
 
-Open **Consolidated lists** in the sidebar (or from the school desk / teacher desk). Choose an exam and a class. The screen shows every student against every subject, with total, percent, grade, and rank. Classes are marked **Ready** when every subject register is fully approved.
+Open **Consolidated lists** in the sidebar (or from the school desk / teacher desk). Choose an exam, then a class, then a division. The screen shows every student against every subject, with total, percent, grade, and rank. Divisions are marked **Ready** when every subject register is fully approved.
 
-Download **Excel** or **PDF**. Leadership can still preview incomplete classes; missing or draft papers appear as blanks. Class teachers do not see incomplete lists. Approve remaining registers on the mark register before treating the file as official.
+Download **Excel** or **PDF**. Leadership can still preview incomplete divisions; missing or draft papers appear as blanks. Class teachers do not see incomplete lists. Approve remaining registers on the mark register before treating the file as official.
 
 ## Notify teachers
 
