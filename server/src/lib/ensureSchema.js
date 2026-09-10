@@ -84,6 +84,35 @@ const SUBJECT_CONSOL_MAX_STATEMENTS = [
   `ALTER TABLE "Subject" ALTER COLUMN "consolidationMaxMarks" SET NOT NULL`,
 ];
 
+const SCHOOL_GRADING_MIGRATION = "20260910120000_school_grading_config";
+const SCHOOL_GRADING_CHECKSUM =
+  "7498ec62c90b828136b9050ef9e5bf2a215b21fec6e703b01ed71bca45c99576";
+
+const SCHOOL_PROFILE_TABLE_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "SchoolProfile" (
+    "id" TEXT NOT NULL DEFAULT 'school',
+    "name" TEXT NOT NULL,
+    "board" TEXT,
+    "affiliationNo" TEXT,
+    "address" TEXT,
+    "phone" TEXT,
+    "email" TEXT,
+    "passPercent" DOUBLE PRECISION NOT NULL DEFAULT 50,
+    "distinctionMin" DOUBLE PRECISION NOT NULL DEFAULT 90,
+    "gradeBands" JSONB,
+    "examWeights" JSONB,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "SchoolProfile_pkey" PRIMARY KEY ("id")
+  )`,
+];
+
+const SCHOOL_GRADING_STATEMENTS = [
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "passPercent" DOUBLE PRECISION NOT NULL DEFAULT 50`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "distinctionMin" DOUBLE PRECISION NOT NULL DEFAULT 90`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "gradeBands" JSONB`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "examWeights" JSONB`,
+];
+
 const TIMETABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "Period" (
     "id" TEXT NOT NULL,
@@ -291,6 +320,28 @@ async function ensureSubjectConsolidationMaxMarksColumn() {
   await recordMigration(SUBJECT_CONSOL_MAX_MIGRATION, SUBJECT_CONSOL_MAX_CHECKSUM);
 }
 
+async function ensureSchoolGradingColumns() {
+  const hasTable = await tableExists("SchoolProfile");
+  if (!hasTable) {
+    await applyStatements(SCHOOL_PROFILE_TABLE_STATEMENTS);
+    await recordMigration(SCHOOL_GRADING_MIGRATION, SCHOOL_GRADING_CHECKSUM);
+    return;
+  }
+
+  const needed = ["passPercent", "distinctionMin", "gradeBands", "examWeights"];
+  const missing = [];
+  for (const column of needed) {
+    if (!(await columnExists("SchoolProfile", column))) missing.push(column);
+  }
+  if (!missing.length) {
+    await recordMigration(SCHOOL_GRADING_MIGRATION, SCHOOL_GRADING_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(SCHOOL_GRADING_STATEMENTS);
+  await recordMigration(SCHOOL_GRADING_MIGRATION, SCHOOL_GRADING_CHECKSUM);
+}
+
 /**
  * Apply schema pieces that may be missing in production when Vercel builds
  * cannot run `prisma migrate deploy` (DATABASE_URL often runtime-only).
@@ -303,6 +354,7 @@ export async function ensurePendingSchema() {
       await ensureActivityAuditTable();
       await ensureConsolidationSettingsTable();
       await ensureSubjectConsolidationMaxMarksColumn();
+      await ensureSchoolGradingColumns();
     })().catch((err) => {
       ensurePromise = null;
       throw err;
@@ -315,6 +367,7 @@ export const ensureTimetableSchema = ensurePendingSchema;
 export const ensureNotificationSchema = ensurePendingSchema;
 export const ensureActivityAuditSchema = ensurePendingSchema;
 export const ensureConsolidationSchema = ensurePendingSchema;
+export const ensureSchoolGradingSchema = ensurePendingSchema;
 
 export const __test = {
   TIMETABLE_MIGRATION,
@@ -336,4 +389,8 @@ export const __test = {
   SUBJECT_CONSOL_MAX_MIGRATION,
   SUBJECT_CONSOL_MAX_CHECKSUM,
   SUBJECT_CONSOL_MAX_STATEMENTS,
+  SCHOOL_GRADING_MIGRATION,
+  SCHOOL_GRADING_CHECKSUM,
+  SCHOOL_PROFILE_TABLE_STATEMENTS,
+  SCHOOL_GRADING_STATEMENTS,
 };

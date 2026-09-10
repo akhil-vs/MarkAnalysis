@@ -1,4 +1,5 @@
 import { prisma } from "./prisma.js";
+import { ensurePendingSchema } from "./ensureSchema.js";
 
 const DEFAULT_SCHOOL = {
   id: "school",
@@ -11,6 +12,7 @@ const DEFAULT_SCHOOL = {
 };
 
 export async function getSchoolProfile() {
+  await ensurePendingSchema();
   const existing = await prisma.schoolProfile.findUnique({ where: { id: "school" } });
   if (existing) return existing;
   return prisma.schoolProfile.upsert({

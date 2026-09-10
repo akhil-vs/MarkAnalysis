@@ -29,6 +29,7 @@ import { registerAnalyticsInsights, enrichMarksInsights, studentInsightExtras } 
 import { summarizeRegister } from "../lib/registerStatus.js";
 import { collectStudentLineageIds } from "../lib/studentScope.js";
 import { getGradingConfig, gradingHelpers } from "../lib/gradingConfig.js";
+import { ensurePendingSchema } from "../lib/ensureSchema.js";
 import {
   dualCeilingWarnings,
   examReadiness,
@@ -38,6 +39,14 @@ import {
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
+analyticsRouter.use(async (_req, _res, next) => {
+  try {
+    await ensurePendingSchema();
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 async function loadExams(examId) {
   const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });

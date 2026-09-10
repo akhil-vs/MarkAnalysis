@@ -465,8 +465,6 @@ export function registerAnalyticsInsights(router) {
     const [classes, exams, grading] = await Promise.all([
       prisma.classSection.findMany({
         select: { className: true },
-        distinct: ["className"],
-        orderBy: { className: "asc" },
       }),
       prisma.exam.findMany({ orderBy: { date: "asc" } }),
       getGradingConfig(),
