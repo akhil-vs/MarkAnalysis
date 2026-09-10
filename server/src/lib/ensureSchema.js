@@ -55,6 +55,25 @@ const ACTIVITY_FK_STATEMENTS = [
   `ALTER TABLE "ActivityAudit" ADD CONSTRAINT "ActivityAudit_actorId_fkey" FOREIGN KEY ("actorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
 ];
 
+const CONSOLIDATION_MIGRATION = "20260909220000_consolidation_max_marks_lock";
+const CONSOLIDATION_CHECKSUM =
+  "9326a489183c900da2d4d4455fc2c40b5ddbf65be3228905b6b462c246a533e3";
+
+const CONSOLIDATION_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "ConsolidationSettings" (
+    "id" TEXT NOT NULL,
+    "maxMarksLocked" BOOLEAN NOT NULL DEFAULT false,
+    "lockedAt" TIMESTAMP(3),
+    "lockedById" TEXT,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "ConsolidationSettings_pkey" PRIMARY KEY ("id")
+  )`,
+];
+
+const CONSOLIDATION_FK_STATEMENTS = [
+  `ALTER TABLE "ConsolidationSettings" ADD CONSTRAINT "ConsolidationSettings_lockedById_fkey" FOREIGN KEY ("lockedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+];
+
 const TIMETABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "Period" (
     "id" TEXT NOT NULL,
@@ -226,6 +245,18 @@ async function ensureStaffNoticeEnum() {
   await recordMigration(NOTICES_MIGRATION, NOTICES_CHECKSUM);
 }
 
+async function ensureConsolidationSettingsTable() {
+  const hasTable = await tableExists("ConsolidationSettings");
+  if (hasTable) {
+    await recordMigration(CONSOLIDATION_MIGRATION, CONSOLIDATION_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(CONSOLIDATION_STATEMENTS);
+  await applyStatements(CONSOLIDATION_FK_STATEMENTS);
+  await recordMigration(CONSOLIDATION_MIGRATION, CONSOLIDATION_CHECKSUM);
+}
+
 /**
  * Apply schema pieces that may be missing in production when Vercel builds
  * cannot run `prisma migrate deploy` (DATABASE_URL often runtime-only).
@@ -236,6 +267,7 @@ export async function ensurePendingSchema() {
       await ensureTimetableTables();
       await ensureStaffNoticeEnum();
       await ensureActivityAuditTable();
+      await ensureConsolidationSettingsTable();
     })().catch((err) => {
       ensurePromise = null;
       throw err;
@@ -247,6 +279,7 @@ export async function ensurePendingSchema() {
 export const ensureTimetableSchema = ensurePendingSchema;
 export const ensureNotificationSchema = ensurePendingSchema;
 export const ensureActivityAuditSchema = ensurePendingSchema;
+export const ensureConsolidationSchema = ensurePendingSchema;
 
 export const __test = {
   TIMETABLE_MIGRATION,
@@ -261,4 +294,8 @@ export const __test = {
   ACTIVITY_ACTIONS,
   ACTIVITY_STATEMENTS,
   ACTIVITY_FK_STATEMENTS,
+  CONSOLIDATION_MIGRATION,
+  CONSOLIDATION_CHECKSUM,
+  CONSOLIDATION_STATEMENTS,
+  CONSOLIDATION_FK_STATEMENTS,
 };

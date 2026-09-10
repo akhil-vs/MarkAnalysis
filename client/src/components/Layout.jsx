@@ -173,7 +173,7 @@ function NavIcon({ name, size = 16 }) {
 }
 
 export default function Layout() {
-  const { user, logout } = useAuth();
+  const { user, logout, classTeacherOf } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(null);
@@ -182,7 +182,8 @@ export default function Layout() {
   const navId = useId();
   const leadership = isLeadership(user.role);
   const analysisOpen = isAnalysisPath(location.pathname);
-  const groups = navGroupsForRole(user.role);
+  const groups = navGroupsForRole(user.role, { classTeacherOf });
+
   const badges = { pending: pendingCount, lateEntry: lateEntryCount };
 
   useEffect(() => {

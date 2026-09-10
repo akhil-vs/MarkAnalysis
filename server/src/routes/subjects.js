@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
+import { assertMaxMarksEditable } from "../lib/consolidationMaxMarks.js";
+import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
 import { auth, requireRole } from "../middleware/auth.js";
 
 export const subjectsRouter = Router();
@@ -20,6 +22,7 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
     return res.status(400).json({ error: "Name, class, and max marks are required" });
   }
   try {
+    await ensureConsolidationSchema();
     const created = await prisma.subject.create({
       data: { name, className, maxMarks: Number(maxMarks) },
     });
@@ -31,6 +34,11 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
 
 subjectsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { name, className, maxMarks } = req.body || {};
+  if (maxMarks != null) {
+    await ensureConsolidationSchema();
+    const lockedMsg = await assertMaxMarksEditable();
+    if (lockedMsg) return res.status(409).json({ error: lockedMsg });
+  }
   const updated = await prisma.subject.update({
     where: { id: req.params.id },
     data: {

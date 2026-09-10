@@ -1,4 +1,4 @@
-import { isLeadership } from "./roles.js";
+import { canAccessConsolidated, isLeadership } from "./roles.js";
 
 export const LEADERSHIP_ROLES = ["PRINCIPAL", "EXAM_COORDINATOR"];
 
@@ -88,7 +88,8 @@ export const NAV_BODIES = {
 
 /**
  * Top-level and nested nav items.
- * `roles: "all" | "leadership"` — leadership = principal + exam coordinator.
+ * `roles: "all" | "leadership" | "consolidated"` — consolidated = leadership
+ * or class teachers (filtered with classTeacherOf in navGroupsForRole).
  */
 export const NAV_GROUPS = [
   {
@@ -144,7 +145,7 @@ export const NAV_GROUPS = [
         to: "/consolidated",
         label: NAV_LABELS.consolidated,
         icon: "lists",
-        roles: "leadership",
+        roles: "consolidated",
       },
       {
         id: "audit",
@@ -280,9 +281,10 @@ export const EXTRA_ROUTE_GUARDS = {
   "timetables/teachers/:id": "leadership",
 };
 
-export function roleAllows(itemRoles, userRole) {
+export function roleAllows(itemRoles, userRole, { classTeacherOf = [] } = {}) {
   if (!itemRoles || itemRoles === "all") return true;
   if (itemRoles === "leadership") return isLeadership(userRole);
+  if (itemRoles === "consolidated") return canAccessConsolidated(userRole, classTeacherOf);
   if (Array.isArray(itemRoles)) return itemRoles.includes(userRole);
   return false;
 }
@@ -291,6 +293,8 @@ export function roleAllows(itemRoles, userRole) {
 export function rolesForGuard(itemRoles) {
   if (!itemRoles || itemRoles === "all") return null;
   if (itemRoles === "leadership") return LEADERSHIP_ROLES;
+  // Route is open to authenticated users; page/API enforce class-teacher rules.
+  if (itemRoles === "consolidated") return null;
   if (Array.isArray(itemRoles)) return itemRoles;
   return null;
 }
@@ -321,19 +325,20 @@ export function guardRolesForRoute(routePath) {
   return rolesForGuard(map[key] ?? "all");
 }
 
-export function filterNavItems(items, userRole) {
+export function filterNavItems(items, userRole, opts = {}) {
   return (items || [])
-    .filter((item) => roleAllows(item.roles, userRole))
+    .filter((item) => roleAllows(item.roles, userRole, opts))
     .map((item) => {
       if (!item.children) return item;
-      return { ...item, children: filterNavItems(item.children, userRole) };
+      return { ...item, children: filterNavItems(item.children, userRole, opts) };
     });
 }
 
-export function navGroupsForRole(userRole) {
+export function navGroupsForRole(userRole, { classTeacherOf = [] } = {}) {
+  const opts = { classTeacherOf };
   return NAV_GROUPS.map((group) => ({
     ...group,
-    items: filterNavItems(group.items, userRole),
+    items: filterNavItems(group.items, userRole, opts),
   })).filter((group) => group.items.length > 0);
 }
 

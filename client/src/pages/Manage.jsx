@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api, download } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
@@ -223,6 +224,7 @@ const SUBJECT_FILTERS = [{ key: "className", match: (r, v) => String(r.className
 function SubjectsTab() {
   const [rows, setRows] = useState([]);
   const [classSections, setClassSections] = useState([]);
+  const [maxMarksLocked, setMaxMarksLocked] = useState(false);
   const confirm = useConfirm();
   const [form, setForm] = useState(emptySubjectForm());
   const [editingId, setEditingId] = useState(null);
@@ -238,9 +240,14 @@ function SubjectsTab() {
   }, [classOptions, form.className]);
 
   async function load() {
-    const [subjects, classes] = await Promise.all([api("/api/subjects"), api("/api/classes")]);
+    const [subjects, classes, consolidation] = await Promise.all([
+      api("/api/subjects"),
+      api("/api/classes"),
+      api("/api/consolidation/max-marks").catch(() => null),
+    ]);
     setRows(subjects);
     setClassSections(classes);
+    setMaxMarksLocked(Boolean(consolidation?.settings?.maxMarksLocked));
     const options = uniqueClassNames(classes);
     setForm((f) => {
       if (f.className && options.includes(f.className)) return f;
@@ -268,7 +275,10 @@ function SubjectsTab() {
     setBusy(true);
     try {
       if (editingId) {
-        await api(`/api/subjects/${editingId}`, { method: "PATCH", body: form });
+        const body = maxMarksLocked
+          ? { name: form.name, className: form.className }
+          : form;
+        await api(`/api/subjects/${editingId}`, { method: "PATCH", body });
         toast.success("Subject updated.");
       } else {
         await api("/api/subjects", { method: "POST", body: form });
@@ -349,8 +359,14 @@ function SubjectsTab() {
             value={form.maxMarks}
             onChange={(e) => setForm({ ...form, maxMarks: Number(e.target.value) })}
             required
-            disabled={busy}
+            disabled={busy || (editingId && maxMarksLocked)}
           />
+          {maxMarksLocked && (
+            <p className="mt-1 text-xs text-clay-600">
+              Consolidation max marks are locked. Change them under{" "}
+              <Link className="underline" to="/consolidated">Consolidated lists</Link> after unlocking.
+            </p>
+          )}
         </div>
         {classOptions.length === 0 && (
           <p className="text-sm text-clay-600">Add a class section under Classes before creating subjects.</p>

@@ -77,12 +77,22 @@ authRouter.get("/me", auth, async (req, res) => {
     where: { id: req.user.userId },
     include: {
       assignments: { include: { classSection: true, subject: true } },
+      classTeacherOf: {
+        select: { id: true, className: true, section: true },
+        orderBy: [{ className: "asc" }, { section: "asc" }],
+      },
     },
   });
   if (!user) return res.status(404).json({ error: "Not found" });
   res.json({
     user: publicUser(user),
     assignments: user.assignments,
+    classTeacherOf: user.classTeacherOf.map((c) => ({
+      id: c.id,
+      className: c.className,
+      section: c.section,
+      label: `${c.className}-${c.section}`,
+    })),
   });
 });
 

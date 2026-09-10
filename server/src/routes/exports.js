@@ -6,12 +6,13 @@ import { gradeFromPercent, mean, percentOf, round1 } from "../lib/grades.js";
 import { formatMarkCell, isScoredMark } from "../lib/markCodes.js";
 import { getSchoolProfile, schoolHeaderLines } from "../lib/school.js";
 import { studentWhereForExam } from "../lib/studentScope.js";
-import { auth, requireRole } from "../middleware/auth.js";
+import { auth, isLeadership, requireRole, teacherIsClassTeacher } from "../middleware/auth.js";
 import {
   buildClassConsolidated,
   buildConsolidatedStatus,
   fileStem,
 } from "../lib/consolidated.js";
+import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
 
 export const exportsRouter = Router();
 exportsRouter.use(auth);
@@ -161,18 +162,70 @@ exportsRouter.get("/class-summary/:classId", async (req, res) => {
   doc.end();
 });
 
-exportsRouter.get("/consolidated", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+exportsRouter.get("/consolidated", async (req, res) => {
+  await ensureConsolidationSchema();
   const data = await buildConsolidatedStatus(req.query.examId);
-  res.json(data);
+  if (data.empty) return res.json(data);
+
+  if (isLeadership(req.user.role)) {
+    return res.json({ ...data, viewer: "leadership" });
+  }
+
+  // Class teachers only see their own sections.
+  const classIds = await prisma.classSection.findMany({
+    where: { classTeacherId: req.user.userId },
+    select: { id: true },
+  });
+  const allowed = new Set(classIds.map((c) => c.id));
+  if (!allowed.size) {
+    return res.status(403).json({ error: "Only class teachers can open consolidated lists for their section" });
+  }
+
+  const classes = (data.classes || [])
+    .filter((c) => allowed.has(c.id))
+    .map((c) => ({
+      ...c,
+      // Class teachers may not preview incomplete lists.
+      canOpen: Boolean(c.ready),
+    }));
+
+  return res.json({
+    ...data,
+    classes,
+    readyCount: classes.filter((c) => c.ready).length,
+    viewer: "classTeacher",
+  });
 });
 
-exportsRouter.get("/consolidated/:classSectionId", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const built = await buildClassConsolidated(req.params.classSectionId, req.query.examId);
+exportsRouter.get("/consolidated/:classSectionId", async (req, res) => {
+  await ensureConsolidationSchema();
+  const classSectionId = req.params.classSectionId;
+  const leadership = isLeadership(req.user.role);
+
+  if (!leadership) {
+    const isCt = await teacherIsClassTeacher(req.user.userId, classSectionId);
+    if (!isCt) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+  }
+
+  const built = await buildClassConsolidated(classSectionId, req.query.examId);
   if (!built) return res.status(404).json({ error: "Class not found" });
   if (built.empty) return res.status(404).json({ error: "No exam" });
 
+  if (!leadership && !built.ready) {
+    return res.status(403).json({
+      error:
+        "Consolidated mark list is available after every subject teacher has submitted marks and the principal or exam coordinator has approved them.",
+      ready: false,
+      missingSubjects: built.missingSubjects,
+      complete: built.complete,
+      draftCount: built.draftCount,
+    });
+  }
+
   const format = String(req.query.format || "json").toLowerCase();
-  if (format === "json") return res.json(built);
+  if (format === "json") return res.json({ ...built, viewer: leadership ? "leadership" : "classTeacher" });
 
   const school = await getSchoolProfile();
   const stem = fileStem(built);
