@@ -13,9 +13,11 @@ import { api } from "../api.js";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { ChartTooltip, EmptyNote, Metric, Panel } from "../components/DashboardKit.jsx";
+import { HelpHint } from "../components/HelpHint.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { NAV_LABELS, NAV_TITLES, paths } from "../lib/nav.js";
+import { DEEP_INSIGHT_HELP } from "../lib/pageHelp.js";
 
 const TABS = [
   { id: "outcomes", label: "Outcomes & bands" },
@@ -37,16 +39,32 @@ const STATUS_COLORS = {
 function TabBar({ tab, setTab }) {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
-      {TABS.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          className={tab === t.id ? "btn-primary text-sm" : "btn-ghost text-sm"}
-          onClick={() => setTab(t.id)}
-        >
-          {t.label}
-        </button>
-      ))}
+      {TABS.map((t) => {
+        const active = tab === t.id;
+        return (
+          <div
+            key={t.id}
+            className={`inline-flex items-center rounded-lg min-h-[2.75rem] sm:min-h-0 ${
+              active ? "bg-ink-900 text-cream" : "border border-ink-900/15 bg-white/60 hover:bg-white"
+            }`}
+          >
+            <button
+              type="button"
+              className="px-3.5 py-2.5 sm:py-2 text-sm font-medium"
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+            <HelpHint
+              help={DEEP_INSIGHT_HELP[t.id]}
+              label={`About ${t.label}: what this insight shows and how it is useful`}
+              size="sm"
+              tone={active ? "onDark" : "default"}
+            />
+            <span className="w-1.5" aria-hidden="true" />
+          </div>
+        );
+      })}
     </div>
   );
 }
