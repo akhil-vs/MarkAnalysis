@@ -64,4 +64,15 @@ describe("ensureSchema bootstrap", () => {
     assert.equal(__test.SUBJECT_CONSOL_MAX_MIGRATION, "20260910083000_subject_consolidation_max_marks");
     assert.ok(__test.SUBJECT_CONSOL_MAX_STATEMENTS[0].includes("consolidationMaxMarks"));
   });
+
+  it("embeds school grading config migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260910120000_school_grading_config/migration.sql")
+    );
+    assert.equal(__test.SCHOOL_GRADING_CHECKSUM, createHash("sha256").update(file).digest("hex"));
+    assert.equal(__test.SCHOOL_GRADING_MIGRATION, "20260910120000_school_grading_config");
+    assert.ok(__test.SCHOOL_GRADING_STATEMENTS[0].includes("passPercent"));
+    assert.ok(__test.SCHOOL_GRADING_STATEMENTS[1].includes("distinctionMin"));
+    assert.ok(__test.SCHOOL_PROFILE_TABLE_STATEMENTS[0].includes('CREATE TABLE IF NOT EXISTS "SchoolProfile"'));
+  });
 });

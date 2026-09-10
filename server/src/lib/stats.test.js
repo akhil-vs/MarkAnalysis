@@ -1,7 +1,7 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
 import { gradeFromPercent, percentOf } from "./grades.js";
-import { applyTiedRanks, nextAcademicYear, nextClassName, studentTotals, toPercent } from "./stats.js";
+import { applyTiedRanks, classLabel, nextAcademicYear, nextClassName, sectionLabel, studentTotals, toPercent } from "./stats.js";
 
 describe("grades", () => {
   it("maps percent bands and rounded percents", () => {
@@ -61,5 +61,19 @@ describe("academic year helpers", () => {
     assert.equal(nextAcademicYear("2029-30"), "2030-31");
     assert.equal(nextClassName("9"), "10");
     assert.equal(nextClassName("UKG"), null);
+  });
+});
+
+describe("labels", () => {
+  it("does not throw when class section is missing", () => {
+    assert.equal(classLabel(null), "—");
+    assert.equal(classLabel({ className: "10", section: "A" }), "10-A");
+    assert.equal(sectionLabel(null), "—");
+    assert.equal(sectionLabel({ name: "A" }), "—");
+    assert.equal(sectionLabel({ classSectionId: "c1" }), "c1");
+    assert.equal(
+      sectionLabel({ classSection: { className: "9", section: "B" } }),
+      "9-B"
+    );
   });
 });

@@ -160,6 +160,7 @@ export function withTeacherDeltas(rows) {
 }
 
 export function classLabel(cls) {
+  if (!cls) return "—";
   return `${cls.className}-${cls.section}`;
 }
 
@@ -168,5 +169,8 @@ export function compareClassNames(a, b) {
 }
 
 export function sectionLabel(student) {
-  return `${student.classSection.className}-${student.classSection.section}`;
+  if (student?.classSection) {
+    return `${student.classSection.className}-${student.classSection.section}`;
+  }
+  return student?.classSectionId || "—";
 }

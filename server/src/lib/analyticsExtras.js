@@ -76,7 +76,7 @@ export function distinctionFailLists(marks, { passPercent = 50, distinctionMin =
   const fail = ranked.filter((s) => s.avg != null && s.avg < passPercent).reverse();
 
   const bySubjectFail = [];
-  const bySubject = groupBy(marks.filter(isScoredMark), (m) => m.subject.name);
+  const bySubject = groupBy(marks.filter(isScoredMark), (m) => m.subject?.name || "—");
   for (const [subject, list] of bySubject.entries()) {
     const fails = list
       .map((m) => ({
@@ -86,7 +86,7 @@ export function distinctionFailLists(marks, { passPercent = 50, distinctionMin =
         classLabel: m.student ? sectionLabel(m.student) : "—",
         percent: toPercentWith(m),
         marks: m.marksObtained,
-        max: m.subject.maxMarks,
+        max: m.subject?.maxMarks,
       }))
       .filter((r) => r.percent != null && r.percent < passPercent)
       .sort((a, b) => a.percent - b.percent);
@@ -125,7 +125,7 @@ export function divisionGapMatrix(marks, sections, subjectNames) {
     const avgs = [];
     for (const sec of sections) {
       const list = marks.filter(
-        (m) => m.subject.name === subject && m.student.classSectionId === sec.id
+        (m) => m.subject?.name === subject && m.student?.classSectionId === sec.id
       );
       const percents = list.map(toPercentWith).filter((p) => p != null);
       const average = percents.length ? round1(mean(percents)) : null;
@@ -150,7 +150,7 @@ export function divisionGapMatrix(marks, sections, subjectNames) {
 
 export function passFailMatrix(marks, subjects, { passPercent = 50 } = {}) {
   return subjects.map((subject) => {
-    const list = marks.filter((m) => (typeof subject === "string" ? m.subject.name === subject : m.subjectId === subject.id));
+    const list = marks.filter((m) => (typeof subject === "string" ? m.subject?.name === subject : m.subjectId === subject.id));
     const scored = list.filter(isScoredMark);
     const percents = scored.map(toPercentWith).filter((p) => p != null);
     const pass = percents.filter((p) => p >= passPercent).length;
@@ -176,13 +176,13 @@ export function completenessHeatmap(assignments, studentsByClass, marks, examId)
       (m) =>
         m.examId === examId &&
         m.subjectId === a.subjectId &&
-        m.student.classSectionId === a.classSectionId
+        m.student?.classSectionId === a.classSectionId
     );
     const reg = summarizeRegister(expected, list);
     return {
       teacherId: a.userId,
       teacher: a.user?.name,
-      subject: a.subject.name,
+      subject: a.subject?.name,
       subjectId: a.subjectId,
       classSectionId: a.classSectionId,
       classLabel: classLabel(a.classSection),
@@ -273,14 +273,14 @@ export function teacherLoadOutcomes(assignments, marks, studentsByClass, { passP
       const expected = (studentsByClass.get(a.classSectionId) || []).map((s) => s.id);
       expected.forEach((id) => studentIds.add(id));
       const list = marks.filter(
-        (m) => m.subjectId === a.subjectId && m.student.classSectionId === a.classSectionId
+        (m) => m.subjectId === a.subjectId && m.student?.classSectionId === a.classSectionId
       );
       const percents = list.map(toPercentWith).filter((p) => p != null);
       absent += list.filter((m) => m.outcome === "ABSENT").length;
       scored += list.filter(isScoredMark).length;
       allPercents.push(...percents);
       paperRows.push({
-        subject: a.subject.name,
+        subject: a.subject?.name,
         classLabel: classLabel(a.classSection),
         students: expected.length,
         average: percents.length ? round1(mean(percents)) : null,
@@ -316,7 +316,7 @@ export function registerVelocity(assignments, marks, exam, studentsByClass) {
       (m) =>
         m.examId === exam.id &&
         m.subjectId === a.subjectId &&
-        m.student.classSectionId === a.classSectionId
+        m.student?.classSectionId === a.classSectionId
     );
     const times = list.map((m) => new Date(m.updatedAt).getTime()).filter((t) => !Number.isNaN(t));
     const firstAt = times.length ? new Date(Math.min(...times)) : null;
@@ -331,7 +331,7 @@ export function registerVelocity(assignments, marks, exam, studentsByClass) {
     return {
       teacherId: a.userId,
       teacher: a.user?.name,
-      subject: a.subject.name,
+      subject: a.subject?.name,
       classLabel: classLabel(a.classSection),
       firstEntryAt: firstAt,
       lastEntryAt: lastAt,
