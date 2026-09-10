@@ -266,13 +266,6 @@ export default function ConsolidatedLists() {
         <Panel
           className="lg:col-span-4"
           title={selectedClass ? `Divisions · ${selectedClass.label}` : "Classes"}
-          action={
-            selectedClass ? (
-              <button type="button" className="btn-ghost text-xs" onClick={clearClassGroup}>
-                Change class
-              </button>
-            ) : null
-          }
         >
           <div className="space-y-2">
             {!selectedClass ? (
@@ -303,7 +296,12 @@ export default function ConsolidatedLists() {
               </>
             ) : (
               <>
-                <p className="text-xs text-ink-700/55 mb-1">Select a division to open its consolidated mark list.</p>
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
+                  <p className="text-xs text-ink-700/55">Select a division to open its consolidated mark list.</p>
+                  <button type="button" className="btn-ghost" onClick={clearClassGroup}>
+                    Change class
+                  </button>
+                </div>
                 {divisions.map((cls) => (
                   <button
                     key={cls.id}
