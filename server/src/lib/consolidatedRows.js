@@ -12,9 +12,31 @@ export function subjectConsolidationMax(subject) {
   return value == null ? null : Number(value);
 }
 
-function markPercent(mark, subject) {
-  if (!isScoredMark(mark)) return null;
-  return percentOf(mark?.marksObtained, subjectConsolidationMax(subject));
+/**
+ * Convert an entered score onto the consolidation ceiling.
+ * Percent is obtained / entry max, so it stays within 0–100 when the
+ * register rejected scores above Max marks — even if the consolidation
+ * ceiling is lower (the Chemistry / dual-ceiling case).
+ */
+export function scaleMarksToConsolidation(marksObtained, subject) {
+  if (marksObtained == null) return null;
+  const obtained = Number(marksObtained);
+  if (!Number.isFinite(obtained)) return null;
+  const entryMax = subject?.maxMarks == null ? null : Number(subject.maxMarks);
+  const ceil = subjectConsolidationMax(subject);
+  if (entryMax == null || entryMax <= 0 || ceil == null) {
+    return ceil == null ? obtained : round1(Math.min(ceil, Math.max(0, obtained)));
+  }
+  if (entryMax === ceil) return round1(Math.min(ceil, Math.max(0, obtained)));
+  return round1(Math.min(ceil, Math.max(0, (obtained / entryMax) * ceil)));
+}
+
+function scoredConsolidated(mark, subject) {
+  if (!isScoredMark(mark) || mark?.marksObtained == null) return null;
+  const ceil = subjectConsolidationMax(subject);
+  const scaled = scaleMarksToConsolidation(mark.marksObtained, subject);
+  const percent = percentOf(mark.marksObtained, subject?.maxMarks ?? ceil);
+  return { scaled, percent, ceil };
 }
 
 /**
@@ -31,11 +53,15 @@ export function buildConsolidatedStudentRows(students, subjects, marks) {
     let approvedPapers = 0;
     for (const subject of subjects) {
       const mark = marks.find((m) => m.studentId === student.id && m.subjectId === subject.id);
-      const ceil = subjectConsolidationMax(subject);
-      const percent = mark ? markPercent(mark, subject) : null;
+      const scored = mark ? scoredConsolidated(mark, subject) : null;
+      const ceil = scored?.ceil ?? subjectConsolidationMax(subject);
+      const percent = scored?.percent ?? null;
+      const scaled = scored?.scaled ?? null;
+      const display =
+        mark && !isScoredMark(mark) ? formatMarkCell(mark) : scaled == null ? "" : String(scaled);
       bySubject[subject.id] = {
-        marks: mark && isScoredMark(mark) ? mark.marksObtained : null,
-        display: formatMarkCell(mark),
+        marks: scaled,
+        display,
         outcome: mark?.outcome || null,
         max: ceil,
         percent,
@@ -45,13 +71,13 @@ export function buildConsolidatedStudentRows(students, subjects, marks) {
       if (mark) {
         if (mark.status === "APPROVED") approvedPapers += 1;
         papers += 1;
-        if (isScoredMark(mark)) {
-          obtained += mark.marksObtained || 0;
+        if (scored) {
+          obtained += scaled || 0;
           maxForEntered += ceil || 0;
         }
       }
     }
-    const percent = maxForEntered > 0 ? round1((obtained / maxForEntered) * 100) : null;
+    const percent = maxForEntered > 0 ? Math.min(100, round1((obtained / maxForEntered) * 100)) : null;
     return {
       studentId: student.id,
       rollNo: student.rollNo,

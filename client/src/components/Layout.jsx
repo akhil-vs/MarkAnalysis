@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { isAnalysisPath, navGroupsForRole } from "../lib/nav.js";
 import { isLeadership } from "../lib/roles.js";
+import { PageHelpHint } from "./HelpHint.jsx";
 import NotificationBell from "./NotificationBell.jsx";
 import PoweredBy from "./PoweredBy.jsx";
 
@@ -413,13 +414,16 @@ function SideLink({ to, label, end, badge, icon, onNavigate, showZeroBadge }) {
   );
 }
 
-export function PageHeader({ title, subtitle, actions, breadcrumb }) {
+export function PageHeader({ title, subtitle, actions, breadcrumb, help }) {
   return (
     <div className="mb-5 sm:mb-6">
       {breadcrumb}
       <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between">
         <div className="min-w-0">
-          <h1 className="font-serif text-2xl sm:text-3xl leading-tight">{title}</h1>
+          <h1 className="font-serif text-2xl sm:text-3xl leading-tight flex items-center gap-2 flex-wrap">
+            <span>{title}</span>
+            <PageHelpHint help={help} />
+          </h1>
           {subtitle && <p className="mt-1 text-sm text-ink-700/70">{subtitle}</p>}
         </div>
         {actions && (

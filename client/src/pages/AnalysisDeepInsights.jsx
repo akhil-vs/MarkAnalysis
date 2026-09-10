@@ -13,9 +13,11 @@ import { api } from "../api.js";
 import { ExamSelect } from "../components/AnalysisPanels.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { ChartTooltip, EmptyNote, Metric, Panel } from "../components/DashboardKit.jsx";
+import { HelpHint } from "../components/HelpHint.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { NAV_LABELS, NAV_TITLES, paths } from "../lib/nav.js";
+import { DEEP_INSIGHT_HELP, DEEP_INSIGHT_PANEL_HELP as PANEL_HELP } from "../lib/pageHelp.js";
 
 const TABS = [
   { id: "outcomes", label: "Outcomes & bands" },
@@ -37,16 +39,32 @@ const STATUS_COLORS = {
 function TabBar({ tab, setTab }) {
   return (
     <div className="flex flex-wrap gap-2 mb-4">
-      {TABS.map((t) => (
-        <button
-          key={t.id}
-          type="button"
-          className={tab === t.id ? "btn-primary text-sm" : "btn-ghost text-sm"}
-          onClick={() => setTab(t.id)}
-        >
-          {t.label}
-        </button>
-      ))}
+      {TABS.map((t) => {
+        const active = tab === t.id;
+        return (
+          <div
+            key={t.id}
+            className={`inline-flex items-center rounded-lg min-h-[2.75rem] sm:min-h-0 ${
+              active ? "bg-ink-900 text-cream" : "border border-ink-900/15 bg-white/60 hover:bg-white"
+            }`}
+          >
+            <button
+              type="button"
+              className="px-3.5 py-2.5 sm:py-2 text-sm font-medium"
+              onClick={() => setTab(t.id)}
+            >
+              {t.label}
+            </button>
+            <HelpHint
+              help={DEEP_INSIGHT_HELP[t.id]}
+              label={`About ${t.label}: what this insight shows and how it is useful`}
+              size="sm"
+              tone={active ? "onDark" : "default"}
+            />
+            <span className="w-1.5" aria-hidden="true" />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -268,7 +286,7 @@ function OutcomesTab({ data }) {
         <Metric label="Fail list" value={data.lists?.counts?.fail ?? 0} />
       </div>
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
-        <Panel title="Mark-band histogram">
+        <Panel title="Mark-band histogram" help={PANEL_HELP.markBands}>
           <ResponsiveContainer width="100%" height={240}>
             <BarChart data={data.markBands || []}>
               <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
@@ -279,7 +297,7 @@ function OutcomesTab({ data }) {
             </BarChart>
           </ResponsiveContainer>
         </Panel>
-        <Panel title="Board-style counts">
+        <Panel title="Board-style counts" help={PANEL_HELP.boardCounts}>
           <div className="space-y-2 text-sm">
             <div>Pass (≥{data.grading?.passPercent}%): <strong>{data.lists?.counts?.pass ?? 0}</strong></div>
             <div>Distinction (≥{data.grading?.distinctionMin}%): <strong>{data.lists?.counts?.distinction ?? 0}</strong></div>
@@ -294,10 +312,10 @@ function OutcomesTab({ data }) {
         </Panel>
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
-        <Panel title="Distinction list">
+        <Panel title="Distinction list" help={PANEL_HELP.distinction}>
           <StudentMiniTable rows={data.lists?.distinction} empty="No distinction students." />
         </Panel>
-        <Panel title="Fail list">
+        <Panel title="Fail list" help={PANEL_HELP.fail}>
           <StudentMiniTable rows={data.lists?.fail} empty="No students below pass." />
         </Panel>
       </div>
@@ -320,7 +338,7 @@ function ReadinessTab({ data }) {
         <p className="mb-3 text-sm text-clay-700">Marks entry deadline has passed{data.deadline ? ` (${new Date(data.deadline).toLocaleString()})` : ""}.</p>
       )}
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
-        <Panel title="Completeness heatmap">
+        <Panel title="Completeness heatmap" help={PANEL_HELP.heatmap}>
           <PaginatedTable items={data.heatmap || []} empty="No assignments.">
             {(page) => (
               <table className="table">
@@ -350,7 +368,7 @@ function ReadinessTab({ data }) {
             )}
           </PaginatedTable>
         </Panel>
-        <Panel title="Late / edit requests by teacher">
+        <Panel title="Late / edit requests by teacher" help={PANEL_HELP.lateByTeacher}>
           <PaginatedTable items={data.lateByTeacher || []} empty="No access requests for this exam.">
             {(page) => (
               <table className="table">
@@ -391,7 +409,7 @@ function DivisionTab({ data }) {
   return (
     <>
       <div className="mb-4">
-        <Panel title={`Subject × section averages · Class ${data.className}`}>
+        <Panel title={`Subject × section averages · Class ${data.className}`} help={PANEL_HELP.subjectSectionAverages}>
           <div className="overflow-x-auto">
             <table className="table">
               <thead>
@@ -419,7 +437,7 @@ function DivisionTab({ data }) {
         </Panel>
       </div>
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
-        <Panel title="Largest section gaps">
+        <Panel title="Largest section gaps" help={PANEL_HELP.largestGaps}>
           <ul className="space-y-2 text-sm">
             {(data.gapMatrix?.largestGaps || []).map((g) => (
               <li key={g.subject}>
@@ -430,7 +448,7 @@ function DivisionTab({ data }) {
             {!data.gapMatrix?.largestGaps?.length && <EmptyNote>Need two or more sections with marks.</EmptyNote>}
           </ul>
         </Panel>
-        <Panel title="Pass / fail by subject">
+        <Panel title="Pass / fail by subject" help={PANEL_HELP.passFail}>
           <PaginatedTable items={data.passFail || []} empty="No pass/fail data.">
             {(page) => (
               <table className="table">
@@ -459,7 +477,7 @@ function DivisionTab({ data }) {
           </PaginatedTable>
         </Panel>
       </div>
-      <Panel title="Subject completeness">
+      <Panel title="Subject completeness" help={PANEL_HELP.subjectCompleteness}>
         <PaginatedTable items={data.completeness || []} empty="No registers.">
           {(page) => (
             <table className="table">
@@ -508,18 +526,18 @@ function ImprovementTab({ data }) {
         <Metric label="Avg Δ" value={s.avgDelta != null ? `${s.avgDelta > 0 ? "+" : ""}${s.avgDelta}` : "—"} />
       </div>
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
-        <Panel title="Improving cohort">
+        <Panel title="Improving cohort" help={PANEL_HELP.improving}>
           <StudentMiniTable rows={data.improving} />
         </Panel>
-        <Panel title="Declining cohort">
+        <Panel title="Declining cohort" help={PANEL_HELP.declining}>
           <StudentMiniTable rows={data.declining} />
         </Panel>
       </div>
       <div className="grid lg:grid-cols-2 gap-4">
-        <Panel title="Recovered (fail → pass)">
+        <Panel title="Recovered (fail → pass)" help={PANEL_HELP.recovered}>
           <StudentMiniTable rows={data.recovered} />
         </Panel>
-        <Panel title="Slipped (pass → fail)">
+        <Panel title="Slipped (pass → fail)" help={PANEL_HELP.slipped}>
           <StudentMiniTable rows={data.slipped} />
         </Panel>
       </div>
@@ -536,7 +554,7 @@ function PromotionTab({ data }) {
         <Metric label="Average Δ" value={data.averageDelta != null ? `${data.averageDelta > 0 ? "+" : ""}${data.averageDelta}` : "—"} />
         <Metric label="Years" value={`${data.fromYear} → ${data.toYear}`} />
       </div>
-      <Panel title="Carry-forward averages">
+      <Panel title="Carry-forward averages" help={PANEL_HELP.carryForward}>
         <PaginatedTable items={data.students || []} empty="No promoted students with both-year marks.">
           {(page) => (
             <table className="table">
@@ -580,7 +598,7 @@ function TeachersTab({ data }) {
   if (data.empty) return <EmptyNote>No exam data yet.</EmptyNote>;
   return (
     <>
-      <Panel title="Load vs outcome" className="mb-4">
+      <Panel title="Load vs outcome" className="mb-4" help={PANEL_HELP.loadVsOutcome}>
         <PaginatedTable items={data.teachers || []} empty="No teacher assignments.">
           {(page) => (
             <table className="table">
@@ -618,7 +636,7 @@ function TeachersTab({ data }) {
           )}
         </PaginatedTable>
       </Panel>
-      <Panel title="Register velocity">
+      <Panel title="Register velocity" help={PANEL_HELP.registerVelocity}>
         <PaginatedTable items={data.velocity || []} empty="No entry timing yet.">
           {(page) => (
             <table className="table">
@@ -670,7 +688,7 @@ function WeightedTab({ data }) {
           Configure
         </Link>
       </p>
-      <Panel title={`Weighted annual · ${data.academicYear}`}>
+      <Panel title={`Weighted annual · ${data.academicYear}`} help={PANEL_HELP.weightedAnnual}>
         <StudentMiniTable
           rows={(data.students || []).map((s) => ({
             ...s,

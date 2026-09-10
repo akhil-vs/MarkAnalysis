@@ -10,6 +10,7 @@ import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
+import { NAV_TITLES } from "../lib/nav.js";
 import {
   acceptNonNegativeInput,
   firstError,
@@ -509,7 +510,7 @@ function SubjectsTab() {
                 Locked
                 {settings.lockedBy?.name ? ` by ${settings.lockedBy.name}` : ""}
                 {settings.lockedAt ? ` on ${new Date(settings.lockedAt).toLocaleString()}` : ""}.
-                Consolidated totals and percentages use these ceilings. Entry max marks can still be edited per subject.
+                Consolidated lists scale entered marks onto these ceilings so totals and percentages stay within 100%. Entry max marks can still be edited per subject.
               </p>
             ) : (
               <p className="mt-1 text-sm text-ink-700/70">
@@ -628,7 +629,7 @@ function SubjectsTab() {
               </p>
             ) : (
               <p className="mt-1 text-xs text-ink-700/55">
-                Ceiling used for consolidated totals and percentages. Must be 1 or more.
+                Entered marks are scaled to this ceiling so CML totals and percentages stay within 100%. Must be 1 or more.
               </p>
             )}
           </div>
