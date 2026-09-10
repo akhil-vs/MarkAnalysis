@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { api, download } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
@@ -13,8 +13,24 @@ import { NAV_TITLES } from "../lib/nav.js";
 
 const TABS = ["Classes", "Subjects", "Students", "Exams", "Promote"];
 
+function initialTab(params) {
+  const raw = params.get("tab") || "";
+  const match = TABS.find((t) => t.toLowerCase() === raw.toLowerCase());
+  return match || "Classes";
+}
+
 export default function Manage() {
-  const [tab, setTab] = useState("Classes");
+  const [params, setParams] = useSearchParams();
+  const [tab, setTab] = useState(() => initialTab(params));
+
+  function selectTab(next) {
+    setTab(next);
+    const nextParams = new URLSearchParams(params);
+    if (next === "Classes") nextParams.delete("tab");
+    else nextParams.set("tab", next);
+    setParams(nextParams, { replace: true });
+  }
+
   return (
     <div>
       <PageHeader title={NAV_TITLES.records} subtitle="Classes, subjects, students, and exam schedule" />
@@ -23,7 +39,7 @@ export default function Manage() {
           <button
             key={t}
             className={`${tab === t ? "btn-primary" : "btn-ghost"} shrink-0`}
-            onClick={() => setTab(t)}
+            onClick={() => selectTab(t)}
           >
             {t}
           </button>
@@ -224,12 +240,13 @@ const SUBJECT_FILTERS = [{ key: "className", match: (r, v) => String(r.className
 function SubjectsTab() {
   const [rows, setRows] = useState([]);
   const [classSections, setClassSections] = useState([]);
-  const [maxMarksLocked, setMaxMarksLocked] = useState(false);
+  const [settings, setSettings] = useState({ maxMarksLocked: false, lockedAt: null, lockedBy: null });
   const confirm = useConfirm();
   const [form, setForm] = useState(emptySubjectForm());
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [maxDraft, setMaxDraft] = useState({});
   const table = useTableSearch(rows, { getSearchText: subjectSearchText, filterDefs: SUBJECT_FILTERS });
   const classOptions = useMemo(() => uniqueClassNames(classSections), [classSections]);
   const formClassOptions = useMemo(() => {
@@ -238,6 +255,7 @@ function SubjectsTab() {
       String(a).localeCompare(String(b), undefined, { numeric: true })
     );
   }, [classOptions, form.className]);
+  const maxMarksLocked = Boolean(settings.maxMarksLocked);
 
   async function load() {
     const [subjects, classes, consolidation] = await Promise.all([
@@ -247,7 +265,8 @@ function SubjectsTab() {
     ]);
     setRows(subjects);
     setClassSections(classes);
-    setMaxMarksLocked(Boolean(consolidation?.settings?.maxMarksLocked));
+    setSettings(consolidation?.settings || { maxMarksLocked: false, lockedAt: null, lockedBy: null });
+    setMaxDraft(Object.fromEntries((subjects || []).map((s) => [s.id, s.maxMarks])));
     const options = uniqueClassNames(classes);
     setForm((f) => {
       if (f.className && options.includes(f.className)) return f;
@@ -313,113 +332,261 @@ function SubjectsTab() {
     }
   }
 
+  async function saveMaxMarks() {
+    if (maxMarksLocked) return;
+    setBusy(true);
+    try {
+      const subjects = rows.map((s) => ({
+        id: s.id,
+        maxMarks: Number(maxDraft[s.id] ?? s.maxMarks),
+      }));
+      const res = await api("/api/consolidation/max-marks", {
+        method: "PUT",
+        body: { subjects },
+      });
+      setRows(res.subjects || subjects);
+      setMaxDraft(Object.fromEntries((res.subjects || []).map((s) => [s.id, s.maxMarks])));
+      setSettings(res.settings || settings);
+      toast.success("Consolidation max marks saved.");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function lockMaxMarks() {
+    if (
+      !(await confirm({
+        title: "Lock consolidation max marks?",
+        message:
+          "This is a one-time lock for consolidation. Subject ceilings used for totals and percentages will stay fixed until you unlock them.",
+        confirmLabel: "Lock max marks",
+      }))
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      if (!maxMarksLocked && rows.length) {
+        const subjects = rows.map((s) => ({
+          id: s.id,
+          maxMarks: Number(maxDraft[s.id] ?? s.maxMarks),
+        }));
+        const saved = await api("/api/consolidation/max-marks", {
+          method: "PUT",
+          body: { subjects },
+        });
+        setRows(saved.subjects || rows);
+        setMaxDraft(Object.fromEntries((saved.subjects || []).map((s) => [s.id, s.maxMarks])));
+      }
+      const res = await api("/api/consolidation/max-marks/lock", { method: "POST" });
+      setSettings(res.settings || { maxMarksLocked: true });
+      toast.success("Max marks locked for consolidation.");
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unlockMaxMarks() {
+    if (
+      !(await confirm({
+        title: "Unlock max marks?",
+        message: "Unlock only to correct a ceiling, then lock again before publishing official lists.",
+        confirmLabel: "Unlock",
+        tone: "danger",
+      }))
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const res = await api("/api/consolidation/max-marks/unlock", { method: "POST" });
+      setSettings(res.settings || { maxMarksLocked: false });
+      toast.success("Max marks unlocked.");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
-    <div className="grid lg:grid-cols-3 gap-4">
-      <form className="card p-4 space-y-3" onSubmit={save}>
-        <h3 className="font-serif text-lg">{editingId ? "Edit subject" : "Add subject"}</h3>
-        <div>
-          <label className="label">Subject name</label>
-          <input
-            className="field"
-            placeholder="e.g. Mathematics"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-            disabled={busy}
-          />
-        </div>
-        <div>
-          <label className="label">Class</label>
-          <select
-            className="field"
-            value={form.className}
-            onChange={(e) => setForm({ ...form, className: e.target.value })}
-            required
-            disabled={busy || formClassOptions.length === 0}
-            aria-label="Select class"
-          >
-            {formClassOptions.length === 0 ? (
-              <option value="">No classes yet</option>
+    <div className="space-y-4">
+      <div className="card p-4">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="font-serif text-lg">Max marks for consolidation</h3>
+            {maxMarksLocked ? (
+              <p className="mt-1 text-sm text-moss-600">
+                Locked
+                {settings.lockedBy?.name ? ` by ${settings.lockedBy.name}` : ""}
+                {settings.lockedAt ? ` on ${new Date(settings.lockedAt).toLocaleString()}` : ""}.
+                Consolidated totals and percentages use these per-subject ceilings.
+              </p>
             ) : (
-              formClassOptions.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))
+              <p className="mt-1 text-sm text-ink-700/70">
+                Set the maximum marks for each subject (used for mark entry and consolidated lists), then lock
+                once. This is a one-time consolidation setting.
+              </p>
             )}
-          </select>
-          <p className="mt-1 text-xs text-ink-700/55">
-            Choose from classes already created (without section).
-          </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {!maxMarksLocked && (
+              <>
+                <button type="button" className="btn-ghost" disabled={busy || !rows.length} onClick={saveMaxMarks}>
+                  <BusyLabel busy={busy} idle="Save max marks" busyText="Saving…" />
+                </button>
+                <button type="button" className="btn-primary" disabled={busy || !rows.length} onClick={lockMaxMarks}>
+                  Lock for consolidation
+                </button>
+              </>
+            )}
+            {maxMarksLocked && (
+              <button type="button" className="btn-ghost" disabled={busy} onClick={unlockMaxMarks}>
+                Unlock
+              </button>
+            )}
+          </div>
         </div>
-        <div>
-          <label className="label">Max marks</label>
-          <input
-            className="field"
-            type="number"
-            placeholder="Max marks"
-            value={form.maxMarks}
-            onChange={(e) => setForm({ ...form, maxMarks: Number(e.target.value) })}
-            required
-            disabled={busy || (editingId && maxMarksLocked)}
-          />
-          {maxMarksLocked && (
-            <p className="mt-1 text-xs text-clay-600">
-              Consolidation max marks are locked. Change them under{" "}
-              <Link className="underline" to="/consolidated">Consolidated lists</Link> after unlocking.
-            </p>
-          )}
-        </div>
-        {classOptions.length === 0 && (
-          <p className="text-sm text-clay-600">Add a class section under Classes before creating subjects.</p>
-        )}
-        <div className="flex gap-2">
-          <button className="btn-primary" disabled={busy || classOptions.length === 0}>
-            <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
-          </button>
-          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
-        </div>
-      </form>
-      <div className="lg:col-span-2 card">
-        <div className="p-3 border-b border-ink-900/10">
-          <TableToolbar
-            q={table.q}
-            setQ={table.setQ}
-            placeholder="Search subject or class"
-            matched={table.matched}
-            total={table.total}
-          >
+      </div>
+
+      <div className="grid lg:grid-cols-3 gap-4">
+        <form className="card p-4 space-y-3" onSubmit={save}>
+          <h3 className="font-serif text-lg">{editingId ? "Edit subject" : "Add subject"}</h3>
+          <div>
+            <label className="label">Subject name</label>
+            <input
+              className="field"
+              placeholder="e.g. Mathematics"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+              disabled={busy}
+            />
+          </div>
+          <div>
+            <label className="label">Class</label>
             <select
-              className="field-filter"
-              value={table.filters.className || ""}
-              onChange={(e) => table.setFilter("className", e.target.value)}
-              aria-label="Filter by class"
+              className="field"
+              value={form.className}
+              onChange={(e) => setForm({ ...form, className: e.target.value })}
+              required
+              disabled={busy || formClassOptions.length === 0}
+              aria-label="Select class"
             >
-              <option value="">All classes</option>
-              {classOptions.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
+              {formClassOptions.length === 0 ? (
+                <option value="">No classes yet</option>
+              ) : (
+                formClassOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))
+              )}
             </select>
-          </TableToolbar>
-        </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subjects yet." busy={busy} busyLabel="Updating subjects…">
-          {(page) => (
-            <table className="table">
-              <thead><tr><th>Subject</th><th>Class</th><th>Max</th><th></th></tr></thead>
-              <tbody>
-                {page.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.name}</td>
-                    <td>{r.className}</td>
-                    <td>{r.maxMarks}</td>
-                    <td className="whitespace-nowrap space-x-2">
-                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
-                      <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <p className="mt-1 text-xs text-ink-700/55">
+              Choose from classes already created (without section).
+            </p>
+          </div>
+          <div>
+            <label className="label">Max marks (consolidation)</label>
+            <input
+              className="field"
+              type="number"
+              placeholder="Max marks"
+              value={form.maxMarks}
+              onChange={(e) => setForm({ ...form, maxMarks: Number(e.target.value) })}
+              required
+              disabled={busy || (editingId && maxMarksLocked)}
+            />
+            {maxMarksLocked && editingId && (
+              <p className="mt-1 text-xs text-clay-600">
+                Max marks are locked for consolidation. Unlock above to change ceilings.
+              </p>
+            )}
+          </div>
+          {classOptions.length === 0 && (
+            <p className="text-sm text-clay-600">Add a class section under Classes before creating subjects.</p>
           )}
-        </PaginatedTable>
+          <div className="flex gap-2">
+            <button className="btn-primary" disabled={busy || classOptions.length === 0}>
+              <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
+            </button>
+            {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
+          </div>
+        </form>
+        <div className="lg:col-span-2 card">
+          <div className="p-3 border-b border-ink-900/10">
+            <TableToolbar
+              q={table.q}
+              setQ={table.setQ}
+              placeholder="Search subject or class"
+              matched={table.matched}
+              total={table.total}
+            >
+              <select
+                className="field-filter"
+                value={table.filters.className || ""}
+                onChange={(e) => table.setFilter("className", e.target.value)}
+                aria-label="Filter by class"
+              >
+                <option value="">All classes</option>
+                {classOptions.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </TableToolbar>
+          </div>
+          <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subjects yet." busy={busy} busyLabel="Updating subjects…">
+            {(page) => (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Class</th>
+                    <th>Max marks</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {page.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.name}</td>
+                      <td>{r.className}</td>
+                      <td>
+                        {maxMarksLocked ? (
+                          r.maxMarks
+                        ) : (
+                          <input
+                            className="field w-24"
+                            type="number"
+                            min={1}
+                            step={1}
+                            value={maxDraft[r.id] ?? r.maxMarks}
+                            disabled={busy}
+                            onChange={(e) =>
+                              setMaxDraft((prev) => ({
+                                ...prev,
+                                [r.id]: Number(e.target.value),
+                              }))
+                            }
+                            aria-label={`Max marks for ${r.name} class ${r.className}`}
+                          />
+                        )}
+                      </td>
+                      <td className="whitespace-nowrap space-x-2">
+                        <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
+                        <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </PaginatedTable>
+        </div>
       </div>
     </div>
   );
