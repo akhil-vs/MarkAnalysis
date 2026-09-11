@@ -67,7 +67,7 @@ Leadership can review:
 
 Principals and exam coordinators can open **Timetables** in the sidebar (or **Timetable** from a staff row) to browse each teacher’s schedule.
 
-- **Teachers** — card list of every active teacher, then open one for **Daily**, **Weekly**, or **Monthly** views
+- **Teachers** — card list of every active teacher, then open one for **Daily** or **Weekly** views
 - **Daily board** — one page with every teacher’s timetable for a chosen day (subject, class, and free slots together)
 - **Find free** — pick a date and period to see which teachers are free (and who is already teaching)
 
