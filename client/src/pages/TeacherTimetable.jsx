@@ -50,19 +50,24 @@ function EntryCell({ entries }) {
 
   const subjectNames = [...new Set(list.map((e) => e.subject?.name).filter(Boolean))];
   const sharedSubject = subjectNames.length === 1 ? subjectNames[0] : null;
+  const multi = list.length > 1;
 
   return (
     <div className="min-h-[3.25rem] rounded-lg border border-ink-900/10 bg-white px-2 py-1.5">
       {sharedSubject && (
         <div className="text-sm font-medium leading-snug">{sharedSubject}</div>
       )}
-      <div className={sharedSubject ? "mt-0.5 space-y-0.5" : "space-y-1"}>
+      <div
+        className={`${sharedSubject ? "mt-0.5" : ""} ${
+          multi ? "grid grid-cols-2 gap-x-2 gap-y-1" : ""
+        }`}
+      >
         {list.map((entry) => (
-          <div key={entry.id}>
+          <div key={entry.id} className="min-w-0">
             {!sharedSubject && (
-              <div className="text-sm font-medium leading-snug">{entry.subject?.name}</div>
+              <div className="text-sm font-medium leading-snug truncate">{entry.subject?.name}</div>
             )}
-            <div className="text-xs text-ink-700/65">
+            <div className="text-xs text-ink-700/65 truncate">
               {entry.classSection?.label}
               {entry.room ? ` · ${entry.room}` : ""}
             </div>
