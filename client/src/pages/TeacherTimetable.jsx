@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
@@ -42,7 +42,7 @@ function shiftMonth(ymd, delta) {
   return `${yy}-${mm}-01`;
 }
 
-function EntryCell({ entries }) {
+function EntryCell({ entries, onEdit, editingId }) {
   const list = Array.isArray(entries) ? entries : entries ? [entries] : [];
   if (!list.length) {
     return <div className="min-h-[3.25rem] rounded-lg bg-ink-900/[0.03]" />;
@@ -62,17 +62,40 @@ function EntryCell({ entries }) {
           multi ? "grid grid-cols-2 gap-x-2 gap-y-1" : ""
         }`}
       >
-        {list.map((entry) => (
-          <div key={entry.id} className="min-w-0">
-            {!sharedSubject && (
-              <div className="text-sm font-medium leading-snug truncate">{entry.subject?.name}</div>
-            )}
-            <div className="text-xs text-ink-700/65 truncate">
-              {entry.classSection?.label}
-              {entry.room ? ` · ${entry.room}` : ""}
-            </div>
-          </div>
-        ))}
+        {list.map((entry) => {
+          const body = (
+            <>
+              {!sharedSubject && (
+                <div className="text-sm font-medium leading-snug truncate">{entry.subject?.name}</div>
+              )}
+              <div className="text-xs text-ink-700/65 truncate">
+                {entry.classSection?.label}
+                {entry.room ? ` · ${entry.room}` : ""}
+              </div>
+            </>
+          );
+          if (!onEdit) {
+            return (
+              <div key={entry.id} className="min-w-0">
+                {body}
+              </div>
+            );
+          }
+          const active = editingId === entry.id;
+          return (
+            <button
+              key={entry.id}
+              type="button"
+              onClick={() => onEdit(entry)}
+              className={`min-w-0 rounded-md px-1 py-0.5 text-left transition hover:bg-ink-900/[0.04] ${
+                active ? "bg-clay-500/10 ring-1 ring-clay-500/40" : ""
+              }`}
+              title="Edit this period"
+            >
+              {body}
+            </button>
+          );
+        })}
       </div>
     </div>
   );
@@ -92,6 +115,8 @@ export default function TeacherTimetable() {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [editingId, setEditingId] = useState(null);
+  const formRef = useRef(null);
   const [form, setForm] = useState({
     classSectionId: "",
     subjectId: "",
@@ -112,6 +137,24 @@ export default function TeacherTimetable() {
     params.set("date", next);
     params.set("view", view);
     setSearchParams(params);
+  }
+
+  function startEdit(entry) {
+    setEditingId(entry.id);
+    setForm({
+      classSectionId: entry.classSection?.id || "",
+      subjectId: entry.subject?.id || "",
+      periodId: entry.period?.id || "",
+      dayOfWeek: String(entry.dayOfWeek || "1"),
+      room: entry.room || "",
+    });
+    requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
   }
 
   useEffect(() => {
@@ -172,25 +215,31 @@ export default function TeacherTimetable() {
     return { map, days: WEEKDAY_ORDER };
   }, [data, view]);
 
-  async function addEntry(e) {
+  async function saveEntry(e) {
     e.preventDefault();
     setBusy(true);
     try {
-      await api("/api/timetable/entries", {
-        method: "POST",
-        body: {
-          teacherId: id,
-          classSectionId: form.classSectionId,
-          subjectId: form.subjectId,
-          periodId: form.periodId,
-          dayOfWeek: Number(form.dayOfWeek),
-          room: form.room || null,
-        },
-      });
-      toast.success("Period added to timetable.");
+      const body = {
+        classSectionId: form.classSectionId,
+        subjectId: form.subjectId,
+        periodId: form.periodId,
+        dayOfWeek: Number(form.dayOfWeek),
+        room: form.room || null,
+      };
+      if (editingId) {
+        await api(`/api/timetable/entries/${editingId}`, { method: "PATCH", body });
+        toast.success("Period updated.");
+        setEditingId(null);
+      } else {
+        await api("/api/timetable/entries", {
+          method: "POST",
+          body: { teacherId: id, ...body },
+        });
+        toast.success("Period added to timetable.");
+      }
       await reload();
     } catch (err) {
-      toast.error(err.message || "Could not add period");
+      toast.error(err.message || (editingId ? "Could not update period" : "Could not add period"));
     } finally {
       setBusy(false);
     }
@@ -201,6 +250,7 @@ export default function TeacherTimetable() {
     try {
       await api(`/api/timetable/entries/${entryId}`, { method: "DELETE" });
       toast.success("Period removed.");
+      if (editingId === entryId) setEditingId(null);
       await reload();
     } catch (err) {
       toast.error(err.message || "Could not remove period");
@@ -283,15 +333,35 @@ export default function TeacherTimetable() {
         )}
       </div>
 
-      {view === "daily" && <DailyView data={data} leadership={leadership} busy={busy} onRemove={removeEntry} />}
+      {view === "daily" && (
+        <DailyView
+          data={data}
+          leadership={leadership}
+          busy={busy}
+          editingId={editingId}
+          onEdit={startEdit}
+          onRemove={removeEntry}
+        />
+      )}
       {view === "weekly" && weeklyGrid && (
-        <WeeklyView data={data} grid={weeklyGrid} teachingPeriods={teachingPeriods} />
+        <WeeklyView
+          data={data}
+          grid={weeklyGrid}
+          teachingPeriods={teachingPeriods}
+          onEdit={leadership ? startEdit : undefined}
+          editingId={editingId}
+        />
       )}
       {view === "monthly" && <MonthlyView data={data} onPickDay={(d) => { setDate(d); setView("daily"); }} />}
 
       {leadership && (
-        <form className="card mt-5 p-4 space-y-3" onSubmit={addEntry}>
-          <h3 className="font-serif text-lg">Add period</h3>
+        <form ref={formRef} className="card mt-5 p-4 space-y-3" onSubmit={saveEntry}>
+          <h3 className="font-serif text-lg">{editingId ? "Edit period" : "Add period"}</h3>
+          {editingId && (
+            <p className="text-sm text-ink-700/65">
+              Change day, period, class, subject, or room, then save. Or cancel to add a new period instead.
+            </p>
+          )}
           <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-3">
             <label className="block">
               <span className="label">Day</span>
@@ -374,9 +444,20 @@ export default function TeacherTimetable() {
               />
             </label>
           </div>
-          <button className="btn-primary" disabled={busy || !assignmentOptions.length}>
-            <BusyLabel busy={busy} idle="Add to timetable" busyText="Saving…" />
-          </button>
+          <div className="flex flex-wrap gap-2">
+            <button className="btn-primary" disabled={busy || !assignmentOptions.length}>
+              <BusyLabel
+                busy={busy}
+                idle={editingId ? "Save changes" : "Add to timetable"}
+                busyText="Saving…"
+              />
+            </button>
+            {editingId && (
+              <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>
+                Cancel
+              </button>
+            )}
+          </div>
           {!assignmentOptions.length && (
             <p className="text-sm text-ink-700/60">Assign subjects on Staff before adding timetable periods.</p>
           )}
@@ -386,7 +467,7 @@ export default function TeacherTimetable() {
   );
 }
 
-function DailyView({ data, leadership, busy, onRemove }) {
+function DailyView({ data, leadership, busy, editingId, onEdit, onRemove }) {
   const entries = [...(data.entries || [])].sort(
     (a, b) => (a.period?.sortOrder ?? 0) - (b.period?.sortOrder ?? 0)
   );
@@ -408,7 +489,7 @@ function DailyView({ data, leadership, busy, onRemove }) {
         </thead>
         <tbody>
           {entries.map((e) => (
-            <tr key={e.id}>
+            <tr key={e.id} className={editingId === e.id ? "bg-clay-500/5" : undefined}>
               <td>{e.period?.name}</td>
               <td className="whitespace-nowrap text-ink-700/70">
                 {e.period?.startTime}–{e.period?.endTime}
@@ -417,7 +498,15 @@ function DailyView({ data, leadership, busy, onRemove }) {
               <td>{e.classSection?.label}</td>
               <td>{e.room || "—"}</td>
               {leadership && (
-                <td className="text-right">
+                <td className="text-right whitespace-nowrap">
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    disabled={busy}
+                    onClick={() => onEdit(e)}
+                  >
+                    Edit
+                  </button>
                   <button
                     type="button"
                     className="btn-ghost text-clay-600"
@@ -436,12 +525,17 @@ function DailyView({ data, leadership, busy, onRemove }) {
   );
 }
 
-function WeeklyView({ data, grid, teachingPeriods }) {
+function WeeklyView({ data, grid, teachingPeriods, onEdit, editingId }) {
   if (!teachingPeriods.length) {
     return <EmptyNote>No school periods defined yet.</EmptyNote>;
   }
   return (
     <div className="card overflow-x-auto p-2 sm:p-3">
+      {onEdit && (
+        <p className="mb-2 px-2 text-sm text-ink-700/65">
+          Click a class in the grid to edit it below.
+        </p>
+      )}
       <table className="w-full text-sm border-separate border-spacing-1 min-w-[52rem]">
         <thead>
           <tr>
@@ -469,7 +563,11 @@ function WeeklyView({ data, grid, teachingPeriods }) {
                       {period.name}
                     </div>
                   ) : (
-                    <EntryCell entries={grid.map.get(`${day}|${period.id}`)} />
+                    <EntryCell
+                      entries={grid.map.get(`${day}|${period.id}`)}
+                      onEdit={onEdit}
+                      editingId={editingId}
+                    />
                   )}
                 </td>
               ))}
