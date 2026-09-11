@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
+import { SchoolScheduleEditor } from "../components/SchoolScheduleEditor.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
 import {
@@ -61,6 +62,15 @@ export default function SchoolSettings() {
         setWeights(g.examWeights || { UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 });
       })
       .catch((err) => toast.error(err.message || "Could not load school profile"));
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    if (window.location.hash !== "#school-schedule") return undefined;
+    const t = window.setTimeout(() => {
+      document.getElementById("school-schedule")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 80);
+    return () => window.clearTimeout(t);
   }, []);
 
   function set(key, value) {
@@ -132,7 +142,7 @@ export default function SchoolSettings() {
     <div>
       <PageHeader
         title={NAV_TITLES.schoolProfile}
-        subtitle="School identity plus pass bands and annual composite weights used in analytics"
+        subtitle="School identity, working week, bell schedule, and grading used across reports and timetables"
       />
       <form className="card p-5 max-w-2xl space-y-3 mb-6" onSubmit={onSubmit}>
         <div>
@@ -298,6 +308,10 @@ export default function SchoolSettings() {
           </button>
         </div>
       </form>
+
+      <div className="max-w-4xl">
+        <SchoolScheduleEditor />
+      </div>
     </div>
   );
 }

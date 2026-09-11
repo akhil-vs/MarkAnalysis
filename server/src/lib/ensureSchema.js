@@ -88,6 +88,10 @@ const SCHOOL_GRADING_MIGRATION = "20260910120000_school_grading_config";
 const SCHOOL_GRADING_CHECKSUM =
   "7498ec62c90b828136b9050ef9e5bf2a215b21fec6e703b01ed71bca45c99576";
 
+const SCHOOL_WORKING_DAYS_MIGRATION = "20260911123800_school_working_days";
+const SCHOOL_WORKING_DAYS_CHECKSUM =
+  "a8341203fab7f373220d136b8077369d49ba1751052cadef0eafcd5cfe890728";
+
 const SCHOOL_PROFILE_TABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "SchoolProfile" (
     "id" TEXT NOT NULL DEFAULT 'school',
@@ -101,6 +105,7 @@ const SCHOOL_PROFILE_TABLE_STATEMENTS = [
     "distinctionMin" DOUBLE PRECISION NOT NULL DEFAULT 90,
     "gradeBands" JSONB,
     "examWeights" JSONB,
+    "workingDays" JSONB,
     "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "SchoolProfile_pkey" PRIMARY KEY ("id")
   )`,
@@ -111,6 +116,10 @@ const SCHOOL_GRADING_STATEMENTS = [
   `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "distinctionMin" DOUBLE PRECISION NOT NULL DEFAULT 90`,
   `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "gradeBands" JSONB`,
   `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "examWeights" JSONB`,
+];
+
+const SCHOOL_WORKING_DAYS_STATEMENTS = [
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "workingDays" JSONB`,
 ];
 
 const TIMETABLE_STATEMENTS = [
@@ -361,6 +370,7 @@ async function ensureSchoolGradingColumns() {
   if (!hasTable) {
     await applyStatements(SCHOOL_PROFILE_TABLE_STATEMENTS);
     await recordMigration(SCHOOL_GRADING_MIGRATION, SCHOOL_GRADING_CHECKSUM);
+    await recordMigration(SCHOOL_WORKING_DAYS_MIGRATION, SCHOOL_WORKING_DAYS_CHECKSUM);
     return;
   }
 
@@ -376,6 +386,24 @@ async function ensureSchoolGradingColumns() {
 
   await applyStatements(SCHOOL_GRADING_STATEMENTS);
   await recordMigration(SCHOOL_GRADING_MIGRATION, SCHOOL_GRADING_CHECKSUM);
+}
+
+async function ensureSchoolWorkingDaysColumn() {
+  const hasTable = await tableExists("SchoolProfile");
+  if (!hasTable) {
+    await applyStatements(SCHOOL_PROFILE_TABLE_STATEMENTS);
+    await recordMigration(SCHOOL_GRADING_MIGRATION, SCHOOL_GRADING_CHECKSUM);
+    await recordMigration(SCHOOL_WORKING_DAYS_MIGRATION, SCHOOL_WORKING_DAYS_CHECKSUM);
+    return;
+  }
+
+  if (await columnExists("SchoolProfile", "workingDays")) {
+    await recordMigration(SCHOOL_WORKING_DAYS_MIGRATION, SCHOOL_WORKING_DAYS_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(SCHOOL_WORKING_DAYS_STATEMENTS);
+  await recordMigration(SCHOOL_WORKING_DAYS_MIGRATION, SCHOOL_WORKING_DAYS_CHECKSUM);
 }
 
 /**
@@ -395,6 +423,7 @@ export async function ensurePendingSchema() {
         ensureConsolidationSettingsTable(),
         ensureSubjectConsolidationMaxMarksColumn(),
         ensureSchoolGradingColumns(),
+        ensureSchoolWorkingDaysColumn(),
       ]);
     })().catch((err) => {
       ensurePromise = null;
@@ -434,6 +463,9 @@ export const __test = {
   SCHOOL_GRADING_CHECKSUM,
   SCHOOL_PROFILE_TABLE_STATEMENTS,
   SCHOOL_GRADING_STATEMENTS,
+  SCHOOL_WORKING_DAYS_MIGRATION,
+  SCHOOL_WORKING_DAYS_CHECKSUM,
+  SCHOOL_WORKING_DAYS_STATEMENTS,
   MULTI_CLASS_PERIOD_MIGRATION,
   MULTI_CLASS_PERIOD_CHECKSUM,
   MULTI_CLASS_PERIOD_STATEMENTS,

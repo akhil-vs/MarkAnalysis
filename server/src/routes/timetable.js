@@ -8,6 +8,8 @@ import {
 import { prisma } from "../lib/prisma.js";
 import { ensureTimetableSchema } from "../lib/ensureSchema.js";
 import { auth, isLeadership, publicUser, requireLeadership } from "../middleware/auth.js";
+import { getSchoolProfile } from "../lib/school.js";
+import { DAY_NAMES, isWorkingDay, publicWorkingDays } from "../lib/workingDays.js";
 
 export const timetableRouter = Router();
 timetableRouter.use(auth);
@@ -19,16 +21,6 @@ timetableRouter.use(async (_req, _res, next) => {
     next(err);
   }
 });
-
-const DAY_NAMES = {
-  1: "Monday",
-  2: "Tuesday",
-  3: "Wednesday",
-  4: "Thursday",
-  5: "Friday",
-  6: "Saturday",
-  7: "Sunday",
-};
 
 const ENTRY_INCLUDE = {
   period: true,
@@ -363,13 +355,14 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
   const date = parseDateParam(req.query.date);
   if (!date) return res.status(400).json({ error: "date must be YYYY-MM-DD" });
 
-  const [periods, entries] = await Promise.all([
+  const [periods, entries, school] = await Promise.all([
     ensureDefaultPeriods(),
     prisma.timetableEntry.findMany({
       where: { teacherId: userId },
       include: ENTRY_INCLUDE,
       orderBy: [{ dayOfWeek: "asc" }, { period: { sortOrder: "asc" } }],
     }),
+    getSchoolProfile(),
   ]);
 
   const serialized = entries.map(serializeEntry);
@@ -378,6 +371,8 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
     if (!byDay[e.dayOfWeek]) byDay[e.dayOfWeek] = [];
     byDay[e.dayOfWeek].push(e);
   }
+
+  const workingDays = publicWorkingDays(school);
 
   const base = {
     view,
@@ -399,19 +394,18 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
     },
     periods,
     dayNames: DAY_NAMES,
+    workingDays,
     entries: serialized,
   };
 
   if (view === "weekly") {
     return res.json({
       ...base,
-      weekdays: [1, 2, 3, 4, 5, 6]
-        .filter((d) => d <= 6)
-        .map((dayOfWeek) => ({
-          dayOfWeek,
-          dayName: DAY_NAMES[dayOfWeek],
-          entries: byDay[dayOfWeek] || [],
-        })),
+      weekdays: workingDays.map((dayOfWeek) => ({
+        dayOfWeek,
+        dayName: DAY_NAMES[dayOfWeek],
+        entries: byDay[dayOfWeek] || [],
+      })),
     });
   }
 
@@ -479,6 +473,11 @@ timetableRouter.post("/entries", requireLeadership(), async (req, res) => {
   if (!classSection) return res.status(400).json({ error: "Invalid class section" });
   if (!subject) return res.status(400).json({ error: "Invalid subject" });
 
+  const school = await getSchoolProfile();
+  if (!isWorkingDay(school, dayOfWeek)) {
+    return res.status(400).json({ error: "That day is not a working day for this school" });
+  }
+
   try {
     const entry = await prisma.timetableEntry.create({
       data: { teacherId, classSectionId, subjectId, periodId, dayOfWeek, room },
@@ -521,6 +520,12 @@ timetableRouter.patch("/entries/:id", requireLeadership(), async (req, res) => {
   if (data.teacherId) {
     const teacher = await prisma.user.findUnique({ where: { id: data.teacherId } });
     if (!teacher || teacher.role !== "TEACHER") return res.status(400).json({ error: "Invalid teacher" });
+  }
+  if (data.dayOfWeek != null) {
+    const school = await getSchoolProfile();
+    if (!isWorkingDay(school, data.dayOfWeek)) {
+      return res.status(400).json({ error: "That day is not a working day for this school" });
+    }
   }
 
   try {

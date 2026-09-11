@@ -104,13 +104,13 @@ export const PAGE_HELP = {
   },
   timetables: {
     title: "What's on this page",
-    about: "Teacher schedules, the all-staff daily board, a free-period finder, and the school bell times.",
-    useful: "Open a teacher to add, edit, or remove periods; use the daily board and free finder to see coverage; adjust bell timings under Periods.",
+    about: "Teacher schedules, the all-staff daily board, and a free-period finder.",
+    useful: "Open a teacher to add, edit, or remove periods; use the daily board and free finder to see coverage. Set the working week and bell timings under School profile.",
   },
   schoolProfile: {
     title: "What's on this page",
-    about: "School name and board, pass and distinction bands, and the unit / mid / final weights used for the annual composite.",
-    useful: "These settings drive grades, pass lists, and Deep insights. Set them before you publish results so every report uses the same rules.",
+    about: "School name and board, the 5- or 6-day working week and bell schedule, pass and distinction bands, and the unit / mid / final weights used for the annual composite.",
+    useful: "Set the school week and periods here so timetables match your day. Grading settings drive grades, pass lists, and Deep insights — configure them before you publish results.",
   },
   profile: {
     title: "What's on this page",

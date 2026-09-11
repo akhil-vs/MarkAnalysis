@@ -16,7 +16,8 @@ Remaining work that would make this suitable for a live school:
 + ~~One-time consolidation max-marks lock for principal / exam coordinator~~ (Records → Subjects → Lock for consolidation)
 + ~~Teacher daily / weekly / monthly timetables for principal and exam coordinator~~ (Timetables nav + views + seed periods)
 + ~~All-teachers daily board + find free teacher for a period~~ (leadership Timetables modes)
-+ ~~Configurable bell schedule (periods + timings) for principal and exam coordinator~~ (Timetables → Periods)
++ ~~Configurable bell schedule (periods + timings) for principal and exam coordinator~~ (School profile → school day periods)
++ ~~Configurable 5/6-day working week on school profile~~ (drives weekly timetable grids)
 
 ## Product / access
 
