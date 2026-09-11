@@ -87,12 +87,13 @@ function EntryCell({ entries, onEdit, editingId }) {
               key={entry.id}
               type="button"
               onClick={() => onEdit(entry)}
-              className={`min-w-0 rounded-md px-1 py-0.5 text-left transition hover:bg-ink-900/[0.04] ${
+              className={`min-w-0 w-full rounded-md px-1.5 py-1 text-left transition hover:bg-ink-900/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-500/50 ${
                 active ? "bg-clay-500/10 ring-1 ring-clay-500/40" : ""
               }`}
               title="Edit this period"
             >
               {body}
+              <div className="mt-0.5 text-[10px] font-medium text-clay-600">Edit</div>
             </button>
           );
         })}
