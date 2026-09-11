@@ -1,6 +1,5 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { assertMaxMarksEditable } from "../lib/consolidationMaxMarks.js";
 import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
 import { parsePositiveInt } from "../lib/numbers.js";
 import { auth, requireRole } from "../middleware/auth.js";
@@ -19,15 +18,12 @@ subjectsRouter.get("/", async (req, res) => {
 });
 
 subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, className, maxMarks, consolidationMaxMarks } = req.body || {};
+  const { name, className, maxMarks } = req.body || {};
   if (!name || !className) {
     return res.status(400).json({ error: "Name and class are required" });
   }
   const entry = parsePositiveInt(maxMarks, "Max marks");
   if (entry.error) return res.status(400).json({ error: entry.error });
-  const consolRaw = consolidationMaxMarks != null ? consolidationMaxMarks : maxMarks;
-  const consol = parsePositiveInt(consolRaw, "Max marks [consolidation]");
-  if (consol.error) return res.status(400).json({ error: consol.error });
 
   try {
     await ensureConsolidationSchema();
@@ -36,7 +32,6 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
         name,
         className,
         maxMarks: entry.value,
-        consolidationMaxMarks: consol.value,
       },
     });
     res.status(201).json(created);
@@ -46,7 +41,7 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
 });
 
 subjectsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, className, maxMarks, consolidationMaxMarks } = req.body || {};
+  const { name, className, maxMarks } = req.body || {};
   await ensureConsolidationSchema();
 
   const data = {
@@ -58,14 +53,6 @@ subjectsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
     const entry = parsePositiveInt(maxMarks, "Max marks");
     if (entry.error) return res.status(400).json({ error: entry.error });
     data.maxMarks = entry.value;
-  }
-
-  if (consolidationMaxMarks != null) {
-    const lockedMsg = await assertMaxMarksEditable();
-    if (lockedMsg) return res.status(409).json({ error: lockedMsg });
-    const consol = parsePositiveInt(consolidationMaxMarks, "Max marks [consolidation]");
-    if (consol.error) return res.status(400).json({ error: consol.error });
-    data.consolidationMaxMarks = consol.value;
   }
 
   const updated = await prisma.subject.update({

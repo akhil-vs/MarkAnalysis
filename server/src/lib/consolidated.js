@@ -1,14 +1,14 @@
 import { prisma } from "./prisma.js";
 import { examLabel } from "./stats.js";
 import { studentWhereForExam } from "./studentScope.js";
-import { buildConsolidatedStudentRows } from "./consolidatedRows.js";
+import { applyExamConsolidationMax, buildConsolidatedStudentRows } from "./consolidatedRows.js";
 import {
   buildSubjectStatusCols,
   studentsForExamScope,
   summarizeClassStatus,
 } from "./consolidatedStatus.js";
 
-export { buildConsolidatedStudentRows } from "./consolidatedRows.js";
+export { applyExamConsolidationMax, buildConsolidatedStudentRows } from "./consolidatedRows.js";
 export {
   buildSubjectStatusCols,
   studentsForExamScope,
@@ -47,6 +47,8 @@ export async function buildClassConsolidated(classSectionId, examId) {
     }),
   ]);
 
+  const papers = applyExamConsolidationMax(subjects, exam);
+
   const marks = await prisma.mark.findMany({
     where: { examId: exam.id, studentId: { in: students.map((s) => s.id) } },
     include: { subject: true },
@@ -56,8 +58,8 @@ export async function buildClassConsolidated(classSectionId, examId) {
     assignments.map((a) => [a.subjectId, a.user.name])
   );
 
-  const subjectCols = buildSubjectStatusCols(subjects, students, marks, teacherBySubject);
-  const rows = buildConsolidatedStudentRows(students, subjects, marks);
+  const subjectCols = buildSubjectStatusCols(papers, students, marks, teacherBySubject);
+  const rows = buildConsolidatedStudentRows(students, papers, marks);
 
   const complete = subjectCols.length > 0 && subjectCols.every((s) => s.complete);
   const draftCount = marks.filter((m) => m.status === "DRAFT").length;
@@ -146,7 +148,10 @@ export async function buildConsolidatedStatus(examId) {
       if (studentMarks) classMarks.push(...studentMarks);
     }
 
-    const classSubjects = subjectsByClassName.get(cls.className) || [];
+    const classSubjects = applyExamConsolidationMax(
+      subjectsByClassName.get(cls.className) || [],
+      exam
+    );
     const teacherBySubject = Object.fromEntries(
       classSubjects.map((subject) => [
         subject.id,

@@ -84,6 +84,55 @@ const SUBJECT_CONSOL_MAX_STATEMENTS = [
   `ALTER TABLE "Subject" ALTER COLUMN "consolidationMaxMarks" SET NOT NULL`,
 ];
 
+const EXAM_CONSOL_MAX_MIGRATION = "20260911213500_exam_consolidation_max_marks";
+const EXAM_CONSOL_MAX_CHECKSUM =
+  "d4a2a99f4bebe1af7eb65cafd97f5a6e3f71a3ae6f6ff10529ace237676dfa5d";
+
+const EXAM_CONSOL_MAX_STATEMENTS = [
+  `ALTER TABLE "Exam" ADD COLUMN IF NOT EXISTS "consolidationMaxMarks" INTEGER`,
+  `ALTER TABLE "Exam" ADD COLUMN IF NOT EXISTS "consolidationLocked" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "Exam" ADD COLUMN IF NOT EXISTS "consolidationLockedAt" TIMESTAMP(3)`,
+  `ALTER TABLE "Exam" ADD COLUMN IF NOT EXISTS "consolidationLockedById" TEXT`,
+  `UPDATE "Exam"
+SET "consolidationMaxMarks" = COALESCE(
+  (
+    SELECT s."consolidationMaxMarks"
+    FROM "Subject" s
+    WHERE s."consolidationMaxMarks" IS NOT NULL
+    GROUP BY s."consolidationMaxMarks"
+    ORDER BY COUNT(*) DESC, s."consolidationMaxMarks" DESC
+    LIMIT 1
+  ),
+  100
+)
+WHERE "consolidationMaxMarks" IS NULL`,
+  `ALTER TABLE "Exam" ALTER COLUMN "consolidationMaxMarks" SET NOT NULL`,
+  `ALTER TABLE "Exam" ALTER COLUMN "consolidationMaxMarks" SET DEFAULT 100`,
+  `DO $$ BEGIN
+  IF to_regclass('public."ConsolidationSettings"') IS NOT NULL THEN
+    UPDATE "Exam" e
+    SET
+      "consolidationLocked" = true,
+      "consolidationLockedAt" = cs."lockedAt",
+      "consolidationLockedById" = cs."lockedById"
+    FROM "ConsolidationSettings" cs
+    WHERE cs."maxMarksLocked" = true;
+  END IF;
+END $$`,
+  `DO $$ BEGIN
+  IF EXISTS (
+    SELECT 1 FROM information_schema.columns
+    WHERE table_schema = 'public' AND table_name = 'Subject' AND column_name = 'consolidationMaxMarks'
+  ) THEN
+    ALTER TABLE "Subject" ALTER COLUMN "consolidationMaxMarks" SET DEFAULT 100;
+  END IF;
+END $$`,
+];
+
+const EXAM_CONSOL_MAX_FK_STATEMENTS = [
+  `ALTER TABLE "Exam" ADD CONSTRAINT "Exam_consolidationLockedById_fkey" FOREIGN KEY ("consolidationLockedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+];
+
 const SCHOOL_GRADING_MIGRATION = "20260910120000_school_grading_config";
 const SCHOOL_GRADING_CHECKSUM =
   "7498ec62c90b828136b9050ef9e5bf2a215b21fec6e703b01ed71bca45c99576";
@@ -365,6 +414,28 @@ async function ensureSubjectConsolidationMaxMarksColumn() {
   await recordMigration(SUBJECT_CONSOL_MAX_MIGRATION, SUBJECT_CONSOL_MAX_CHECKSUM);
 }
 
+async function ensureExamConsolidationColumns() {
+  const hasCeil = await columnExists("Exam", "consolidationMaxMarks");
+  const hasLocked = await columnExists("Exam", "consolidationLocked");
+  if (hasCeil && hasLocked) {
+    if (await columnExists("Subject", "consolidationMaxMarks")) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `ALTER TABLE "Subject" ALTER COLUMN "consolidationMaxMarks" SET DEFAULT 100`
+        );
+      } catch {
+        // Leftover column may already have a default, or the table may be gone.
+      }
+    }
+    await recordMigration(EXAM_CONSOL_MAX_MIGRATION, EXAM_CONSOL_MAX_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(EXAM_CONSOL_MAX_STATEMENTS);
+  await applyStatements(EXAM_CONSOL_MAX_FK_STATEMENTS);
+  await recordMigration(EXAM_CONSOL_MAX_MIGRATION, EXAM_CONSOL_MAX_CHECKSUM);
+}
+
 async function ensureSchoolGradingColumns() {
   const hasTable = await tableExists("SchoolProfile");
   if (!hasTable) {
@@ -425,6 +496,9 @@ export async function ensurePendingSchema() {
         ensureSchoolGradingColumns(),
         ensureSchoolWorkingDaysColumn(),
       ]);
+      // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
+      // school-wide lock, so this must run after those catch-ups.
+      await ensureExamConsolidationColumns();
     })().catch((err) => {
       ensurePromise = null;
       throw err;
@@ -459,6 +533,10 @@ export const __test = {
   SUBJECT_CONSOL_MAX_MIGRATION,
   SUBJECT_CONSOL_MAX_CHECKSUM,
   SUBJECT_CONSOL_MAX_STATEMENTS,
+  EXAM_CONSOL_MAX_MIGRATION,
+  EXAM_CONSOL_MAX_CHECKSUM,
+  EXAM_CONSOL_MAX_STATEMENTS,
+  EXAM_CONSOL_MAX_FK_STATEMENTS,
   SCHOOL_GRADING_MIGRATION,
   SCHOOL_GRADING_CHECKSUM,
   SCHOOL_PROFILE_TABLE_STATEMENTS,

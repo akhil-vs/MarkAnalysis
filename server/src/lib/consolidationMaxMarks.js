@@ -1,47 +1,69 @@
 import { prisma } from "./prisma.js";
 
-const SETTINGS_ID = "default";
+export const CONSOLIDATION_LOCKED_MESSAGE =
+  "Consolidation max marks are locked for this exam. Unlock them before changing the consolidation ceiling.";
 
-export async function getConsolidationSettings() {
-  const existing = await prisma.consolidationSettings.findUnique({
-    where: { id: SETTINGS_ID },
-    include: { lockedBy: { select: { id: true, name: true } } },
-  });
-  if (existing) return existing;
-  return prisma.consolidationSettings.upsert({
-    where: { id: SETTINGS_ID },
-    create: { id: SETTINGS_ID, maxMarksLocked: false, updatedAt: new Date() },
-    update: {},
-    include: { lockedBy: { select: { id: true, name: true } } },
-  });
-}
+const LOCK_INCLUDE = {
+  consolidationLockedBy: { select: { id: true, name: true } },
+};
 
-export async function isMaxMarksLocked() {
-  const settings = await getConsolidationSettings();
-  return Boolean(settings.maxMarksLocked);
+export function isExamConsolidationLocked(exam) {
+  return Boolean(exam?.consolidationLocked);
 }
 
 /**
- * Reject consolidation maxMarks edits once consolidation ceilings are locked.
- * Entry maxMarks remain editable.
- * @returns {Promise<string|null>} error message or null when allowed
+ * Reject consolidation maxMarks edits once this exam’s ceiling is locked.
+ * Entry maxMarks on subjects remain editable.
+ * @returns {string|null} error message or null when allowed
  */
-export async function assertMaxMarksEditable() {
-  if (await isMaxMarksLocked()) {
-    return "Consolidation max marks are locked. Unlock them before changing consolidation ceilings.";
-  }
+export function assertExamConsolidationEditable(exam) {
+  if (isExamConsolidationLocked(exam)) return CONSOLIDATION_LOCKED_MESSAGE;
   return null;
 }
 
-export function publicConsolidationSettings(settings) {
-  if (!settings) {
-    return { maxMarksLocked: false, lockedAt: null, lockedBy: null };
+export function publicExamConsolidation(exam) {
+  if (!exam) {
+    return {
+      consolidationMaxMarks: null,
+      maxMarksLocked: false,
+      lockedAt: null,
+      lockedBy: null,
+    };
   }
   return {
-    maxMarksLocked: Boolean(settings.maxMarksLocked),
-    lockedAt: settings.lockedAt || null,
-    lockedBy: settings.lockedBy
-      ? { id: settings.lockedBy.id, name: settings.lockedBy.name }
+    consolidationMaxMarks:
+      exam.consolidationMaxMarks == null ? null : Number(exam.consolidationMaxMarks),
+    maxMarksLocked: Boolean(exam.consolidationLocked),
+    lockedAt: exam.consolidationLockedAt || null,
+    lockedBy: exam.consolidationLockedBy
+      ? { id: exam.consolidationLockedBy.id, name: exam.consolidationLockedBy.name }
       : null,
   };
 }
+
+export async function getExamWithConsolidation(id) {
+  return prisma.exam.findUnique({
+    where: { id },
+    include: LOCK_INCLUDE,
+  });
+}
+
+export async function setExamConsolidationLock(examId, locked, userId) {
+  return prisma.exam.update({
+    where: { id: examId },
+    data: locked
+      ? {
+          consolidationLocked: true,
+          consolidationLockedAt: new Date(),
+          consolidationLockedById: userId,
+        }
+      : {
+          consolidationLocked: false,
+          consolidationLockedAt: null,
+          consolidationLockedById: null,
+        },
+    include: LOCK_INCLUDE,
+  });
+}
+
+export const examConsolidationInclude = LOCK_INCLUDE;

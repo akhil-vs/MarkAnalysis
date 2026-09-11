@@ -76,7 +76,7 @@ model User {
   notifications  Notification[]
   timetableEntries TimetableEntry[]
   activityAudits ActivityAudit[]
-  consolidationLocks ConsolidationSettings[] @relation("ConsolidationLockedBy")
+  consolidationLocks Exam[] @relation("ConsolidationLockedBy")
 }
 
 model ClassSection {
@@ -95,12 +95,11 @@ model ClassSection {
 }
 
 model Subject {
-  id                    String @id @default(cuid())
-  name                  String
-  className             String
-  maxMarks              Int
-  /// Ceiling used for consolidated mark-list totals and percentages.
-  consolidationMaxMarks Int
+  id        String @id @default(cuid())
+  name      String
+  className String
+  /// Ceiling for mark entry and register validation.
+  maxMarks  Int
 
   assignments TeacherAssignment[]
   marks       Mark[]
@@ -152,6 +151,12 @@ model Exam {
   date               DateTime
   type               ExamType
   marksEntryDeadline DateTime?
+  /// Ceiling used for this exam’s consolidated mark-list totals and percentages.
+  consolidationMaxMarks Int      @default(100)
+  consolidationLocked   Boolean  @default(false)
+  consolidationLockedAt DateTime?
+  consolidationLockedById String?
+  consolidationLockedBy User?    @relation("ConsolidationLockedBy", fields: [consolidationLockedById], references: [id], onDelete: SetNull)
   marks              Mark[]
   markEntryRequests  MarkEntryAccessRequest[]
 }
@@ -269,17 +274,6 @@ model SchoolProfile {
   /// Working weekdays as ISO numbers 1=Mon … 7=Sun. Length 5 or 6; order is column order.
   workingDays     Json?
   updatedAt       DateTime @updatedAt
-}
-
-/// One-time consolidation max-marks lock. When locked, subject
-/// consolidationMaxMarks cannot change — CML totals/% use those ceilings.
-model ConsolidationSettings {
-  id           String    @id @default("default")
-  maxMarksLocked Boolean @default(false)
-  lockedAt     DateTime?
-  lockedById   String?
-  lockedBy     User?     @relation("ConsolidationLockedBy", fields: [lockedById], references: [id], onDelete: SetNull)
-  updatedAt    DateTime  @updatedAt
 }
 
 enum NotificationType {

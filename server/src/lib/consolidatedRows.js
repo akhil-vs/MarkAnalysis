@@ -3,6 +3,19 @@ import { formatMarkCell, isScoredMark } from "./markCodes.js";
 import { applyTiedRanks } from "./stats.js";
 
 /**
+ * Stamp each subject with this exam’s consolidation ceiling so CML totals
+ * and percentages use the exam setting (not a leftover subject field).
+ */
+export function applyExamConsolidationMax(subjects, exam) {
+  const list = Array.isArray(subjects) ? subjects : [];
+  const ceil = exam?.consolidationMaxMarks;
+  if (ceil == null) return list;
+  const n = Number(ceil);
+  if (!Number.isFinite(n)) return list;
+  return list.map((subject) => ({ ...subject, consolidationMaxMarks: n }));
+}
+
+/**
  * Ceiling used for consolidated totals and percentages.
  * Falls back to entry maxMarks when the consolidation field is missing.
  */

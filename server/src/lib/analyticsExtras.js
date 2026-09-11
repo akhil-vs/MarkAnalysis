@@ -376,15 +376,18 @@ export function examReadiness({ exam, assignments, marks, studentsByClass, acces
   };
 }
 
-export function dualCeilingWarnings(subjects = []) {
+export function dualCeilingWarnings(subjects = [], consolidationMaxMarks) {
   return subjects
-    .filter((s) => s.consolidationMaxMarks != null && s.consolidationMaxMarks !== s.maxMarks)
+    .filter((s) => {
+      const ceil = consolidationMaxMarks ?? s.consolidationMaxMarks;
+      return ceil != null && s.maxMarks != null && Number(ceil) !== Number(s.maxMarks);
+    })
     .map((s) => ({
       id: s.id,
       name: s.name,
       className: s.className,
       maxMarks: s.maxMarks,
-      consolidationMaxMarks: s.consolidationMaxMarks,
+      consolidationMaxMarks: consolidationMaxMarks ?? s.consolidationMaxMarks,
     }));
 }
 

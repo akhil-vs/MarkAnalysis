@@ -271,7 +271,7 @@ analyticsRouter.get("/school", async (req, res) => {
       deadline: readiness.deadline,
       kpis: readiness.kpis,
     },
-    dualCeiling: dualCeilingWarnings(subjects),
+    dualCeiling: dualCeilingWarnings(subjects, exam.consolidationMaxMarks),
     boardSummary: {
       distinction: extras.outcomeLists.counts.distinction,
       pass: extras.outcomeLists.counts.pass,

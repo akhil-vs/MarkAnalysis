@@ -83,13 +83,6 @@ export default function ConsolidatedLists() {
   const [busy, setBusy] = useState("");
   const [previewLoading, setPreviewLoading] = useState(Boolean(initialClassSectionId(params)));
   const [notify, setNotify] = useState(null);
-  const [maxMarksPanel, setMaxMarksPanel] = useState(null);
-
-  async function loadMaxMarks() {
-    if (!leadership) return;
-    const res = await api("/api/consolidation/max-marks");
-    setMaxMarksPanel(res);
-  }
 
   async function loadStatus(id) {
     const res = await api(`/api/exports/consolidated${id ? `?examId=${id}` : ""}`);
@@ -118,7 +111,6 @@ export default function ConsolidatedLists() {
 
   useEffect(() => {
     loadStatus(examId).catch((e) => setError(e.message));
-    loadMaxMarks().catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -233,7 +225,7 @@ export default function ConsolidatedLists() {
           title={NAV_TITLES.consolidated}
           subtitle={
             leadership
-              ? "Set max marks once, approve registers, then generate the official class list."
+              ? "Set this exam’s consolidation max, approve registers, then generate the official class list."
               : "Open your class list after every subject register is submitted and approved."
           }
         />
@@ -257,7 +249,8 @@ export default function ConsolidatedLists() {
   const selected = divisions.find((c) => c.id === selectedId) || classes.find((c) => c.id === selectedId);
   const tableBusy = previewLoading || Boolean(busy);
   const tableBusyLabel = previewLoading ? "Loading mark list…" : "Preparing download…";
-  const locked = Boolean(maxMarksPanel?.settings?.maxMarksLocked);
+  const examCeil = data?.exam?.consolidationMaxMarks;
+  const locked = Boolean(data?.exam?.consolidationLocked);
   const viewerIsClassTeacher = data?.viewer === "classTeacher" || !leadership;
 
   return (
@@ -279,13 +272,15 @@ export default function ConsolidatedLists() {
           <div>
             <div className="font-medium text-ink-900">Max marks for consolidation</div>
             <p className="text-sm text-ink-700/70 mt-0.5">
-              {locked
-                ? "Subject ceilings are locked. Edit them under Records → Subjects."
-                : "Set and lock per-subject max marks under Records → Subjects (one-time consolidation setting)."}
+              {examCeil != null
+                ? locked
+                  ? `This exam’s CML ceiling is ${examCeil} and is locked. Unlock it under Records → Exams to change it.`
+                  : `This exam’s CML ceiling is ${examCeil}. Lock it under Records → Exams before publishing official lists.`
+                : "Set Max marks [consolidation] when you schedule the exam under Records → Exams."}
             </p>
           </div>
-          <Link className="btn-ghost" to="/manage?tab=Subjects">
-            {locked ? "View subjects" : "Set max marks"}
+          <Link className="btn-ghost" to="/manage?tab=Exams">
+            {locked ? "View exams" : "Set max marks"}
           </Link>
         </div>
       )}
