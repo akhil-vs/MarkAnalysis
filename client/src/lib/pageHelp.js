@@ -105,7 +105,7 @@ export const PAGE_HELP = {
   timetables: {
     title: "What's on this page",
     about: "Teacher schedules, the all-staff daily board, a free-period finder, and the school bell times.",
-    useful: "See who is teaching when (including combined classes in one period), find a free teacher, or adjust the timetable and period timings.",
+    useful: "Open a teacher to add, edit, or remove periods; use the daily board and free finder to see coverage; adjust bell timings under Periods.",
   },
   schoolProfile: {
     title: "What's on this page",
