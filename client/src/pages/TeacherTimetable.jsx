@@ -58,9 +58,12 @@ function EntryCell({ entries, onEdit, editingId }) {
         <div className="text-sm font-medium leading-snug">{sharedSubject}</div>
       )}
       <div
-        className={`${sharedSubject ? "mt-0.5" : ""} ${
-          multi ? "grid grid-cols-2 gap-x-2 gap-y-1" : ""
-        }`}
+        className={`${sharedSubject ? "mt-0.5" : ""} ${multi ? "grid gap-x-2 gap-y-1" : ""}`}
+        style={
+          multi
+            ? { gridTemplateColumns: `repeat(${list.length}, minmax(0, 1fr))` }
+            : undefined
+        }
       >
         {list.map((entry) => {
           const body = (
@@ -87,13 +90,12 @@ function EntryCell({ entries, onEdit, editingId }) {
               key={entry.id}
               type="button"
               onClick={() => onEdit(entry)}
-              className={`min-w-0 w-full rounded-md px-1.5 py-1 text-left transition hover:bg-ink-900/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-500/50 ${
+              className={`min-w-0 w-full rounded-md px-1 py-0.5 text-left transition hover:bg-ink-900/[0.06] focus:outline-none focus-visible:ring-2 focus-visible:ring-clay-500/50 ${
                 active ? "bg-clay-500/10 ring-1 ring-clay-500/40" : ""
               }`}
-              title="Edit this period"
+              title="Click to edit"
             >
               {body}
-              <div className="mt-0.5 text-[10px] font-medium text-clay-600">Edit</div>
             </button>
           );
         })}
@@ -477,6 +479,11 @@ function DailyView({ data, leadership, busy, editingId, onEdit, onRemove }) {
   }
   return (
     <div className="card overflow-x-auto">
+      {leadership && (
+        <p className="px-4 pt-3 text-sm text-ink-700/65">
+          Click a row to edit it below.
+        </p>
+      )}
       <table className="table">
         <thead>
           <tr>
@@ -490,7 +497,13 @@ function DailyView({ data, leadership, busy, editingId, onEdit, onRemove }) {
         </thead>
         <tbody>
           {entries.map((e) => (
-            <tr key={e.id} className={editingId === e.id ? "bg-clay-500/5" : undefined}>
+            <tr
+              key={e.id}
+              className={`${editingId === e.id ? "bg-clay-500/5" : ""} ${
+                onEdit ? "cursor-pointer hover:bg-ink-900/[0.03]" : ""
+              }`}
+              onClick={onEdit ? () => onEdit(e) : undefined}
+            >
               <td>{e.period?.name}</td>
               <td className="whitespace-nowrap text-ink-700/70">
                 {e.period?.startTime}–{e.period?.endTime}
@@ -502,17 +515,12 @@ function DailyView({ data, leadership, busy, editingId, onEdit, onRemove }) {
                 <td className="text-right whitespace-nowrap">
                   <button
                     type="button"
-                    className="btn-ghost"
-                    disabled={busy}
-                    onClick={() => onEdit(e)}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    type="button"
                     className="btn-ghost text-clay-600"
                     disabled={busy}
-                    onClick={() => onRemove(e.id)}
+                    onClick={(ev) => {
+                      ev.stopPropagation();
+                      onRemove(e.id);
+                    }}
                   >
                     Remove
                   </button>

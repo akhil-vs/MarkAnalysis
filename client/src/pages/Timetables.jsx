@@ -139,9 +139,12 @@ function SlotCell({ entries }) {
         <div className="text-sm font-medium leading-snug">{sharedSubject}</div>
       )}
       <div
-        className={`${sharedSubject ? "mt-0.5" : ""} ${
-          multi ? "grid grid-cols-2 gap-x-2 gap-y-1" : ""
-        }`}
+        className={`${sharedSubject ? "mt-0.5" : ""} ${multi ? "grid gap-x-2 gap-y-1" : ""}`}
+        style={
+          multi
+            ? { gridTemplateColumns: `repeat(${list.length}, minmax(0, 1fr))` }
+            : undefined
+        }
       >
         {list.map((entry) => (
           <div key={entry.id} className="min-w-0">
