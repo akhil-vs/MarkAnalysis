@@ -10,13 +10,22 @@ import {
   parseGradingPatch,
   publicGradingConfig,
 } from "../lib/gradingConfig.js";
+import { parseWorkingDays, publicWorkingDays } from "../lib/workingDays.js";
 
 export const schoolRouter = Router();
 schoolRouter.use(auth);
 
+function publicSchool(profile) {
+  return {
+    ...profile,
+    workingDays: publicWorkingDays(profile),
+    grading: publicGradingConfig(profile),
+  };
+}
+
 schoolRouter.get("/", async (_req, res) => {
   const profile = await getSchoolProfile();
-  res.json({ ...profile, grading: publicGradingConfig(profile) });
+  res.json(publicSchool(profile));
 });
 
 schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
@@ -26,6 +35,9 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
   }
   const gradingPatch = parseGradingPatch(req.body || {});
   if (gradingPatch.error) return res.status(400).json({ error: gradingPatch.error });
+
+  const workingDaysPatch = parseWorkingDays(req.body?.workingDays);
+  if (workingDaysPatch.error) return res.status(400).json({ error: workingDaysPatch.error });
 
   await getSchoolProfile();
   const updated = await prisma.schoolProfile.update({
@@ -37,10 +49,11 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
       ...(address !== undefined && { address: address ? String(address).trim() : null }),
       ...(phone !== undefined && { phone: phone ? String(phone).trim() : null }),
       ...(email !== undefined && { email: email ? String(email).trim() : null }),
+      ...(workingDaysPatch.value !== undefined && { workingDays: workingDaysPatch.value }),
       ...gradingPatch.data,
     },
   });
-  res.json({ ...updated, grading: publicGradingConfig(updated) });
+  res.json(publicSchool(updated));
 });
 
 schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (_req, res) => {
@@ -54,5 +67,5 @@ schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR")
       examWeights: DEFAULT_EXAM_WEIGHTS,
     },
   });
-  res.json({ ...updated, grading: publicGradingConfig(updated) });
+  res.json(publicSchool(updated));
 });

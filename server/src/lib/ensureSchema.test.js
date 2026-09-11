@@ -76,6 +76,19 @@ describe("ensureSchema bootstrap", () => {
     assert.ok(__test.SCHOOL_PROFILE_TABLE_STATEMENTS[0].includes('CREATE TABLE IF NOT EXISTS "SchoolProfile"'));
   });
 
+  it("embeds school working days migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260911123800_school_working_days/migration.sql")
+    );
+    assert.equal(
+      __test.SCHOOL_WORKING_DAYS_CHECKSUM,
+      createHash("sha256").update(file).digest("hex")
+    );
+    assert.equal(__test.SCHOOL_WORKING_DAYS_MIGRATION, "20260911123800_school_working_days");
+    assert.ok(__test.SCHOOL_WORKING_DAYS_STATEMENTS[0].includes("workingDays"));
+    assert.ok(__test.SCHOOL_PROFILE_TABLE_STATEMENTS[0].includes("workingDays"));
+  });
+
   it("embeds multi-class-per-period timetable migration checksum", () => {
     const file = readFileSync(
       join(migrationsDir, "20260910213800_timetable_multi_class_per_period/migration.sql")

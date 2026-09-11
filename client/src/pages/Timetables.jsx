@@ -1,11 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
-import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
-import { useToast } from "../components/Toast.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -13,39 +11,7 @@ const MODES = [
   { id: "teachers", label: "Teachers" },
   { id: "daily", label: "Daily board" },
   { id: "free", label: "Find free" },
-  { id: "periods", label: "Periods" },
 ];
-
-let periodDraftKey = 0;
-
-function nextPeriodKey() {
-  periodDraftKey += 1;
-  return `new-${periodDraftKey}`;
-}
-
-function toPeriodDraft(period) {
-  return {
-    key: period.id || nextPeriodKey(),
-    id: period.id || undefined,
-    name: period.name || "",
-    startTime: period.startTime || "08:00",
-    endTime: period.endTime || "08:45",
-    isBreak: Boolean(period.isBreak),
-    entryCount: period.entryCount || 0,
-  };
-}
-
-function suggestNextTimes(rows) {
-  const last = rows[rows.length - 1];
-  if (!last?.endTime) return { startTime: "08:00", endTime: "08:45" };
-  const startTime = last.endTime;
-  const [h, m] = startTime.split(":").map(Number);
-  if (!Number.isFinite(h) || !Number.isFinite(m)) return { startTime: "08:00", endTime: "08:45" };
-  const endTotal = h * 60 + m + 45;
-  const endH = String(Math.floor(endTotal / 60) % 24).padStart(2, "0");
-  const endM = String(endTotal % 60).padStart(2, "0");
-  return { startTime, endTime: `${endH}:${endM}` };
-}
 
 function todayYmd() {
   const d = new Date();
@@ -164,9 +130,12 @@ function SlotCell({ entries }) {
 
 export default function Timetables() {
   const [searchParams, setSearchParams] = useSearchParams();
-  const mode = MODES.some((m) => m.id === searchParams.get("mode"))
-    ? searchParams.get("mode")
-    : "teachers";
+  const rawMode = searchParams.get("mode");
+  // Bell schedule moved to School profile — keep old Periods links working
+  if (rawMode === "periods") {
+    return <Navigate to="/school#school-schedule" replace />;
+  }
+  const mode = MODES.some((m) => m.id === rawMode) ? rawMode : "teachers";
   const date = searchParams.get("date") || todayYmd();
   const periodId = searchParams.get("periodId") || "";
 
@@ -197,7 +166,7 @@ export default function Timetables() {
     <div>
       <PageHeader
         title={NAV_TITLES.timetables}
-        subtitle="Browse teachers, the daily board, free periods, or edit the school bell schedule"
+        subtitle="Browse teachers, the daily board, and free periods. Edit the school week and bell schedule under School profile."
         actions={<ModeTabs mode={mode} onChange={setMode} />}
       />
 
@@ -206,293 +175,8 @@ export default function Timetables() {
       {mode === "free" && (
         <FreeFinder date={date} periodId={periodId} onDateChange={setDate} onPeriodChange={setPeriodId} />
       )}
-      {mode === "periods" && <PeriodsEditor />}
     </div>
   );
-}
-
-function PeriodsEditor() {
-  const toast = useToast();
-  const confirm = useConfirm();
-  const [rows, setRows] = useState(null);
-  const [savedSnapshot, setSavedSnapshot] = useState("");
-  const [error, setError] = useState("");
-  const [busy, setBusy] = useState(false);
-
-  function applyLoaded(periods) {
-    const drafts = (periods || []).map(toPeriodDraft);
-    setRows(drafts);
-    setSavedSnapshot(JSON.stringify(serializePeriods(drafts)));
-  }
-
-  useEffect(() => {
-    let cancelled = false;
-    api("/api/timetable/periods")
-      .then((periods) => {
-        if (!cancelled) applyLoaded(periods);
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err.message || "Could not load periods");
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const dirty = useMemo(() => {
-    if (!rows) return false;
-    return JSON.stringify(serializePeriods(rows)) !== savedSnapshot;
-  }, [rows, savedSnapshot]);
-
-  const teachingCount = useMemo(() => (rows || []).filter((r) => !r.isBreak).length, [rows]);
-
-  function updateRow(key, patch) {
-    setRows((list) => list.map((row) => (row.key === key ? { ...row, ...patch } : row)));
-  }
-
-  function moveRow(key, direction) {
-    setRows((list) => {
-      const index = list.findIndex((row) => row.key === key);
-      if (index < 0) return list;
-      const next = index + direction;
-      if (next < 0 || next >= list.length) return list;
-      const copy = [...list];
-      const [item] = copy.splice(index, 1);
-      copy.splice(next, 0, item);
-      return copy;
-    });
-  }
-
-  function addRow({ isBreak }) {
-    const times = suggestNextTimes(rows || []);
-    const teachingN = (rows || []).filter((r) => !r.isBreak).length + (isBreak ? 0 : 1);
-    setRows((list) => [
-      ...(list || []),
-      toPeriodDraft({
-        name: isBreak ? "Break" : `Period ${teachingN}`,
-        startTime: times.startTime,
-        endTime: isBreak
-          ? (() => {
-              const [h, m] = times.startTime.split(":").map(Number);
-              const end = h * 60 + m + 15;
-              return `${String(Math.floor(end / 60) % 24).padStart(2, "0")}:${String(end % 60).padStart(2, "0")}`;
-            })()
-          : times.endTime,
-        isBreak,
-        entryCount: 0,
-      }),
-    ]);
-  }
-
-  async function removeRow(row) {
-    if ((rows || []).length <= 1) {
-      toast.error("Keep at least one period in the bell schedule.");
-      return;
-    }
-    if (row.entryCount > 0) {
-      const ok = await confirm({
-        title: "Remove period?",
-        message: `Remove “${row.name || "this period"}”? ${row.entryCount} timetable slot${
-          row.entryCount === 1 ? "" : "s"
-        } using it will also be deleted.`,
-        confirmLabel: "Remove period",
-        tone: "danger",
-      });
-      if (!ok) return;
-    }
-    setRows((list) => list.filter((r) => r.key !== row.key));
-  }
-
-  function resetChanges() {
-    if (!savedSnapshot) return;
-    setRows(JSON.parse(savedSnapshot).map(toPeriodDraft));
-  }
-
-  async function save() {
-    if (!rows?.length) {
-      toast.error("Keep at least one period in the bell schedule.");
-      return;
-    }
-    for (const row of rows) {
-      if (!String(row.name || "").trim()) {
-        toast.error("Every period needs a name.");
-        return;
-      }
-      if (!row.startTime || !row.endTime) {
-        toast.error("Every period needs start and end times.");
-        return;
-      }
-      if (row.startTime >= row.endTime) {
-        toast.error(`End time must be after start time for ${row.name}.`);
-        return;
-      }
-    }
-    setBusy(true);
-    try {
-      const saved = await api("/api/timetable/periods", {
-        method: "PUT",
-        body: { periods: serializePeriods(rows) },
-      });
-      applyLoaded(saved);
-      toast.success("Bell schedule saved. Teacher timetables use these periods and timings.");
-    } catch (err) {
-      toast.error(err.message || "Could not save periods");
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  if (error) return <p className="text-sm text-clay-600">{error}</p>;
-  if (!rows) return <p>Loading bell schedule…</p>;
-
-  return (
-    <div>
-      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <p className="text-sm text-ink-700/65">
-            Set the school day periods and timings used across teacher timetables, the daily board, and free-period finder.
-          </p>
-          <p className="mt-1 text-sm text-ink-700/55">
-            {rows.length} slots · {teachingCount} teaching
-            {dirty ? " · unsaved changes" : ""}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn-ghost" onClick={() => addRow({ isBreak: false })} disabled={busy}>
-            Add period
-          </button>
-          <button type="button" className="btn-ghost" onClick={() => addRow({ isBreak: true })} disabled={busy}>
-            Add break
-          </button>
-          <button type="button" className="btn-ghost" onClick={resetChanges} disabled={busy || !dirty}>
-            Discard
-          </button>
-          <button type="button" className="btn-primary" onClick={save} disabled={busy || !dirty}>
-            {busy ? "Saving…" : "Save schedule"}
-          </button>
-        </div>
-      </div>
-
-      <div className="card overflow-x-auto">
-        <table className="table min-w-[40rem]">
-          <thead>
-            <tr>
-              <th className="w-12">#</th>
-              <th>Name</th>
-              <th>Start</th>
-              <th>End</th>
-              <th>Break</th>
-              <th>Slots</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={row.key} className={row.isBreak ? "bg-ink-900/[0.03]" : undefined}>
-                <td className="align-middle text-ink-700/55">{index + 1}</td>
-                <td className="align-middle">
-                  <input
-                    className="field"
-                    value={row.name}
-                    onChange={(e) => updateRow(row.key, { name: e.target.value })}
-                    disabled={busy}
-                    aria-label={`Period ${index + 1} name`}
-                  />
-                </td>
-                <td className="align-middle">
-                  <input
-                    type="time"
-                    className="field"
-                    value={row.startTime}
-                    onChange={(e) => updateRow(row.key, { startTime: e.target.value })}
-                    disabled={busy}
-                    aria-label={`${row.name || `Period ${index + 1}`} start time`}
-                  />
-                </td>
-                <td className="align-middle">
-                  <input
-                    type="time"
-                    className="field"
-                    value={row.endTime}
-                    onChange={(e) => updateRow(row.key, { endTime: e.target.value })}
-                    disabled={busy}
-                    aria-label={`${row.name || `Period ${index + 1}`} end time`}
-                  />
-                </td>
-                <td className="align-middle">
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={row.isBreak}
-                      onChange={(e) => updateRow(row.key, { isBreak: e.target.checked })}
-                      disabled={busy}
-                    />
-                    Break
-                  </label>
-                </td>
-                <td className="align-middle text-sm text-ink-700/60">
-                  {row.isBreak ? "—" : row.entryCount}
-                </td>
-                <td className="align-middle">
-                  <div className="flex flex-wrap justify-end gap-1">
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      onClick={() => moveRow(row.key, -1)}
-                      disabled={busy || index === 0}
-                      aria-label="Move up"
-                    >
-                      Up
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      onClick={() => moveRow(row.key, 1)}
-                      disabled={busy || index === rows.length - 1}
-                      aria-label="Move down"
-                    >
-                      Down
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      onClick={() => removeRow(row)}
-                      disabled={busy || rows.length <= 1}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
-  );
-}
-
-function serializePeriods(rows) {
-  return rows.map((row, index) => ({
-    ...(row.id ? { id: row.id } : {}),
-    name: String(row.name || "").trim(),
-    sortOrder: index + 1,
-    startTime: normalizeTime(row.startTime),
-    endTime: normalizeTime(row.endTime),
-    isBreak: Boolean(row.isBreak),
-    ...(row.id ? { entryCount: row.entryCount || 0 } : {}),
-  }));
-}
-
-function normalizeTime(value) {
-  const parts = String(value || "").trim().split(":");
-  if (parts.length < 2) return String(value || "").trim();
-  const h = Number(parts[0]);
-  const m = Number(parts[1]);
-  if (!Number.isInteger(h) || !Number.isInteger(m) || h < 0 || h > 23 || m < 0 || m > 59) {
-    return String(value || "").trim();
-  }
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
 function TeachersList() {

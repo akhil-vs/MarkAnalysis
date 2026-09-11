@@ -14,7 +14,7 @@ const VIEWS = [
   { id: "monthly", label: "Monthly" },
 ];
 
-const WEEKDAY_ORDER = [1, 2, 3, 4, 5, 6];
+const FALLBACK_WORKING_DAYS = [1, 2, 3, 4, 5, 6];
 
 function todayYmd() {
   const d = new Date();
@@ -169,6 +169,10 @@ export default function TeacherTimetable() {
         setData(res);
         if (res.teacher?.assignments?.length) {
           const first = res.teacher.assignments[0];
+          const working =
+            Array.isArray(res.workingDays) && res.workingDays.length
+              ? res.workingDays
+              : FALLBACK_WORKING_DAYS;
           setForm((f) =>
             f.classSectionId
               ? f
@@ -177,6 +181,7 @@ export default function TeacherTimetable() {
                   classSectionId: first.classSectionId,
                   subjectId: first.subjectId,
                   periodId: (res.periods || []).find((p) => !p.isBreak)?.id || "",
+                  dayOfWeek: String(working[0] || 1),
                 }
           );
         }
@@ -215,7 +220,11 @@ export default function TeacherTimetable() {
       if (!map.has(key)) map.set(key, []);
       map.get(key).push(e);
     }
-    return { map, days: WEEKDAY_ORDER };
+    const days =
+      Array.isArray(data.workingDays) && data.workingDays.length
+        ? data.workingDays
+        : FALLBACK_WORKING_DAYS;
+    return { map, days };
   }, [data, view]);
 
   async function saveEntry(e) {
@@ -285,7 +294,7 @@ export default function TeacherTimetable() {
             <Link to="/timetables" className="btn-ghost">All teachers</Link>
             <Link to={`/timetables?mode=daily&date=${date}`} className="btn-ghost">Daily board</Link>
             <Link to={`/timetables?mode=free&date=${date}`} className="btn-ghost">Find free</Link>
-            <Link to="/timetables?mode=periods" className="btn-ghost">Periods</Link>
+            <Link to="/school#school-schedule" className="btn-ghost">School schedule</Link>
             {VIEWS.map((v) => (
               <button
                 key={v.id}
@@ -374,7 +383,7 @@ export default function TeacherTimetable() {
                 onChange={(e) => setForm({ ...form, dayOfWeek: e.target.value })}
                 disabled={busy}
               >
-                {WEEKDAY_ORDER.map((d) => (
+                {(data.workingDays?.length ? data.workingDays : FALLBACK_WORKING_DAYS).map((d) => (
                   <option key={d} value={d}>{data.dayNames?.[d] || d}</option>
                 ))}
               </select>
