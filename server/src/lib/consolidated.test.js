@@ -1,6 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
-import { buildConsolidatedStudentRows, scaleMarksToConsolidation } from "./consolidatedRows.js";
+import { applyExamConsolidationMax, buildConsolidatedStudentRows, scaleMarksToConsolidation } from "./consolidatedRows.js";
 
 describe("buildConsolidatedStudentRows", () => {
   const subjects = [
@@ -116,5 +116,25 @@ describe("scaleMarksToConsolidation", () => {
   it("caps raw marks that already exceed the consolidation ceiling", () => {
     assert.equal(scaleMarksToConsolidation(110, { maxMarks: 100, consolidationMaxMarks: 100 }), 100);
     assert.equal(scaleMarksToConsolidation(110, { maxMarks: 100, consolidationMaxMarks: 80 }), 80);
+  });
+});
+
+describe("applyExamConsolidationMax", () => {
+  it("stamps the exam ceiling onto every subject", () => {
+    const papers = applyExamConsolidationMax(
+      [
+        { id: "math", name: "Math", maxMarks: 80 },
+        { id: "eng", name: "English", maxMarks: 100 },
+      ],
+      { consolidationMaxMarks: 50 }
+    );
+    assert.equal(papers[0].consolidationMaxMarks, 50);
+    assert.equal(papers[1].consolidationMaxMarks, 50);
+    assert.equal(papers[0].maxMarks, 80);
+  });
+
+  it("leaves subjects unchanged when the exam has no ceiling", () => {
+    const subjects = [{ id: "math", maxMarks: 100 }];
+    assert.equal(applyExamConsolidationMax(subjects, {}), subjects);
   });
 });

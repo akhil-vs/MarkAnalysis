@@ -239,11 +239,11 @@ function ClassesTab() {
 }
 
 function emptySubjectForm(className = "") {
-  return { name: "", className, maxMarks: 100, consolidationMaxMarks: 100 };
+  return { name: "", className, maxMarks: 100 };
 }
 
 function subjectSearchText(r) {
-  return searchHaystack(r.name, r.className, r.maxMarks, r.consolidationMaxMarks);
+  return searchHaystack(r.name, r.className, r.maxMarks);
 }
 
 function uniqueClassNames(sections = []) {
@@ -257,14 +257,12 @@ const SUBJECT_FILTERS = [{ key: "className", match: (r, v) => String(r.className
 function SubjectsTab() {
   const [rows, setRows] = useState([]);
   const [classSections, setClassSections] = useState([]);
-  const [settings, setSettings] = useState({ maxMarksLocked: false, lockedAt: null, lockedBy: null });
   const confirm = useConfirm();
   const [form, setForm] = useState(emptySubjectForm());
   const [formError, setFormError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
-  const [maxDraft, setMaxDraft] = useState({});
   const table = useTableSearch(rows, { getSearchText: subjectSearchText, filterDefs: SUBJECT_FILTERS });
   const classOptions = useMemo(() => uniqueClassNames(classSections), [classSections]);
   const formClassOptions = useMemo(() => {
@@ -273,22 +271,14 @@ function SubjectsTab() {
       String(a).localeCompare(String(b), undefined, { numeric: true })
     );
   }, [classOptions, form.className]);
-  const maxMarksLocked = Boolean(settings.maxMarksLocked);
 
   async function load() {
-    const [subjects, classes, consolidation] = await Promise.all([
+    const [subjects, classes] = await Promise.all([
       api("/api/subjects"),
       api("/api/classes"),
-      api("/api/consolidation/max-marks").catch(() => null),
     ]);
     setRows(subjects);
     setClassSections(classes);
-    setSettings(consolidation?.settings || { maxMarksLocked: false, lockedAt: null, lockedBy: null });
-    setMaxDraft(
-      Object.fromEntries(
-        (subjects || []).map((s) => [s.id, s.consolidationMaxMarks ?? s.maxMarks])
-      )
-    );
     const options = uniqueClassNames(classes);
     setForm((f) => {
       if (f.className && options.includes(f.className)) return f;
@@ -304,7 +294,6 @@ function SubjectsTab() {
       name: row.name,
       className: row.className,
       maxMarks: row.maxMarks,
-      consolidationMaxMarks: row.consolidationMaxMarks ?? row.maxMarks,
     });
   }
 
@@ -322,10 +311,7 @@ function SubjectsTab() {
     }
     const name = requiredText(form.name, "Subject name");
     const maxMarks = parsePositiveInt(form.maxMarks, "Max marks");
-    const consolidationMaxMarks = maxMarksLocked && editingId
-      ? { value: form.consolidationMaxMarks }
-      : parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]");
-    const err = firstError(name, maxMarks, consolidationMaxMarks);
+    const err = firstError(name, maxMarks);
     if (err) {
       setFormError(err);
       toast.error(err);
@@ -334,27 +320,12 @@ function SubjectsTab() {
     setFormError("");
     setBusy(true);
     try {
+      const body = { name: name.value, className: form.className, maxMarks: maxMarks.value };
       if (editingId) {
-        const body = maxMarksLocked
-          ? { name: name.value, className: form.className, maxMarks: maxMarks.value }
-          : {
-              name: name.value,
-              className: form.className,
-              maxMarks: maxMarks.value,
-              consolidationMaxMarks: consolidationMaxMarks.value,
-            };
         await api(`/api/subjects/${editingId}`, { method: "PATCH", body });
         toast.success("Subject updated.");
       } else {
-        await api("/api/subjects", {
-          method: "POST",
-          body: {
-            name: name.value,
-            className: form.className,
-            maxMarks: maxMarks.value,
-            consolidationMaxMarks: consolidationMaxMarks.value,
-          },
-        });
+        await api("/api/subjects", { method: "POST", body });
         toast.success("Subject created.");
       }
       cancelEdit();
@@ -386,342 +357,127 @@ function SubjectsTab() {
     }
   }
 
-  function validateConsolidationDraft() {
-    for (const s of rows) {
-      const parsed = parsePositiveInt(
-        maxDraft[s.id] ?? s.consolidationMaxMarks ?? s.maxMarks,
-        `Max marks [consolidation] for ${s.name}`
-      );
-      if (parsed.error) return parsed.error;
-    }
-    return null;
-  }
-
-  async function saveMaxMarks() {
-    if (maxMarksLocked) return;
-    const err = validateConsolidationDraft();
-    if (err) {
-      toast.error(err);
-      return;
-    }
-    setBusy(true);
-    try {
-      const subjects = rows.map((s) => ({
-        id: s.id,
-        consolidationMaxMarks: Number(maxDraft[s.id] ?? s.consolidationMaxMarks ?? s.maxMarks),
-      }));
-      const res = await api("/api/consolidation/max-marks", {
-        method: "PUT",
-        body: { subjects },
-      });
-      setRows(res.subjects || rows);
-      setMaxDraft(
-        Object.fromEntries(
-          (res.subjects || []).map((s) => [s.id, s.consolidationMaxMarks ?? s.maxMarks])
-        )
-      );
-      setSettings(res.settings || settings);
-      toast.success("Consolidation max marks saved.");
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function lockMaxMarks() {
-    if (
-      !(await confirm({
-        title: "Lock consolidation max marks?",
-        message:
-          "This is a one-time lock for consolidation. Consolidation ceilings used for totals and percentages will stay fixed until you unlock them. Entry max marks remain editable.",
-        confirmLabel: "Lock max marks",
-      }))
-    ) {
-      return;
-    }
-    if (!maxMarksLocked && rows.length) {
-      const err = validateConsolidationDraft();
-      if (err) {
-        toast.error(err);
-        return;
-      }
-    }
-    setBusy(true);
-    try {
-      if (!maxMarksLocked && rows.length) {
-        const subjects = rows.map((s) => ({
-          id: s.id,
-          consolidationMaxMarks: Number(maxDraft[s.id] ?? s.consolidationMaxMarks ?? s.maxMarks),
-        }));
-        const saved = await api("/api/consolidation/max-marks", {
-          method: "PUT",
-          body: { subjects },
-        });
-        setRows(saved.subjects || rows);
-        setMaxDraft(
-          Object.fromEntries(
-            (saved.subjects || []).map((s) => [s.id, s.consolidationMaxMarks ?? s.maxMarks])
-          )
-        );
-      }
-      const res = await api("/api/consolidation/max-marks/lock", { method: "POST" });
-      setSettings(res.settings || { maxMarksLocked: true });
-      toast.success("Consolidation max marks locked.");
-      await load();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function unlockMaxMarks() {
-    if (
-      !(await confirm({
-        title: "Unlock consolidation max marks?",
-        message: "Unlock only to correct a consolidation ceiling, then lock again before publishing official lists.",
-        confirmLabel: "Unlock",
-        tone: "danger",
-      }))
-    ) {
-      return;
-    }
-    setBusy(true);
-    try {
-      const res = await api("/api/consolidation/max-marks/unlock", { method: "POST" });
-      setSettings(res.settings || { maxMarksLocked: false });
-      toast.success("Consolidation max marks unlocked.");
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   return (
-    <div className="space-y-4">
-      <div className="card p-4">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h3 className="font-serif text-lg">Max marks [consolidation]</h3>
-            {maxMarksLocked ? (
-              <p className="mt-1 text-sm text-moss-600">
-                Locked
-                {settings.lockedBy?.name ? ` by ${settings.lockedBy.name}` : ""}
-                {settings.lockedAt ? ` on ${new Date(settings.lockedAt).toLocaleString()}` : ""}.
-                Consolidated lists scale entered marks onto these ceilings so totals and percentages stay within 100%. Entry max marks can still be edited per subject.
-              </p>
-            ) : (
-              <p className="mt-1 text-sm text-ink-700/70">
-                Set Max marks [consolidation] for each subject (used only for consolidated lists), then lock once.
-                Max marks for mark entry are separate.
-              </p>
-            )}
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {!maxMarksLocked && (
-              <>
-                <button type="button" className="btn-ghost" disabled={busy || !rows.length} onClick={saveMaxMarks}>
-                  <BusyLabel busy={busy} idle="Save consolidation max" busyText="Saving…" />
-                </button>
-                <button type="button" className="btn-primary" disabled={busy || !rows.length} onClick={lockMaxMarks}>
-                  Lock for consolidation
-                </button>
-              </>
-            )}
-            {maxMarksLocked && (
-              <button type="button" className="btn-ghost" disabled={busy} onClick={unlockMaxMarks}>
-                Unlock
-              </button>
-            )}
-          </div>
+    <div className="grid lg:grid-cols-3 gap-4">
+      <form className="card p-4 space-y-3" onSubmit={save}>
+        <h3 className="font-serif text-lg">{editingId ? "Edit subject" : "Add subject"}</h3>
+        <div>
+          <label className="label">Subject name</label>
+          <input
+            className={fieldClass(!form.name.trim() && formError)}
+            placeholder="e.g. Mathematics"
+            value={form.name}
+            onChange={(e) => setForm({ ...form, name: e.target.value })}
+            required
+            disabled={busy}
+          />
         </div>
-      </div>
-
-      <div className="grid lg:grid-cols-3 gap-4">
-        <form className="card p-4 space-y-3" onSubmit={save}>
-          <h3 className="font-serif text-lg">{editingId ? "Edit subject" : "Add subject"}</h3>
-          <div>
-            <label className="label">Subject name</label>
-            <input
-              className={fieldClass(!form.name.trim() && formError)}
-              placeholder="e.g. Mathematics"
-              value={form.name}
-              onChange={(e) => setForm({ ...form, name: e.target.value })}
-              required
-              disabled={busy}
-            />
-          </div>
-          <div>
-            <label className="label">Class</label>
+        <div>
+          <label className="label">Class</label>
+          <select
+            className="field"
+            value={form.className}
+            onChange={(e) => setForm({ ...form, className: e.target.value })}
+            required
+            disabled={busy || formClassOptions.length === 0}
+            aria-label="Select class"
+          >
+            {formClassOptions.length === 0 ? (
+              <option value="">No classes yet</option>
+            ) : (
+              formClassOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))
+            )}
+          </select>
+          <p className="mt-1 text-xs text-ink-700/55">
+            Choose from classes already created (without section).
+          </p>
+        </div>
+        <div>
+          <label className="label">Max marks</label>
+          <input
+            className={fieldClass(formError && parsePositiveInt(form.maxMarks, "Max marks").error)}
+            type="number"
+            min={1}
+            step={1}
+            inputMode="numeric"
+            placeholder="Max marks"
+            value={form.maxMarks}
+            onKeyDown={rejectNegativeKey}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                maxMarks: acceptNonNegativeInput(e.target.value, form.maxMarks, { integer: true }),
+              })
+            }
+            required
+            disabled={busy}
+          />
+          <p className="mt-1 text-xs text-ink-700/55">
+            Ceiling for mark entry and register validation. Must be 1 or more. Consolidation max is set per exam.
+          </p>
+        </div>
+        {formError && <FieldError message={formError} />}
+        {classOptions.length === 0 && (
+          <p className="text-sm text-clay-600">Add a class section under Classes before creating subjects.</p>
+        )}
+        <div className="flex gap-2">
+          <button className="btn-primary" disabled={busy || classOptions.length === 0}>
+            <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
+          </button>
+          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
+        </div>
+      </form>
+      <div className="lg:col-span-2 card">
+        <div className="p-3 border-b border-ink-900/10">
+          <TableToolbar
+            q={table.q}
+            setQ={table.setQ}
+            placeholder="Search subject or class"
+            matched={table.matched}
+            total={table.total}
+          >
             <select
-              className="field"
-              value={form.className}
-              onChange={(e) => setForm({ ...form, className: e.target.value })}
-              required
-              disabled={busy || formClassOptions.length === 0}
-              aria-label="Select class"
+              className="field-filter"
+              value={table.filters.className || ""}
+              onChange={(e) => table.setFilter("className", e.target.value)}
+              aria-label="Filter by class"
             >
-              {formClassOptions.length === 0 ? (
-                <option value="">No classes yet</option>
-              ) : (
-                formClassOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))
-              )}
+              <option value="">All classes</option>
+              {classOptions.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
-            <p className="mt-1 text-xs text-ink-700/55">
-              Choose from classes already created (without section).
-            </p>
-          </div>
-          <div>
-            <label className="label">Max marks</label>
-            <input
-              className={fieldClass(formError && parsePositiveInt(form.maxMarks, "Max marks").error)}
-              type="number"
-              min={1}
-              step={1}
-              inputMode="numeric"
-              placeholder="Max marks"
-              value={form.maxMarks}
-              onKeyDown={rejectNegativeKey}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  maxMarks: acceptNonNegativeInput(e.target.value, form.maxMarks, { integer: true }),
-                })
-              }
-              required
-              disabled={busy}
-            />
-            <p className="mt-1 text-xs text-ink-700/55">Ceiling for mark entry and register validation. Must be 1 or more.</p>
-          </div>
-          <div>
-            <label className="label">Max marks [consolidation]</label>
-            <input
-              className={fieldClass(
-                formError && parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]").error
-              )}
-              type="number"
-              min={1}
-              step={1}
-              inputMode="numeric"
-              placeholder="Consolidation max"
-              value={form.consolidationMaxMarks}
-              onKeyDown={rejectNegativeKey}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  consolidationMaxMarks: acceptNonNegativeInput(
-                    e.target.value,
-                    form.consolidationMaxMarks,
-                    { integer: true }
-                  ),
-                })
-              }
-              required
-              disabled={busy || (editingId && maxMarksLocked)}
-            />
-            {maxMarksLocked && editingId ? (
-              <p className="mt-1 text-xs text-clay-600">
-                Consolidation max is locked. Unlock above to change it.
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-ink-700/55">
-                Entered marks are scaled to this ceiling so CML totals and percentages stay within 100%. Must be 1 or more.
-              </p>
-            )}
-          </div>
-          {formError && <FieldError message={formError} />}
-          {classOptions.length === 0 && (
-            <p className="text-sm text-clay-600">Add a class section under Classes before creating subjects.</p>
-          )}
-          <div className="flex gap-2">
-            <button className="btn-primary" disabled={busy || classOptions.length === 0}>
-              <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
-            </button>
-            {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
-          </div>
-        </form>
-        <div className="lg:col-span-2 card">
-          <div className="p-3 border-b border-ink-900/10">
-            <TableToolbar
-              q={table.q}
-              setQ={table.setQ}
-              placeholder="Search subject or class"
-              matched={table.matched}
-              total={table.total}
-            >
-              <select
-                className="field-filter"
-                value={table.filters.className || ""}
-                onChange={(e) => table.setFilter("className", e.target.value)}
-                aria-label="Filter by class"
-              >
-                <option value="">All classes</option>
-                {classOptions.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </TableToolbar>
-          </div>
-          <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subjects yet." busy={busy} busyLabel="Updating subjects…">
-            {(page) => (
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Subject</th>
-                    <th>Class</th>
-                    <th>Max marks</th>
-                    <th>Max marks [consolidation]</th>
-                    <th></th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {page.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.name}</td>
-                      <td>{r.className}</td>
-                      <td>{r.maxMarks}</td>
-                      <td>
-                        {maxMarksLocked ? (
-                          r.consolidationMaxMarks ?? r.maxMarks
-                        ) : (
-                          <input
-                            className="field w-24"
-                            type="number"
-                            min={1}
-                            step={1}
-                            inputMode="numeric"
-                            value={maxDraft[r.id] ?? r.consolidationMaxMarks ?? r.maxMarks}
-                            disabled={busy}
-                            onKeyDown={rejectNegativeKey}
-                            onChange={(e) =>
-                              setMaxDraft((prev) => ({
-                                ...prev,
-                                [r.id]: acceptNonNegativeInput(
-                                  e.target.value,
-                                  prev[r.id] ?? r.consolidationMaxMarks ?? r.maxMarks,
-                                  { integer: true }
-                                ),
-                              }))
-                            }
-                            aria-label={`Consolidation max marks for ${r.name} class ${r.className}`}
-                          />
-                        )}
-                      </td>
-                      <td className="whitespace-nowrap space-x-2">
-                        <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
-                        <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </PaginatedTable>
+          </TableToolbar>
         </div>
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subjects yet." busy={busy} busyLabel="Updating subjects…">
+          {(page) => (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Subject</th>
+                  <th>Class</th>
+                  <th>Max marks</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {page.map((r) => (
+                  <tr key={r.id}>
+                    <td>{r.name}</td>
+                    <td>{r.className}</td>
+                    <td>{r.maxMarks}</td>
+                    <td className="whitespace-nowrap space-x-2">
+                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
+                      <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </PaginatedTable>
       </div>
     </div>
   );
@@ -1081,11 +837,16 @@ function emptyExamForm() {
     type: "UNIT_TEST",
     academicYear: "",
     marksEntryDeadline: "",
+    consolidationMaxMarks: 100,
   };
 }
 
 function examSearchText(r) {
-  return searchHaystack(r.name, r.term, r.type, r.academicYear);
+  return searchHaystack(r.name, r.term, r.type, r.academicYear, r.consolidationMaxMarks);
+}
+
+function examIsLocked(row) {
+  return Boolean(row?.consolidationLocked || row?.consolidation?.maxMarksLocked);
 }
 
 const EXAM_FILTERS = [
@@ -1097,6 +858,7 @@ function ExamsTab() {
   const [rows, setRows] = useState([]);
   const confirm = useConfirm();
   const [form, setForm] = useState(emptyExamForm());
+  const [formError, setFormError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -1106,6 +868,8 @@ function ExamsTab() {
     () => [...new Set(rows.map((r) => r.academicYear).filter(Boolean))].sort().reverse(),
     [rows]
   );
+  const editingRow = editingId ? rows.find((r) => r.id === editingId) : null;
+  const consolidationLocked = examIsLocked(editingRow);
 
   async function load() {
     setRows(await api("/api/exams"));
@@ -1114,6 +878,7 @@ function ExamsTab() {
 
   function startEdit(row) {
     setEditingId(row.id);
+    setFormError("");
     setForm({
       name: row.name,
       term: row.term,
@@ -1123,11 +888,13 @@ function ExamsTab() {
       marksEntryDeadline: row.marksEntryDeadline
         ? new Date(row.marksEntryDeadline).toISOString().slice(0, 10)
         : "",
+      consolidationMaxMarks: row.consolidationMaxMarks ?? row.consolidation?.consolidationMaxMarks ?? 100,
     });
   }
 
   function cancelEdit() {
     setEditingId(null);
+    setFormError("");
     setForm(emptyExamForm());
   }
 
@@ -1137,18 +904,27 @@ function ExamsTab() {
     const term = requiredText(form.term, "Term");
     const date = requiredText(form.date, "Exam date");
     const year = parseAcademicYear(form.academicYear);
-    const err = firstError(name, term, date, year);
+    const consolidationMaxMarks = consolidationLocked && editingId
+      ? { value: form.consolidationMaxMarks }
+      : parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]");
+    const err = firstError(name, term, date, year, consolidationMaxMarks);
     if (err) {
+      setFormError(err);
       toast.error(err);
       return;
     }
     const body = {
-      ...form,
       name: name.value,
       term: term.value,
+      date: form.date,
+      type: form.type,
       academicYear: year.value,
       marksEntryDeadline: form.marksEntryDeadline || null,
     };
+    if (!(consolidationLocked && editingId)) {
+      body.consolidationMaxMarks = consolidationMaxMarks.value;
+    }
+    setFormError("");
     setBusy(true);
     try {
       if (editingId) {
@@ -1187,6 +963,63 @@ function ExamsTab() {
     }
   }
 
+  async function lockConsolidation() {
+    if (!editingId) return;
+    const parsed = parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]");
+    if (parsed.error) {
+      setFormError(parsed.error);
+      toast.error(parsed.error);
+      return;
+    }
+    if (
+      !(await confirm({
+        title: "Lock consolidation max marks?",
+        message:
+          "This exam’s consolidation ceiling used for totals and percentages will stay fixed until you unlock it. Subject entry max marks remain editable.",
+        confirmLabel: "Lock max marks",
+      }))
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const saved = await api(`/api/exams/${editingId}/consolidation/lock`, {
+        method: "POST",
+        body: { consolidationMaxMarks: parsed.value },
+      });
+      setRows((prev) => prev.map((r) => (r.id === saved.id ? saved : r)));
+      toast.success("Consolidation max marks locked for this exam.");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function unlockConsolidation() {
+    if (!editingId) return;
+    if (
+      !(await confirm({
+        title: "Unlock consolidation max marks?",
+        message: "Unlock only to correct this exam’s consolidation ceiling, then lock again before publishing official lists.",
+        confirmLabel: "Unlock",
+        tone: "danger",
+      }))
+    ) {
+      return;
+    }
+    setBusy(true);
+    try {
+      const saved = await api(`/api/exams/${editingId}/consolidation/unlock`, { method: "POST" });
+      setRows((prev) => prev.map((r) => (r.id === saved.id ? saved : r)));
+      toast.success("Consolidation max marks unlocked for this exam.");
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="grid lg:grid-cols-3 gap-4">
       <form className="card p-4 space-y-3" onSubmit={save}>
@@ -1210,10 +1043,64 @@ function ExamsTab() {
             disabled={busy}
           />
         </div>
-        <div className="flex gap-2">
+        <div>
+          <label className="label">Max marks [consolidation]</label>
+          <input
+            className={fieldClass(
+              formError && parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]").error
+            )}
+            type="number"
+            min={1}
+            step={1}
+            inputMode="numeric"
+            placeholder="Consolidation max"
+            value={form.consolidationMaxMarks}
+            onKeyDown={rejectNegativeKey}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                consolidationMaxMarks: acceptNonNegativeInput(
+                  e.target.value,
+                  form.consolidationMaxMarks,
+                  { integer: true }
+                ),
+              })
+            }
+            required
+            disabled={busy || (Boolean(editingId) && consolidationLocked)}
+          />
+          {editingId && consolidationLocked ? (
+            <p className="mt-1 text-xs text-clay-600">
+              Locked
+              {editingRow?.consolidation?.lockedBy?.name
+                ? ` by ${editingRow.consolidation.lockedBy.name}`
+                : ""}
+              {editingRow?.consolidation?.lockedAt
+                ? ` on ${new Date(editingRow.consolidation.lockedAt).toLocaleString()}`
+                : ""}
+              . Unlock to change this exam’s CML ceiling.
+            </p>
+          ) : (
+            <p className="mt-1 text-xs text-ink-700/55">
+              Entered marks are scaled to this ceiling so this exam’s consolidated lists stay within 100%. Must be 1 or more.
+            </p>
+          )}
+        </div>
+        {formError && <FieldError message={formError} />}
+        <div className="flex flex-wrap gap-2">
           <button className="btn-primary" disabled={busy}>
             <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
           </button>
+          {editingId && !consolidationLocked && (
+            <button type="button" className="btn-ghost" onClick={lockConsolidation} disabled={busy}>
+              Lock for consolidation
+            </button>
+          )}
+          {editingId && consolidationLocked && (
+            <button type="button" className="btn-ghost" onClick={unlockConsolidation} disabled={busy}>
+              Unlock
+            </button>
+          )}
           {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
         </div>
       </form>
@@ -1259,6 +1146,7 @@ function ExamsTab() {
                   <th>Year</th>
                   <th>Term</th>
                   <th>Type</th>
+                  <th>CML max</th>
                   <th>Date</th>
                   <th>Deadline</th>
                   <th></th>
@@ -1271,6 +1159,12 @@ function ExamsTab() {
                     <td>{r.academicYear || "—"}</td>
                     <td>{r.term}</td>
                     <td>{r.type}</td>
+                    <td>
+                      {r.consolidationMaxMarks ?? r.consolidation?.consolidationMaxMarks ?? "—"}
+                      {examIsLocked(r) ? (
+                        <span className="ml-1 text-xs text-moss-600">locked</span>
+                      ) : null}
+                    </td>
                     <td>{new Date(r.date).toLocaleDateString()}</td>
                     <td>{r.marksEntryDeadline ? new Date(r.marksEntryDeadline).toLocaleDateString() : "—"}</td>
                     <td className="whitespace-nowrap space-x-2">

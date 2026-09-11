@@ -94,7 +94,7 @@ export function registerAnalyticsInsights(router) {
       outcomes: outcomeBreakdown(marks),
       markBands: markBandHistogram(marks),
       lists,
-      dualCeiling: dualCeilingWarnings(await prisma.subject.findMany()),
+      dualCeiling: dualCeilingWarnings(await prisma.subject.findMany(), exam.consolidationMaxMarks),
     });
   });
 

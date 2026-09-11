@@ -306,7 +306,7 @@ function OutcomesTab({ data }) {
           </div>
           {data.dualCeiling?.length > 0 && (
             <div className="mt-4 pt-3 border-t border-ink-900/10 text-sm text-clay-700">
-              Dual ceiling: {data.dualCeiling.length} subjects have different maxMarks vs consolidationMaxMarks.
+              Dual ceiling: {data.dualCeiling.length} subjects have a different entry max than this exam’s consolidation max.
             </div>
           )}
         </Panel>

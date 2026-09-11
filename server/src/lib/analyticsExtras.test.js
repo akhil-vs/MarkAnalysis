@@ -201,9 +201,10 @@ describe("teacher load and weighted annual", () => {
     ];
     const result = weightedAnnualForStudent(marks, exams, { UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 });
     assert.equal(result.composite, 76);
-    const warnings = dualCeilingWarnings([
-      { id: "sub1", name: "Math", className: "10", maxMarks: 100, consolidationMaxMarks: 80 },
-    ]);
+    const warnings = dualCeilingWarnings(
+      [{ id: "sub1", name: "Math", className: "10", maxMarks: 100 }],
+      80
+    );
     assert.equal(warnings.length, 1);
     const years = suggestPromotionYears([
       { academicYear: "2024-25" },

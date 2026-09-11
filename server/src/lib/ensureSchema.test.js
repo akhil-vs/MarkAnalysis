@@ -65,6 +65,17 @@ describe("ensureSchema bootstrap", () => {
     assert.ok(__test.SUBJECT_CONSOL_MAX_STATEMENTS[0].includes("consolidationMaxMarks"));
   });
 
+  it("embeds exam consolidationMaxMarks migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260911213500_exam_consolidation_max_marks/migration.sql")
+    );
+    assert.equal(__test.EXAM_CONSOL_MAX_CHECKSUM, createHash("sha256").update(file).digest("hex"));
+    assert.equal(__test.EXAM_CONSOL_MAX_MIGRATION, "20260911213500_exam_consolidation_max_marks");
+    assert.ok(__test.EXAM_CONSOL_MAX_STATEMENTS[0].includes('ALTER TABLE "Exam"'));
+    assert.ok(__test.EXAM_CONSOL_MAX_STATEMENTS.some((s) => s.includes("consolidationMaxMarks")));
+    assert.ok(__test.EXAM_CONSOL_MAX_FK_STATEMENTS[0].includes("Exam_consolidationLockedById_fkey"));
+  });
+
   it("embeds school grading config migration checksum", () => {
     const file = readFileSync(
       join(migrationsDir, "20260910120000_school_grading_config/migration.sql")

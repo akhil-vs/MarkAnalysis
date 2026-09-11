@@ -97,7 +97,7 @@ async function main() {
   const subjectNames = ["Mathematics", "Physics", "Chemistry", "English", "Biology"];
   const subjects = await prisma.subject.createManyAndReturn({
     data: ["9", "10"].flatMap((className) =>
-      subjectNames.map((name) => ({ name, className, maxMarks: 100, consolidationMaxMarks: 100 }))
+      subjectNames.map((name) => ({ name, className, maxMarks: 100 }))
     ),
   });
   const subjectByKey = Object.fromEntries(subjects.map((s) => [`${s.className}:${s.name}`, s]));
@@ -226,6 +226,7 @@ async function main() {
         date: new Date("2024-07-18"),
         type: "UNIT_TEST",
         marksEntryDeadline: new Date("2024-08-01"),
+        consolidationMaxMarks: 100,
       },
       {
         name: "Mid-Term",

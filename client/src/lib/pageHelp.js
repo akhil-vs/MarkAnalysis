@@ -84,8 +84,8 @@ export const PAGE_HELP = {
   },
   consolidated: {
     title: "What's on this page",
-    about: "Full mark list for a class: every subject side by side, totals, averages, grades, and ranks — once papers are approved.",
-    useful: "The list you print or share after an exam. Class teachers see their section when every paper in that section is in.",
+    about: "Full mark list for a class: every subject side by side, totals, averages, grades, and ranks — once papers are approved. Totals use the selected exam’s consolidation max marks.",
+    useful: "The list you print or share after an exam. Set that exam’s consolidation ceiling under Records → Exams. Class teachers see their section when every paper in that section is in.",
   },
   audit: {
     title: "What's on this page",
@@ -99,7 +99,7 @@ export const PAGE_HELP = {
   },
   records: {
     title: "What's on this page",
-    about: "School structure: classes, subjects (including consolidation max marks), students, the exam calendar, and year-end promotion.",
+    about: "School structure: classes, subjects (entry max marks), students, the exam calendar (including consolidation max marks), and year-end promotion.",
     useful: "Keep this current so registers, analytics, and promotion lineage stay accurate. Promote a class after results are locked, not mid-exam.",
   },
   timetables: {
@@ -125,7 +125,7 @@ export const PAGE_HELP = {
 export const DEEP_INSIGHT_HELP = {
   outcomes: {
     title: "Outcomes & bands",
-    about: "How students scored on this exam: share who was scored vs absent, a histogram of mark bands, board-style pass / distinction / fail counts, and the distinction and fail lists. Dual-ceiling warnings appear when a subject’s exam max differs from its consolidation max.",
+    about: "How students scored on this exam: share who was scored vs absent, a histogram of mark bands, board-style pass / distinction / fail counts, and the distinction and fail lists. Dual-ceiling warnings appear when a subject’s entry max differs from this exam’s consolidation max.",
     useful: "See the shape of results before you print lists — how many sit in each band, who earned distinction, and who is below pass so you can plan remedial work or awards.",
   },
   readiness: {
@@ -171,8 +171,8 @@ export const DEEP_INSIGHT_PANEL_HELP = {
   },
   boardCounts: {
     title: "Board-style counts",
-    about: "Pass, distinction, and fail counts using the pass percent and distinction minimum from School profile. A dual-ceiling note appears when a subject’s exam max differs from its consolidation max.",
-    useful: "Match board reporting language before you print lists. If maxima have drifted, correct them under Records → Subjects so entry and consolidation stay aligned.",
+    about: "Pass, distinction, and fail counts using the pass percent and distinction minimum from School profile. A dual-ceiling note appears when a subject’s entry max differs from this exam’s consolidation max.",
+    useful: "Match board reporting language before you print lists. If maxima have drifted, correct entry max under Records → Subjects and the exam’s consolidation max under Records → Exams.",
   },
   distinction: {
     title: "Distinction list",
