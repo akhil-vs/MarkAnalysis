@@ -16,21 +16,29 @@ export const DEFAULT_WORKING_DAYS = [1, 2, 3, 4, 5, 6];
 /** Common 5-day preset: Monday–Friday. */
 export const FIVE_DAY_WORKING_DAYS = [1, 2, 3, 4, 5];
 
+/** Dedupe while preserving the caller's order (first occurrence wins). */
+function uniqueOrderedDays(raw) {
+  const days = [];
+  const seen = new Set();
+  for (const item of raw || []) {
+    const n = Number(item);
+    if (!Number.isInteger(n) || n < 1 || n > 7 || seen.has(n)) continue;
+    seen.add(n);
+    days.push(n);
+  }
+  return days;
+}
+
 export function normalizeWorkingDays(raw) {
   if (!Array.isArray(raw) || !raw.length) return [...DEFAULT_WORKING_DAYS];
-  const days = [
-    ...new Set(
-      raw
-        .map((d) => Number(d))
-        .filter((n) => Number.isInteger(n) && n >= 1 && n <= 7)
-    ),
-  ].sort((a, b) => a - b);
+  const days = uniqueOrderedDays(raw);
   if (days.length !== 5 && days.length !== 6) return [...DEFAULT_WORKING_DAYS];
   return days;
 }
 
 /**
  * Validate a working-days patch. Accepts 5 or 6 unique ISO weekdays (1–7).
+ * Order is preserved — it drives weekly timetable column order.
  * @returns {{ value: number[] } | { error: string }}
  */
 export function parseWorkingDays(raw) {
@@ -49,7 +57,6 @@ export function parseWorkingDays(raw) {
     seen.add(n);
     days.push(n);
   }
-  days.sort((a, b) => a - b);
   if (days.length !== 5 && days.length !== 6) {
     return { error: "Choose either 5 or 6 working days for the school week" };
   }

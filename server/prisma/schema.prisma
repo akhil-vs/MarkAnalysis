@@ -266,7 +266,7 @@ model SchoolProfile {
   gradeBands      Json?
   /// Weights for annual composite by ExamType: { UNIT_TEST, MID_TERM, FINAL }.
   examWeights     Json?
-  /// Working weekdays as ISO numbers 1=Mon … 7=Sun. Length 5 or 6.
+  /// Working weekdays as ISO numbers 1=Mon … 7=Sun. Length 5 or 6; order is column order.
   workingDays     Json?
   updatedAt       DateTime @updatedAt
 }

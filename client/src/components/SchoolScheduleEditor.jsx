@@ -71,9 +71,14 @@ function serializePeriods(rows) {
 }
 
 function normalizeWorkingDays(days) {
-  const list = [...new Set((days || []).map(Number).filter((n) => n >= 1 && n <= 7))].sort(
-    (a, b) => a - b
-  );
+  const list = [];
+  const seen = new Set();
+  for (const item of days || []) {
+    const n = Number(item);
+    if (!Number.isInteger(n) || n < 1 || n > 7 || seen.has(n)) continue;
+    seen.add(n);
+    list.push(n);
+  }
   if (list.length === 5 || list.length === 6) return list;
   return [...DEFAULT_WORKING_DAYS];
 }
@@ -152,7 +157,20 @@ export function SchoolScheduleEditor() {
         return current.filter((d) => d !== day);
       }
       if (current.length >= weekLength) return current;
-      return [...current, day].sort((a, b) => a - b);
+      return [...current, day];
+    });
+  }
+
+  function moveWorkingDay(day, direction) {
+    setWorkingDays((list) => {
+      const index = list.indexOf(day);
+      if (index < 0) return list;
+      const next = index + direction;
+      if (next < 0 || next >= list.length) return list;
+      const copy = [...list];
+      const [item] = copy.splice(index, 1);
+      copy.splice(next, 0, item);
+      return copy;
     });
   }
 
@@ -323,8 +341,8 @@ export function SchoolScheduleEditor() {
             </button>
           </div>
           <p className="mt-2 text-sm text-ink-700/55">
-            Choose which {weekLength} days the school runs. Teacher weekly grids and period assignment
-            use these days.
+            Choose which {weekLength} days the school runs, then reorder them for the weekly
+            timetable columns.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -348,6 +366,47 @@ export function SchoolScheduleEditor() {
             );
           })}
         </div>
+        {workingDays.length > 0 && (
+          <div>
+            <div className="label mb-2">Day order</div>
+            <div className="space-y-2">
+              {workingDays.map((dayId, index) => {
+                const day = DAY_OPTIONS.find((o) => o.id === dayId);
+                return (
+                  <div
+                    key={dayId}
+                    className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-900/10 bg-white px-3 py-2"
+                  >
+                    <div className="text-sm">
+                      <span className="text-ink-700/45 mr-2">{index + 1}.</span>
+                      {day?.label || dayId}
+                    </div>
+                    <div className="flex flex-wrap gap-1">
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => moveWorkingDay(dayId, -1)}
+                        disabled={busy || index === 0}
+                        aria-label={`Move ${day?.label || dayId} earlier`}
+                      >
+                        Up
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => moveWorkingDay(dayId, 1)}
+                        disabled={busy || index === workingDays.length - 1}
+                        aria-label={`Move ${day?.label || dayId} later`}
+                      >
+                        Down
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {workingDays.length !== weekLength && (
           <p className="text-sm text-clay-600">
             Select exactly {weekLength} days (currently {workingDays.length}).
