@@ -11,7 +11,6 @@ import { isLeadership } from "../lib/roles.js";
 const VIEWS = [
   { id: "daily", label: "Daily" },
   { id: "weekly", label: "Weekly" },
-  { id: "monthly", label: "Monthly" },
 ];
 
 const FALLBACK_WORKING_DAYS = [1, 2, 3, 4, 5, 6];
@@ -32,14 +31,6 @@ function shiftDate(ymd, days) {
   const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(dt.getUTCDate()).padStart(2, "0");
   return `${yy}-${mm}-${dd}`;
-}
-
-function shiftMonth(ymd, delta) {
-  const [y, m] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1 + delta, 1));
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  return `${yy}-${mm}-01`;
 }
 
 function EntryCell({ entries, onEdit, editingId }) {
@@ -110,7 +101,7 @@ export default function TeacherTimetable() {
   const toast = useToast();
   const leadership = isLeadership(user.role);
   const [searchParams, setSearchParams] = useSearchParams();
-  const view = ["daily", "weekly", "monthly"].includes(searchParams.get("view"))
+  const view = ["daily", "weekly"].includes(searchParams.get("view"))
     ? searchParams.get("view")
     : "weekly";
   const date = searchParams.get("date") || todayYmd();
@@ -288,13 +279,12 @@ export default function TeacherTimetable() {
     <div>
       <PageHeader
         title={title}
-        subtitle="Teaching timetable · choose daily, weekly, or monthly"
+        subtitle="Teaching timetable · daily or weekly"
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/timetables" className="btn-ghost">All teachers</Link>
             <Link to={`/timetables?mode=daily&date=${date}`} className="btn-ghost">Daily board</Link>
             <Link to={`/timetables?mode=free&date=${date}`} className="btn-ghost">Find free</Link>
-            <Link to="/school#school-schedule" className="btn-ghost">School schedule</Link>
             {VIEWS.map((v) => (
               <button
                 key={v.id}
@@ -328,21 +318,6 @@ export default function TeacherTimetable() {
             Weekly template · {(data.entries || []).length} teaching periods
           </span>
         )}
-        {view === "monthly" && (
-          <>
-            <button type="button" className="btn-ghost" onClick={() => setDate(shiftMonth(date, -1))}>Previous month</button>
-            <input
-              type="month"
-              className="field-filter"
-              value={data.month || date.slice(0, 7)}
-              onChange={(e) => setDate(`${e.target.value || date.slice(0, 7)}-01`)}
-            />
-            <button type="button" className="btn-ghost" onClick={() => setDate(shiftMonth(date, 1))}>Next month</button>
-            <span className="text-sm text-ink-700/65">
-              {data.summary?.teachingDays ?? 0} teaching days · {data.summary?.totalSlots ?? 0} periods
-            </span>
-          </>
-        )}
       </div>
 
       {view === "daily" && (
@@ -364,7 +339,6 @@ export default function TeacherTimetable() {
           editingId={editingId}
         />
       )}
-      {view === "monthly" && <MonthlyView data={data} onPickDay={(d) => { setDate(d); setView("daily"); }} />}
 
       {leadership && (
         <form ref={formRef} className="card mt-5 p-4 space-y-3" onSubmit={saveEntry}>
@@ -593,53 +567,6 @@ function WeeklyView({ data, grid, teachingPeriods, onEdit, editingId }) {
           ))}
         </tbody>
       </table>
-    </div>
-  );
-}
-
-function MonthlyView({ data, onPickDay }) {
-  const days = data.days || [];
-  if (!days.length) return <EmptyNote>No days in this month.</EmptyNote>;
-
-  const firstWeekday = days[0].dayOfWeek;
-  const leading = firstWeekday === 7 ? 6 : firstWeekday - 1;
-  const cells = [
-    ...Array.from({ length: leading }, () => null),
-    ...days,
-  ];
-
-  return (
-    <div className="card p-3 sm:p-4">
-      <div className="grid grid-cols-7 gap-1.5 sm:gap-2 mb-2">
-        {["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map((d) => (
-          <div key={d} className="text-center text-[11px] uppercase tracking-wide text-ink-700/55">
-            {d}
-          </div>
-        ))}
-      </div>
-      <div className="grid grid-cols-7 gap-1.5 sm:gap-2">
-        {cells.map((day, idx) => {
-          if (!day) return <div key={`pad-${idx}`} />;
-          const hasWork = day.entryCount > 0;
-          return (
-            <button
-              key={day.date}
-              type="button"
-              onClick={() => onPickDay(day.date)}
-              className={`min-h-[4.5rem] rounded-xl border px-2 py-2 text-left transition ${
-                hasWork
-                  ? "border-clay-500/30 bg-clay-500/5 hover:border-clay-500"
-                  : "border-ink-900/10 bg-white/70 hover:border-ink-900/25"
-              }`}
-            >
-              <div className="text-sm font-medium">{Number(day.date.slice(-2))}</div>
-              <div className={`mt-1 text-[11px] ${hasWork ? "text-clay-600" : "text-ink-700/40"}`}>
-                {hasWork ? `${day.entryCount} period${day.entryCount === 1 ? "" : "s"}` : "—"}
-              </div>
-            </button>
-          );
-        })}
-      </div>
     </div>
   );
 }
