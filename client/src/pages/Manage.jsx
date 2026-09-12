@@ -239,7 +239,7 @@ function ClassesTab() {
 }
 
 function emptySubjectForm(className = "") {
-  return { name: "", className, maxMarks: 100, isElective: false, enrolledStudentIds: [] };
+  return { name: "", className, maxMarks: 100, practicalMaxMarks: "", isElective: false, enrolledStudentIds: [] };
 }
 
 function subjectSearchText(r) {
@@ -328,6 +328,7 @@ function SubjectsTab() {
       maxMarks: row.maxMarks,
       isElective: Boolean(row.isElective),
       enrolledStudentIds: [],
+      practicalMaxMarks: row.practicalMaxMarks ?? "",
     });
     if (row.isElective) {
       try {
@@ -371,7 +372,12 @@ function SubjectsTab() {
     }
     const name = requiredText(form.name, "Subject name");
     const maxMarks = parsePositiveInt(form.maxMarks, "Max marks");
-    const err = firstError(name, maxMarks);
+    const practicalRaw = form.practicalMaxMarks;
+    const practicalMaxMarks =
+      practicalRaw === "" || practicalRaw == null
+        ? { value: null }
+        : parsePositiveInt(practicalRaw, "Practical max marks");
+    const err = firstError(name, maxMarks, practicalMaxMarks);
     if (err) {
       setFormError(err);
       toast.error(err);
@@ -385,6 +391,7 @@ function SubjectsTab() {
         className: form.className,
         maxMarks: maxMarks.value,
         isElective: Boolean(form.isElective),
+        practicalMaxMarks: practicalMaxMarks.value,
       };
       let subjectId = editingId;
       if (editingId) {
@@ -492,7 +499,38 @@ function SubjectsTab() {
             disabled={busy}
           />
           <p className="mt-1 text-xs text-ink-700/55">
-            Ceiling for mark entry and register validation. Must be 1 or more. Consolidation max is set per exam.
+            Theory ceiling for mark entry. Must be 1 or more. Consolidation max is set per exam.
+          </p>
+        </div>
+        <div>
+          <label className="label">Practical max (optional)</label>
+          <input
+            className={fieldClass(
+              formError &&
+                form.practicalMaxMarks !== "" &&
+                form.practicalMaxMarks != null &&
+                parsePositiveInt(form.practicalMaxMarks, "Practical max marks").error
+            )}
+            type="number"
+            min={1}
+            step={1}
+            inputMode="numeric"
+            placeholder="Leave blank for theory-only"
+            value={form.practicalMaxMarks}
+            onKeyDown={rejectNegativeKey}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                practicalMaxMarks: acceptNonNegativeInput(e.target.value, form.practicalMaxMarks, {
+                  integer: true,
+                  allowEmpty: true,
+                }),
+              })
+            }
+            disabled={busy}
+          />
+          <p className="mt-1 text-xs text-ink-700/55">
+            When set, Marks Entry collects theory and practical separately (totals add up).
           </p>
         </div>
         <label className="flex items-center gap-2 text-sm text-ink-800">
@@ -576,6 +614,7 @@ function SubjectsTab() {
                   <th>Subject</th>
                   <th>Class</th>
                   <th>Max marks</th>
+                  <th>Practical</th>
                   <th>Elective</th>
                   <th></th>
                 </tr>
@@ -586,6 +625,7 @@ function SubjectsTab() {
                     <td>{r.name}</td>
                     <td>{r.className}</td>
                     <td>{r.maxMarks}</td>
+                    <td>{r.practicalMaxMarks ?? "—"}</td>
                     <td>{r.isElective ? "Yes" : "—"}</td>
                     <td className="whitespace-nowrap space-x-2">
                       <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>

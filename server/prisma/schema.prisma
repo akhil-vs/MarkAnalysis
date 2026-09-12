@@ -116,10 +116,12 @@ model Subject {
   id        String @id @default(cuid())
   name      String
   className String
-  /// Ceiling for mark entry and register validation.
+  /// Theory ceiling for mark entry and register validation.
   maxMarks  Int
   /// When true, only enrolled students are expected on the register / CML.
   isElective Boolean @default(false)
+  /// When set, register also collects practical marks (additive with maxMarks).
+  practicalMaxMarks Int?
 
   assignments TeacherAssignment[]
   marks       Mark[]
@@ -226,6 +228,8 @@ model Mark {
   subjectId     String
   examId        String
   marksObtained Float?
+  /// Practical component when Subject.practicalMaxMarks is set.
+  practicalMarks Float?
   outcome       MarkOutcome @default(SCORED)
   enteredById   String
   status        MarkStatus @default(DRAFT)
