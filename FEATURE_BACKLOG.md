@@ -11,8 +11,7 @@ Remaining work that would make this suitable for a live school:
 - ~~**Configurable grade bands** and pass percent (board-specific)~~ (School profile Analytics grading)
 - **Electives / additional subjects** per student
 - ~~**Class-teacher inbox** for section pending papers~~ (read access + gated CML for class teachers; dedicated inbox still open)
-- **Moderation / grace marks** with audit reason
-+ ~~**Moderation / grace marks** with audit reason~~ (`POST /api/marks/moderate` + Marks Entry Moderate)
+- ~~**Moderation / grace marks** with audit reason~~ (`POST /api/marks/moderate` + Marks Entry Moderate)
 - ~~One-time consolidation max-marks lock for principal / exam coordinator~~ (Records → Exams → Lock for consolidation)
 - ~~Teacher daily / weekly / monthly timetables for principal and exam coordinator~~ (Timetables nav + views + seed periods)
 - ~~All-teachers daily board + find free teacher for a period~~ (leadership Timetables modes)
@@ -22,7 +21,7 @@ Remaining work that would make this suitable for a live school:
 ## Product / access
 
 - ~~Mobile-friendly sidebar and mark entry~~ (app shell with hamburger drawer, responsive mark register)
-- Parent / student read-only portal
+- ~~Parent / student read-only portal~~ (principal-issued `/portal` link; approved marks for one exam)
 - Email digests for pending sign-ups, late entry, deadlines, approvals
 - ~~Force password change after admin reset; gate demo one-click accounts~~ (`mustChangePassword`, `VITE_ENABLE_DEMO_LOGIN`)
 - ~~Server-side search/pagination for students, staff, and audit log~~

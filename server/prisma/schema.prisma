@@ -78,6 +78,7 @@ model User {
   timetableEntries TimetableEntry[]
   activityAudits ActivityAudit[]
   consolidationLocks Exam[] @relation("ConsolidationLockedBy")
+  portalLinks        PortalAccessLink[] @relation("PortalLinkCreator")
 }
 
 model ClassSection {
@@ -144,6 +145,24 @@ model Student {
   @@index([classSectionId, academicYear, status])
 }
 
+
+model PortalAccessLink {
+  id          String    @id @default(cuid())
+  tokenHash   String    @unique
+  label       String?
+  studentIds  String[]
+  examId      String?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  createdById String
+  createdAt   DateTime  @default(now())
+
+  createdBy User @relation("PortalLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  exam      Exam? @relation(fields: [examId], references: [id], onDelete: SetNull)
+
+  @@index([createdById])
+}
+
 model Exam {
   id                 String    @id @default(cuid())
   name               String
@@ -160,6 +179,7 @@ model Exam {
   consolidationLockedBy User?    @relation("ConsolidationLockedBy", fields: [consolidationLockedById], references: [id], onDelete: SetNull)
   marks              Mark[]
   markEntryRequests  MarkEntryAccessRequest[]
+  portalLinks        PortalAccessLink[]
 }
 
 model MarkEntryAccessRequest {

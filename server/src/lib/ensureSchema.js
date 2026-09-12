@@ -521,6 +521,47 @@ async function ensureMarkAuditReasonColumn() {
  * Apply schema pieces that may be missing in production when Vercel builds
  * cannot run `prisma migrate deploy` (DATABASE_URL often runtime-only).
  */
+
+const PORTAL_LINK_MIGRATION = "20260912160000_portal_access_links";
+const PORTAL_LINK_CHECKSUM =
+  "c0ffeeportalaccesslink000000000000000000000000000000000000000001";
+const PORTAL_LINK_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "PortalAccessLink" (
+    "id" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "label" TEXT,
+    "studentIds" TEXT[],
+    "examId" TEXT,
+    "expiresAt" TIMESTAMP(3),
+    "revokedAt" TIMESTAMP(3),
+    "createdById" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "PortalAccessLink_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "PortalAccessLink_tokenHash_key" ON "PortalAccessLink"("tokenHash")`,
+  `CREATE INDEX IF NOT EXISTS "PortalAccessLink_createdById_idx" ON "PortalAccessLink"("createdById")`,
+];
+const PORTAL_LINK_FK_STATEMENTS = [
+  `ALTER TABLE "PortalAccessLink" ADD CONSTRAINT "PortalAccessLink_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "PortalAccessLink" ADD CONSTRAINT "PortalAccessLink_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+];
+
+async function ensurePortalAccessLinkTable() {
+  if (await tableExists("PortalAccessLink")) {
+    await recordMigration(PORTAL_LINK_MIGRATION, PORTAL_LINK_CHECKSUM);
+    return;
+  }
+  await applyStatements(PORTAL_LINK_STATEMENTS);
+  for (const sql of PORTAL_LINK_FK_STATEMENTS) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (err) {
+      if (!/already exists/i.test(String(err?.message || err))) throw err;
+    }
+  }
+  await recordMigration(PORTAL_LINK_MIGRATION, PORTAL_LINK_CHECKSUM);
+}
+
 export async function ensurePendingSchema() {
   if (!ensurePromise) {
     ensurePromise = (async () => {
@@ -537,6 +578,7 @@ export async function ensurePendingSchema() {
         ensureSchoolWorkingDaysColumn(),
         ensureMustChangePasswordColumn(),
         ensureMarkAuditReasonColumn(),
+        ensurePortalAccessLinkTable(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -592,6 +634,9 @@ export const __test = {
   MARK_MODERATION_MIGRATION,
   MARK_MODERATION_CHECKSUM,
   MARK_MODERATION_STATEMENTS,
+  PORTAL_LINK_MIGRATION,
+  PORTAL_LINK_CHECKSUM,
+  PORTAL_LINK_STATEMENTS,
   MULTI_CLASS_PERIOD_MIGRATION,
   MULTI_CLASS_PERIOD_CHECKSUM,
   MULTI_CLASS_PERIOD_STATEMENTS,

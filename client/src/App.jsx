@@ -6,6 +6,7 @@ import { Spinner } from "./components/Spinner.jsx";
 import { guardRolesForRoute, paths } from "./lib/nav.js";
 
 const Login = lazy(() => import("./pages/Login.jsx"));
+const Portal = lazy(() => import("./pages/Portal.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const Pending = lazy(() => import("./pages/Pending.jsx"));
 const PrincipalDashboard = lazy(() => import("./pages/PrincipalDashboard.jsx"));
@@ -94,6 +95,7 @@ export default function App() {
     <Suspense fallback={<PageFallback />}>
       <Routes>
         <Route path="/login" element={<Login />} />
+        <Route path="/portal" element={<Portal />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/pending" element={<Pending />} />
         <Route
