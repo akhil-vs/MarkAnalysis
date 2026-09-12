@@ -1,8 +1,7 @@
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { DEFAULT_PERIODS } from "../src/lib/periods.js";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma.js";
+import { runWithoutTenant, runWithTenant } from "../src/lib/tenant.js";
 
 const FIRST = [
   "Aarav", "Diya", "Ishaan", "Ananya", "Vihaan", "Sara", "Kabir", "Myra",
@@ -16,6 +15,12 @@ const LAST = [
 
 function nameAt(i) {
   return `${FIRST[i % FIRST.length]} ${LAST[i % LAST.length]}`;
+}
+
+function seededScore(studentIndex, subjectIndex, examIndex, yearBoost = 0, teacherShift = 0) {
+  const base = 54 + yearBoost + ((studentIndex * 7 + subjectIndex * 11 + examIndex * 5) % 38);
+  const wobble = ((studentIndex + subjectIndex * 3 - examIndex * 4) % 13) - 6;
+  return Math.max(28, Math.min(99, base + wobble + teacherShift));
 }
 
 async function ensurePlatformAdmin(db) {
@@ -35,19 +40,13 @@ async function ensurePlatformAdmin(db) {
   });
 }
 
-function seededScore(studentIndex, subjectIndex, examIndex, yearBoost = 0, teacherShift = 0) {
-  const base = 54 + yearBoost + ((studentIndex * 7 + subjectIndex * 11 + examIndex * 5) % 38);
-  const wobble = ((studentIndex + subjectIndex * 3 - examIndex * 4) % 13) - 6;
-  return Math.max(28, Math.min(99, base + wobble + teacherShift));
-}
-
 async function main() {
   const wipe =
     process.env.SEED_MODE === "wipe" || process.env.ALLOW_DESTRUCTIVE_SEED === "true";
-  const existingUsers = await prisma.user.count();
+  const existingUsers = await runWithoutTenant(() => prisma.user.count());
 
   if (existingUsers > 0 && !wipe) {
-    await ensurePlatformAdmin(prisma);
+    await runWithoutTenant(() => ensurePlatformAdmin(prisma));
     console.log(
       `Database already has ${existingUsers} user(s). Skipping destructive seed.\n` +
         "Set SEED_MODE=wipe (and ALLOW_DESTRUCTIVE_SEED=true in production) to reset demo data.\n" +
@@ -66,50 +65,83 @@ async function main() {
     console.log("SEED_MODE=wipe — clearing existing demo data…");
   }
 
-  await prisma.activityAudit.deleteMany();
-  await prisma.markAudit.deleteMany();
-  await prisma.mark.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.markEntryAccessRequest.deleteMany();
-  await prisma.timetableEntry.deleteMany();
-  await prisma.period.deleteMany();
-  await prisma.teacherAssignment.deleteMany();
-  await prisma.student.deleteMany();
-  await prisma.exam.deleteMany();
-  await prisma.subject.deleteMany();
-  await prisma.classSection.deleteMany();
-  await prisma.user.deleteMany();
-  await prisma.schoolProfile.deleteMany();
+  await runWithoutTenant(async () => {
+    await prisma.activityAudit.deleteMany();
+    await prisma.markAudit.deleteMany();
+    await prisma.mark.deleteMany();
+    await prisma.notification.deleteMany();
+    await prisma.markEntryAccessRequest.deleteMany();
+    await prisma.timetableEntry.deleteMany();
+    await prisma.period.deleteMany();
+    await prisma.teacherAssignment.deleteMany();
+    await prisma.studentSubjectEnrollment.deleteMany();
+    await prisma.student.deleteMany();
+    await prisma.exam.deleteMany();
+    await prisma.subject.deleteMany();
+    await prisma.classSection.deleteMany();
+    await prisma.portalAccessLink.deleteMany();
+    await prisma.refreshToken.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.school.deleteMany();
+  });
+
+  const school = await runWithoutTenant(() =>
+    prisma.school.create({
+      data: {
+        slug: "greenfield-public-school",
+        joinCode: "DEMO-JOIN",
+        name: "Greenfield Public School",
+        board: "CBSE",
+        affiliationNo: "1930123",
+        address: "12 Lake View Road, Bengaluru",
+        phone: "080-40001234",
+        email: "office@greenfield.school",
+      },
+    })
+  );
+
+  await runWithoutTenant(() => ensurePlatformAdmin(prisma));
+  await runWithTenant(school.id, () => seedSchool(school));
+
+  const riverside = await runWithoutTenant(async () => {
+    const campus = await prisma.school.create({
+      data: {
+        slug: "riverside",
+        joinCode: "RIVE-SIDE",
+        name: "Riverside Academy",
+        board: "CISCE",
+        affiliationNo: "KA045",
+        address: "88 Riverbank Road, Mysuru",
+        phone: "0821-2500450",
+        email: "office@riverside.school",
+      },
+    });
+    await prisma.period.createMany({
+      data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId: campus.id })),
+    });
+    await prisma.user.create({
+      data: {
+        tenantId: campus.id,
+        name: "Asha Menon",
+        email: "principal@riverside.school",
+        schoolId: "RIV-P01",
+        passwordHash: await bcrypt.hash("password123", 10),
+        role: "PRINCIPAL",
+        status: "ACTIVE",
+        mustChangePassword: process.env.SEED_FORCE_PASSWORD_CHANGE === "true",
+      },
+    });
+    return campus;
+  });
+
+  console.log(`  Platform admin: admin@platform.edu`);
+  console.log(`  Second school: ${riverside.name} (${riverside.slug}, join ${riverside.joinCode}) · principal@riverside.school`);
+}
+
+async function seedSchool(school) {
 
   const passwordHash = await bcrypt.hash("password123", 10);
   const forcePasswordChange = process.env.SEED_FORCE_PASSWORD_CHANGE === "true";
-
-  const school = await prisma.schoolProfile.create({
-    data: {
-      id: "school",
-      slug: "greenfield",
-      name: "Greenfield Public School",
-      board: "CBSE",
-      affiliationNo: "1930123",
-      address: "12 Lake View Road, Bengaluru",
-      phone: "080-40001234",
-      email: "office@greenfield.school",
-      status: "ACTIVE",
-      updatedAt: new Date(),
-    },
-  });
-
-  await prisma.user.create({
-    data: {
-      name: "Platform Admin",
-      email: "admin@platform.edu",
-      schoolId: "PLT-A01",
-      passwordHash,
-      role: "PLATFORM_ADMIN",
-      status: "ACTIVE",
-      mustChangePassword: forcePasswordChange,
-    },
-  });
 
   const principal = await prisma.user.create({
     data: {
@@ -120,7 +152,6 @@ async function main() {
       role: "PRINCIPAL",
       status: "ACTIVE",
       mustChangePassword: forcePasswordChange,
-      tenantId: school.id,
     },
   });
 
@@ -133,18 +164,17 @@ async function main() {
       role: "EXAM_COORDINATOR",
       status: "ACTIVE",
       mustChangePassword: forcePasswordChange,
-      tenantId: school.id,
     },
   });
 
   const teachers = await prisma.user.createManyAndReturn({
     data: [
-      { name: "Anita Sharma", email: "anita.sharma@school.edu", schoolId: "SCH-T01", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange, tenantId: school.id },
-      { name: "Rahul Mehta", email: "rahul.mehta@school.edu", schoolId: "SCH-T02", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange, tenantId: school.id },
-      { name: "Priya Nair", email: "priya.nair@school.edu", schoolId: "SCH-T03", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange, tenantId: school.id },
-      { name: "David Thomas", email: "david.thomas@school.edu", schoolId: "SCH-T04", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange, tenantId: school.id },
-      { name: "Meera Iyer", email: "meera.iyer@school.edu", schoolId: "SCH-T05", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange, tenantId: school.id },
-      { name: "Kiran Bose", email: "kiran.bose@school.edu", schoolId: "SCH-T06", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange, tenantId: school.id },
+      { name: "Anita Sharma", email: "anita.sharma@school.edu", schoolId: "SCH-T01", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
+      { name: "Rahul Mehta", email: "rahul.mehta@school.edu", schoolId: "SCH-T02", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
+      { name: "Priya Nair", email: "priya.nair@school.edu", schoolId: "SCH-T03", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
+      { name: "David Thomas", email: "david.thomas@school.edu", schoolId: "SCH-T04", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
+      { name: "Meera Iyer", email: "meera.iyer@school.edu", schoolId: "SCH-T05", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
+      { name: "Kiran Bose", email: "kiran.bose@school.edu", schoolId: "SCH-T06", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
     ],
   });
 
@@ -152,12 +182,12 @@ async function main() {
 
   const sections = await prisma.classSection.createManyAndReturn({
     data: [
-      { className: "9", section: "A", classTeacherId: anita.id, tenantId: school.id },
-      { className: "9", section: "B", classTeacherId: kiran.id, tenantId: school.id },
-      { className: "10", section: "A", classTeacherId: anita.id, tenantId: school.id },
-      { className: "10", section: "B", classTeacherId: rahul.id, tenantId: school.id },
-      { className: "10", section: "C", classTeacherId: priya.id, tenantId: school.id },
-      { className: "10", section: "D", classTeacherId: david.id, tenantId: school.id },
+      { className: "9", section: "A", classTeacherId: anita.id },
+      { className: "9", section: "B", classTeacherId: kiran.id },
+      { className: "10", section: "A", classTeacherId: anita.id },
+      { className: "10", section: "B", classTeacherId: rahul.id },
+      { className: "10", section: "C", classTeacherId: priya.id },
+      { className: "10", section: "D", classTeacherId: david.id },
     ],
   });
   const byClassSection = Object.fromEntries(sections.map((s) => [`${s.className}-${s.section}`, s]));
@@ -165,7 +195,7 @@ async function main() {
   const subjectNames = ["Mathematics", "Physics", "Chemistry", "English", "Biology"];
   const subjects = await prisma.subject.createManyAndReturn({
     data: ["9", "10"].flatMap((className) =>
-      subjectNames.map((name) => ({ name, className, maxMarks: 100, tenantId: school.id }))
+      subjectNames.map((name) => ({ name, className, maxMarks: 100 }))
     ),
   });
   const subjectByKey = Object.fromEntries(subjects.map((s) => [`${s.className}:${s.name}`, s]));
@@ -196,9 +226,7 @@ async function main() {
   }
   await prisma.teacherAssignment.createMany({ data: assignmentData });
 
-  const periods = await prisma.period.createManyAndReturn({
-    data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId: school.id })),
-  });
+  const periods = await prisma.period.createManyAndReturn({ data: DEFAULT_PERIODS });
   const teachingPeriods = periods.filter((p) => !p.isBreak);
   const sectionById = Object.fromEntries(sections.map((s) => [s.id, s]));
 
@@ -260,13 +288,24 @@ async function main() {
         dob: new Date(cls.className === "9" ? 2010 : 2009, idx % 12, (idx % 27) + 1),
         guardianName: `Parent of ${nameAt(idx)}`,
         guardianPhone: `98${String(10000000 + idx * 17).slice(0, 8)}`,
-        tenantId: school.id,
       });
       idx += 1;
     }
   }
   const students = await prisma.student.createManyAndReturn({
     data: studentData.map((s) => ({ ...s, academicYear: "2025-26", status: "ACTIVE" })),
+  });
+
+  await prisma.school.update({
+    where: { id: school.id },
+    data: {
+      name: "Greenfield Public School",
+      board: "CBSE",
+      affiliationNo: "1930123",
+      address: "12 Lake View Road, Bengaluru",
+      phone: "080-40001234",
+      email: "office@greenfield.school",
+    },
   });
 
   const exams = await prisma.exam.createManyAndReturn({
@@ -279,7 +318,6 @@ async function main() {
         type: "UNIT_TEST",
         marksEntryDeadline: new Date("2024-08-01"),
         consolidationMaxMarks: 100,
-        tenantId: school.id,
       },
       {
         name: "Mid-Term",
@@ -288,7 +326,6 @@ async function main() {
         date: new Date("2024-09-22"),
         type: "MID_TERM",
         marksEntryDeadline: new Date("2024-10-05"),
-        tenantId: school.id,
       },
       {
         name: "Final Exam",
@@ -297,7 +334,6 @@ async function main() {
         date: new Date("2025-03-12"),
         type: "FINAL",
         marksEntryDeadline: new Date("2025-03-28"),
-        tenantId: school.id,
       },
       {
         name: "Unit Test 1",
@@ -306,7 +342,6 @@ async function main() {
         date: new Date("2025-07-15"),
         type: "UNIT_TEST",
         marksEntryDeadline: new Date("2026-12-31"),
-        tenantId: school.id,
       },
       {
         name: "Mid-Term",
@@ -315,7 +350,6 @@ async function main() {
         date: new Date("2025-09-20"),
         type: "MID_TERM",
         marksEntryDeadline: new Date("2026-12-31"),
-        tenantId: school.id,
       },
       {
         name: "Final Exam",
@@ -324,7 +358,6 @@ async function main() {
         date: new Date("2026-03-10"),
         type: "FINAL",
         marksEntryDeadline: new Date("2026-08-20"),
-        tenantId: school.id,
       },
     ],
   });
@@ -454,39 +487,8 @@ async function main() {
     ],
   });
 
-  const riverside = await prisma.schoolProfile.create({
-    data: {
-      slug: "riverside",
-      name: "Riverside Academy",
-      board: "CISCE",
-      affiliationNo: "KA045",
-      address: "88 Riverbank Road, Mysuru",
-      phone: "0821-2500450",
-      email: "office@riverside.school",
-      status: "ACTIVE",
-      updatedAt: new Date(),
-    },
-  });
-  await prisma.period.createMany({
-    data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId: riverside.id })),
-  });
-  await prisma.user.create({
-    data: {
-      name: "Asha Menon",
-      email: "principal@riverside.school",
-      schoolId: "RIV-P01",
-      passwordHash,
-      role: "PRINCIPAL",
-      status: "ACTIVE",
-      mustChangePassword: forcePasswordChange,
-      tenantId: riverside.id,
-    },
-  });
-
   console.log("Seeded:");
-  console.log("  Platform admin: admin@platform.edu");
-  console.log(`  School: ${school.name} (${school.slug})`);
-  console.log(`  Principal: ${principal.email}`);
+  console.log(`  Principal: ${principal.email} (${school.slug}, join ${school.joinCode})`);
   console.log(`  Coordinator: ${coordinator.email}`);
   console.log(`  Teachers: ${teachers.length}`);
   console.log(`  Classes: ${Object.keys(byClassSection).join(", ")}`);
@@ -497,7 +499,7 @@ async function main() {
   console.log(`  Activity audits: 5 (including exam coordinator)`);
   console.log(`  Periods: ${periods.length}`);
   console.log(`  Timetable slots: ${timetableRows.length}`);
-  console.log(`  Second school: ${riverside.name} (${riverside.slug}) · principal@riverside.school`);
+  console.log(`  School: ${school.name} (join code ${school.joinCode})`);
   console.log("  Password for all seed users: password123");
 }
 

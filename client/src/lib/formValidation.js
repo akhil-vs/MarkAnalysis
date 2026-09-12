@@ -145,6 +145,15 @@ export function acceptNonNegativeInput(raw, previous, { integer = false, allowEm
   return integer ? Math.trunc(n) : n;
 }
 
+export function parseJoinCode(value, { required = true, label = "Join code" } = {}) {
+  const text = String(value ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  if (!text) return required ? { error: `${label} is required` } : { value: "" };
+  if (text.length !== 8) return { error: `${label} looks like ABCD-EFGH` };
+  return { value: `${text.slice(0, 4)}-${text.slice(4)}` };
+}
+
 export function firstError(...results) {
   for (const result of results) {
     if (result?.error) return result.error;

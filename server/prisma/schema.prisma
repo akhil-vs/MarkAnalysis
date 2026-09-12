@@ -15,15 +15,15 @@ enum Role {
   TEACHER
 }
 
-enum SchoolStatus {
-  ACTIVE
-  SUSPENDED
-}
-
 enum UserStatus {
   PENDING
   ACTIVE
   REJECTED
+}
+
+enum SchoolStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 enum ExamType {
@@ -63,33 +63,78 @@ enum MarkEntryAccessStatus {
   REJECTED
 }
 
+/// One tenant: a school that owns users, records, and settings.
+model School {
+  id             String       @id @default(cuid())
+  slug           String       @unique
+  joinCode       String       @unique
+  name           String
+  board          String?
+  affiliationNo  String?
+  address        String?
+  phone          String?
+  email          String?
+  status         SchoolStatus @default(ACTIVE)
+  /// Pass threshold used in analytics (percent).
+  passPercent    Float        @default(50)
+  /// Distinction / high-achievement threshold (percent).
+  distinctionMin Float        @default(90)
+  /// Optional override of letter-grade bands: [{ grade, min }, ...] sorted high→low.
+  gradeBands     Json?
+  /// Weights for annual composite by ExamType: { UNIT_TEST, MID_TERM, FINAL }.
+  examWeights    Json?
+  /// Working weekdays as ISO numbers 1=Mon … 7=Sun. Length 5 or 6; order is column order.
+  workingDays    Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  users                 User[]
+  classSections         ClassSection[]
+  subjects              Subject[]
+  students              Student[]
+  exams                 Exam[]
+  periods               Period[]
+  timetableEntries      TimetableEntry[]
+  assignments           TeacherAssignment[]
+  marks                 Mark[]
+  markAudits            MarkAudit[]
+  markEntryRequests     MarkEntryAccessRequest[]
+  notifications         Notification[]
+  activityAudits        ActivityAudit[]
+  portalLinks           PortalAccessLink[]
+  subjectEnrollments    StudentSubjectEnrollment[]
+}
+
 model User {
-  id                  String     @id @default(cuid())
-  name                String
-  email               String?    @unique
-  schoolId            String?    @unique
-  passwordHash        String
-  mustChangePassword  Boolean    @default(false)
-  role                Role
-  status              UserStatus @default(PENDING)
-  createdAt           DateTime   @default(now())
+  id                 String     @id @default(cuid())
   /// Tenant school. Null only for PLATFORM_ADMIN.
-  tenantId            String?
+  tenantId           String?
+  name               String
+  email              String?    @unique
+  /// Staff / employee code, unique within the school (not the tenant id).
+  schoolId           String?
+  passwordHash       String
+  mustChangePassword Boolean    @default(false)
+  role               Role
+  status             UserStatus @default(PENDING)
+  createdAt          DateTime   @default(now())
 
-  tenant         SchoolProfile?       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  classTeacherOf ClassSection[]       @relation("ClassTeacher")
-  assignments    TeacherAssignment[]
-  enteredMarks   Mark[]               @relation("EnteredBy")
-  audits         MarkAudit[]
-  markEntryRequests MarkEntryAccessRequest[] @relation("MarkEntryTeacher")
+  tenant             School? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  classTeacherOf     ClassSection[]            @relation("ClassTeacher")
+  assignments        TeacherAssignment[]
+  enteredMarks       Mark[]                    @relation("EnteredBy")
+  audits             MarkAudit[]
+  markEntryRequests  MarkEntryAccessRequest[]  @relation("MarkEntryTeacher")
   reviewedMarkEntryRequests MarkEntryAccessRequest[] @relation("MarkEntryReviewer")
-  notifications  Notification[]
-  timetableEntries TimetableEntry[]
-  activityAudits ActivityAudit[]
-  consolidationLocks Exam[] @relation("ConsolidationLockedBy")
-  portalLinks        PortalAccessLink[] @relation("PortalLinkCreator")
-  refreshTokens  RefreshToken[]
+  notifications      Notification[]
+  timetableEntries   TimetableEntry[]
+  activityAudits     ActivityAudit[]
+  consolidationLocks Exam[]                    @relation("ConsolidationLockedBy")
+  portalLinks        PortalAccessLink[]        @relation("PortalLinkCreator")
+  refreshTokens      RefreshToken[]
 
+  @@unique([tenantId, schoolId])
   @@index([tenantId])
 }
 
@@ -111,12 +156,12 @@ model RefreshToken {
 
 model ClassSection {
   id             String  @id @default(cuid())
+  tenantId       String
   className      String
   section        String
   classTeacherId String?
-  tenantId       String
-  classTeacher   User?          @relation("ClassTeacher", fields: [classTeacherId], references: [id])
-  tenant         SchoolProfile  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  classTeacher   User?   @relation("ClassTeacher", fields: [classTeacherId], references: [id])
+  tenant         School  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   students          Student[]
   assignments       TeacherAssignment[]
@@ -128,61 +173,66 @@ model ClassSection {
 }
 
 model Subject {
-  id        String @id @default(cuid())
-  name      String
-  className String
-  tenantId  String
+  id                String  @id @default(cuid())
+  tenantId          String
+  name              String
+  className         String
   /// Theory ceiling for mark entry and register validation.
-  maxMarks  Int
+  maxMarks          Int
   /// When true, only enrolled students are expected on the register / CML.
-  isElective Boolean @default(false)
+  isElective        Boolean @default(false)
   /// When set, register also collects practical marks (additive with maxMarks).
   practicalMaxMarks Int?
 
-  tenant      SchoolProfile @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  assignments TeacherAssignment[]
-  marks       Mark[]
+  tenant            School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments       TeacherAssignment[]
+  marks             Mark[]
   markEntryRequests MarkEntryAccessRequest[]
-  timetableEntries TimetableEntry[]
-  enrollments StudentSubjectEnrollment[]
+  timetableEntries  TimetableEntry[]
+  enrollments       StudentSubjectEnrollment[]
 
   @@unique([tenantId, name, className])
   @@index([tenantId])
 }
 
-
 model StudentSubjectEnrollment {
   id        String   @id @default(cuid())
+  tenantId  String
   studentId String
   subjectId String
   createdAt DateTime @default(now())
 
+  tenant  School  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
   subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   @@unique([studentId, subjectId])
   @@index([subjectId])
+  @@index([tenantId])
 }
 
 model TeacherAssignment {
   id             String @id @default(cuid())
+  tenantId       String
   userId         String
   classSectionId String
   subjectId      String
 
+  tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
   subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
 
   @@unique([userId, classSectionId, subjectId])
+  @@index([tenantId])
 }
 
 model Student {
   id             String        @id @default(cuid())
+  tenantId       String
   name           String
   rollNo         String
   classSectionId String
-  tenantId       String
   academicYear   String        @default("2025-26")
   status         StudentStatus @default(ACTIVE)
   dob            DateTime?
@@ -190,8 +240,8 @@ model Student {
   guardianPhone  String?
   promotedFromId String?
 
+  tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
-  tenant       SchoolProfile @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   marks        Mark[]
   subjectEnrollments StudentSubjectEnrollment[]
   promotedFrom Student?  @relation("StudentPromotion", fields: [promotedFromId], references: [id], onDelete: SetNull)
@@ -202,9 +252,9 @@ model Student {
   @@index([tenantId])
 }
 
-
 model PortalAccessLink {
   id          String    @id @default(cuid())
+  tenantId    String
   tokenHash   String    @unique
   label       String?
   studentIds  String[]
@@ -214,37 +264,40 @@ model PortalAccessLink {
   createdById String
   createdAt   DateTime  @default(now())
 
-  createdBy User @relation("PortalLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
-  exam      Exam? @relation(fields: [examId], references: [id], onDelete: SetNull)
+  tenant    School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("PortalLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  exam      Exam?  @relation(fields: [examId], references: [id], onDelete: SetNull)
 
   @@index([createdById])
+  @@index([tenantId])
 }
 
 model Exam {
-  id                 String    @id @default(cuid())
-  name               String
-  term               String
-  academicYear       String
-  date               DateTime
-  type               ExamType
-  tenantId           String
-  marksEntryDeadline DateTime?
+  id                      String    @id @default(cuid())
+  tenantId                String
+  name                    String
+  term                    String
+  academicYear            String
+  date                    DateTime
+  type                    ExamType
+  marksEntryDeadline      DateTime?
   /// Ceiling used for this exam’s consolidated mark-list totals and percentages.
-  consolidationMaxMarks Int      @default(100)
-  consolidationLocked   Boolean  @default(false)
-  consolidationLockedAt DateTime?
+  consolidationMaxMarks   Int       @default(100)
+  consolidationLocked     Boolean   @default(false)
+  consolidationLockedAt   DateTime?
   consolidationLockedById String?
-  consolidationLockedBy User?    @relation("ConsolidationLockedBy", fields: [consolidationLockedById], references: [id], onDelete: SetNull)
-  tenant             SchoolProfile @relation(fields: [tenantId], references: [id], onDelete: Restrict)
-  marks              Mark[]
-  markEntryRequests  MarkEntryAccessRequest[]
-  portalLinks        PortalAccessLink[]
+  consolidationLockedBy   User?     @relation("ConsolidationLockedBy", fields: [consolidationLockedById], references: [id], onDelete: SetNull)
+  tenant                  School    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  marks                   Mark[]
+  markEntryRequests       MarkEntryAccessRequest[]
+  portalLinks             PortalAccessLink[]
 
   @@index([tenantId])
 }
 
 model MarkEntryAccessRequest {
   id             String                  @id @default(cuid())
+  tenantId       String
   examId         String
   teacherId      String
   classSectionId String
@@ -256,6 +309,7 @@ model MarkEntryAccessRequest {
   reviewedById   String?
   reviewedAt     DateTime?
 
+  tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   exam         Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
   teacher      User         @relation("MarkEntryTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
   classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
@@ -264,35 +318,40 @@ model MarkEntryAccessRequest {
 
   @@unique([examId, teacherId, classSectionId, subjectId])
   @@index([status, requestedAt])
+  @@index([tenantId])
 }
 
 model Mark {
-  id            String     @id @default(cuid())
-  studentId     String
-  subjectId     String
-  examId        String
-  marksObtained Float?
+  id             String     @id @default(cuid())
+  tenantId       String
+  studentId      String
+  subjectId      String
+  examId         String
+  marksObtained  Float?
   /// Practical component when Subject.practicalMaxMarks is set.
   practicalMarks Float?
-  outcome       MarkOutcome @default(SCORED)
-  enteredById   String
-  status        MarkStatus @default(DRAFT)
-  updatedAt     DateTime   @updatedAt
+  outcome        MarkOutcome @default(SCORED)
+  enteredById    String
+  status         MarkStatus  @default(DRAFT)
+  updatedAt      DateTime    @updatedAt
 
-  student   Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  subject   Subject     @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-  exam      Exam        @relation(fields: [examId], references: [id], onDelete: Cascade)
-  enteredBy User        @relation("EnteredBy", fields: [enteredById], references: [id])
+  tenant    School  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  exam      Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  enteredBy User    @relation("EnteredBy", fields: [enteredById], references: [id])
   audits    MarkAudit[]
 
   @@unique([studentId, subjectId, examId])
   @@index([examId, status])
   @@index([status])
   @@index([studentId])
+  @@index([tenantId])
 }
 
 model MarkAudit {
   id          String   @id @default(cuid())
+  tenantId    String
   markId      String
   changedById String
   oldValue    Float?
@@ -301,8 +360,11 @@ model MarkAudit {
   reason      String?
   timestamp   DateTime @default(now())
 
-  mark      Mark @relation(fields: [markId], references: [id], onDelete: Cascade)
-  changedBy User @relation(fields: [changedById], references: [id])
+  tenant    School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mark      Mark   @relation(fields: [markId], references: [id], onDelete: Cascade)
+  changedBy User   @relation(fields: [changedById], references: [id])
+
+  @@index([tenantId])
 }
 
 enum AuditAction {
@@ -331,6 +393,7 @@ enum AuditAction {
 /// Mark cell edits stay in MarkAudit; both feeds are merged for the audit page.
 model ActivityAudit {
   id        String      @id @default(cuid())
+  tenantId  String
   actorId   String
   action    AuditAction
   summary   String
@@ -338,42 +401,13 @@ model ActivityAudit {
   meta      Json?
   timestamp DateTime    @default(now())
 
-  actor User @relation(fields: [actorId], references: [id])
+  tenant School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor  User   @relation(fields: [actorId], references: [id])
 
   @@index([timestamp])
   @@index([actorId, timestamp])
   @@index([examId, timestamp])
-}
-
-model SchoolProfile {
-  id              String       @id @default(cuid())
-  slug            String       @unique
-  name            String
-  board           String?
-  affiliationNo   String?
-  address         String?
-  phone           String?
-  email           String?
-  status          SchoolStatus @default(ACTIVE)
-  /// Pass threshold used in analytics (percent).
-  passPercent     Float        @default(50)
-  /// Distinction / high-achievement threshold (percent).
-  distinctionMin  Float        @default(90)
-  /// Optional override of letter-grade bands: [{ grade, min }, ...] sorted high→low.
-  gradeBands      Json?
-  /// Weights for annual composite by ExamType: { UNIT_TEST, MID_TERM, FINAL }.
-  examWeights     Json?
-  /// Working weekdays as ISO numbers 1=Mon … 7=Sun. Length 5 or 6; order is column order.
-  workingDays     Json?
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  users         User[]
-  classSections ClassSection[]
-  subjects      Subject[]
-  exams         Exam[]
-  periods       Period[]
-  students      Student[]
+  @@index([tenantId])
 }
 
 enum NotificationType {
@@ -391,6 +425,7 @@ enum NotificationType {
 
 model Notification {
   id        String           @id @default(cuid())
+  tenantId  String
   userId    String
   type      NotificationType
   title     String
@@ -400,22 +435,24 @@ model Notification {
   readAt    DateTime?
   createdAt DateTime         @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenant School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, readAt, createdAt])
+  @@index([tenantId])
 }
 
 /// School bell periods (teaching slots and breaks). sortOrder controls grid order.
 model Period {
   id        String  @id @default(cuid())
+  tenantId  String
   name      String
   sortOrder Int
   startTime String
   endTime   String
   isBreak   Boolean @default(false)
-  tenantId  String
 
-  tenant  SchoolProfile    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
+  tenant  School           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   entries TimetableEntry[]
 
   @@unique([tenantId, sortOrder])
@@ -426,6 +463,7 @@ model Period {
 /// dayOfWeek uses ISO weekday: 1 = Monday … 7 = Sunday.
 model TimetableEntry {
   id             String  @id @default(cuid())
+  tenantId       String
   teacherId      String
   classSectionId String
   subjectId      String
@@ -433,6 +471,7 @@ model TimetableEntry {
   dayOfWeek      Int
   room           String?
 
+  tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   teacher      User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
   classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
   subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
@@ -444,4 +483,5 @@ model TimetableEntry {
   @@unique([classSectionId, dayOfWeek, periodId])
   @@index([teacherId, dayOfWeek])
   @@index([dayOfWeek, periodId])
+  @@index([tenantId])
 }

@@ -15,6 +15,7 @@ import {
   requiredText,
 } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
+import { useAuth } from "../auth.jsx";
 
 const EMPTY = {
   name: "",
@@ -37,7 +38,9 @@ const DEFAULT_BANDS = [
 
 export default function SchoolSettings() {
   const toast = useToast();
+  const { user } = useAuth();
   const [form, setForm] = useState(EMPTY);
+  const [joinCode, setJoinCode] = useState("");
   const [passPercent, setPassPercent] = useState(50);
   const [distinctionMin, setDistinctionMin] = useState(90);
   const [bands, setBands] = useState(DEFAULT_BANDS);
@@ -57,6 +60,7 @@ export default function SchoolSettings() {
           phone: s.phone || "",
           email: s.email || "",
         });
+        setJoinCode(s.joinCode || "");
         const g = s.grading || {};
         setPassPercent(g.passPercent ?? 50);
         setDistinctionMin(g.distinctionMin ?? 90);
@@ -141,6 +145,16 @@ export default function SchoolSettings() {
     }
   }
 
+  async function rotateJoinCode() {
+    try {
+      const s = await api("/api/school/join-code", { method: "POST", body: {} });
+      setJoinCode(s.joinCode || "");
+      toast.success("New join code issued. Share it with staff who still need to sign up.");
+    } catch (err) {
+      toast.error(err.message || "Could not rotate join code");
+    }
+  }
+
   function updateBand(i, key, value) {
     setBands((list) => list.map((b, idx) => (idx === i ? { ...b, [key]: value } : b)));
   }
@@ -187,6 +201,23 @@ export default function SchoolSettings() {
             <input className="field" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
           </div>
         </div>
+
+        {joinCode ? (
+          <div className="rounded-xl border border-ink-900/10 bg-paper p-3">
+            <div className="text-xs font-medium uppercase tracking-wide text-ink-700/55">Staff join code</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <code className="font-mono text-lg tracking-widest">{joinCode}</code>
+              {user?.role === "PRINCIPAL" && (
+                <button type="button" className="btn-ghost text-xs" onClick={rotateJoinCode}>
+                  Rotate code
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-ink-700/60">
+              Teachers and coordinators enter this code when they request an account.
+            </p>
+          </div>
+        ) : null}
 
         <div className="pt-4 border-t border-ink-900/10">
           <h3 className="font-serif text-xl mb-2">Analytics grading</h3>

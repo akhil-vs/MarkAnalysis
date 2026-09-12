@@ -1,5 +1,5 @@
 import { prisma } from "./prisma.js";
-import { currentTenantId } from "./tenantContext.js";
+import { currentTenantId } from "./tenant.js";
 
 export const DEFAULT_PERIODS = [
   { name: "Period 1", sortOrder: 1, startTime: "08:00", endTime: "08:45", isBreak: false },

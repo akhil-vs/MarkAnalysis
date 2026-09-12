@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { FieldError } from "../components/FieldError.jsx";
-import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
+import { firstError, parseEmail, parseJoinCode, parsePassword, requiredText } from "../lib/formValidation.js";
 import PoweredBy from "../components/PoweredBy.jsx";
 
 const DEMO_PASSWORD = "password123";
@@ -22,6 +22,7 @@ const DEMO_ACCOUNTS = [
   { name: "David Thomas", role: "Teacher · English", email: "david.thomas@school.edu", schoolId: "SCH-T04" },
   { name: "Meera Iyer", role: "Teacher · Biology", email: "meera.iyer@school.edu", schoolId: "SCH-T05" },
   { name: "Kiran Bose", role: "Teacher · Mathematics", email: "kiran.bose@school.edu", schoolId: "SCH-T06" },
+  { name: "Asha Menon", role: "Principal · Riverside", email: "principal@riverside.school", schoolId: "RIV-P01" },
 ];
 
 export default function Login() {
@@ -30,6 +31,7 @@ export default function Login() {
   const [mode, setMode] = useState("email");
   const [email, setEmail] = useState("");
   const [schoolId, setSchoolId] = useState("");
+  const [joinCode, setJoinCode] = useState("");
   const [password, setPassword] = useState(DEMO_LOGIN_ENABLED ? DEMO_PASSWORD : "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
@@ -63,7 +65,8 @@ export default function Login() {
       mode === "email"
         ? parseEmail(email, { required: true })
         : requiredText(schoolId, "School ID");
-    const err = firstError(identity, passwordCheck);
+    const join = mode === "schoolId" && joinCode.trim() ? parseJoinCode(joinCode) : { value: "" };
+    const err = firstError(identity, passwordCheck, join);
     if (err) {
       setError(err);
       return;
@@ -72,7 +75,7 @@ export default function Login() {
     await signIn(
       mode === "email"
         ? { email: identity.value, password: passwordCheck.value }
-        : { schoolId: identity.value, password: passwordCheck.value }
+        : { schoolId: identity.value, password: passwordCheck.value, joinCode: join.value || undefined }
     );
   }
 
@@ -120,17 +123,29 @@ export default function Login() {
             />
           </div>
         ) : (
-          <div>
-            <label className="label">School ID</label>
-            <input
-              className="field"
-              autoComplete="username"
-              required
-              value={schoolId}
-              onChange={(e) => setSchoolId(e.target.value)}
-              placeholder="SCH-T01"
-            />
-          </div>
+          <>
+            <div>
+              <label className="label">School ID</label>
+              <input
+                className="field"
+                autoComplete="username"
+                required
+                value={schoolId}
+                onChange={(e) => setSchoolId(e.target.value)}
+                placeholder="SCH-T01"
+              />
+            </div>
+            <div>
+              <label className="label">School join code (if asked)</label>
+              <input
+                className="field"
+                autoComplete="off"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                placeholder="DEMO-JOIN"
+              />
+            </div>
+          </>
         )}
         <div>
           <label className="label">Password</label>
@@ -149,6 +164,8 @@ export default function Login() {
         </button>
         <p className="text-sm text-ink-700/70">
           New staff? <Link className="underline" to="/signup">Request an account</Link>
+          {" · "}
+          New school? <Link className="underline" to="/register-school">Register your school</Link>
         </p>
       </form>
         <p className="mt-4 text-center text-sm text-ink-700/70">

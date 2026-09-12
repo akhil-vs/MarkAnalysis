@@ -2,6 +2,7 @@ import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import { ACCESS_COOKIE } from "../lib/authCookies.js";
 import { ensurePendingSchema } from "../lib/ensureSchema.js";
+import { runWithoutTenant, runWithTenant } from "../lib/tenant.js";
 
 function readAccessToken(req) {
   const header = req.headers.authorization || "";
@@ -24,6 +25,33 @@ function verifyAccess(req, res) {
     res.status(401).json({ error: "Invalid token" });
     return null;
   }
+}
+
+async function resolveTenantId(payload) {
+  if (payload?.tenantId) return payload.tenantId;
+  if (!payload?.userId) return null;
+  const user = await runWithoutTenant(() =>
+    prisma.user.findUnique({
+      where: { id: payload.userId },
+      select: { tenantId: true },
+    })
+  );
+  return user?.tenantId || null;
+}
+
+function continueWithTenant(req, res, next, cont) {
+  if (req.user?.role === "PLATFORM_ADMIN") {
+    return runWithoutTenant(() => cont());
+  }
+  return resolveTenantId(req.user)
+    .then((tenantId) => {
+      if (!tenantId) {
+        return res.status(401).json({ error: "Unauthorized" });
+      }
+      req.user.tenantId = tenantId;
+      return runWithTenant(tenantId, () => cont());
+    })
+    .catch((err) => next(err));
 }
 
 /** Block API use until a required password change is completed. */
@@ -51,7 +79,7 @@ export function auth(req, res, next) {
   const payload = verifyAccess(req, res);
   if (!payload) return;
   req.user = payload;
-  return rejectIfMustChangePassword(req, res, next);
+  return continueWithTenant(req, res, next, () => rejectIfMustChangePassword(req, res, next));
 }
 
 /** Authenticate, but allow callers who still need to change a temporary password. */
@@ -60,7 +88,7 @@ export function authAllowPasswordChange(req, res, next) {
   if (!payload) return;
   req.user = payload;
   req.allowMustChangePassword = true;
-  return next();
+  return continueWithTenant(req, res, next, () => next());
 }
 
 export function requireRole(...roles) {
@@ -80,24 +108,21 @@ export function signToken(user) {
   );
 }
 
-export function publicUser(user) {
+export function publicUser(user, school) {
   return {
     id: user.id,
     name: user.name,
     email: user.email,
     schoolId: user.schoolId,
+    tenantId: user.tenantId || null,
     role: user.role,
     status: user.status,
     mustChangePassword: Boolean(user.mustChangePassword),
-    tenantId: user.tenantId || null,
-    school: user.tenant
-      ? {
-          id: user.tenant.id,
-          name: user.tenant.name,
-          slug: user.tenant.slug,
-          status: user.tenant.status,
-        }
-      : null,
+    school: school
+      ? { id: school.id, name: school.name, slug: school.slug, status: school.status }
+      : user.tenant
+        ? { id: user.tenant.id, name: user.tenant.name, slug: user.tenant.slug, status: user.tenant.status }
+        : null,
   };
 }
 

@@ -8,6 +8,7 @@ import { guardRolesForRoute, paths } from "./lib/nav.js";
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Portal = lazy(() => import("./pages/Portal.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
+const RegisterSchool = lazy(() => import("./pages/RegisterSchool.jsx"));
 const Pending = lazy(() => import("./pages/Pending.jsx"));
 const PrincipalDashboard = lazy(() => import("./pages/PrincipalDashboard.jsx"));
 const CoordinatorDashboard = lazy(() => import("./pages/CoordinatorDashboard.jsx"));
@@ -110,6 +111,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/portal" element={<Portal />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/register-school" element={<RegisterSchool />} />
         <Route path="/pending" element={<Pending />} />
         <Route
           path="/"

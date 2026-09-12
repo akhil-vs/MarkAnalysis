@@ -5,7 +5,7 @@ import { auth, publicUser, requireRole } from "../middleware/auth.js";
 import { parseEmail } from "../lib/numbers.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
-import { requireSchoolTenant } from "../lib/tenant.js";
+import { requireSchoolTenant, runWithoutTenant } from "../lib/tenant.js";
 
 export const usersRouter = Router();
 usersRouter.use(auth);
@@ -90,11 +90,11 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
   }
 
   if (email) {
-    const exists = await prisma.user.findUnique({ where: { email } });
+    const exists = await runWithoutTenant(() => prisma.user.findUnique({ where: { email } }));
     if (exists) return res.status(409).json({ error: "Email already registered" });
   }
   if (schoolId) {
-    const exists = await prisma.user.findUnique({ where: { schoolId } });
+    const exists = await prisma.user.findFirst({ where: { schoolId } });
     if (exists) return res.status(409).json({ error: "School ID already registered" });
   }
 
@@ -109,7 +109,6 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
       role: chosenRole,
       status: chosenStatus,
       mustChangePassword: true,
-      tenantId: req.tenantId,
     },
   });
 

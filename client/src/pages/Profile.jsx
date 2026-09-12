@@ -76,7 +76,11 @@ export default function Profile() {
               <dd>{user.email || "—"}</dd>
             </div>
             <div>
-              <dt className="text-ink-700/60">School ID</dt>
+              <dt className="text-ink-700/60">School</dt>
+              <dd>{user.school?.name || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-ink-700/60">Staff ID</dt>
               <dd>{user.schoolId || "—"}</dd>
             </div>
             {user.school && (

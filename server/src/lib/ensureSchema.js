@@ -449,6 +449,11 @@ async function ensureExamConsolidationColumns() {
 }
 
 async function ensureSchoolGradingColumns() {
+  if (await tableExists("School")) {
+    await recordMigration(SCHOOL_GRADING_MIGRATION, SCHOOL_GRADING_CHECKSUM);
+    return;
+  }
+
   const hasTable = await tableExists("SchoolProfile");
   if (!hasTable) {
     await applyStatements(SCHOOL_PROFILE_TABLE_STATEMENTS);
@@ -472,6 +477,11 @@ async function ensureSchoolGradingColumns() {
 }
 
 async function ensureSchoolWorkingDaysColumn() {
+  if (await tableExists("School")) {
+    await recordMigration(SCHOOL_WORKING_DAYS_MIGRATION, SCHOOL_WORKING_DAYS_CHECKSUM);
+    return;
+  }
+
   const hasTable = await tableExists("SchoolProfile");
   if (!hasTable) {
     await applyStatements(SCHOOL_PROFILE_TABLE_STATEMENTS);
@@ -664,132 +674,200 @@ async function ensurePortalAccessLinkTable() {
   await recordMigration(PORTAL_LINK_MIGRATION, PORTAL_LINK_CHECKSUM);
 }
 
-const PLATFORM_SCHOOLS_MIGRATION = "20260912180000_platform_schools";
-const PLATFORM_SCHOOLS_CHECKSUM =
-  "d922006e189cb3726b11744f6d8209ada7c688605968705dbf7bbcece92e606e";
+const TENANT_MIGRATION = "20260912180000_multi_tenant_schools";
+const TENANT_CHECKSUM =
+  "e901bb95e00c6440bdc3419d203a4be93db43bc80de3f6ace8d33ad630f9b03b";
 
-const PLATFORM_SCHOOLS_STATEMENTS = [
-  `DO $$ BEGIN
-  CREATE TYPE "SchoolStatus" AS ENUM ('ACTIVE', 'SUSPENDED');
-EXCEPTION
-  WHEN duplicate_object THEN null;
-END $$;`,
-  `DO $$ BEGIN
-  ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'PLATFORM_ADMIN';
-EXCEPTION
-  WHEN duplicate_object THEN null;
-END $$;`,
-  `DO $$ BEGIN
-  ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'SCHOOL_CREATED';
-EXCEPTION
-  WHEN duplicate_object THEN null;
-END $$;`,
-  `DO $$ BEGIN
-  ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'SCHOOL_UPDATED';
-EXCEPTION
-  WHEN duplicate_object THEN null;
-END $$;`,
-  `DO $$ BEGIN
-  ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'SCHOOL_STATUS_CHANGED';
-EXCEPTION
-  WHEN duplicate_object THEN null;
-END $$;`,
-  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "slug" TEXT`,
-  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "status" "SchoolStatus"`,
-  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "createdAt" TIMESTAMP(3)`,
-  `INSERT INTO "SchoolProfile" ("id", "name", "slug", "status", "createdAt", "updatedAt")
-SELECT 'school', 'School Marks Analytics', 'greenfield', 'ACTIVE', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-WHERE NOT EXISTS (SELECT 1 FROM "SchoolProfile")`,
-  `UPDATE "SchoolProfile"
-SET
-  "slug" = COALESCE(NULLIF(BTRIM("slug"), ''), 'greenfield'),
-  "status" = COALESCE("status", 'ACTIVE'),
-  "createdAt" = COALESCE("createdAt", CURRENT_TIMESTAMP)`,
-  `ALTER TABLE "SchoolProfile" ALTER COLUMN "slug" SET NOT NULL`,
-  `ALTER TABLE "SchoolProfile" ALTER COLUMN "status" SET NOT NULL`,
-  `ALTER TABLE "SchoolProfile" ALTER COLUMN "status" SET DEFAULT 'ACTIVE'`,
-  `ALTER TABLE "SchoolProfile" ALTER COLUMN "createdAt" SET NOT NULL`,
-  `ALTER TABLE "SchoolProfile" ALTER COLUMN "createdAt" SET DEFAULT CURRENT_TIMESTAMP`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "SchoolProfile_slug_key" ON "SchoolProfile"("slug")`,
-  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`,
-  `ALTER TABLE "ClassSection" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`,
-  `ALTER TABLE "Subject" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`,
-  `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`,
-  `ALTER TABLE "Exam" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`,
-  `ALTER TABLE "Period" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`,
-  `UPDATE "User"
-SET "tenantId" = (SELECT "id" FROM "SchoolProfile" ORDER BY "createdAt" ASC LIMIT 1)
-WHERE "tenantId" IS NULL AND "role"::text <> 'PLATFORM_ADMIN'`,
-  `UPDATE "ClassSection"
-SET "tenantId" = (SELECT "id" FROM "SchoolProfile" ORDER BY "createdAt" ASC LIMIT 1)
-WHERE "tenantId" IS NULL`,
-  `UPDATE "Subject"
-SET "tenantId" = (SELECT "id" FROM "SchoolProfile" ORDER BY "createdAt" ASC LIMIT 1)
-WHERE "tenantId" IS NULL`,
-  `UPDATE "Student"
-SET "tenantId" = (SELECT "id" FROM "SchoolProfile" ORDER BY "createdAt" ASC LIMIT 1)
-WHERE "tenantId" IS NULL`,
-  `UPDATE "Exam"
-SET "tenantId" = (SELECT "id" FROM "SchoolProfile" ORDER BY "createdAt" ASC LIMIT 1)
-WHERE "tenantId" IS NULL`,
-  `UPDATE "Period"
-SET "tenantId" = (SELECT "id" FROM "SchoolProfile" ORDER BY "createdAt" ASC LIMIT 1)
-WHERE "tenantId" IS NULL`,
-  `ALTER TABLE "ClassSection" ALTER COLUMN "tenantId" SET NOT NULL`,
-  `ALTER TABLE "Subject" ALTER COLUMN "tenantId" SET NOT NULL`,
-  `ALTER TABLE "Student" ALTER COLUMN "tenantId" SET NOT NULL`,
-  `ALTER TABLE "Exam" ALTER COLUMN "tenantId" SET NOT NULL`,
-  `ALTER TABLE "Period" ALTER COLUMN "tenantId" SET NOT NULL`,
-  `DROP INDEX IF EXISTS "ClassSection_className_section_key"`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "ClassSection_tenantId_className_section_key"
-  ON "ClassSection"("tenantId", "className", "section")`,
-  `DROP INDEX IF EXISTS "Subject_name_className_key"`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "Subject_tenantId_name_className_key"
-  ON "Subject"("tenantId", "name", "className")`,
-  `DROP INDEX IF EXISTS "Period_sortOrder_key"`,
-  `CREATE UNIQUE INDEX IF NOT EXISTS "Period_tenantId_sortOrder_key"
-  ON "Period"("tenantId", "sortOrder")`,
-  `CREATE INDEX IF NOT EXISTS "User_tenantId_idx" ON "User"("tenantId")`,
-  `CREATE INDEX IF NOT EXISTS "ClassSection_tenantId_idx" ON "ClassSection"("tenantId")`,
-  `CREATE INDEX IF NOT EXISTS "Subject_tenantId_idx" ON "Subject"("tenantId")`,
-  `CREATE INDEX IF NOT EXISTS "Student_tenantId_idx" ON "Student"("tenantId")`,
-  `CREATE INDEX IF NOT EXISTS "Exam_tenantId_idx" ON "Exam"("tenantId")`,
-  `CREATE INDEX IF NOT EXISTS "Period_tenantId_idx" ON "Period"("tenantId")`,
+const TENANT_TABLES = [
+  "User",
+  "ClassSection",
+  "Subject",
+  "StudentSubjectEnrollment",
+  "TeacherAssignment",
+  "Student",
+  "PortalAccessLink",
+  "Exam",
+  "MarkEntryAccessRequest",
+  "Mark",
+  "MarkAudit",
+  "ActivityAudit",
+  "Notification",
+  "Period",
+  "TimetableEntry",
 ];
 
-const PLATFORM_SCHOOLS_FK_STATEMENTS = [
-  `ALTER TABLE "User" ADD CONSTRAINT "User_tenantId_fkey"
-    FOREIGN KEY ("tenantId") REFERENCES "SchoolProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
-  `ALTER TABLE "ClassSection" ADD CONSTRAINT "ClassSection_tenantId_fkey"
-    FOREIGN KEY ("tenantId") REFERENCES "SchoolProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
-  `ALTER TABLE "Subject" ADD CONSTRAINT "Subject_tenantId_fkey"
-    FOREIGN KEY ("tenantId") REFERENCES "SchoolProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
-  `ALTER TABLE "Student" ADD CONSTRAINT "Student_tenantId_fkey"
-    FOREIGN KEY ("tenantId") REFERENCES "SchoolProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
-  `ALTER TABLE "Exam" ADD CONSTRAINT "Exam_tenantId_fkey"
-    FOREIGN KEY ("tenantId") REFERENCES "SchoolProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
-  `ALTER TABLE "Period" ADD CONSTRAINT "Period_tenantId_fkey"
-    FOREIGN KEY ("tenantId") REFERENCES "SchoolProfile"("id") ON DELETE RESTRICT ON UPDATE CASCADE`,
+const TENANT_STATEMENTS = [
+  `DO $$ BEGIN
+     CREATE TYPE "SchoolStatus" AS ENUM ('ACTIVE', 'SUSPENDED');
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `CREATE TABLE IF NOT EXISTS "School" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "joinCode" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "board" TEXT,
+    "affiliationNo" TEXT,
+    "address" TEXT,
+    "phone" TEXT,
+    "email" TEXT,
+    "status" "SchoolStatus" NOT NULL DEFAULT 'ACTIVE',
+    "passPercent" DOUBLE PRECISION NOT NULL DEFAULT 50,
+    "distinctionMin" DOUBLE PRECISION NOT NULL DEFAULT 90,
+    "gradeBands" JSONB,
+    "examWeights" JSONB,
+    "workingDays" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "School_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "School_slug_key" ON "School"("slug")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "School_joinCode_key" ON "School"("joinCode")`,
+  ...TENANT_TABLES.map((table) => `ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`),
 ];
 
-async function ensurePlatformSchools() {
-  const hasSlug = await columnExists("SchoolProfile", "slug");
-  const hasUserTenant = await columnExists("User", "tenantId");
-  const hasPeriodTenant = await columnExists("Period", "tenantId");
-  if (hasSlug && hasUserTenant && hasPeriodTenant) {
-    await recordMigration(PLATFORM_SCHOOLS_MIGRATION, PLATFORM_SCHOOLS_CHECKSUM);
+async function ensureMultiTenantSchools() {
+  const hasSchool = await tableExists("School");
+  const hasTenantCol = await columnExists("User", "tenantId");
+  if (hasSchool && hasTenantCol) {
+    await recordMigration(TENANT_MIGRATION, TENANT_CHECKSUM);
     return;
   }
 
-  await applyStatements(PLATFORM_SCHOOLS_STATEMENTS);
-  for (const sql of PLATFORM_SCHOOLS_FK_STATEMENTS) {
+  await applyStatements(TENANT_STATEMENTS);
+
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO "School" (
+      "id", "slug", "joinCode", "name", "board", "affiliationNo", "address", "phone", "email",
+      "status", "passPercent", "distinctionMin", "gradeBands", "examWeights", "workingDays",
+      "createdAt", "updatedAt"
+    )
+    SELECT
+      'school',
+      'greenfield-public-school',
+      'DEMO-JOIN',
+      COALESCE(sp."name", 'School Marks Analytics'),
+      sp."board",
+      sp."affiliationNo",
+      sp."address",
+      sp."phone",
+      sp."email",
+      'ACTIVE',
+      COALESCE(sp."passPercent", 50),
+      COALESCE(sp."distinctionMin", 90),
+      sp."gradeBands",
+      sp."examWeights",
+      sp."workingDays",
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    FROM (SELECT 1) AS _seed
+    LEFT JOIN "SchoolProfile" sp ON true
+    WHERE NOT EXISTS (SELECT 1 FROM "School")
+    LIMIT 1
+  `).catch((err) => {
+    if (!/does not exist|already exists/i.test(String(err?.message || err))) throw err;
+  });
+
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO "School" (
+      "id", "slug", "joinCode", "name", "status", "passPercent", "distinctionMin", "createdAt", "updatedAt"
+    )
+    SELECT
+      'school',
+      'greenfield-public-school',
+      'DEMO-JOIN',
+      'School Marks Analytics',
+      'ACTIVE',
+      50,
+      90,
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    WHERE NOT EXISTS (SELECT 1 FROM "School")
+  `);
+
+  for (const table of TENANT_TABLES) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE "${table}" SET "tenantId" = (SELECT "id" FROM "School" ORDER BY "createdAt" ASC LIMIT 1) WHERE "tenantId" IS NULL`
+    );
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" ALTER COLUMN "tenantId" SET NOT NULL`);
+  }
+
+  await applyStatements([
+    `DROP INDEX IF EXISTS "User_schoolId_key"`,
+    `DROP INDEX IF EXISTS "ClassSection_className_section_key"`,
+    `DROP INDEX IF EXISTS "Subject_name_className_key"`,
+    `DROP INDEX IF EXISTS "Period_sortOrder_key"`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "User_tenantId_schoolId_key" ON "User"("tenantId", "schoolId")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "ClassSection_tenantId_className_section_key" ON "ClassSection"("tenantId", "className", "section")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Subject_tenantId_name_className_key" ON "Subject"("tenantId", "name", "className")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Period_tenantId_sortOrder_key" ON "Period"("tenantId", "sortOrder")`,
+    ...TENANT_TABLES.map((table) => `CREATE INDEX IF NOT EXISTS "${table}_tenantId_idx" ON "${table}"("tenantId")`),
+  ]);
+
+  for (const table of TENANT_TABLES) {
     try {
-      await prisma.$executeRawUnsafe(sql);
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`
+      );
     } catch (err) {
       if (!/already exists/i.test(String(err?.message || err))) throw err;
     }
   }
-  await recordMigration(PLATFORM_SCHOOLS_MIGRATION, PLATFORM_SCHOOLS_CHECKSUM);
+
+  await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "SchoolProfile"`);
+  await recordMigration(TENANT_MIGRATION, TENANT_CHECKSUM);
+}
+
+const PLATFORM_ADMIN_MIGRATION = "20260912200000_platform_admin";
+const PLATFORM_ADMIN_CHECKSUM =
+  "4a24ba363677feed496348aa9b467ba1335b64d14323b3799f8a28e7ff0dd8d4";
+
+const PLATFORM_ADMIN_STATEMENTS = [
+  `DO $$ BEGIN
+     ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'PLATFORM_ADMIN';
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `DO $$ BEGIN
+     ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'SCHOOL_CREATED';
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `DO $$ BEGIN
+     ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'SCHOOL_UPDATED';
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `DO $$ BEGIN
+     ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'SCHOOL_STATUS_CHANGED';
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `ALTER TABLE "User" ALTER COLUMN "tenantId" DROP NOT NULL`,
+];
+
+async function columnIsNullable(tableName, columnName) {
+  const rows = await prisma.$queryRaw`
+    SELECT is_nullable AS "nullable"
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = ${tableName}
+      AND column_name = ${columnName}
+  `;
+  return String(rows?.[0]?.nullable || "").toUpperCase() === "YES";
+}
+
+async function ensurePlatformAdminRole() {
+  const hasRole = await enumHasLabel("Role", "PLATFORM_ADMIN");
+  const tenantNullable = await columnIsNullable("User", "tenantId");
+  if (hasRole && tenantNullable) {
+    await recordMigration(PLATFORM_ADMIN_MIGRATION, PLATFORM_ADMIN_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(PLATFORM_ADMIN_STATEMENTS);
+  await recordMigration(PLATFORM_ADMIN_MIGRATION, PLATFORM_ADMIN_CHECKSUM);
 }
 
 export async function ensurePendingSchema() {
@@ -816,7 +894,8 @@ export async function ensurePendingSchema() {
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
       await ensureExamConsolidationColumns();
-      await ensurePlatformSchools();
+      await ensureMultiTenantSchools();
+      await ensurePlatformAdminRole();
     })().catch((err) => {
       ensurePromise = null;
       throw err;
@@ -884,8 +963,10 @@ export const __test = {
   ELECTIVE_CHECKSUM,
   ELECTIVE_STATEMENTS,
   ELECTIVE_FK_STATEMENTS,
-  PLATFORM_SCHOOLS_MIGRATION,
-  PLATFORM_SCHOOLS_CHECKSUM,
-  PLATFORM_SCHOOLS_STATEMENTS,
-  PLATFORM_SCHOOLS_FK_STATEMENTS,
+  TENANT_MIGRATION,
+  TENANT_CHECKSUM,
+  TENANT_STATEMENTS,
+  PLATFORM_ADMIN_MIGRATION,
+  PLATFORM_ADMIN_CHECKSUM,
+  PLATFORM_ADMIN_STATEMENTS,
 };

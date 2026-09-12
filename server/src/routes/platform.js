@@ -6,10 +6,13 @@ import { parseEmail } from "../lib/numbers.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { DEFAULT_PERIODS } from "../lib/periods.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
+import { allocateJoinCode } from "../lib/school.js";
 import {
   parseSlug,
   publicSchool,
   requirePlatformAdmin,
+  runWithoutTenant,
+  runWithTenant,
   schoolCreateData,
   slugifyName,
 } from "../lib/tenant.js";
@@ -38,7 +41,7 @@ async function schoolStats(schoolId) {
 }
 
 async function loadSchool(id) {
-  return prisma.schoolProfile.findUnique({ where: { id } });
+  return prisma.school.findUnique({ where: { id } });
 }
 
 function tempPassword() {
@@ -47,14 +50,14 @@ function tempPassword() {
 
 platformRouter.get("/overview", async (_req, res) => {
   const [schools, activeSchools, suspendedSchools, staff, students, pendingStaff] = await Promise.all([
-    prisma.schoolProfile.count(),
-    prisma.schoolProfile.count({ where: { status: "ACTIVE" } }),
-    prisma.schoolProfile.count({ where: { status: "SUSPENDED" } }),
+    prisma.school.count(),
+    prisma.school.count({ where: { status: "ACTIVE" } }),
+    prisma.school.count({ where: { status: "SUSPENDED" } }),
     prisma.user.count({ where: { role: { not: "PLATFORM_ADMIN" } } }),
     prisma.student.count({ where: { status: "ACTIVE" } }),
     prisma.user.count({ where: { status: "PENDING", role: { not: "PLATFORM_ADMIN" } } }),
   ]);
-  const recent = await prisma.schoolProfile.findMany({
+  const recent = await prisma.school.findMany({
     orderBy: { createdAt: "desc" },
     take: 8,
     select: {
@@ -104,7 +107,7 @@ platformRouter.get("/schools", async (req, res) => {
 
   const orderBy = [{ name: "asc" }];
   if (!paging.paged) {
-    const schools = await prisma.schoolProfile.findMany({ where, orderBy });
+    const schools = await prisma.school.findMany({ where, orderBy });
     const items = await Promise.all(
       schools.map(async (school) => ({ ...publicSchool(school), ...(await schoolStats(school.id)) }))
     );
@@ -112,8 +115,8 @@ platformRouter.get("/schools", async (req, res) => {
   }
 
   const [total, schools] = await Promise.all([
-    prisma.schoolProfile.count({ where }),
-    prisma.schoolProfile.findMany({
+    prisma.school.count({ where }),
+    prisma.school.findMany({
       where,
       orderBy,
       skip: paging.skip,
@@ -158,7 +161,7 @@ platformRouter.post("/schools", async (req, res) => {
   const parsed = schoolCreateData(req.body || {});
   if (parsed.error) return res.status(400).json({ error: parsed.error });
 
-  const slugTaken = await prisma.schoolProfile.findUnique({ where: { slug: parsed.value.slug } });
+  const slugTaken = await prisma.school.findUnique({ where: { slug: parsed.value.slug } });
   if (slugTaken) return res.status(409).json({ error: "School code already in use" });
 
   const principalName = String(req.body?.principalName || "").trim();
@@ -181,31 +184,31 @@ platformRouter.post("/schools", async (req, res) => {
   }
 
   const principalSchoolId = String(req.body?.principalSchoolId || "").trim() || null;
-  if (principalSchoolId) {
-    const taken = await prisma.user.findUnique({ where: { schoolId: principalSchoolId } });
-    if (taken) return res.status(409).json({ error: "Staff ID already registered" });
-  }
+  const joinCode = await allocateJoinCode();
+  const passwordHash = await bcrypt.hash(password, 10);
 
-  const school = await prisma.$transaction(async (tx) => {
-    const created = await tx.schoolProfile.create({
+  const school = await runWithoutTenant(async () => {
+    const created = await prisma.school.create({
       data: {
         ...parsed.value,
-        updatedAt: new Date(),
+        joinCode,
       },
     });
-    await tx.period.createMany({
-      data: DEFAULT_PERIODS.map((p) => ({ ...p, tenantId: created.id })),
-    });
-    await tx.user.create({
+    if (DEFAULT_PERIODS.length) {
+      await prisma.period.createMany({
+        data: DEFAULT_PERIODS.map((p) => ({ ...p, tenantId: created.id })),
+      });
+    }
+    await prisma.user.create({
       data: {
+        tenantId: created.id,
         name: principalName,
         email: principalEmail.value,
         schoolId: principalSchoolId,
-        passwordHash: await bcrypt.hash(password, 10),
+        passwordHash,
         role: "PRINCIPAL",
         status: "ACTIVE",
         mustChangePassword: true,
-        tenantId: created.id,
       },
     });
     return created;
@@ -215,7 +218,8 @@ platformRouter.post("/schools", async (req, res) => {
     actorId: req.user.userId,
     action: "SCHOOL_CREATED",
     summary: `Created school ${school.name} (${school.slug})`,
-    meta: { schoolId: school.id, slug: school.slug, name: school.name },
+    tenantId: school.id,
+    meta: { schoolId: school.id, slug: school.slug, name: school.name, joinCode: school.joinCode },
   });
 
   res.status(201).json({
@@ -242,7 +246,7 @@ platformRouter.patch("/schools/:id", async (req, res) => {
     const parsed = parseSlug(req.body.slug || (data.name ? slugifyName(data.name) : school.slug));
     if (parsed.error) return res.status(400).json({ error: parsed.error });
     if (parsed.value !== school.slug) {
-      const taken = await prisma.schoolProfile.findUnique({ where: { slug: parsed.value } });
+      const taken = await prisma.school.findUnique({ where: { slug: parsed.value } });
       if (taken) return res.status(409).json({ error: "School code already in use" });
     }
     data.slug = parsed.value;
@@ -253,7 +257,7 @@ platformRouter.patch("/schools/:id", async (req, res) => {
   if (req.body?.phone !== undefined) data.phone = optionalTrim(req.body.phone);
   if (req.body?.email !== undefined) data.email = optionalTrim(req.body.email);
 
-  const updated = await prisma.schoolProfile.update({
+  const updated = await prisma.school.update({
     where: { id: school.id },
     data,
   });
@@ -261,6 +265,7 @@ platformRouter.patch("/schools/:id", async (req, res) => {
     actorId: req.user.userId,
     action: "SCHOOL_UPDATED",
     summary: `Updated school ${updated.name} (${updated.slug})`,
+    tenantId: updated.id,
     meta: { schoolId: updated.id, slug: updated.slug, name: updated.name },
   });
   res.json({ ...publicSchool(updated), ...(await schoolStats(updated.id)) });
@@ -276,7 +281,7 @@ platformRouter.post("/schools/:id/status", async (req, res) => {
   if (school.status === status) {
     return res.json({ ...publicSchool(school), ...(await schoolStats(school.id)) });
   }
-  const updated = await prisma.schoolProfile.update({
+  const updated = await prisma.school.update({
     where: { id: school.id },
     data: { status },
   });
@@ -284,6 +289,7 @@ platformRouter.post("/schools/:id/status", async (req, res) => {
     actorId: req.user.userId,
     action: "SCHOOL_STATUS_CHANGED",
     summary: `${updated.name}: ${school.status} → ${status}`,
+    tenantId: updated.id,
     meta: { schoolId: updated.id, slug: updated.slug, from: school.status, to: status },
   });
   res.json({ ...publicSchool(updated), ...(await schoolStats(updated.id)) });
@@ -310,26 +316,29 @@ platformRouter.post("/schools/:id/principal", async (req, res) => {
   }
   const schoolId = String(req.body?.schoolId || "").trim() || null;
   if (schoolId) {
-    const taken = await prisma.user.findUnique({ where: { schoolId } });
-    if (taken) return res.status(409).json({ error: "Staff ID already registered" });
+    const taken = await runWithTenant(school.id, () => prisma.user.findFirst({ where: { schoolId } }));
+    if (taken) return res.status(409).json({ error: "Staff ID already registered at this school" });
   }
 
-  const user = await prisma.user.create({
-    data: {
-      name,
-      email: email.value,
-      schoolId,
-      passwordHash: await bcrypt.hash(password, 10),
-      role: "PRINCIPAL",
-      status: "ACTIVE",
-      mustChangePassword: true,
-      tenantId: school.id,
-    },
-  });
+  const passwordHash = await bcrypt.hash(password, 10);
+  const user = await runWithTenant(school.id, () =>
+    prisma.user.create({
+      data: {
+        name,
+        email: email.value,
+        schoolId,
+        passwordHash,
+        role: "PRINCIPAL",
+        status: "ACTIVE",
+        mustChangePassword: true,
+      },
+    })
+  );
   await logActivity({
     actorId: req.user.userId,
     action: "USER_CREATED",
     summary: `Created principal ${user.name} for ${school.name}`,
+    tenantId: school.id,
     meta: { userId: user.id, userName: user.name, role: "PRINCIPAL", schoolId: school.id },
   });
   res.status(201).json({
@@ -370,6 +379,7 @@ platformRouter.post("/schools/:id/users/:userId/reset-password", async (req, res
     actorId: req.user.userId,
     action: "USER_PASSWORD_RESET",
     summary: `Reset password for ${user.name} (${school.name})`,
+    tenantId: school.id,
     meta: { userId: user.id, userName: user.name, role: user.role, schoolId: school.id },
   });
   res.json({

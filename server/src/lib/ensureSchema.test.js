@@ -156,18 +156,23 @@ describe("ensureSchema bootstrap", () => {
     assert.equal(__test.ELECTIVE_FK_STATEMENTS.length, 2);
   });
 
-  it("embeds platform schools tenant migration checksum", () => {
+  it("embeds multi-tenant school migration checksum", () => {
     const file = readFileSync(
-      join(migrationsDir, "20260912180000_platform_schools/migration.sql")
+      join(migrationsDir, "20260912180000_multi_tenant_schools/migration.sql")
     );
-    assert.equal(
-      __test.PLATFORM_SCHOOLS_CHECKSUM,
-      createHash("sha256").update(file).digest("hex")
+    assert.equal(__test.TENANT_CHECKSUM, createHash("sha256").update(file).digest("hex"));
+    assert.equal(__test.TENANT_MIGRATION, "20260912180000_multi_tenant_schools");
+    assert.ok(__test.TENANT_STATEMENTS.some((s) => s.includes('CREATE TABLE IF NOT EXISTS "School"')));
+    assert.ok(__test.TENANT_STATEMENTS.some((s) => s.includes('"joinCode"')));
+  });
+
+  it("embeds platform admin migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260912200000_platform_admin/migration.sql")
     );
-    assert.equal(__test.PLATFORM_SCHOOLS_MIGRATION, "20260912180000_platform_schools");
-    assert.ok(__test.PLATFORM_SCHOOLS_STATEMENTS.some((s) => s.includes("PLATFORM_ADMIN")));
-    assert.ok(__test.PLATFORM_SCHOOLS_STATEMENTS.some((s) => s.includes('"tenantId"')));
-    assert.ok(__test.PLATFORM_SCHOOLS_STATEMENTS.some((s) => s.includes("SchoolProfile_slug_key")));
-    assert.equal(__test.PLATFORM_SCHOOLS_FK_STATEMENTS.length, 6);
+    assert.equal(__test.PLATFORM_ADMIN_CHECKSUM, createHash("sha256").update(file).digest("hex"));
+    assert.equal(__test.PLATFORM_ADMIN_MIGRATION, "20260912200000_platform_admin");
+    assert.ok(__test.PLATFORM_ADMIN_STATEMENTS.some((s) => s.includes("PLATFORM_ADMIN")));
+    assert.ok(__test.PLATFORM_ADMIN_STATEMENTS.some((s) => s.includes("DROP NOT NULL")));
   });
 });

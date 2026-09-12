@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { auth, requireRole } from "../middleware/auth.js";
-import { getSchoolProfile } from "../lib/school.js";
+import { auth, isLeadership, requireRole } from "../middleware/auth.js";
+import { allocateJoinCode, getSchoolProfile } from "../lib/school.js";
 import { prisma } from "../lib/prisma.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 import {
@@ -17,18 +17,30 @@ export const schoolRouter = Router();
 schoolRouter.use(auth);
 schoolRouter.use(requireSchoolTenant);
 
-function publicSchool(profile) {
+function publicSchool(profile, { includeJoinCode = false } = {}) {
   return {
-    ...profile,
+    id: profile.id,
+    slug: profile.slug,
+    name: profile.name,
+    board: profile.board,
+    affiliationNo: profile.affiliationNo,
+    address: profile.address,
+    phone: profile.phone,
+    email: profile.email,
+    status: profile.status,
     workingDays: publicWorkingDays(profile),
     grading: publicGradingConfig(profile),
+    ...(includeJoinCode ? { joinCode: profile.joinCode } : {}),
   };
 }
 
+function schoolJson(req, profile) {
+  return publicSchool(profile, { includeJoinCode: isLeadership(req.user.role) });
+}
+
 schoolRouter.get("/", async (req, res) => {
-  const profile = await getSchoolProfile(req.tenantId);
-  if (!profile) return res.status(404).json({ error: "School not found" });
-  res.json(publicSchool(profile));
+  const profile = await getSchoolProfile();
+  res.json(schoolJson(req, profile));
 });
 
 schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
@@ -42,9 +54,9 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
   const workingDaysPatch = parseWorkingDays(req.body?.workingDays);
   if (workingDaysPatch.error) return res.status(400).json({ error: workingDaysPatch.error });
 
-  await getSchoolProfile(req.tenantId);
-  const updated = await prisma.schoolProfile.update({
-    where: { id: req.tenantId },
+  const profile = await getSchoolProfile();
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
     data: {
       ...(name !== undefined && { name: String(name).trim() }),
       ...(board !== undefined && { board: board ? String(board).trim() : null }),
@@ -56,13 +68,23 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
       ...gradingPatch.data,
     },
   });
-  res.json(publicSchool(updated));
+  res.json(schoolJson(req, updated));
 });
 
-schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  await getSchoolProfile(req.tenantId);
-  const updated = await prisma.schoolProfile.update({
-    where: { id: req.tenantId },
+schoolRouter.post("/join-code", requireRole("PRINCIPAL"), async (req, res) => {
+  const profile = await getSchoolProfile();
+  const joinCode = await allocateJoinCode();
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
+    data: { joinCode },
+  });
+  res.json(schoolJson(req, updated));
+});
+
+schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (_req, res) => {
+  const profile = await getSchoolProfile();
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
     data: {
       passPercent: DEFAULT_PASS_PERCENT,
       distinctionMin: DEFAULT_DISTINCTION_MIN,
@@ -70,5 +92,5 @@ schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR")
       examWeights: DEFAULT_EXAM_WEIGHTS,
     },
   });
-  res.json(publicSchool(updated));
+  res.json(schoolJson(_req, updated));
 });
