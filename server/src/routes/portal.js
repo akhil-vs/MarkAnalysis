@@ -140,8 +140,9 @@ portalRouter.post(
         select: { id: true, revokedAt: true },
       });
       res.json(link);
-    } catch {
-      res.status(404).json({ error: "Link not found" });
+    } catch (err) {
+      if (err?.code === "P2025") return res.status(404).json({ error: "Link not found" });
+      throw err;
     }
   }
 );

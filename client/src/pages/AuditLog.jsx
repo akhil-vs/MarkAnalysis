@@ -3,6 +3,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { describeAuditValue } from "../lib/markCodes.js";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -107,6 +108,7 @@ export default function AuditLog() {
   const [staff, setStaff] = useState([]);
   const [examId, setExamId] = useState("");
   const [scope, setScope] = useState(seeAllUsers ? "all-users" : "teachers");
+  const [error, setError] = useState("");
   const table = useTableSearch(rows, { getSearchText: auditSearchText, filterDefs: AUDIT_FILTERS });
 
   const staffOptions = useMemo(() => {
@@ -132,18 +134,22 @@ export default function AuditLog() {
   }
 
   useEffect(() => {
-    api("/api/exams").then((e) => {
-      setExams(e);
-      if (seeAllUsers) setExamId("");
-      else if (e[0]) setExamId(e.at(-1).id);
-    });
+    api("/api/exams")
+      .then((e) => {
+        setExams(e);
+        if (seeAllUsers) setExamId("");
+        else if (e[0]) setExamId(e.at(-1).id);
+      })
+      .catch((err) => setError(err.message || "Could not load exams"));
     if (seeAllUsers) {
-      api("/api/users").then((u) => setStaff(Array.isArray(u) ? u : u.items || [])).catch(() => setStaff([]));
+      api("/api/users")
+        .then((u) => setStaff(Array.isArray(u) ? u : u.items || []))
+        .catch(() => setStaff([]));
     }
   }, [seeAllUsers]);
 
   useEffect(() => {
-    load(examId).catch(() => {});
+    load(examId).catch((err) => setError(err.message || "Could not load audit log"));
   }, [page, pageSize, table.q, table.filters.role, table.filters.actorId, examId]);
 
   const subtitle = seeAllUsers
@@ -173,6 +179,7 @@ export default function AuditLog() {
           </select>
         }
       />
+      {error && <LoadError message={error} />}
       <div className="card">
         <div className="p-3 border-b border-ink-900/10">
           <TableToolbar

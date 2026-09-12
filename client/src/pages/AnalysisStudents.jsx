@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { NAV_TITLES, paths } from "../lib/nav.js";
@@ -13,11 +14,16 @@ function studentSearchText(s) {
 
 export default function AnalysisStudents() {
   const [students, setStudents] = useState([]);
+  const [error, setError] = useState("");
   const table = useTableSearch(students, { getSearchText: studentSearchText });
 
   useEffect(() => {
-    api("/api/students").then(setStudents);
+    api("/api/students")
+      .then((data) => setStudents(Array.isArray(data) ? data : data.items || []))
+      .catch((err) => setError(err.message || "Could not load students"));
   }, []);
+
+  if (error) return <LoadError message={error} />;
 
   return (
     <div>

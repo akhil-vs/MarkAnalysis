@@ -12,6 +12,7 @@ import {
 } from "recharts";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import {
   BarTrack,
   ChartTooltip,
@@ -34,11 +35,17 @@ export default function CoordinatorDashboard() {
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
   const [notify, setNotify] = useState(null);
+  const [error, setError] = useState("");
 
   async function load(id) {
-    const res = await api(`/api/analytics/coordinator${id ? `?examId=${id}` : ""}`);
-    setData(res);
-    if (res.exam) setExamId(res.exam.id);
+    setError("");
+    try {
+      const res = await api(`/api/analytics/coordinator${id ? `?examId=${id}` : ""}`);
+      setData(res);
+      if (res.exam) setExamId(res.exam.id);
+    } catch (err) {
+      setError(err.message || "Could not load coordinator view");
+    }
   }
 
   useEffect(() => {
@@ -50,6 +57,7 @@ export default function CoordinatorDashboard() {
     return list[0] || null;
   }, [data]);
 
+  if (error) return <LoadError message={error} />;
   if (!data) return <p className="text-ink-700/60">Loading coordinator view…</p>;
   if (data.empty) return <p>No exam data yet.</p>;
 

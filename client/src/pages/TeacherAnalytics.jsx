@@ -6,6 +6,7 @@ import { TeacherCompareTable, YearComparison } from "../components/AnalysisPanel
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { BarTrack, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import { useAuth } from "../auth.jsx";
 import { NAV_LABELS, paths } from "../lib/nav.js";
 import { isLeadership } from "../lib/roles.js";
@@ -23,17 +24,24 @@ export default function TeacherAnalytics() {
   const leadership = isLeadership(user.role);
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
+  const [error, setError] = useState("");
 
   async function load(eid) {
-    const res = await api(`/api/analytics/staff/${id}${eid ? `?examId=${eid}` : ""}`);
-    setData(res);
-    if (res.exam) setExamId(res.exam.id);
+    setError("");
+    try {
+      const res = await api(`/api/analytics/staff/${id}${eid ? `?examId=${eid}` : ""}`);
+      setData(res);
+      if (res.exam) setExamId(res.exam.id);
+    } catch (err) {
+      setError(err.message || "Could not load teacher");
+    }
   }
 
   useEffect(() => {
     load("");
   }, [id]);
 
+  if (error) return <LoadError message={error} />;
   if (!data) return <p>Loading teacher…</p>;
   if (data.empty) return <p>No data for this teacher yet.</p>;
 
