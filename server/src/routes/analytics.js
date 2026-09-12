@@ -63,49 +63,107 @@ analyticsRouter.get("/school", async (req, res) => {
   const grading = gradingHelpers(await getGradingConfig());
   const { passPercent, gradeFn, gradeBands, distinctionMin } = grading;
 
+  const markCoreSelect = {
+    id: true,
+    studentId: true,
+    subjectId: true,
+    examId: true,
+    marksObtained: true,
+    outcome: true,
+    status: true,
+    updatedAt: true,
+    student: {
+      select: {
+        id: true,
+        name: true,
+        rollNo: true,
+        status: true,
+        classSectionId: true,
+        classSection: { select: { id: true, className: true, section: true } },
+      },
+    },
+    subject: { select: { id: true, name: true, className: true, maxMarks: true } },
+  };
+
   const [
-    marks,
-    allApproved,
+    examMarks,
+    historyApproved,
     classes,
     subjects,
     assignments,
     activeStudents,
     teacherCount,
     activeStudentRows,
-    allExamMarks,
     accessRequests,
-    pendingUploads,
   ] = await Promise.all([
     prisma.mark.findMany({
-      where: { examId: exam.id, status: "APPROVED", student: { status: "ACTIVE" } },
-      include: {
-        student: { include: { classSection: true } },
-        subject: true,
-        exam: true,
-      },
+      where: { examId: exam.id },
+      select: markCoreSelect,
     }),
     prisma.mark.findMany({
-      where: { status: "APPROVED", student: { status: "ACTIVE" } },
-      include: { student: { include: { classSection: true } }, subject: true, exam: true },
+      where: {
+        status: "APPROVED",
+        examId: { not: exam.id },
+        student: { status: "ACTIVE" },
+      },
+      select: {
+        studentId: true,
+        subjectId: true,
+        examId: true,
+        marksObtained: true,
+        outcome: true,
+        subject: { select: { maxMarks: true } },
+      },
     }),
     prisma.classSection.findMany({
       orderBy: [{ className: "asc" }, { section: "asc" }],
       include: { _count: { select: { students: { where: { status: "ACTIVE" } } } } },
     }),
-    prisma.subject.findMany(),
+    prisma.subject.findMany({
+      select: { id: true, name: true, className: true, maxMarks: true },
+    }),
     prisma.teacherAssignment.findMany({
-      include: { user: true, subject: true, classSection: true },
+      select: {
+        userId: true,
+        classSectionId: true,
+        subjectId: true,
+        user: { select: { id: true, name: true, email: true } },
+        subject: { select: { id: true, name: true, className: true, maxMarks: true } },
+        classSection: { select: { id: true, className: true, section: true } },
+      },
     }),
     prisma.student.count({ where: { status: "ACTIVE" } }),
     prisma.user.count({ where: { role: "TEACHER", status: "ACTIVE" } }),
     prisma.student.findMany({ where: { status: "ACTIVE" }, select: { id: true, classSectionId: true } }),
-    prisma.mark.findMany({
+    prisma.markEntryAccessRequest.findMany({
       where: { examId: exam.id },
-      include: { student: true, subject: true },
+      select: { status: true, kind: true },
     }),
-    prisma.markEntryAccessRequest.findMany({ where: { examId: exam.id } }),
-    buildPendingUploads(exam),
   ]);
+
+  // Attach exam onto rows so term/year helpers can read mark.exam without a nested include.
+  const examById = new Map(exams.map((e) => [e.id, e]));
+  const marks = examMarks
+    .filter((m) => m.status === "APPROVED" && m.student?.status === "ACTIVE")
+    .map((m) => ({ ...m, exam }));
+  const allApproved = [
+    ...marks,
+    ...historyApproved
+      .map((m) => {
+        const histExam = examById.get(m.examId);
+        return histExam ? { ...m, exam: histExam } : null;
+      })
+      .filter(Boolean),
+  ];
+  const pendingUploads = await buildPendingUploads(exam, {
+    assignments,
+    students: activeStudentRows,
+    marks: examMarks.map((m) => ({
+      studentId: m.studentId,
+      subjectId: m.subjectId,
+      status: m.status,
+    })),
+  });
 
   const byClass = new Map();
   for (const mark of marks) {
@@ -132,19 +190,19 @@ analyticsRouter.get("/school", async (req, res) => {
   const classWise = [...new Set(classes.map((c) => c.className))]
     .sort(compareClassNames)
     .map((className) => {
-    const sections = sectionAverages.filter((s) => s.className === className);
-    const stats = summarize(percentsOf(marks.filter((m) => m.student.classSection.className === className)), {
-      passPercent,
+      const sections = sectionAverages.filter((s) => s.className === className);
+      const stats = summarize(percentsOf(marks.filter((m) => m.student.classSection.className === className)), {
+        passPercent,
+      });
+      return {
+        className,
+        label: `Class ${className}`,
+        sectionCount: sections.length,
+        studentCount: sections.reduce((s, c) => s + c.studentCount, 0),
+        average: stats.average,
+        passRate: stats.passRate,
+      };
     });
-    return {
-      className,
-      label: `Class ${className}`,
-      sectionCount: sections.length,
-      studentCount: sections.reduce((s, c) => s + c.studentCount, 0),
-      average: stats.average,
-      passRate: stats.passRate,
-    };
-  });
 
   const subjectWise = [...new Set(subjects.map((s) => s.name))]
     .sort()
@@ -245,7 +303,7 @@ analyticsRouter.get("/school", async (req, res) => {
   const readiness = examReadiness({
     exam,
     assignments,
-    marks: allExamMarks,
+    marks: examMarks,
     studentsByClass,
     accessRequests,
   });
@@ -281,6 +339,7 @@ analyticsRouter.get("/school", async (req, res) => {
     },
   });
 });
+
 
 analyticsRouter.get("/coordinator", async (req, res) => {
   if (!isLeadership(req.user.role)) {
@@ -863,17 +922,19 @@ analyticsRouter.get("/awaiting-approvals", async (req, res) => {
   res.json({ count: items.length, items });
 });
 
-async function buildPendingUploads(exam) {
-  const [assignments, students, marks] = await Promise.all([
-    prisma.teacherAssignment.findMany({
-      include: { user: true, classSection: true, subject: true },
-    }),
-    prisma.student.findMany({ where: { status: "ACTIVE" }, select: { id: true, classSectionId: true } }),
-    prisma.mark.findMany({
-      where: { examId: exam.id },
-      select: { studentId: true, subjectId: true, status: true },
-    }),
-  ]);
+async function buildPendingUploads(exam, prefetched = null) {
+  const [assignments, students, marks] = prefetched
+    ? [prefetched.assignments, prefetched.students, prefetched.marks]
+    : await Promise.all([
+        prisma.teacherAssignment.findMany({
+          include: { user: true, classSection: true, subject: true },
+        }),
+        prisma.student.findMany({ where: { status: "ACTIVE" }, select: { id: true, classSectionId: true } }),
+        prisma.mark.findMany({
+          where: { examId: exam.id },
+          select: { studentId: true, subjectId: true, status: true },
+        }),
+      ]);
   const studentsByClass = groupBy(students, (s) => s.classSectionId);
   const studentClass = new Map(students.map((s) => [s.id, s.classSectionId]));
   const marksBySubjectClass = new Map();
@@ -910,7 +971,9 @@ async function buildPendingUploads(exam) {
   const teachers = [...byTeacher.values()]
     .map((t) => {
       const missingAssignments = t.assignments.filter((a) => a.missing > 0);
-      const awaitingApproval = t.assignments.filter((a) => a.status === "AWAITING_APPROVAL" || ((a.submitted ?? 0) > 0 && a.approved < a.expected));
+      const awaitingApproval = t.assignments.filter(
+        (a) => a.status === "AWAITING_APPROVAL" || ((a.submitted ?? 0) > 0 && a.approved < a.expected)
+      );
       return {
         ...t,
         pending: missingAssignments.length > 0,
@@ -934,6 +997,7 @@ async function buildPendingUploads(exam) {
     teachers,
   };
 }
+
 
 registerAnalysisReports(analyticsRouter);
 registerAnalyticsInsights(analyticsRouter);
