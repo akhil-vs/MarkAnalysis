@@ -97,7 +97,8 @@ async function request(path, { method = "GET", body, headers } = {}, { retry = t
     path !== "/api/auth/login" &&
     path !== "/api/auth/refresh" &&
     path !== "/api/auth/logout" &&
-    path !== "/api/auth/signup"
+    path !== "/api/auth/signup" &&
+    !path.startsWith("/api/schools/")
   ) {
     const refreshed = await tryRefreshSession();
     if (refreshed) return request(path, { method, body, headers }, { retry: false });

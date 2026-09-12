@@ -155,4 +155,14 @@ describe("ensureSchema bootstrap", () => {
     );
     assert.equal(__test.ELECTIVE_FK_STATEMENTS.length, 2);
   });
+
+  it("embeds multi-tenant school migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260912180000_multi_tenant_schools/migration.sql")
+    );
+    assert.equal(__test.TENANT_CHECKSUM, createHash("sha256").update(file).digest("hex"));
+    assert.equal(__test.TENANT_MIGRATION, "20260912180000_multi_tenant_schools");
+    assert.ok(__test.TENANT_STATEMENTS.some((s) => s.includes('CREATE TABLE IF NOT EXISTS "School"')));
+    assert.ok(__test.TENANT_STATEMENTS.some((s) => s.includes('"joinCode"')));
+  });
 });

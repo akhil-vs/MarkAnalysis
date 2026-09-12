@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { FieldError } from "../components/FieldError.jsx";
-import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
+import { firstError, parseEmail, parseJoinCode, parsePassword, requiredText } from "../lib/formValidation.js";
 import { AuthShell } from "./Login.jsx";
 
 export default function Signup() {
@@ -12,6 +12,7 @@ export default function Signup() {
     name: "",
     email: "",
     schoolId: "",
+    joinCode: "",
     password: "",
     role: "TEACHER",
   });
@@ -28,11 +29,12 @@ export default function Signup() {
     const name = requiredText(form.name, "Full name");
     const password = parsePassword(form.password);
     const email = parseEmail(form.email);
+    const joinCode = parseJoinCode(form.joinCode);
     if (!form.email.trim() && !form.schoolId.trim()) {
       setError("Provide an email or school ID");
       return;
     }
-    const err = firstError(name, password, email);
+    const err = firstError(name, password, email, joinCode);
     if (err) {
       setError(err);
       return;
@@ -43,6 +45,7 @@ export default function Signup() {
         name: name.value,
         email: email.value,
         schoolId: form.schoolId.trim(),
+        joinCode: joinCode.value,
         password: password.value,
       });
       if (data.token) navigate("/");
@@ -56,7 +59,7 @@ export default function Signup() {
   }
 
   return (
-    <AuthShell title="Request access" subtitle="Teachers and coordinators need principal approval">
+    <AuthShell title="Request access" subtitle="Teachers and coordinators need a school join code and principal approval">
       <form onSubmit={onSubmit} className="space-y-3">
         <div>
           <label className="label">Full name</label>
@@ -65,6 +68,18 @@ export default function Signup() {
         <div>
           <label className="label">Email</label>
           <input className="field" type="email" autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+        </div>
+        <div>
+          <label className="label">School join code</label>
+          <input
+            className="field"
+            autoComplete="off"
+            required
+            value={form.joinCode}
+            onChange={(e) => set("joinCode", e.target.value.toUpperCase())}
+            placeholder="ABCD-EFGH"
+          />
+          <p className="mt-1 text-xs text-ink-700/60">Ask your principal for the code on School profile.</p>
         </div>
         <div>
           <label className="label">School ID (optional)</label>
@@ -87,6 +102,8 @@ export default function Signup() {
         <button className="btn-primary w-full">Create account</button>
         <p className="text-sm text-ink-700/70">
           Already approved? <Link className="underline" to="/login">Sign in</Link>
+          {" · "}
+          New school? <Link className="underline" to="/register-school">Register your school</Link>
         </p>
       </form>
     </AuthShell>

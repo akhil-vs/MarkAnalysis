@@ -4,6 +4,7 @@ import {
   acceptNonNegativeInput,
   parseAcademicYear,
   parseEmail,
+  parseJoinCode,
   parsePassword,
   parsePercent,
   parsePhone,
@@ -69,5 +70,12 @@ describe("text form parsers", () => {
     assert.equal(parsePhone("123").error, "Enter a valid phone number");
     assert.equal(parseAcademicYear("2025").error, "Academic year must look like 2025-26");
     assert.equal(parseAcademicYear("2025-26").value, "2025-26");
+  });
+
+  it("normalizes school join codes", () => {
+    assert.equal(parseJoinCode("").error, "Join code is required");
+    assert.equal(parseJoinCode("ABCD").error, "Join code looks like ABCD-EFGH");
+    assert.equal(parseJoinCode("demo-join").value, "DEMO-JOIN");
+    assert.equal(parseJoinCode("DEMOJOIN").value, "DEMO-JOIN");
   });
 });

@@ -1,25 +1,16 @@
 import { prisma } from "./prisma.js";
 import { ensurePendingSchema } from "./ensureSchema.js";
-
-const DEFAULT_SCHOOL = {
-  id: "school",
-  name: "School Marks Analytics",
-  board: null,
-  affiliationNo: null,
-  address: null,
-  phone: null,
-  email: null,
-};
+import { newJoinCode, slugifySchoolName } from "./schoolIdentity.js";
+import { requireTenantId, runWithoutTenant } from "./tenant.js";
 
 export async function getSchoolProfile() {
   await ensurePendingSchema();
-  const existing = await prisma.schoolProfile.findUnique({ where: { id: "school" } });
+  const tenantId = requireTenantId();
+  const existing = await prisma.school.findUnique({ where: { id: tenantId } });
   if (existing) return existing;
-  return prisma.schoolProfile.upsert({
-    where: { id: "school" },
-    create: { ...DEFAULT_SCHOOL, updatedAt: new Date() },
-    update: {},
-  });
+  const err = new Error("School not found");
+  err.status = 404;
+  throw err;
 }
 
 export function schoolHeaderLines(profile) {
@@ -31,3 +22,34 @@ export function schoolHeaderLines(profile) {
   if (meta) lines.push(meta);
   return lines;
 }
+
+export async function allocateSchoolSlug(name) {
+  const base = slugifySchoolName(name);
+  return runWithoutTenant(async () => {
+    for (let i = 0; i < 50; i += 1) {
+      const slug = i === 0 ? base : `${base.slice(0, 40)}-${i + 1}`;
+      const exists = await prisma.school.findUnique({ where: { slug } });
+      if (!exists) return slug;
+    }
+    return `${base}-${Date.now().toString(36)}`;
+  });
+}
+
+export async function allocateJoinCode() {
+  return runWithoutTenant(async () => {
+    for (let i = 0; i < 24; i += 1) {
+      const joinCode = newJoinCode();
+      const exists = await prisma.school.findUnique({ where: { joinCode } });
+      if (!exists) return joinCode;
+    }
+    const err = new Error("Could not allocate a school join code");
+    err.status = 500;
+    throw err;
+  });
+}
+
+export async function findSchoolByJoinCode(joinCode) {
+  if (!joinCode) return null;
+  return runWithoutTenant(() => prisma.school.findUnique({ where: { joinCode } }));
+}
+

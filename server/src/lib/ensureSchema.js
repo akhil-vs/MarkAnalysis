@@ -446,6 +446,11 @@ async function ensureExamConsolidationColumns() {
 }
 
 async function ensureSchoolGradingColumns() {
+  if (await tableExists("School")) {
+    await recordMigration(SCHOOL_GRADING_MIGRATION, SCHOOL_GRADING_CHECKSUM);
+    return;
+  }
+
   const hasTable = await tableExists("SchoolProfile");
   if (!hasTable) {
     await applyStatements(SCHOOL_PROFILE_TABLE_STATEMENTS);
@@ -469,6 +474,11 @@ async function ensureSchoolGradingColumns() {
 }
 
 async function ensureSchoolWorkingDaysColumn() {
+  if (await tableExists("School")) {
+    await recordMigration(SCHOOL_WORKING_DAYS_MIGRATION, SCHOOL_WORKING_DAYS_CHECKSUM);
+    return;
+  }
+
   const hasTable = await tableExists("SchoolProfile");
   if (!hasTable) {
     await applyStatements(SCHOOL_PROFILE_TABLE_STATEMENTS);
@@ -661,6 +671,151 @@ async function ensurePortalAccessLinkTable() {
   await recordMigration(PORTAL_LINK_MIGRATION, PORTAL_LINK_CHECKSUM);
 }
 
+const TENANT_MIGRATION = "20260912180000_multi_tenant_schools";
+const TENANT_CHECKSUM =
+  "e901bb95e00c6440bdc3419d203a4be93db43bc80de3f6ace8d33ad630f9b03b";
+
+const TENANT_TABLES = [
+  "User",
+  "ClassSection",
+  "Subject",
+  "StudentSubjectEnrollment",
+  "TeacherAssignment",
+  "Student",
+  "PortalAccessLink",
+  "Exam",
+  "MarkEntryAccessRequest",
+  "Mark",
+  "MarkAudit",
+  "ActivityAudit",
+  "Notification",
+  "Period",
+  "TimetableEntry",
+];
+
+const TENANT_STATEMENTS = [
+  `DO $$ BEGIN
+     CREATE TYPE "SchoolStatus" AS ENUM ('ACTIVE', 'SUSPENDED');
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `CREATE TABLE IF NOT EXISTS "School" (
+    "id" TEXT NOT NULL,
+    "slug" TEXT NOT NULL,
+    "joinCode" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "board" TEXT,
+    "affiliationNo" TEXT,
+    "address" TEXT,
+    "phone" TEXT,
+    "email" TEXT,
+    "status" "SchoolStatus" NOT NULL DEFAULT 'ACTIVE',
+    "passPercent" DOUBLE PRECISION NOT NULL DEFAULT 50,
+    "distinctionMin" DOUBLE PRECISION NOT NULL DEFAULT 90,
+    "gradeBands" JSONB,
+    "examWeights" JSONB,
+    "workingDays" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "School_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "School_slug_key" ON "School"("slug")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "School_joinCode_key" ON "School"("joinCode")`,
+  ...TENANT_TABLES.map((table) => `ALTER TABLE "${table}" ADD COLUMN IF NOT EXISTS "tenantId" TEXT`),
+];
+
+async function ensureMultiTenantSchools() {
+  const hasSchool = await tableExists("School");
+  const hasTenantCol = await columnExists("User", "tenantId");
+  if (hasSchool && hasTenantCol) {
+    await recordMigration(TENANT_MIGRATION, TENANT_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(TENANT_STATEMENTS);
+
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO "School" (
+      "id", "slug", "joinCode", "name", "board", "affiliationNo", "address", "phone", "email",
+      "status", "passPercent", "distinctionMin", "gradeBands", "examWeights", "workingDays",
+      "createdAt", "updatedAt"
+    )
+    SELECT
+      'school',
+      'greenfield-public-school',
+      'DEMO-JOIN',
+      COALESCE(sp."name", 'School Marks Analytics'),
+      sp."board",
+      sp."affiliationNo",
+      sp."address",
+      sp."phone",
+      sp."email",
+      'ACTIVE',
+      COALESCE(sp."passPercent", 50),
+      COALESCE(sp."distinctionMin", 90),
+      sp."gradeBands",
+      sp."examWeights",
+      sp."workingDays",
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    FROM (SELECT 1) AS _seed
+    LEFT JOIN "SchoolProfile" sp ON true
+    WHERE NOT EXISTS (SELECT 1 FROM "School")
+    LIMIT 1
+  `).catch((err) => {
+    if (!/does not exist|already exists/i.test(String(err?.message || err))) throw err;
+  });
+
+  await prisma.$executeRawUnsafe(`
+    INSERT INTO "School" (
+      "id", "slug", "joinCode", "name", "status", "passPercent", "distinctionMin", "createdAt", "updatedAt"
+    )
+    SELECT
+      'school',
+      'greenfield-public-school',
+      'DEMO-JOIN',
+      'School Marks Analytics',
+      'ACTIVE',
+      50,
+      90,
+      CURRENT_TIMESTAMP,
+      CURRENT_TIMESTAMP
+    WHERE NOT EXISTS (SELECT 1 FROM "School")
+  `);
+
+  for (const table of TENANT_TABLES) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE "${table}" SET "tenantId" = (SELECT "id" FROM "School" ORDER BY "createdAt" ASC LIMIT 1) WHERE "tenantId" IS NULL`
+    );
+    await prisma.$executeRawUnsafe(`ALTER TABLE "${table}" ALTER COLUMN "tenantId" SET NOT NULL`);
+  }
+
+  await applyStatements([
+    `DROP INDEX IF EXISTS "User_schoolId_key"`,
+    `DROP INDEX IF EXISTS "ClassSection_className_section_key"`,
+    `DROP INDEX IF EXISTS "Subject_name_className_key"`,
+    `DROP INDEX IF EXISTS "Period_sortOrder_key"`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "User_tenantId_schoolId_key" ON "User"("tenantId", "schoolId")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "ClassSection_tenantId_className_section_key" ON "ClassSection"("tenantId", "className", "section")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Subject_tenantId_name_className_key" ON "Subject"("tenantId", "name", "className")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "Period_tenantId_sortOrder_key" ON "Period"("tenantId", "sortOrder")`,
+    ...TENANT_TABLES.map((table) => `CREATE INDEX IF NOT EXISTS "${table}_tenantId_idx" ON "${table}"("tenantId")`),
+  ]);
+
+  for (const table of TENANT_TABLES) {
+    try {
+      await prisma.$executeRawUnsafe(
+        `ALTER TABLE "${table}" ADD CONSTRAINT "${table}_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`
+      );
+    } catch (err) {
+      if (!/already exists/i.test(String(err?.message || err))) throw err;
+    }
+  }
+
+  await prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS "SchoolProfile"`);
+  await recordMigration(TENANT_MIGRATION, TENANT_CHECKSUM);
+}
+
 export async function ensurePendingSchema() {
   if (!ensurePromise) {
     ensurePromise = (async () => {
@@ -685,6 +840,7 @@ export async function ensurePendingSchema() {
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
       await ensureExamConsolidationColumns();
+      await ensureMultiTenantSchools();
     })().catch((err) => {
       ensurePromise = null;
       throw err;
@@ -752,4 +908,7 @@ export const __test = {
   ELECTIVE_CHECKSUM,
   ELECTIVE_STATEMENTS,
   ELECTIVE_FK_STATEMENTS,
+  TENANT_MIGRATION,
+  TENANT_CHECKSUM,
+  TENANT_STATEMENTS,
 };
