@@ -97,4 +97,32 @@ describe("buildSubjectStatusCols / summarizeClassStatus", () => {
     assert.equal(summary.classTeacherId, "t1");
     assert.equal(summary.teacher, "Ada");
   });
+
+  it("treats an elective as complete when its enrolled student is approved", () => {
+    const electiveSubjects = [
+      { id: "comp", name: "Computer", maxMarks: 100, consolidationMaxMarks: 100, isElective: true },
+    ];
+    const enrollmentKeys = new Set(["a:comp"]);
+    const marks = [{ studentId: "a", subjectId: "comp", status: "APPROVED" }];
+    const cols = buildSubjectStatusCols(
+      electiveSubjects,
+      students,
+      marks,
+      {},
+      enrollmentKeys
+    );
+    assert.equal(cols[0].expected, 1);
+    assert.equal(cols[0].complete, true);
+
+    const summary = summarizeClassStatus({
+      cls,
+      subjects: electiveSubjects,
+      students,
+      marks,
+      enrollmentKeys,
+      activeStudentCount: 2,
+    });
+    assert.equal(summary.complete, true);
+    assert.equal(summary.ready, true);
+  });
 });

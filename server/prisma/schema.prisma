@@ -101,13 +101,30 @@ model Subject {
   className String
   /// Ceiling for mark entry and register validation.
   maxMarks  Int
+  /// When true, only enrolled students are expected on the register / CML.
+  isElective Boolean @default(false)
 
   assignments TeacherAssignment[]
   marks       Mark[]
   markEntryRequests MarkEntryAccessRequest[]
   timetableEntries TimetableEntry[]
+  enrollments StudentSubjectEnrollment[]
 
   @@unique([name, className])
+}
+
+
+model StudentSubjectEnrollment {
+  id        String   @id @default(cuid())
+  studentId String
+  subjectId String
+  createdAt DateTime @default(now())
+
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId])
+  @@index([subjectId])
 }
 
 model TeacherAssignment {
@@ -137,6 +154,7 @@ model Student {
 
   classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
   marks        Mark[]
+  subjectEnrollments StudentSubjectEnrollment[]
   promotedFrom Student?  @relation("StudentPromotion", fields: [promotedFromId], references: [id], onDelete: SetNull)
   promotedTo   Student[] @relation("StudentPromotion")
 

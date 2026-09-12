@@ -7,6 +7,7 @@ import {
   studentsForExamScope,
   summarizeClassStatus,
 } from "./consolidatedStatus.js";
+import { enrollmentKeySet } from "./electiveEnrollment.js";
 
 export { applyExamConsolidationMax, buildConsolidatedStudentRows } from "./consolidatedRows.js";
 export {
@@ -20,6 +21,19 @@ export async function pickExam(examId) {
   if (!exams.length) return { exams, exam: null };
   const exam = examId ? exams.find((e) => e.id === examId) || exams[exams.length - 1] : exams[exams.length - 1];
   return { exams, exam };
+}
+
+async function loadEnrollmentKeys(subjects, studentIds) {
+  const electiveIds = (subjects || []).filter((s) => s.isElective).map((s) => s.id);
+  if (!electiveIds.length || !studentIds?.length) return new Set();
+  const rows = await prisma.studentSubjectEnrollment.findMany({
+    where: {
+      subjectId: { in: electiveIds },
+      studentId: { in: studentIds },
+    },
+    select: { studentId: true, subjectId: true },
+  });
+  return enrollmentKeySet(rows);
 }
 
 export async function buildClassConsolidated(classSectionId, examId) {
@@ -48,6 +62,7 @@ export async function buildClassConsolidated(classSectionId, examId) {
   ]);
 
   const papers = applyExamConsolidationMax(subjects, exam);
+  const enrollmentKeys = await loadEnrollmentKeys(papers, students.map((s) => s.id));
 
   const marks = await prisma.mark.findMany({
     where: { examId: exam.id, studentId: { in: students.map((s) => s.id) } },
@@ -58,8 +73,14 @@ export async function buildClassConsolidated(classSectionId, examId) {
     assignments.map((a) => [a.subjectId, a.user.name])
   );
 
-  const subjectCols = buildSubjectStatusCols(papers, students, marks, teacherBySubject);
-  const rows = buildConsolidatedStudentRows(students, papers, marks);
+  const subjectCols = buildSubjectStatusCols(
+    papers,
+    students,
+    marks,
+    teacherBySubject,
+    enrollmentKeys
+  );
+  const rows = buildConsolidatedStudentRows(students, papers, marks, enrollmentKeys);
 
   const complete = subjectCols.length > 0 && subjectCols.every((s) => s.complete);
   const draftCount = marks.filter((m) => m.status === "DRAFT").length;
@@ -109,6 +130,15 @@ export async function buildConsolidatedStatus(examId) {
       select: { studentId: true, subjectId: true, status: true },
     }),
   ]);
+
+  const electiveIds = subjects.filter((s) => s.isElective).map((s) => s.id);
+  const enrollmentRows = electiveIds.length
+    ? await prisma.studentSubjectEnrollment.findMany({
+        where: { subjectId: { in: electiveIds } },
+        select: { studentId: true, subjectId: true },
+      })
+    : [];
+  const allEnrollmentKeys = enrollmentKeySet(enrollmentRows);
 
   const studentsByClass = new Map();
   for (const student of students) {
@@ -167,6 +197,7 @@ export async function buildConsolidatedStatus(examId) {
       marks: classMarks,
       teacherBySubject,
       activeStudentCount,
+      enrollmentKeys: allEnrollmentKeys,
     });
   });
 

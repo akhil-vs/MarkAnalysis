@@ -1,5 +1,6 @@
 import { auditValueFor, parseMarkInput } from "./markCodes.js";
 import { mutateBlockFromAccess } from "./markAccess.js";
+import { studentTakesSubject } from "./electiveEnrollment.js";
 
 /**
  * Deduplicate register cells (last write wins) and drop incomplete rows.
@@ -22,6 +23,7 @@ export function normalizeMarkEntries(entries) {
  * @param {Map} args.markMap `${studentId}:${subjectId}` -> existing mark
  * @param {Set|null} args.writableKeys `${classSectionId}:${subjectId}` for teachers; null = all writable
  * @param {object|null} args.accessBySubject entryAccess.bySubject map for teachers
+ * @param {Set|null} args.enrollmentKeys elective `${studentId}:${subjectId}` pairs
  */
 export function planMarkMutations({
   entries,
@@ -30,8 +32,10 @@ export function planMarkMutations({
   markMap,
   writableKeys = null,
   accessBySubject = null,
+  enrollmentKeys = null,
 }) {
   const plans = [];
+  const keys = enrollmentKeys instanceof Set ? enrollmentKeys : new Set();
 
   for (const entry of entries) {
     const { studentId, subjectId, marksObtained } = entry;
@@ -43,6 +47,16 @@ export function planMarkMutations({
         studentId,
         subjectId,
         error: "Student or subject not found",
+      });
+      continue;
+    }
+
+    if (subject.isElective && !studentTakesSubject(subject, studentId, keys)) {
+      plans.push({
+        type: "error",
+        studentId,
+        subjectId,
+        error: "Student not enrolled in elective",
       });
       continue;
     }

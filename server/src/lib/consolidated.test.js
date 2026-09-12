@@ -101,6 +101,26 @@ describe("buildConsolidatedStudentRows", () => {
     assert.ok(ada.percent <= 100);
     assert.ok(ada.bySubject.chem.marks <= 80);
   });
+
+  it("marks non-enrolled electives as N/A and excludes them from totals", () => {
+    const papers = [
+      { id: "math", name: "Math", maxMarks: 100, consolidationMaxMarks: 100, isElective: false },
+      { id: "comp", name: "Computer", maxMarks: 100, consolidationMaxMarks: 100, isElective: true },
+    ];
+    const marks = [
+      { studentId: "a", subjectId: "math", marksObtained: 80, outcome: "SCORED", status: "APPROVED" },
+      { studentId: "a", subjectId: "comp", marksObtained: 90, outcome: "SCORED", status: "APPROVED" },
+    ];
+    const rows = buildConsolidatedStudentRows(students, papers, marks, new Set(["a:comp"]));
+    const ada = rows.find((r) => r.studentId === "a");
+    const ben = rows.find((r) => r.studentId === "b");
+    assert.equal(ada.bySubject.comp.status, "APPROVED");
+    assert.equal(ada.total, 170);
+    assert.equal(ben.bySubject.comp.status, "N/A");
+    assert.equal(ben.bySubject.comp.display, "—");
+    assert.equal(ben.bySubject.comp.marks, null);
+    assert.equal(ben.maxTotal, 100);
+  });
 });
 
 describe("scaleMarksToConsolidation", () => {
