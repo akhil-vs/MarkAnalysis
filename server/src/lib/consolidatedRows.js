@@ -1,5 +1,6 @@
 import { gradeFromPercent, percentOf, round1 } from "./grades.js";
 import { formatMarkCell, isScoredMark } from "./markCodes.js";
+import { markObtainedTotal, subjectEntryMax } from "./subjectMarks.js";
 import { applyTiedRanks } from "./stats.js";
 import { enrollmentKeySet, studentTakesSubject } from "./electiveEnrollment.js";
 
@@ -18,25 +19,24 @@ export function applyExamConsolidationMax(subjects, exam) {
 
 /**
  * Ceiling used for consolidated totals and percentages.
- * Falls back to entry maxMarks when the consolidation field is missing.
+ * Falls back to entry max when the consolidation field is missing.
  */
 export function subjectConsolidationMax(subject) {
   if (!subject) return null;
-  const value = subject.consolidationMaxMarks ?? subject.maxMarks;
+  const value = subject.consolidationMaxMarks ?? subjectEntryMax(subject);
   return value == null ? null : Number(value);
 }
 
 /**
  * Convert an entered score onto the consolidation ceiling.
- * Percent is obtained / entry max, so it stays within 0–100 when the
- * register rejected scores above Max marks — even if the consolidation
- * ceiling is lower (the Chemistry / dual-ceiling case).
+ * Percent is obtained / entry max (theory + practical), so dual-component
+ * papers scale the combined total.
  */
 export function scaleMarksToConsolidation(marksObtained, subject) {
   if (marksObtained == null) return null;
   const obtained = Number(marksObtained);
   if (!Number.isFinite(obtained)) return null;
-  const entryMax = subject?.maxMarks == null ? null : Number(subject.maxMarks);
+  const entryMax = subjectEntryMax(subject);
   const ceil = subjectConsolidationMax(subject);
   if (entryMax == null || entryMax <= 0 || ceil == null) {
     return ceil == null ? obtained : round1(Math.min(ceil, Math.max(0, obtained)));
@@ -46,10 +46,12 @@ export function scaleMarksToConsolidation(marksObtained, subject) {
 }
 
 function scoredConsolidated(mark, subject) {
-  if (!isScoredMark(mark) || mark?.marksObtained == null) return null;
+  if (!isScoredMark(mark)) return null;
+  const obtained = markObtainedTotal(mark);
+  if (obtained == null) return null;
   const ceil = subjectConsolidationMax(subject);
-  const scaled = scaleMarksToConsolidation(mark.marksObtained, subject);
-  const percent = percentOf(mark.marksObtained, subject?.maxMarks ?? ceil);
+  const scaled = scaleMarksToConsolidation(obtained, subject);
+  const percent = percentOf(obtained, subjectEntryMax(subject) ?? ceil);
   return { scaled, percent, ceil };
 }
 

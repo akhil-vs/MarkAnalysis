@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
-import { parsePositiveInt } from "../lib/numbers.js";
+import { parseOptionalPositiveInt, parsePositiveInt } from "../lib/numbers.js";
 import { auth, requireRole } from "../middleware/auth.js";
 
 export const subjectsRouter = Router();
@@ -18,12 +18,14 @@ subjectsRouter.get("/", async (req, res) => {
 });
 
 subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, className, maxMarks, isElective } = req.body || {};
+  const { name, className, maxMarks, isElective, practicalMaxMarks } = req.body || {};
   if (!name || !className) {
     return res.status(400).json({ error: "Name and class are required" });
   }
   const entry = parsePositiveInt(maxMarks, "Max marks");
   if (entry.error) return res.status(400).json({ error: entry.error });
+  const practical = parseOptionalPositiveInt(practicalMaxMarks, "Practical max marks");
+  if (practical.error) return res.status(400).json({ error: practical.error });
 
   try {
     await ensureConsolidationSchema();
@@ -33,6 +35,7 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
         className,
         maxMarks: entry.value,
         ...(typeof isElective === "boolean" ? { isElective } : {}),
+        practicalMaxMarks: practical.value,
       },
     });
     res.status(201).json(created);
@@ -42,7 +45,7 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
 });
 
 subjectsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, className, maxMarks, isElective } = req.body || {};
+  const { name, className, maxMarks, isElective, practicalMaxMarks } = req.body || {};
   await ensureConsolidationSchema();
 
   const data = {
@@ -51,10 +54,16 @@ subjectsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
     ...(typeof isElective === "boolean" ? { isElective } : {}),
   };
 
-  if (maxMarks != null) {
+  if (maxMarks != null && maxMarks !== "") {
     const entry = parsePositiveInt(maxMarks, "Max marks");
     if (entry.error) return res.status(400).json({ error: entry.error });
     data.maxMarks = entry.value;
+  }
+
+  if (practicalMaxMarks !== undefined) {
+    const practical = parseOptionalPositiveInt(practicalMaxMarks, "Practical max marks");
+    if (practical.error) return res.status(400).json({ error: practical.error });
+    data.practicalMaxMarks = practical.value;
   }
 
   const updated = await prisma.subject.update({

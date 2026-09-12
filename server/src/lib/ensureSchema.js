@@ -596,6 +596,25 @@ async function ensureRefreshTokenTable() {
   await recordMigration(REFRESH_TOKEN_MIGRATION, REFRESH_TOKEN_CHECKSUM);
 }
 
+const THEORY_PRACTICAL_MIGRATION = "20260912140000_theory_practical_marks";
+const THEORY_PRACTICAL_CHECKSUM =
+  "9cf2f657e0d9615394beb76827c2cb170fd78d034d000fe0ecdf63f170c6c202";
+const THEORY_PRACTICAL_STATEMENTS = [
+  `ALTER TABLE "Subject" ADD COLUMN IF NOT EXISTS "practicalMaxMarks" INTEGER`,
+  `ALTER TABLE "Mark" ADD COLUMN IF NOT EXISTS "practicalMarks" DOUBLE PRECISION`,
+];
+
+async function ensureTheoryPracticalColumns() {
+  const hasPracticalMax = await columnExists("Subject", "practicalMaxMarks");
+  const hasPracticalMarks = await columnExists("Mark", "practicalMarks");
+  if (hasPracticalMax && hasPracticalMarks) {
+    await recordMigration(THEORY_PRACTICAL_MIGRATION, THEORY_PRACTICAL_CHECKSUM);
+    return;
+  }
+  await applyStatements(THEORY_PRACTICAL_STATEMENTS);
+  await recordMigration(THEORY_PRACTICAL_MIGRATION, THEORY_PRACTICAL_CHECKSUM);
+}
+
 
 /**
  * Apply schema pieces that may be missing in production when Vercel builds
@@ -619,6 +638,7 @@ export async function ensurePendingSchema() {
         ensureMarkAuditReasonColumn(),
         ensureElectiveEnrollments(),
         ensureRefreshTokenTable(),
+        ensureTheoryPracticalColumns(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -677,6 +697,9 @@ export const __test = {
   REFRESH_TOKEN_MIGRATION,
   REFRESH_TOKEN_CHECKSUM,
   REFRESH_TOKEN_STATEMENTS,
+  THEORY_PRACTICAL_MIGRATION,
+  THEORY_PRACTICAL_CHECKSUM,
+  THEORY_PRACTICAL_STATEMENTS,
   MULTI_CLASS_PERIOD_MIGRATION,
   MULTI_CLASS_PERIOD_CHECKSUM,
   MULTI_CLASS_PERIOD_STATEMENTS,
