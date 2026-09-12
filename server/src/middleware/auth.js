@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import { ACCESS_COOKIE } from "../lib/authCookies.js";
+import { ensurePendingSchema } from "../lib/ensureSchema.js";
 
 function readAccessToken(req) {
   const header = req.headers.authorization || "";
@@ -29,6 +30,7 @@ function verifyAccess(req, res) {
 export async function rejectIfMustChangePassword(req, res, next) {
   if (!req.user?.userId || req.allowMustChangePassword) return next();
   try {
+    await ensurePendingSchema();
     const user = await prisma.user.findUnique({
       where: { id: req.user.userId },
       select: { mustChangePassword: true },

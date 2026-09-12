@@ -15,8 +15,16 @@ import { markAccessRouter } from "./routes/markAccess.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { schoolRouter } from "./routes/school.js";
 import { timetableRouter } from "./routes/timetable.js";
+import { bootstrapSchema } from "./lib/migrateOnStart.js";
 
 const app = express();
+
+/** Once per process: wait for migrate/ensure before handling API traffic (Vercel cold start). */
+let schemaReady = null;
+function awaitSchema(_req, _res, next) {
+  if (!schemaReady) schemaReady = bootstrapSchema();
+  schemaReady.then(() => next()).catch((err) => next(err));
+}
 
 // Dynamic, auth-scoped JSON should not use Express ETags. Hashing large
 // analytics payloads slows every response, and matching If-None-Match
@@ -55,6 +63,7 @@ app.use("/api", (_req, res, next) => {
 });
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.use("/api", awaitSchema);
 app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/classes", classesRouter);

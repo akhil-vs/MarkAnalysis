@@ -63,22 +63,47 @@ export function runMigrateDeploy({ timeoutMs = 25_000 } = {}) {
   return migratePromise;
 }
 
+let bootstrapPromise = null;
+
 /**
  * Prefer real migrations; fall back to ensurePendingSchema catch-up used on Vercel.
+ * On Vercel, skip spawn-based migrate deploy by default (cold-start budget) and
+ * apply the embedded catch-up so login/auth do not race a fire-and-forget boot.
  */
-export async function bootstrapSchema() {
-  const result = await runMigrateDeploy();
-  if (!result.ok) {
-    if (!result.skipped) {
-      console.warn("prisma migrate deploy did not succeed:", result.reason, result.stderr || result.stdout);
-    }
-    await ensurePendingSchema();
-    return { migrate: result, ensureSchema: true };
+export function bootstrapSchema() {
+  if (!bootstrapPromise) {
+    bootstrapPromise = (async () => {
+      const vercelFastPath =
+        Boolean(process.env.VERCEL) && process.env.FORCE_MIGRATE_DEPLOY !== "true";
+      if (vercelFastPath) {
+        await ensurePendingSchema();
+        return {
+          migrate: { ok: false, skipped: true, reason: "vercel-ensure-only" },
+          ensureSchema: true,
+        };
+      }
+      const result = await runMigrateDeploy();
+      if (!result.ok) {
+        if (!result.skipped) {
+          console.warn(
+            "prisma migrate deploy did not succeed:",
+            result.reason,
+            result.stderr || result.stdout
+          );
+        }
+        await ensurePendingSchema();
+        return { migrate: result, ensureSchema: true };
+      }
+      // Still run catch-up for any columns ensureSchema owns that might predate a
+      // migration landing on a lagging environment.
+      await ensurePendingSchema();
+      return { migrate: result, ensureSchema: true };
+    })().catch((err) => {
+      bootstrapPromise = null;
+      throw err;
+    });
   }
-  // Still run catch-up for any columns ensureSchema owns that might predate a
-  // migration landing on a lagging environment.
-  await ensurePendingSchema();
-  return { migrate: result, ensureSchema: true };
+  return bootstrapPromise;
 }
 
 export const __test = { prismaDir };
