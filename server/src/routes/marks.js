@@ -1,3 +1,4 @@
+import { pageResult, parsePageQuery } from "../lib/pagination.js";
 import { Router } from "express";
 import multer from "multer";
 import ExcelJS from "exceljs";
@@ -198,6 +199,7 @@ marksRouter.get("/audit", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
   await ensureActivityAuditSchema();
   const { examId, classSectionId, actorId, role: actorRole } = req.query;
   const actorWhere = actorFilterForViewer(req.user.role, actorRole, actorId);
+  const paging = parsePageQuery(req.query, { defaultSize: 50, maxSize: AUDIT_LIMIT });
 
   const markWhere = {};
   if (examId || classSectionId) {
@@ -238,16 +240,45 @@ marksRouter.get("/audit", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
     }),
   ]);
 
-  const rows = mergeAuditFeeds(
+  let rows = mergeAuditFeeds(
     markAudits.filter((row) => row.mark).map(mapMarkAudit),
     activityAudits.map(mapActivityAudit)
   );
 
-  res.json({
-    scope: req.user.role === "PRINCIPAL" ? "all-users" : "teachers",
-    rows,
+  if (paging.q) {
+    const needle = paging.q.toLowerCase();
+    rows = rows.filter((r) => {
+      const hay = [
+        r.actor?.name,
+        r.actor?.role,
+        r.actionLabel,
+        r.summary,
+        r.student?.name,
+        r.student?.rollNo,
+        r.subject?.name,
+        r.exam?.name,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(needle);
+    });
+  }
+
+  const scope = req.user.role === "PRINCIPAL" ? "all-users" : "teachers";
+  if (!paging.paged) {
+    return res.json({ scope, rows });
+  }
+
+  const total = rows.length;
+  const items = rows.slice(paging.skip, paging.skip + paging.take);
+  return res.json({
+    scope,
+    rows: items,
+    ...pageResult({ items, total, page: paging.page, pageSize: paging.pageSize }),
   });
 });
+
 
 marksRouter.get("/template", async (req, res) => {
   const { classSectionId, examId } = req.query;

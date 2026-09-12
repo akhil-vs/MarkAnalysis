@@ -43,12 +43,29 @@ export default function PrincipalDashboard() {
   const [examId, setExamId] = useState("");
   const [error, setError] = useState("");
   const [notify, setNotify] = useState(null);
+  const [detailLoading, setDetailLoading] = useState(false);
 
   async function load(id) {
-    const q = id ? `?examId=${id}` : "";
-    const res = await api(`/api/analytics/school${q}`);
-    setData(res);
-    if (res.exam) setExamId(res.exam.id);
+    const base = new URLSearchParams();
+    if (id) base.set("examId", id);
+    base.set("include", "summary");
+    const summary = await api(`/api/analytics/school?${base}`);
+    setData(summary);
+    setDetailLoading(false);
+    if (summary.empty) return;
+    if (summary.exam) setExamId(summary.exam.id);
+
+    const detailQ = new URLSearchParams({
+      examId: summary.exam.id,
+      include: "detail",
+    });
+    setDetailLoading(true);
+    try {
+      const detail = await api(`/api/analytics/school?${detailQ}`);
+      setData((prev) => ({ ...(prev || {}), ...detail }));
+    } finally {
+      setDetailLoading(false);
+    }
   }
 
   useEffect(() => {
@@ -143,6 +160,12 @@ export default function PrincipalDashboard() {
           }}
         />
       </div>
+
+      {detailLoading && (
+        <p className="mb-4 text-sm text-ink-700/55" role="status">
+          Loading charts and rankings…
+        </p>
+      )}
 
       <div className="grid lg:grid-cols-12 gap-4 mb-4">
         <PendingSubmittedApprovals className="lg:col-span-12" />

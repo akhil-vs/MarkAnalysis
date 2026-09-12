@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { auth, requireRole, getTeacherClassIds } from "../middleware/auth.js";
 import { cell, parseDob, parseSpreadsheet } from "../lib/upload.js";
 import { academicYearFromDate, nextAcademicYear, nextClassName } from "../lib/stats.js";
+import { pageResult, parsePageQuery } from "../lib/pagination.js";
 
 export const studentsRouter = Router();
 studentsRouter.use(auth);
@@ -158,14 +159,53 @@ studentsRouter.get("/", async (req, res) => {
   }
   if (req.query.status) where.status = req.query.status;
   else if (req.query.includeInactive !== "true") where.status = where.status || "ACTIVE";
+  if (req.query.academicYear) where.academicYear = String(req.query.academicYear);
 
-  const students = await prisma.student.findMany({
-    where,
-    orderBy: [{ rollNo: "asc" }],
-    include: { classSection: true },
+  const paging = parsePageQuery(req.query);
+  if (paging.q) {
+    where.OR = [
+      { name: { contains: paging.q, mode: "insensitive" } },
+      { rollNo: { contains: paging.q, mode: "insensitive" } },
+      { guardianName: { contains: paging.q, mode: "insensitive" } },
+      { guardianPhone: { contains: paging.q, mode: "insensitive" } },
+    ];
+  }
+
+  if (!paging.paged) {
+    const students = await prisma.student.findMany({
+      where,
+      orderBy: [{ rollNo: "asc" }],
+      include: { classSection: true },
+    });
+    return res.json(students);
+  }
+
+  const yearWhere = { ...where };
+  delete yearWhere.academicYear;
+  delete yearWhere.OR;
+
+  const [total, items, yearRows] = await Promise.all([
+    prisma.student.count({ where }),
+    prisma.student.findMany({
+      where,
+      orderBy: [{ rollNo: "asc" }],
+      include: { classSection: true },
+      skip: paging.skip,
+      take: paging.take,
+    }),
+    prisma.student.findMany({
+      where: { ...yearWhere, academicYear: { not: null } },
+      distinct: ["academicYear"],
+      select: { academicYear: true },
+      orderBy: { academicYear: "desc" },
+    }),
+  ]);
+  res.json({
+    ...pageResult({ items, total, page: paging.page, pageSize: paging.pageSize }),
+    years: yearRows.map((r) => r.academicYear).filter(Boolean),
   });
-  res.json(students);
 });
+
 
 studentsRouter.get("/:id", async (req, res) => {
   const student = await prisma.student.findUnique({
