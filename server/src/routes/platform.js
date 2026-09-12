@@ -41,7 +41,7 @@ async function schoolStats(schoolId) {
 }
 
 async function loadSchool(id) {
-  return prisma.school.findUnique({ where: { id } });
+  return prisma.school.findUnique({ where: { id }, omit: { logoBytes: true } });
 }
 
 function tempPassword() {
@@ -107,7 +107,7 @@ platformRouter.get("/schools", async (req, res) => {
 
   const orderBy = [{ name: "asc" }];
   if (!paging.paged) {
-    const schools = await prisma.school.findMany({ where, orderBy });
+    const schools = await prisma.school.findMany({ where, orderBy, omit: { logoBytes: true } });
     const items = await Promise.all(
       schools.map(async (school) => ({ ...publicSchool(school), ...(await schoolStats(school.id)) }))
     );
@@ -121,6 +121,7 @@ platformRouter.get("/schools", async (req, res) => {
       orderBy,
       skip: paging.skip,
       take: paging.take,
+      omit: { logoBytes: true },
     }),
   ]);
   const items = await Promise.all(

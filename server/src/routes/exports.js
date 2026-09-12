@@ -4,7 +4,7 @@ import PDFDocument from "pdfkit";
 import { prisma } from "../lib/prisma.js";
 import { gradeFromPercent, mean, percentOf, round1 } from "../lib/grades.js";
 import { formatMarkCell, isScoredMark } from "../lib/markCodes.js";
-import { getSchoolProfile, schoolHeaderLines } from "../lib/school.js";
+import { getSchoolLetterhead } from "../lib/school.js";
 import { studentWhereForExam } from "../lib/studentScope.js";
 import { auth, isLeadership, requireRole, teacherIsClassTeacher } from "../middleware/auth.js";
 import {
@@ -13,6 +13,12 @@ import {
   fileStem,
 } from "../lib/consolidated.js";
 import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
+import {
+  applyPdfLetterhead,
+  pdfLandscapeMargins,
+  pdfMargins,
+  writeExcelLetterhead,
+} from "../lib/letterhead.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const exportsRouter = Router();
@@ -22,16 +28,6 @@ exportsRouter.use(requireSchoolTenant);
 function pct(mark) {
   if (!isScoredMark(mark)) return null;
   return percentOf(mark.marksObtained, mark.subject.maxMarks);
-}
-
-function writeSchoolHeader(doc, profile) {
-  const lines = schoolHeaderLines(profile);
-  doc.fontSize(20).text(lines[0], { align: "center" });
-  if (lines[1]) {
-    doc.moveDown(0.15);
-    doc.fontSize(9).fillColor("#555").text(lines[1], { align: "center" });
-    doc.fillColor("#000");
-  }
 }
 
 exportsRouter.get("/report-card/:studentId", async (req, res) => {
@@ -53,7 +49,7 @@ exportsRouter.get("/report-card/:studentId", async (req, res) => {
     orderBy: { subject: { name: "asc" } },
   });
   const avg = mean(marks.map(pct).filter((p) => p != null));
-  const school = await getSchoolProfile();
+  const letterhead = await getSchoolLetterhead();
 
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
@@ -61,11 +57,11 @@ exportsRouter.get("/report-card/:studentId", async (req, res) => {
     `attachment; filename="report-${student.rollNo}-${exam.name.replace(/\s+/g, "_")}.pdf"`
   );
 
-  const doc = new PDFDocument({ margin: 50 });
+  const margins = pdfMargins();
+  const doc = new PDFDocument({ margins });
   doc.pipe(res);
-  writeSchoolHeader(doc, school);
-  doc.moveDown(0.3);
-  doc.fontSize(14).text("Student Report Card", { align: "center" });
+  applyPdfLetterhead(doc, letterhead);
+  doc.fontSize(14).font("Helvetica-Bold").text("Student Report Card", { align: "center" });
   doc.moveDown();
   doc.fontSize(11).text(`Name: ${student.name}`);
   doc.text(`Roll No: ${student.rollNo}`);
@@ -75,12 +71,12 @@ exportsRouter.get("/report-card/:studentId", async (req, res) => {
   doc.moveDown();
 
   const startY = doc.y;
-  const cols = [50, 220, 300, 370, 440];
+  const cols = [margins.left, 220, 300, 370, 440];
   doc.font("Helvetica-Bold");
   ["Subject", "Marks", "Max", "%", "Grade"].forEach((h, i) => doc.text(h, cols[i], startY));
   doc.font("Helvetica");
   let y = startY + 22;
-  doc.moveTo(50, y - 6).lineTo(545, y - 6).stroke();
+  doc.moveTo(margins.left, y - 6).lineTo(545, y - 6).stroke();
   for (const mark of marks) {
     const p = pct(mark);
     const row = [mark.subject.name, formatMarkCell(mark) || "—", String(mark.subject.maxMarks), String(p ?? "—"), gradeFromPercent(p) || "—"];
@@ -120,16 +116,18 @@ exportsRouter.get("/class-summary/:classId", async (req, res) => {
     "Content-Disposition",
     `attachment; filename="class-${cls.className}${cls.section}-${exam.name.replace(/\s+/g, "_")}.pdf"`
   );
-  const school = await getSchoolProfile();
-  const doc = new PDFDocument({ margin: 36, layout: "landscape", size: "A4" });
+  const letterhead = await getSchoolLetterhead();
+  const margins = pdfLandscapeMargins();
+  const doc = new PDFDocument({ margins, layout: "landscape", size: "A4" });
   doc.pipe(res);
-  writeSchoolHeader(doc, school);
-  doc.moveDown(0.2);
-  doc.fontSize(12).text(`Class summary — ${cls.className}-${cls.section} / ${exam.name}`, { align: "center" });
+  applyPdfLetterhead(doc, letterhead);
+  doc.fontSize(12).font("Helvetica-Bold").text(`Class summary — ${cls.className}-${cls.section} / ${exam.name}`, {
+    align: "center",
+  });
   doc.moveDown();
 
   const colW = Math.min(70, 700 / (subjects.length + 3));
-  let x = 36;
+  let x = margins.left;
   let y = doc.y;
   doc.fontSize(8).font("Helvetica-Bold");
   ["Roll", "Name", ...subjects.map((s) => s.name), "Avg"].forEach((h) => {
@@ -139,7 +137,7 @@ exportsRouter.get("/class-summary/:classId", async (req, res) => {
   y += 16;
   doc.font("Helvetica");
   for (const student of students) {
-    x = 36;
+    x = margins.left;
     const sMarks = marks.filter((m) => m.studentId === student.id);
     const avg = mean(sMarks.map(pct).filter((p) => p != null));
     const vals = [
@@ -158,7 +156,7 @@ exportsRouter.get("/class-summary/:classId", async (req, res) => {
     y += 14;
     if (y > 540) {
       doc.addPage();
-      y = 36;
+      y = doc.page.margins.top;
     }
   }
   doc.end();
@@ -240,10 +238,10 @@ exportsRouter.get("/consolidated/:classSectionId", async (req, res) => {
     });
   }
 
-  const school = await getSchoolProfile();
+  const letterhead = await getSchoolLetterhead();
   const stem = fileStem(built);
   if (format === "xlsx") {
-    const buffer = await writeConsolidatedWorkbook(built, school, { official: wantOfficial || built.ready });
+    const buffer = await writeConsolidatedWorkbook(built, letterhead, { official: wantOfficial || built.ready });
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${stem}.xlsx"`);
     return res.send(Buffer.from(buffer));
@@ -251,7 +249,7 @@ exportsRouter.get("/consolidated/:classSectionId", async (req, res) => {
   if (format === "pdf") {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${stem}.pdf"`);
-    return writeConsolidatedPdf(built, res, school, { official: wantOfficial || built.ready });
+    return writeConsolidatedPdf(built, res, letterhead, { official: wantOfficial || built.ready });
   }
   return res.status(400).json({ error: "format must be json, xlsx, or pdf" });
 });
@@ -272,10 +270,19 @@ exportsRouter.get("/table.xlsx", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), a
     orderBy: [{ exam: { date: "asc" } }, { student: { rollNo: "asc" } }],
   });
 
+  const letterhead = await getSchoolLetterhead();
   const workbook = new ExcelJS.Workbook();
+  workbook.creator = letterhead.name;
   const sheet = workbook.addWorksheet("Marks");
-  sheet.addRow(["Roll No", "Name", "Class", "Exam", "Subject", "Marks", "Max", "Percent", "Grade"]);
-  sheet.getRow(1).font = { bold: true };
+  const headers = ["Roll No", "Name", "Class", "Exam", "Subject", "Marks", "Max", "Percent", "Grade"];
+  const dataStart = writeExcelLetterhead(workbook, sheet, letterhead, headers.length);
+  sheet.mergeCells(dataStart, 1, dataStart, headers.length);
+  sheet.getCell(dataStart, 1).value = "Marks export";
+  sheet.getCell(dataStart, 1).font = { bold: true, size: 12, color: { argb: "FF1B2437" } };
+  sheet.getCell(dataStart, 1).alignment = { horizontal: "center" };
+
+  const headerRow = sheet.addRow(headers);
+  headerRow.font = { bold: true };
   for (const mark of marks) {
     const p = pct(mark);
     sheet.addRow([
@@ -293,6 +300,8 @@ exportsRouter.get("/table.xlsx", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), a
   sheet.columns.forEach((c) => {
     c.width = 16;
   });
+  sheet.views = [{ state: "frozen", ySplit: headerRow.number }];
+  sheet.pageSetup.printTitlesRow = `1:${headerRow.number}`;
 
   const buffer = await workbook.xlsx.writeBuffer();
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
@@ -300,21 +309,24 @@ exportsRouter.get("/table.xlsx", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), a
   res.send(Buffer.from(buffer));
 });
 
-async function writeConsolidatedWorkbook(built, school, { official = false } = {}) {
+async function writeConsolidatedWorkbook(built, letterhead, { official = false } = {}) {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = school?.name || "Marks Analytics";
+  workbook.creator = letterhead?.name || "Marks Analytics";
   const sheet = workbook.addWorksheet("Consolidated mark list", {
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, paperSize: 9 },
   });
 
   const subjectHeaders = built.subjects.map((s) => `${s.name} (${s.maxMarks})`);
   const headers = ["Rank", "Roll", "Name", ...subjectHeaders, "Total", "Max", "%", "Grade"];
-  sheet.mergeCells(1, 1, 1, headers.length);
-  sheet.getCell(1, 1).value = `${school?.name || "School"} — Consolidated mark list`;
-  sheet.getCell(1, 1).font = { bold: true, size: 16, color: { argb: "FF1B2437" } };
-  sheet.getCell(1, 1).alignment = { horizontal: "center" };
+  const titleRow = writeExcelLetterhead(workbook, sheet, letterhead, headers.length);
 
-  sheet.mergeCells(2, 1, 2, headers.length);
+  sheet.mergeCells(titleRow, 1, titleRow, headers.length);
+  sheet.getCell(titleRow, 1).value = "Consolidated mark list";
+  sheet.getCell(titleRow, 1).font = { bold: true, size: 13, color: { argb: "FF1B2437" } };
+  sheet.getCell(titleRow, 1).alignment = { horizontal: "center" };
+
+  const metaRow = titleRow + 1;
+  sheet.mergeCells(metaRow, 1, metaRow, headers.length);
   const meta = [
     `Class ${built.label}`,
     built.examLabel,
@@ -325,12 +337,12 @@ async function writeConsolidatedWorkbook(built, school, { official = false } = {
   ]
     .filter(Boolean)
     .join("  ·  ");
-  sheet.getCell(2, 1).value = meta;
-  sheet.getCell(2, 1).font = {
+  sheet.getCell(metaRow, 1).value = meta;
+  sheet.getCell(metaRow, 1).font = {
     size: 11,
     color: { argb: official && built.ready ? "FF4A5568" : "FFC45C26" },
   };
-  sheet.getCell(2, 1).alignment = { horizontal: "center" };
+  sheet.getCell(metaRow, 1).alignment = { horizontal: "center" };
 
   const headerRow = sheet.addRow(headers);
   headerRow.font = { bold: true, color: { argb: "FFFFFFFF" } };
@@ -362,7 +374,8 @@ async function writeConsolidatedWorkbook(built, school, { official = false } = {
   sheet.columns = headers.map((h, i) => ({
     width: i === 2 ? 22 : Math.min(16, Math.max(8, h.length + 2)),
   }));
-  sheet.views = [{ state: "frozen", ySplit: 3 }];
+  sheet.views = [{ state: "frozen", ySplit: headerRow.number }];
+  sheet.pageSetup.printTitlesRow = `1:${headerRow.number}`;
 
   const foot = sheet.addRow([]);
   const noteRow = sheet.addRow([
@@ -396,16 +409,16 @@ function stampPreviewWatermark(doc) {
   doc.fillColor("#000").opacity(1);
 }
 
-function writeConsolidatedPdf(built, res, school, { official = false } = {}) {
-  const doc = new PDFDocument({ margin: 32, layout: "landscape", size: "A4" });
+function writeConsolidatedPdf(built, res, letterhead, { official = false } = {}) {
+  const margins = pdfLandscapeMargins();
+  const doc = new PDFDocument({ margins, layout: "landscape", size: "A4" });
   doc.pipe(res);
   if (!(official && built.ready)) {
     // Draw under content so the table remains readable.
     doc.on("pageAdded", () => stampPreviewWatermark(doc));
     stampPreviewWatermark(doc);
   }
-  writeSchoolHeader(doc, school);
-  doc.moveDown(0.2);
+  applyPdfLetterhead(doc, letterhead);
   doc.fontSize(12).font("Helvetica-Bold").text("Consolidated mark list", { align: "center" });
   doc.moveDown(0.25);
   doc.fontSize(10).font("Helvetica").text(
@@ -425,11 +438,12 @@ function writeConsolidatedPdf(built, res, school, { official = false } = {}) {
   doc.moveDown(0.6);
 
   const headers = ["Rank", "Roll", "Name", ...built.subjects.map((s) => s.name), "Total", "%", "Grade"];
-  const usable = 778;
+  const left = margins.left;
+  const usable = doc.page.width - margins.left - margins.right;
   const nameW = 120;
   const other = (usable - nameW) / (headers.length - 1);
   const widths = headers.map((h, i) => (i === 2 ? nameW : other));
-  let x = 32;
+  let x = left;
   let y = doc.y;
   doc.font("Helvetica-Bold").fontSize(7.5);
   headers.forEach((h, i) => {
@@ -437,12 +451,12 @@ function writeConsolidatedPdf(built, res, school, { official = false } = {}) {
     x += widths[i];
   });
   y += 14;
-  doc.moveTo(32, y - 3).lineTo(810, y - 3).stroke();
+  doc.moveTo(left, y - 3).lineTo(left + usable, y - 3).stroke();
   doc.font("Helvetica");
   for (const student of built.students) {
-    if (y > 540) {
+    if (y > doc.page.height - margins.bottom - 28) {
       doc.addPage();
-      y = 36;
+      y = doc.page.margins.top;
     }
     const vals = [
       student.rank ?? "—",
@@ -456,7 +470,7 @@ function writeConsolidatedPdf(built, res, school, { official = false } = {}) {
       student.percent ?? "—",
       student.grade || "—",
     ];
-    x = 32;
+    x = left;
     vals.forEach((v, i) => {
       doc.text(String(v), x, y, { width: widths[i], align: i === 2 ? "left" : "center" });
       x += widths[i];
@@ -468,9 +482,9 @@ function writeConsolidatedPdf(built, res, school, { official = false } = {}) {
     official && built.ready
       ? "Official list — all assigned subject registers are approved."
       : "PREVIEW ONLY — not for publication. Blank cells are missing or still in draft. Download Official after all registers are approved.",
-    32,
+    left,
     doc.y,
-    { width: 778 }
+    { width: usable }
   );
   doc.end();
 }

@@ -15,6 +15,24 @@ function excelCellToString(value) {
   return String(value).trim();
 }
 
+function normalizeHeaderKey(value) {
+  return excelCellToString(value).toLowerCase().replace(/[\s_]+/g, "");
+}
+
+function rowLooksLikeHeader(values) {
+  const keys = new Set((values || []).map(normalizeHeaderKey).filter(Boolean));
+  if (keys.has("rollno") && keys.has("name")) return true;
+  if (keys.has("class") && keys.has("section") && (keys.has("name") || keys.has("rollno"))) return true;
+  return false;
+}
+
+function headerRowIndex(rows) {
+  for (let i = 0; i < rows.length; i += 1) {
+    if (rowLooksLikeHeader(rows[i])) return i;
+  }
+  return 0;
+}
+
 async function parseExcelBuffer(buffer) {
   const workbook = new ExcelJS.Workbook();
   await workbook.xlsx.load(buffer);
@@ -27,14 +45,15 @@ async function parseExcelBuffer(buffer) {
   });
   if (!rows.length) return [];
 
-  const headerRow = rows[0];
+  const start = headerRowIndex(rows);
+  const headerRow = rows[start];
   const headers = [];
   for (let i = 1; i < headerRow.length; i += 1) {
     headers[i] = excelCellToString(headerRow[i]);
   }
 
   const out = [];
-  for (let r = 1; r < rows.length; r += 1) {
+  for (let r = start + 1; r < rows.length; r += 1) {
     const values = rows[r];
     const obj = {};
     let hasValue = false;

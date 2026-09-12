@@ -54,6 +54,20 @@ describe("parseSpreadsheet", () => {
     ]);
   });
 
+  it("skips school letterhead rows above the column header", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Marks");
+    sheet.addRow(["Greenfield Public School"]);
+    sheet.addRow(["12 Lake View Road, Bengaluru"]);
+    sheet.addRow(["080-40001234  ·  office@greenfield.school"]);
+    sheet.addRow([]);
+    sheet.addRow(["Roll No", "Name", "Marks"]);
+    sheet.addRow(["01", "Yash", "88"]);
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    const rows = await parseSpreadsheet(buffer, "marks.xlsx");
+    assert.deepEqual(rows, [{ "Roll No": "01", Name: "Yash", Marks: "88" }]);
+  });
+
   it("rejects legacy .xls uploads", async () => {
     await assert.rejects(
       () => parseSpreadsheet(Buffer.from("not-a-real-xls"), "legacy.xls"),

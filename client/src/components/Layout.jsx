@@ -174,6 +174,46 @@ function NavIcon({ name, size = 16 }) {
   );
 }
 
+function SchoolBrand({ school, compact = false }) {
+  const [logoUrl, setLogoUrl] = useState(null);
+
+  useEffect(() => {
+    if (!school?.hasLogo) {
+      setLogoUrl(null);
+      return undefined;
+    }
+    let url;
+    let cancelled = false;
+    fetch("/api/school/logo", { credentials: "include", cache: "no-store" })
+      .then((res) => (res.ok ? res.blob() : null))
+      .then((blob) => {
+        if (!blob || cancelled) return;
+        url = URL.createObjectURL(blob);
+        setLogoUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+      if (url) URL.revokeObjectURL(url);
+    };
+  }, [school?.hasLogo, school?.updatedAt]);
+
+  const title = school?.shortName || school?.name || "Marks Analytics";
+  const subtitle = school?.shortName && school?.name ? school.name : "School performance suite";
+
+  return (
+    <div className="flex items-center gap-2.5 min-w-0">
+      {logoUrl ? (
+        <img src={logoUrl} alt="" className="h-9 w-9 shrink-0 rounded-md bg-white object-contain p-0.5" />
+      ) : null}
+      <div className="min-w-0">
+        <div className={`font-serif leading-tight truncate ${compact ? "text-lg" : "text-xl"}`}>{title}</div>
+        {!compact && <div className="mt-1 text-xs text-cream/60 truncate">{subtitle}</div>}
+      </div>
+    </div>
+  );
+}
+
 export default function Layout() {
   const { user, logout, classTeacherOf } = useAuth();
   const navigate = useNavigate();
@@ -181,6 +221,7 @@ export default function Layout() {
   const [pendingCount, setPendingCount] = useState(null);
   const [lateEntryCount, setLateEntryCount] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [school, setSchool] = useState(null);
   const navId = useId();
   const leadership = isLeadership(user.role);
   const platform = isPlatformAdmin(user.role);
@@ -192,6 +233,19 @@ export default function Layout() {
   useEffect(() => {
     setNavOpen(false);
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (platform) return undefined;
+    let cancelled = false;
+    api("/api/school")
+      .then((s) => {
+        if (!cancelled) setSchool(s);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [platform]);
 
   useEffect(() => {
     if (!navOpen) return;
@@ -269,10 +323,14 @@ export default function Layout() {
     <>
       <div className="px-5 py-5 border-b border-white/10 shrink-0 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-serif text-xl leading-tight">{platform ? "Platform console" : "Marks Analytics"}</div>
-          <div className="mt-1 text-xs text-cream/60 truncate">
-            {platform ? "Manage every school" : user.school?.name || "School performance suite"}
-          </div>
+          {platform ? (
+            <>
+              <div className="font-serif text-xl leading-tight">Platform console</div>
+              <div className="mt-1 text-xs text-cream/60 truncate">Manage every school</div>
+            </>
+          ) : (
+            <SchoolBrand school={school || user.school} />
+          )}
         </div>
         <button
           type="button"
@@ -362,9 +420,11 @@ export default function Layout() {
                 <MenuIcon open={navOpen} />
               </button>
               <Link to={platform ? "/platform" : "/"} className="min-w-0 flex-1" onClick={closeNav}>
-                <div className="font-serif text-lg leading-tight truncate">
-                  {platform ? "Platform console" : "Marks Analytics"}
-                </div>
+                {platform ? (
+                  <div className="font-serif text-lg leading-tight truncate">Platform console</div>
+                ) : (
+                  <SchoolBrand school={school || user.school} compact />
+                )}
               </Link>
               {!platform && <NotificationBell />}
             </div>

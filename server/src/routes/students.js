@@ -6,6 +6,8 @@ import { auth, requireRole, getTeacherClassIds } from "../middleware/auth.js";
 import { cell, parseDob, parseSpreadsheet } from "../lib/upload.js";
 import { academicYearFromDate, nextAcademicYear, nextClassName } from "../lib/stats.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
+import { getSchoolLetterhead } from "../lib/school.js";
+import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const studentsRouter = Router();
@@ -22,9 +24,14 @@ studentsRouter.get("/template", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
   const selected = classSectionId ? classes.find((c) => c.id === classSectionId) : null;
 
   const workbook = new ExcelJS.Workbook();
+  const letterhead = await getSchoolLetterhead();
+  workbook.creator = letterhead.name;
   const sheet = workbook.addWorksheet("Students");
-  sheet.addRow(["Class", "Section", "Roll No", "Name", "Date of Birth", "Guardian Name", "Guardian Phone"]);
-  sheet.getRow(1).font = { bold: true };
+  const headers = ["Class", "Section", "Roll No", "Name", "Date of Birth", "Guardian Name", "Guardian Phone"];
+  writeExcelLetterhead(workbook, sheet, letterhead, headers.length);
+  const headerRow = sheet.addRow(headers);
+  headerRow.font = { bold: true };
+  sheet.pageSetup.printTitlesRow = `1:${headerRow.number}`;
   sheet.getColumn(3).numFmt = "@";
 
   if (selected) {

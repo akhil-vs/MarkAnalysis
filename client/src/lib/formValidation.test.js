@@ -9,6 +9,8 @@ import {
   parsePercent,
   parsePhone,
   parsePositiveInt,
+  parseOptionalYear,
+  parseWebsite,
   parseSlug,
   requiredText,
   slugifyName,
@@ -72,6 +74,15 @@ describe("text form parsers", () => {
     assert.equal(parsePhone("123").error, "Enter a valid phone number");
     assert.equal(parseAcademicYear("2025").error, "Academic year must look like 2025-26");
     assert.equal(parseAcademicYear("2025-26").value, "2025-26");
+  });
+
+  it("normalizes websites and optional years", () => {
+    assert.equal(parseWebsite("greenfield.school").value, "https://greenfield.school");
+    assert.equal(parseWebsite("not a url").error, "Enter a valid website");
+    assert.equal(parseWebsite("").value, "");
+    assert.equal(parseOptionalYear("").value, "");
+    assert.equal(parseOptionalYear("1998").value, 1998);
+    assert.match(parseOptionalYear("12").error, /between/);
   });
 
   it("accepts school codes and rejects reserved ones", () => {

@@ -1,6 +1,14 @@
 import { Router } from "express";
+import multer from "multer";
 import { auth, isLeadership, requireRole } from "../middleware/auth.js";
-import { allocateJoinCode, getSchoolProfile } from "../lib/school.js";
+import {
+  allocateJoinCode,
+  getSchoolProfile,
+  parseLogoFile,
+  parseSchoolIdentityPatch,
+  publicSchool as serializeSchool,
+  LOGO_MAX_BYTES,
+} from "../lib/school.js";
 import { prisma } from "../lib/prisma.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 import {
@@ -17,21 +25,27 @@ export const schoolRouter = Router();
 schoolRouter.use(auth);
 schoolRouter.use(requireSchoolTenant);
 
+const logoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: LOGO_MAX_BYTES },
+});
+
 function publicSchool(profile, { includeJoinCode = false } = {}) {
-  return {
-    id: profile.id,
-    slug: profile.slug,
-    name: profile.name,
-    board: profile.board,
-    affiliationNo: profile.affiliationNo,
-    address: profile.address,
-    phone: profile.phone,
-    email: profile.email,
-    status: profile.status,
+  return serializeSchool(profile, {
     workingDays: publicWorkingDays(profile),
     grading: publicGradingConfig(profile),
-    ...(includeJoinCode ? { joinCode: profile.joinCode } : {}),
-  };
+    includeJoinCode,
+  });
+}
+
+function receiveLogo(req, res, next) {
+  logoUpload.single("logo")(req, res, (err) => {
+    if (!err) return next();
+    const tooBig = err.code === "LIMIT_FILE_SIZE";
+    err.status = 400;
+    err.message = tooBig ? "Logo must be 1 MB or smaller" : err.message || "Could not upload logo";
+    next(err);
+  });
 }
 
 function schoolJson(req, profile) {
@@ -43,11 +57,22 @@ schoolRouter.get("/", async (req, res) => {
   res.json(schoolJson(req, profile));
 });
 
-schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, board, affiliationNo, address, phone, email } = req.body || {};
-  if (name !== undefined && !String(name).trim()) {
-    return res.status(400).json({ error: "School name is required" });
+schoolRouter.get("/logo", async (_req, res) => {
+  const profile = await getSchoolProfile({ includeLogo: true });
+  const raw = profile.logoBytes;
+  const buf = raw ? (Buffer.isBuffer(raw) ? raw : Buffer.from(raw)) : null;
+  if (!buf?.length || !profile.logoMimeType) {
+    return res.status(404).json({ error: "No school logo uploaded" });
   }
+  res.setHeader("Content-Type", profile.logoMimeType);
+  res.setHeader("Cache-Control", "private, no-store");
+  return res.send(buf);
+});
+
+schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const identity = parseSchoolIdentityPatch(req.body || {});
+  if (identity.error) return res.status(400).json({ error: identity.error });
+
   const gradingPatch = parseGradingPatch(req.body || {});
   if (gradingPatch.error) return res.status(400).json({ error: gradingPatch.error });
 
@@ -57,13 +82,9 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
   const profile = await getSchoolProfile();
   const updated = await prisma.school.update({
     where: { id: profile.id },
+    omit: { logoBytes: true },
     data: {
-      ...(name !== undefined && { name: String(name).trim() }),
-      ...(board !== undefined && { board: board ? String(board).trim() : null }),
-      ...(affiliationNo !== undefined && { affiliationNo: affiliationNo ? String(affiliationNo).trim() : null }),
-      ...(address !== undefined && { address: address ? String(address).trim() : null }),
-      ...(phone !== undefined && { phone: phone ? String(phone).trim() : null }),
-      ...(email !== undefined && { email: email ? String(email).trim() : null }),
+      ...identity.data,
       ...(workingDaysPatch.value !== undefined && { workingDays: workingDaysPatch.value }),
       ...gradingPatch.data,
     },
@@ -76,15 +97,40 @@ schoolRouter.post("/join-code", requireRole("PRINCIPAL"), async (req, res) => {
   const joinCode = await allocateJoinCode();
   const updated = await prisma.school.update({
     where: { id: profile.id },
+    omit: { logoBytes: true },
     data: { joinCode },
   });
   res.json(schoolJson(req, updated));
 });
 
-schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (_req, res) => {
+schoolRouter.post("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), receiveLogo, async (req, res) => {
+  const parsed = parseLogoFile(req.file);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+
   const profile = await getSchoolProfile();
   const updated = await prisma.school.update({
     where: { id: profile.id },
+    omit: { logoBytes: true },
+    data: { logoBytes: parsed.bytes, logoMimeType: parsed.mime },
+  });
+  res.json(schoolJson(req, updated));
+});
+
+schoolRouter.delete("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const profile = await getSchoolProfile();
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
+    omit: { logoBytes: true },
+    data: { logoBytes: null, logoMimeType: null },
+  });
+  res.json(schoolJson(req, updated));
+});
+
+schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const profile = await getSchoolProfile();
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
+    omit: { logoBytes: true },
     data: {
       passPercent: DEFAULT_PASS_PERCENT,
       distinctionMin: DEFAULT_DISTINCTION_MIN,
@@ -92,5 +138,5 @@ schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR")
       examWeights: DEFAULT_EXAM_WEIGHTS,
     },
   });
-  res.json(schoolJson(_req, updated));
+  res.json(schoolJson(req, updated));
 });

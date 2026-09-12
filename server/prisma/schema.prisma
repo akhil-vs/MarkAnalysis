@@ -69,11 +69,27 @@ model School {
   slug           String       @unique
   joinCode       String       @unique
   name           String
+  /// Abbreviation used in compact UI (sidebar, mobile header).
+  shortName      String?
+  motto          String?
+  /// PNG or JPEG bytes for letterheads and the school profile preview.
+  logoBytes      Bytes?
+  logoMimeType   String?
   board          String?
   affiliationNo  String?
+  udiseCode      String?
+  recognitionNo  String?
+  establishedYear Int?
+  principalName  String?
   address        String?
+  city           String?
+  district       String?
+  state          String?
+  pincode        String?
   phone          String?
+  alternatePhone String?
   email          String?
+  website        String?
   status         SchoolStatus @default(ACTIVE)
   /// Pass threshold used in analytics (percent).
   passPercent    Float        @default(50)
