@@ -14,6 +14,7 @@ import { portalRouter } from "./routes/portal.js";
 import { markAccessRouter } from "./routes/markAccess.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { schoolRouter } from "./routes/school.js";
+import { schoolsRouter } from "./routes/schools.js";
 import { timetableRouter } from "./routes/timetable.js";
 import { bootstrapSchema } from "./lib/migrateOnStart.js";
 
@@ -74,6 +75,7 @@ app.use("/api/marks", marksRouter);
 app.use("/api/mark-access", markAccessRouter);
 app.use("/api/notifications", notificationsRouter);
 app.use("/api/school", schoolRouter);
+app.use("/api/schools", schoolsRouter);
 app.use("/api/timetable", timetableRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/exports", exportsRouter);

@@ -1,8 +1,7 @@
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { DEFAULT_PERIODS } from "../src/lib/periods.js";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma.js";
+import { runWithoutTenant, runWithTenant } from "../src/lib/tenant.js";
 
 const FIRST = [
   "Aarav", "Diya", "Ishaan", "Ananya", "Vihaan", "Sara", "Kabir", "Myra",
@@ -27,7 +26,7 @@ function seededScore(studentIndex, subjectIndex, examIndex, yearBoost = 0, teach
 async function main() {
   const wipe =
     process.env.SEED_MODE === "wipe" || process.env.ALLOW_DESTRUCTIVE_SEED === "true";
-  const existingUsers = await prisma.user.count();
+  const existingUsers = await runWithoutTenant(() => prisma.user.count());
 
   if (existingUsers > 0 && !wipe) {
     console.log(
@@ -47,19 +46,45 @@ async function main() {
     console.log("SEED_MODE=wipe — clearing existing demo data…");
   }
 
-  await prisma.activityAudit.deleteMany();
-  await prisma.markAudit.deleteMany();
-  await prisma.mark.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.markEntryAccessRequest.deleteMany();
-  await prisma.timetableEntry.deleteMany();
-  await prisma.period.deleteMany();
-  await prisma.teacherAssignment.deleteMany();
-  await prisma.student.deleteMany();
-  await prisma.exam.deleteMany();
-  await prisma.subject.deleteMany();
-  await prisma.classSection.deleteMany();
-  await prisma.user.deleteMany();
+  await runWithoutTenant(async () => {
+    await prisma.activityAudit.deleteMany();
+    await prisma.markAudit.deleteMany();
+    await prisma.mark.deleteMany();
+    await prisma.notification.deleteMany();
+    await prisma.markEntryAccessRequest.deleteMany();
+    await prisma.timetableEntry.deleteMany();
+    await prisma.period.deleteMany();
+    await prisma.teacherAssignment.deleteMany();
+    await prisma.studentSubjectEnrollment.deleteMany();
+    await prisma.student.deleteMany();
+    await prisma.exam.deleteMany();
+    await prisma.subject.deleteMany();
+    await prisma.classSection.deleteMany();
+    await prisma.portalAccessLink.deleteMany();
+    await prisma.refreshToken.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.school.deleteMany();
+  });
+
+  const school = await runWithoutTenant(() =>
+    prisma.school.create({
+      data: {
+        slug: "greenfield-public-school",
+        joinCode: "DEMO-JOIN",
+        name: "Greenfield Public School",
+        board: "CBSE",
+        affiliationNo: "1930123",
+        address: "12 Lake View Road, Bengaluru",
+        phone: "080-40001234",
+        email: "office@greenfield.school",
+      },
+    })
+  );
+
+  await runWithTenant(school.id, () => seedSchool(school));
+}
+
+async function seedSchool(school) {
 
   const passwordHash = await bcrypt.hash("password123", 10);
   const forcePasswordChange = process.env.SEED_FORCE_PASSWORD_CHANGE === "true";
@@ -217,22 +242,15 @@ async function main() {
     data: studentData.map((s) => ({ ...s, academicYear: "2025-26", status: "ACTIVE" })),
   });
 
-  await prisma.schoolProfile.upsert({
-    where: { id: "school" },
-    create: {
-      id: "school",
+  await prisma.school.update({
+    where: { id: school.id },
+    data: {
       name: "Greenfield Public School",
       board: "CBSE",
       affiliationNo: "1930123",
       address: "12 Lake View Road, Bengaluru",
       phone: "080-40001234",
       email: "office@greenfield.school",
-      updatedAt: new Date(),
-    },
-    update: {
-      name: "Greenfield Public School",
-      board: "CBSE",
-      affiliationNo: "1930123",
     },
   });
 
@@ -427,6 +445,7 @@ async function main() {
   console.log(`  Activity audits: 5 (including exam coordinator)`);
   console.log(`  Periods: ${periods.length}`);
   console.log(`  Timetable slots: ${timetableRows.length}`);
+  console.log(`  School: ${school.name} (join code ${school.joinCode})`);
   console.log("  Password for all seed users: password123");
 }
 

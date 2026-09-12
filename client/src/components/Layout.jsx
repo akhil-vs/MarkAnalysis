@@ -268,7 +268,9 @@ export default function Layout() {
       <div className="px-5 py-5 border-b border-white/10 shrink-0 flex items-start justify-between gap-3">
         <div className="min-w-0">
           <div className="font-serif text-xl leading-tight">Marks Analytics</div>
-          <div className="mt-1 text-xs text-cream/60">School performance suite</div>
+          <div className="mt-1 text-xs text-cream/60 truncate">
+            {user.school?.name || "School performance suite"}
+          </div>
         </div>
         <button
           type="button"
