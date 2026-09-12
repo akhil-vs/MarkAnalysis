@@ -198,5 +198,8 @@ describe("ensureSchema bootstrap", () => {
     assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.SCHOOL_PROFILE_DETAILS_MIGRATION));
     assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.PLATFORM_ADMIN_MIGRATION));
     assert.equal(new Set(__test.CATCHUP_MIGRATION_NAMES).size, __test.CATCHUP_MIGRATION_NAMES.length);
+    for (const name of __test.AUTH_CATCHUP_MIGRATION_NAMES) {
+      assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(name));
+    }
   });
 });

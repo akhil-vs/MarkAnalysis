@@ -959,6 +959,14 @@ export const CATCHUP_MIGRATION_NAMES = [
   PLATFORM_ADMIN_MIGRATION,
 ];
 
+/** Subset required before login / refresh / me can safely query User + RefreshToken. */
+export const AUTH_CATCHUP_MIGRATION_NAMES = [
+  MUST_CHANGE_PASSWORD_MIGRATION,
+  REFRESH_TOKEN_MIGRATION,
+  TENANT_MIGRATION,
+  PLATFORM_ADMIN_MIGRATION,
+];
+
 async function catchupsAlreadyApplied(names = CATCHUP_MIGRATION_NAMES) {
   try {
     const rows = await prisma.$queryRaw`
@@ -982,6 +990,7 @@ let authEnsurePromise = null;
 export async function ensureAuthSchema() {
   if (!authEnsurePromise) {
     authEnsurePromise = (async () => {
+      if (await catchupsAlreadyApplied(AUTH_CATCHUP_MIGRATION_NAMES)) return;
       await Promise.all([ensureMustChangePasswordColumn(), ensureRefreshTokenTable()]);
       await ensureMultiTenantSchools();
       await ensurePlatformAdminRole();
@@ -1038,6 +1047,7 @@ export const ensureSchoolGradingSchema = ensurePendingSchema;
 
 export const __test = {
   CATCHUP_MIGRATION_NAMES,
+  AUTH_CATCHUP_MIGRATION_NAMES,
   TIMETABLE_MIGRATION,
   TIMETABLE_CHECKSUM,
   NOTICES_MIGRATION,
