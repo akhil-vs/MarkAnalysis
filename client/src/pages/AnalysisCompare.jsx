@@ -14,6 +14,7 @@ import { api } from "../api.js";
 import { ExamSelect } from "../components/ExamSelect.jsx";
 import { TeacherCompareTable, YearComparison } from "../components/AnalysisPanels.jsx";
 import { ChartTooltip, EmptyNote, Panel } from "../components/DashboardKit.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { FilterBar } from "../components/TableToolbar.jsx";
 import { NAV_TITLES, paths } from "../lib/nav.js";
@@ -26,6 +27,7 @@ export default function AnalysisCompare() {
   const [examId, setExamId] = useState("");
   const [className, setClassName] = useState(params.get("className") || params.get("class") || "");
   const [subjectName, setSubjectName] = useState(params.get("subject") || "");
+  const [error, setError] = useState("");
 
   function syncFilters({ tab: nextTab = tab, cls = className, subject = subjectName } = {}) {
     const nextParams = new URLSearchParams(params);
@@ -62,29 +64,34 @@ export default function AnalysisCompare() {
     if (res.exam) setExamId(res.exam.id);
   }
 
+  async function loadAll(id = examId, cls = className, subject = subjectName) {
+    setError("");
+    try {
+      await Promise.all([loadYears(id, cls, subject), loadTeachers(id, cls, subject)]);
+    } catch (err) {
+      setError(err.message || "Could not load comparisons");
+    }
+  }
+
   useEffect(() => {
-    loadYears();
-    loadTeachers();
+    loadAll();
   }, []);
 
   function onExam(id) {
     setExamId(id);
-    loadYears(id, className, subjectName);
-    loadTeachers(id, className, subjectName);
+    loadAll(id, className, subjectName);
   }
 
   function onClass(value) {
     setClassName(value);
     syncFilters({ cls: value });
-    loadYears(examId, value, subjectName);
-    loadTeachers(examId, value, subjectName);
+    loadAll(examId, value, subjectName);
   }
 
   function onSubject(value) {
     setSubjectName(value);
     syncFilters({ subject: value });
-    loadYears(examId, className, value);
-    loadTeachers(examId, className, value);
+    loadAll(examId, className, value);
   }
 
   const classChart = useMemo(() => {
@@ -100,6 +107,7 @@ export default function AnalysisCompare() {
   const yearKeys = years?.school?.map((s) => s.academicYear) || [];
   const palette = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
 
+  if (error) return <LoadError message={error} />;
   if (!years && !teachers) return <p>Loading comparisons…</p>;
 
   return (

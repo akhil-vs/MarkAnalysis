@@ -98,9 +98,12 @@ function ClassesTab() {
   async function load() {
     const [c, u] = await Promise.all([api("/api/classes"), api("/api/users")]);
     setRows(c);
-    setTeachers(u.filter((x) => x.role === "TEACHER" && x.status === "ACTIVE"));
+    const staff = Array.isArray(u) ? u : u.items || [];
+    setTeachers(staff.filter((x) => x.role === "TEACHER" && x.status === "ACTIVE"));
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load().catch((err) => toast.error(err.message || "Could not load classes"));
+  }, []);
 
   function startEdit(row) {
     setEditingId(row.id);
@@ -295,7 +298,9 @@ function SubjectsTab() {
       return { ...f, className: options[0] || "" };
     });
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load().catch((err) => toast.error(err.message || "Could not load subjects"));
+  }, []);
 
   async function loadClassStudents(className) {
     if (!className) {
@@ -706,7 +711,7 @@ function StudentsTab() {
     if (!classSectionId && c[0]) setClassSectionId(c[0].id);
   }
   useEffect(() => {
-    load().catch(() => {});
+    load().catch((err) => toast.error(err.message || "Could not load students"));
   }, [page, pageSize, table.q, table.filters.classSectionId, table.filters.academicYear]);
 
   function startEdit(row) {
@@ -1111,7 +1116,9 @@ function ExamsTab() {
   async function load() {
     setRows(await api("/api/exams"));
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load().catch((err) => toast.error(err.message || "Could not load exams"));
+  }, []);
 
   function startEdit(row) {
     setEditingId(row.id);
@@ -1492,7 +1499,8 @@ function PromoteTab() {
 
   async function loadStudents(classSectionId) {
     if (!classSectionId) return;
-    const rows = await api(`/api/students?classSectionId=${classSectionId}`);
+    const payload = await api(`/api/students?classSectionId=${classSectionId}`);
+    const rows = Array.isArray(payload) ? payload : payload.items || [];
     setStudents(rows);
     setSelected(Object.fromEntries(rows.map((s) => [s.id, true])));
     setRolls(Object.fromEntries(rows.map((s) => [s.id, s.rollNo])));
@@ -1500,8 +1508,12 @@ function PromoteTab() {
     if (year && !toYear) setToYear(nextYearHint(year));
   }
 
-  useEffect(() => { loadClasses(); }, []);
-  useEffect(() => { loadStudents(fromId); }, [fromId]);
+  useEffect(() => {
+    loadClasses().catch((err) => toast.error(err.message || "Could not load classes"));
+  }, []);
+  useEffect(() => {
+    loadStudents(fromId).catch((err) => toast.error(err.message || "Could not load students"));
+  }, [fromId]);
 
   const chosen = students.filter((s) => selected[s.id]);
 

@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
@@ -21,11 +22,17 @@ export default function PendingUploads() {
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState(searchParams.get("examId") || "");
   const [notify, setNotify] = useState(null);
+  const [error, setError] = useState("");
 
   async function load(id) {
-    const res = await api(`/api/analytics/pending-uploads${id ? `?examId=${id}` : ""}`);
-    setData(res);
-    if (res.exam) setExamId(res.exam.id);
+    setError("");
+    try {
+      const res = await api(`/api/analytics/pending-uploads${id ? `?examId=${id}` : ""}`);
+      setData(res);
+      if (res.exam) setExamId(res.exam.id);
+    } catch (err) {
+      setError(err.message || "Could not load upload status");
+    }
   }
 
   useEffect(() => {
@@ -33,6 +40,7 @@ export default function PendingUploads() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  if (error) return <LoadError message={error} />;
   if (!data) return <p>Loading upload status…</p>;
   if (data.empty) return <p>No exams yet.</p>;
 

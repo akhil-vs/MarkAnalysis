@@ -3,23 +3,31 @@ import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { ExamSelect } from "../components/ExamSelect.jsx";
 import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { NAV_TITLES, paths } from "../lib/nav.js";
 
 export default function AnalysisSubjects() {
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
+  const [error, setError] = useState("");
 
   async function load(id) {
-    const res = await api(`/api/analytics/subjects-overview${id ? `?examId=${id}` : ""}`);
-    setData(res);
-    if (res.exam) setExamId(res.exam.id);
+    setError("");
+    try {
+      const res = await api(`/api/analytics/subjects-overview${id ? `?examId=${id}` : ""}`);
+      setData(res);
+      if (res.exam) setExamId(res.exam.id);
+    } catch (err) {
+      setError(err.message || "Could not load subjects");
+    }
   }
 
   useEffect(() => {
     load("");
   }, []);
 
+  if (error) return <LoadError message={error} />;
   if (!data) return <p>Loading subjects…</p>;
   if (data.empty) return <p>No exam data yet.</p>;
 

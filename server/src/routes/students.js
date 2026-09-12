@@ -233,24 +233,20 @@ studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
     return res.status(400).json({ error: "Name, roll number, and class are required" });
   }
   const year = String(academicYear || "").trim() || academicYearFromDate(new Date()) || "2025-26";
-  try {
-    const created = await prisma.student.create({
-      data: {
-        name,
-        rollNo: String(rollNo),
-        classSectionId,
-        academicYear: year,
-        status: "ACTIVE",
-        dob: dob ? new Date(dob) : null,
-        guardianName: guardianName || null,
-        guardianPhone: guardianPhone || null,
-        tenantId: req.tenantId,
-      },
-    });
-    res.status(201).json(created);
-  } catch {
-    res.status(409).json({ error: "Roll number already exists in this class" });
-  }
+  const created = await prisma.student.create({
+    data: {
+      name,
+      rollNo: String(rollNo),
+      classSectionId,
+      academicYear: year,
+      status: "ACTIVE",
+      dob: dob ? new Date(dob) : null,
+      guardianName: guardianName || null,
+      guardianPhone: guardianPhone || null,
+      tenantId: req.tenantId,
+    },
+  });
+  res.status(201).json(created);
 });
 
 studentsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {

@@ -135,7 +135,7 @@ export default function Users() {
   }
 
   useEffect(() => {
-    load().catch(() => {});
+    load().catch((err) => toast.error(err.message || "Could not load staff"));
   }, [page, pageSize, table.q, table.filters.status, table.filters.role]);
 
   async function setStatus(id, status) {

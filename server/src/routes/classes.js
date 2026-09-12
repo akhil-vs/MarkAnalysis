@@ -39,14 +39,10 @@ classesRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
   if (!className || !section) {
     return res.status(400).json({ error: "Class and section are required" });
   }
-  try {
-    const created = await prisma.classSection.create({
-      data: { className, section, classTeacherId: classTeacherId || null, tenantId: req.tenantId },
-    });
-    res.status(201).json(created);
-  } catch {
-    res.status(409).json({ error: "Class section already exists" });
-  }
+  const created = await prisma.classSection.create({
+    data: { className, section, classTeacherId: classTeacherId || null, tenantId: req.tenantId },
+  });
+  res.status(201).json(created);
 });
 
 classesRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {

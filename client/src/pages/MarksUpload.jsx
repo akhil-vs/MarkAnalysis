@@ -44,9 +44,10 @@ export default function MarksUpload() {
   }
 
   useEffect(() => {
-    loadAccess().catch(() => {
+    loadAccess().catch((err) => {
       setEntryAccess(null);
       setSubjects([]);
+      toast.error(err.message || "Could not load mark entry access");
     });
   }, [classSectionId, examId]);
 

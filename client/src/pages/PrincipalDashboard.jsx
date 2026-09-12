@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { api, download } from "../api.js";
+import { LoadError } from "../components/LoadError.jsx";
 import { useAuth } from "../auth.jsx";
 import { ExamSelect } from "../components/ExamSelect.jsx";
 import { YearComparison } from "../components/AnalysisPanels.jsx";
@@ -46,30 +47,35 @@ export default function PrincipalDashboard() {
   const [detailLoading, setDetailLoading] = useState(false);
 
   async function load(id) {
-    const base = new URLSearchParams();
-    if (id) base.set("examId", id);
-    base.set("include", "summary");
-    const summary = await api(`/api/analytics/school?${base}`);
-    setData(summary);
-    setDetailLoading(false);
-    if (summary.empty) return;
-    if (summary.exam) setExamId(summary.exam.id);
-
-    const detailQ = new URLSearchParams({
-      examId: summary.exam.id,
-      include: "detail",
-    });
-    setDetailLoading(true);
+    setError("");
     try {
-      const detail = await api(`/api/analytics/school?${detailQ}`);
-      setData((prev) => ({ ...(prev || {}), ...detail }));
-    } finally {
+      const base = new URLSearchParams();
+      if (id) base.set("examId", id);
+      base.set("include", "summary");
+      const summary = await api(`/api/analytics/school?${base}`);
+      setData(summary);
       setDetailLoading(false);
+      if (summary.empty) return;
+      if (summary.exam) setExamId(summary.exam.id);
+
+      const detailQ = new URLSearchParams({
+        examId: summary.exam.id,
+        include: "detail",
+      });
+      setDetailLoading(true);
+      try {
+        const detail = await api(`/api/analytics/school?${detailQ}`);
+        setData((prev) => ({ ...(prev || {}), ...detail }));
+      } finally {
+        setDetailLoading(false);
+      }
+    } catch (e) {
+      setError(e.message || "Could not load school view");
     }
   }
 
   useEffect(() => {
-    load("").catch((e) => setError(e.message));
+    load("");
   }, []);
 
   const grades = useMemo(
@@ -93,7 +99,7 @@ export default function PrincipalDashboard() {
     return deltaLabel(current?.average, prev?.average);
   }, [data, examId]);
 
-  if (error) return <p className="text-clay-600">{error}</p>;
+  if (error) return <LoadError message={error} />;
   if (!data) return <p className="text-ink-700/60">Loading school view…</p>;
   if (data.empty) return <p>No exam data yet.</p>;
 
@@ -128,7 +134,14 @@ export default function PrincipalDashboard() {
             <Link className="btn-ghost" to={`/consolidated?examId=${examId}`}>
               Consolidated lists
             </Link>
-            <button className="btn-ghost" onClick={() => download(`/api/exports/table.xlsx?examId=${examId}`, "marks.xlsx")}>
+            <button
+              className="btn-ghost"
+              onClick={() =>
+                download(`/api/exports/table.xlsx?examId=${examId}`, "marks.xlsx").catch((err) =>
+                  toast.error(err.message || "Download failed")
+                )
+              }
+            >
               Export Excel
             </button>
           </>

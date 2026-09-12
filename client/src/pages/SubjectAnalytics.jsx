@@ -14,23 +14,31 @@ import { ExamSelect } from "../components/ExamSelect.jsx";
 import { TeacherCompareTable, YearComparison, comparableNote } from "../components/AnalysisPanels.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import { NAV_LABELS, paths } from "../lib/nav.js";
 
 export default function SubjectAnalytics() {
   const { id } = useParams();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
+  const [error, setError] = useState("");
 
   async function load(eid) {
-    const res = await api(`/api/analytics/subject/${id}${eid ? `?examId=${eid}` : ""}`);
-    setData(res);
-    if (res.exam) setExamId(res.exam.id);
+    setError("");
+    try {
+      const res = await api(`/api/analytics/subject/${id}${eid ? `?examId=${eid}` : ""}`);
+      setData(res);
+      if (res.exam) setExamId(res.exam.id);
+    } catch (err) {
+      setError(err.message || "Could not load subject");
+    }
   }
 
   useEffect(() => {
     load("");
   }, [id]);
 
+  if (error) return <LoadError message={error} />;
   if (!data) return <p>Loading subject…</p>;
   if (data.empty) return <p>No data for this subject yet.</p>;
 

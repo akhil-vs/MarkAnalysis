@@ -78,18 +78,59 @@ async function tryRefreshSession() {
   return refreshPromise;
 }
 
+function networkFailure(err) {
+  const failed = new Error(
+    err?.name === "AbortError"
+      ? "Request was cancelled"
+      : "Could not reach the server. Check your connection and try again."
+  );
+  failed.status = 0;
+  failed.cause = err;
+  return failed;
+}
+
+function errorFromBody(data, status, fallback) {
+  const err = new Error(data?.error || fallback);
+  err.status = status;
+  err.data = data;
+  return err;
+}
+
+async function parseResponseBody(res) {
+  const text = await res.text();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    throw errorFromBody(
+      {},
+      res.status,
+      res.ok
+        ? "Invalid response from server"
+        : res.status === 504 || res.status === 503
+          ? "Request timed out — try again"
+          : "Request failed"
+    );
+  }
+}
+
 async function request(path, { method = "GET", body, headers } = {}, { retry = true } = {}) {
   const isForm = body instanceof FormData;
-  const res = await fetch(path, {
-    method,
-    cache: "no-store",
-    credentials: "include",
-    headers: {
-      ...(isForm ? {} : { "Content-Type": "application/json" }),
-      ...headers,
-    },
-    body: body == null ? undefined : isForm ? body : JSON.stringify(body),
-  });
+  let res;
+  try {
+    res = await fetch(path, {
+      method,
+      cache: "no-store",
+      credentials: "include",
+      headers: {
+        ...(isForm ? {} : { "Content-Type": "application/json" }),
+        ...headers,
+      },
+      body: body == null ? undefined : isForm ? body : JSON.stringify(body),
+    });
+  } catch (err) {
+    throw networkFailure(err);
+  }
 
   if (
     res.status === 401 &&
@@ -112,29 +153,8 @@ async function request(path, { method = "GET", body, headers } = {}, { retry = t
     throw err;
   }
 
-  const text = await res.text();
-  let data = {};
-  if (text) {
-    try {
-      data = JSON.parse(text);
-    } catch {
-      const err = new Error(
-        res.ok
-          ? "Invalid response from server"
-          : res.status === 504 || res.status === 503
-            ? "Request timed out — try again"
-            : "Request failed"
-      );
-      err.status = res.status;
-      throw err;
-    }
-  }
-  if (!res.ok) {
-    const err = new Error(data.error || "Request failed");
-    err.status = res.status;
-    err.data = data;
-    throw err;
-  }
+  const data = await parseResponseBody(res);
+  if (!res.ok) throw errorFromBody(data, res.status, "Request failed");
 
   if (method !== "GET") invalidateForMutation(path);
   return data;
@@ -167,10 +187,15 @@ export async function api(path, { method = "GET", body, headers } = {}) {
 
 
 export async function download(path, filename) {
-  const res = await fetch(path, {
-    cache: "no-store",
-    credentials: "include",
-  });
+  let res;
+  try {
+    res = await fetch(path, {
+      cache: "no-store",
+      credentials: "include",
+    });
+  } catch (err) {
+    throw networkFailure(err);
+  }
   if (res.status === 401) {
     const refreshed = await tryRefreshSession();
     if (refreshed) return download(path, filename);
@@ -178,7 +203,10 @@ export async function download(path, filename) {
     window.location.assign("/login");
     throw new Error("Unauthorized");
   }
-  if (!res.ok) throw new Error("Download failed");
+  if (!res.ok) {
+    const data = await parseResponseBody(res).catch(() => ({}));
+    throw errorFromBody(data, res.status, "Download failed");
+  }
   const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
