@@ -33,7 +33,14 @@ async function establishSession(req, res, user) {
   const refresh = await createRefreshSession(user.id, { userAgent: req.get("user-agent") });
   setAccessCookie(res, access);
   setRefreshCookie(res, refresh.raw);
-  return { user: publicUser(user) };
+  const withTenant =
+    user.tenant || user.role === "PLATFORM_ADMIN"
+      ? user
+      : await prisma.user.findUnique({
+          where: { id: user.id },
+          include: { tenant: { select: { id: true, name: true, slug: true, status: true } } },
+        });
+  return { user: publicUser(withTenant || user) };
 }
 
 authRouter.get("/school-lookup", async (req, res) => {
