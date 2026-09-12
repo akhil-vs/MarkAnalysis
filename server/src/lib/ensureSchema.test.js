@@ -165,4 +165,14 @@ describe("ensureSchema bootstrap", () => {
     assert.ok(__test.TENANT_STATEMENTS.some((s) => s.includes('CREATE TABLE IF NOT EXISTS "School"')));
     assert.ok(__test.TENANT_STATEMENTS.some((s) => s.includes('"joinCode"')));
   });
+
+  it("embeds platform admin migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260912200000_platform_admin/migration.sql")
+    );
+    assert.equal(__test.PLATFORM_ADMIN_CHECKSUM, createHash("sha256").update(file).digest("hex"));
+    assert.equal(__test.PLATFORM_ADMIN_MIGRATION, "20260912200000_platform_admin");
+    assert.ok(__test.PLATFORM_ADMIN_STATEMENTS.some((s) => s.includes("PLATFORM_ADMIN")));
+    assert.ok(__test.PLATFORM_ADMIN_STATEMENTS.some((s) => s.includes("DROP NOT NULL")));
+  });
 });

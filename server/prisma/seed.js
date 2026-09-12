@@ -23,15 +23,34 @@ function seededScore(studentIndex, subjectIndex, examIndex, yearBoost = 0, teach
   return Math.max(28, Math.min(99, base + wobble + teacherShift));
 }
 
+async function ensurePlatformAdmin(db) {
+  const existing = await db.user.findFirst({ where: { role: "PLATFORM_ADMIN" } });
+  if (existing) return existing;
+  const passwordHash = await bcrypt.hash("password123", 10);
+  return db.user.create({
+    data: {
+      name: "Platform Admin",
+      email: "admin@platform.edu",
+      schoolId: "PLT-A01",
+      passwordHash,
+      role: "PLATFORM_ADMIN",
+      status: "ACTIVE",
+      mustChangePassword: false,
+    },
+  });
+}
+
 async function main() {
   const wipe =
     process.env.SEED_MODE === "wipe" || process.env.ALLOW_DESTRUCTIVE_SEED === "true";
   const existingUsers = await runWithoutTenant(() => prisma.user.count());
 
   if (existingUsers > 0 && !wipe) {
+    await runWithoutTenant(() => ensurePlatformAdmin(prisma));
     console.log(
       `Database already has ${existingUsers} user(s). Skipping destructive seed.\n` +
-        "Set SEED_MODE=wipe (and ALLOW_DESTRUCTIVE_SEED=true in production) to reset demo data."
+        "Set SEED_MODE=wipe (and ALLOW_DESTRUCTIVE_SEED=true in production) to reset demo data.\n" +
+        "Platform admin ensured at admin@platform.edu (password123) when missing."
     );
     return;
   }
@@ -81,7 +100,42 @@ async function main() {
     })
   );
 
+  await runWithoutTenant(() => ensurePlatformAdmin(prisma));
   await runWithTenant(school.id, () => seedSchool(school));
+
+  const riverside = await runWithoutTenant(async () => {
+    const campus = await prisma.school.create({
+      data: {
+        slug: "riverside",
+        joinCode: "RIVE-SIDE",
+        name: "Riverside Academy",
+        board: "CISCE",
+        affiliationNo: "KA045",
+        address: "88 Riverbank Road, Mysuru",
+        phone: "0821-2500450",
+        email: "office@riverside.school",
+      },
+    });
+    await prisma.period.createMany({
+      data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId: campus.id })),
+    });
+    await prisma.user.create({
+      data: {
+        tenantId: campus.id,
+        name: "Asha Menon",
+        email: "principal@riverside.school",
+        schoolId: "RIV-P01",
+        passwordHash: await bcrypt.hash("password123", 10),
+        role: "PRINCIPAL",
+        status: "ACTIVE",
+        mustChangePassword: process.env.SEED_FORCE_PASSWORD_CHANGE === "true",
+      },
+    });
+    return campus;
+  });
+
+  console.log(`  Platform admin: admin@platform.edu`);
+  console.log(`  Second school: ${riverside.name} (${riverside.slug}, join ${riverside.joinCode}) · principal@riverside.school`);
 }
 
 async function seedSchool(school) {
@@ -434,7 +488,7 @@ async function seedSchool(school) {
   });
 
   console.log("Seeded:");
-  console.log(`  Principal: ${principal.email}`);
+  console.log(`  Principal: ${principal.email} (${school.slug}, join ${school.joinCode})`);
   console.log(`  Coordinator: ${coordinator.email}`);
   console.log(`  Teachers: ${teachers.length}`);
   console.log(`  Classes: ${Object.keys(byClassSection).join(", ")}`);

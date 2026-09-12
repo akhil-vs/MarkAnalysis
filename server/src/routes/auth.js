@@ -41,7 +41,7 @@ async function establishSession(req, res, user) {
       ? await runWithoutTenant(() =>
           prisma.school.findUnique({
             where: { id: user.tenantId },
-            select: { id: true, name: true, slug: true },
+            select: { id: true, name: true, slug: true, status: true },
           })
         )
       : null);
@@ -163,7 +163,16 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
-  const school = await runWithoutTenant(() => prisma.school.findUnique({ where: { id: user.tenantId } }));
+  if (user.role === "PLATFORM_ADMIN") {
+    if (user.status !== "ACTIVE") {
+      return res.status(403).json({ error: "Account was rejected" });
+    }
+    return res.json(await runWithoutTenant(() => establishSession(req, res, user)));
+  }
+
+  const school = await runWithoutTenant(() =>
+    prisma.school.findUnique({ where: { id: user.tenantId } })
+  );
   try {
     await assertSchoolActive(school);
   } catch (err) {
@@ -198,6 +207,11 @@ authRouter.post("/refresh", authWriteLimit, async (req, res) => {
     clearAuthCookies(res);
     return res.status(401).json({ error: "Session expired" });
   }
+  if (user.role === "PLATFORM_ADMIN") {
+    setAccessCookie(res, signToken(user));
+    setRefreshCookie(res, rotated.raw);
+    return res.json({ user: publicUser(user, null) });
+  }
   const school = await runWithoutTenant(() => prisma.school.findUnique({ where: { id: user.tenantId } }));
   if (!school || school.status === "SUSPENDED") {
     clearAuthCookies(res);
@@ -218,7 +232,7 @@ authRouter.get("/me", authAllowPasswordChange, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user.userId },
     include: {
-      tenant: { select: { id: true, name: true, slug: true } },
+      tenant: { select: { id: true, name: true, slug: true, status: true } },
       assignments: { include: { classSection: true, subject: true } },
       classTeacherOf: {
         select: { id: true, className: true, section: true },

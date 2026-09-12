@@ -9,6 +9,7 @@ datasource db {
 }
 
 enum Role {
+  PLATFORM_ADMIN
   PRINCIPAL
   EXAM_COORDINATOR
   TEACHER
@@ -106,7 +107,8 @@ model School {
 
 model User {
   id                 String     @id @default(cuid())
-  tenantId           String
+  /// Tenant school. Null only for PLATFORM_ADMIN.
+  tenantId           String?
   name               String
   email              String?    @unique
   /// Staff / employee code, unique within the school (not the tenant id).
@@ -117,7 +119,7 @@ model User {
   status             UserStatus @default(PENDING)
   createdAt          DateTime   @default(now())
 
-  tenant             School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  tenant             School? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
   classTeacherOf     ClassSection[]            @relation("ClassTeacher")
   assignments        TeacherAssignment[]
@@ -382,6 +384,9 @@ enum AuditAction {
   EXAM_CREATED
   EXAM_UPDATED
   EXAM_DELETED
+  SCHOOL_CREATED
+  SCHOOL_UPDATED
+  SCHOOL_STATUS_CHANGED
 }
 
 /// Operational audit trail (approvals, access reviews, staff/exam changes).

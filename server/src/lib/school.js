@@ -1,7 +1,7 @@
 import { prisma } from "./prisma.js";
 import { ensurePendingSchema } from "./ensureSchema.js";
 import { newJoinCode, slugifySchoolName } from "./schoolIdentity.js";
-import { requireTenantId, runWithoutTenant } from "./tenant.js";
+import { parseSlug, requireTenantId, runWithoutTenant } from "./tenant.js";
 
 export async function getSchoolProfile() {
   await ensurePendingSchema();
@@ -51,5 +51,30 @@ export async function allocateJoinCode() {
 export async function findSchoolByJoinCode(joinCode) {
   if (!joinCode) return null;
   return runWithoutTenant(() => prisma.school.findUnique({ where: { joinCode } }));
+}
+
+export async function findActiveSchoolBySlug(slug) {
+  const parsed = parseSlug(slug);
+  if (parsed.error) return { error: parsed.error };
+  const school = await runWithoutTenant(() => prisma.school.findUnique({ where: { slug: parsed.value } }));
+  if (!school || school.status !== "ACTIVE") {
+    return { error: "School not found" };
+  }
+  return { school };
+}
+
+export async function assertSchoolActiveById(tenantId) {
+  if (!tenantId) return { error: "No school assigned to this account" };
+  const school = await runWithoutTenant(() =>
+    prisma.school.findUnique({
+      where: { id: tenantId },
+      select: { id: true, status: true, name: true, slug: true },
+    })
+  );
+  if (!school) return { error: "School not found" };
+  if (school.status === "SUSPENDED") {
+    return { error: "This school is suspended. Contact the platform administrator." };
+  }
+  return { school };
 }
 

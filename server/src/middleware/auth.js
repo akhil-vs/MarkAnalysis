@@ -40,6 +40,9 @@ async function resolveTenantId(payload) {
 }
 
 function continueWithTenant(req, res, next, cont) {
+  if (req.user?.role === "PLATFORM_ADMIN") {
+    return runWithoutTenant(() => cont());
+  }
   return resolveTenantId(req.user)
     .then((tenantId) => {
       if (!tenantId) {
@@ -99,7 +102,7 @@ export function requireRole(...roles) {
 
 export function signToken(user) {
   return jwt.sign(
-    { userId: user.id, role: user.role, name: user.name, tenantId: user.tenantId },
+    { userId: user.id, role: user.role, name: user.name, tenantId: user.tenantId || null },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_ACCESS_EXPIRES || "15m" }
   );
@@ -111,15 +114,15 @@ export function publicUser(user, school) {
     name: user.name,
     email: user.email,
     schoolId: user.schoolId,
-    tenantId: user.tenantId,
+    tenantId: user.tenantId || null,
     role: user.role,
     status: user.status,
     mustChangePassword: Boolean(user.mustChangePassword),
     school: school
-      ? { id: school.id, name: school.name, slug: school.slug }
+      ? { id: school.id, name: school.name, slug: school.slug, status: school.status }
       : user.tenant
-        ? { id: user.tenant.id, name: user.tenant.name, slug: user.tenant.slug }
-        : undefined,
+        ? { id: user.tenant.id, name: user.tenant.name, slug: user.tenant.slug, status: user.tenant.status }
+        : null,
   };
 }
 

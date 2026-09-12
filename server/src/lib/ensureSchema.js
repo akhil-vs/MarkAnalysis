@@ -29,6 +29,9 @@ const ACTIVITY_ACTIONS = [
   "EXAM_CREATED",
   "EXAM_UPDATED",
   "EXAM_DELETED",
+  "SCHOOL_CREATED",
+  "SCHOOL_UPDATED",
+  "SCHOOL_STATUS_CHANGED",
 ];
 
 const ACTIVITY_STATEMENTS = [
@@ -816,6 +819,57 @@ async function ensureMultiTenantSchools() {
   await recordMigration(TENANT_MIGRATION, TENANT_CHECKSUM);
 }
 
+const PLATFORM_ADMIN_MIGRATION = "20260912200000_platform_admin";
+const PLATFORM_ADMIN_CHECKSUM =
+  "4a24ba363677feed496348aa9b467ba1335b64d14323b3799f8a28e7ff0dd8d4";
+
+const PLATFORM_ADMIN_STATEMENTS = [
+  `DO $$ BEGIN
+     ALTER TYPE "Role" ADD VALUE IF NOT EXISTS 'PLATFORM_ADMIN';
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `DO $$ BEGIN
+     ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'SCHOOL_CREATED';
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `DO $$ BEGIN
+     ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'SCHOOL_UPDATED';
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `DO $$ BEGIN
+     ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'SCHOOL_STATUS_CHANGED';
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+  `ALTER TABLE "User" ALTER COLUMN "tenantId" DROP NOT NULL`,
+];
+
+async function columnIsNullable(tableName, columnName) {
+  const rows = await prisma.$queryRaw`
+    SELECT is_nullable AS "nullable"
+    FROM information_schema.columns
+    WHERE table_schema = 'public'
+      AND table_name = ${tableName}
+      AND column_name = ${columnName}
+  `;
+  return String(rows?.[0]?.nullable || "").toUpperCase() === "YES";
+}
+
+async function ensurePlatformAdminRole() {
+  const hasRole = await enumHasLabel("Role", "PLATFORM_ADMIN");
+  const tenantNullable = await columnIsNullable("User", "tenantId");
+  if (hasRole && tenantNullable) {
+    await recordMigration(PLATFORM_ADMIN_MIGRATION, PLATFORM_ADMIN_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(PLATFORM_ADMIN_STATEMENTS);
+  await recordMigration(PLATFORM_ADMIN_MIGRATION, PLATFORM_ADMIN_CHECKSUM);
+}
+
 export async function ensurePendingSchema() {
   if (!ensurePromise) {
     ensurePromise = (async () => {
@@ -841,6 +895,7 @@ export async function ensurePendingSchema() {
       // school-wide lock, so this must run after those catch-ups.
       await ensureExamConsolidationColumns();
       await ensureMultiTenantSchools();
+      await ensurePlatformAdminRole();
     })().catch((err) => {
       ensurePromise = null;
       throw err;
@@ -911,4 +966,7 @@ export const __test = {
   TENANT_MIGRATION,
   TENANT_CHECKSUM,
   TENANT_STATEMENTS,
+  PLATFORM_ADMIN_MIGRATION,
+  PLATFORM_ADMIN_CHECKSUM,
+  PLATFORM_ADMIN_STATEMENTS,
 };

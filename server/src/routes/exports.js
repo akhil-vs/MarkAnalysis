@@ -13,9 +13,11 @@ import {
   fileStem,
 } from "../lib/consolidated.js";
 import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const exportsRouter = Router();
 exportsRouter.use(auth);
+exportsRouter.use(requireSchoolTenant);
 
 function pct(mark) {
   if (!isScoredMark(mark)) return null;

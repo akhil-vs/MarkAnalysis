@@ -95,7 +95,7 @@ export default function Signup() {
             <option value="TEACHER">Teacher</option>
             <option value="EXAM_COORDINATOR">Exam Coordinator</option>
           </select>
-          <p className="mt-1 text-xs text-ink-700/60">Principal accounts are created by an existing principal, not via public signup.</p>
+          <p className="mt-1 text-xs text-ink-700/60">Principal accounts are created from the platform console, by registering a school, or by an existing principal.</p>
         </div>
         {error && <FieldError message={error} />}
         {message && <p className="text-sm text-moss-600">{message}</p>}

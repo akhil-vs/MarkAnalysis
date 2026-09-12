@@ -2,6 +2,7 @@ import { Router } from "express";
 import { auth, isLeadership, requireRole } from "../middleware/auth.js";
 import { allocateJoinCode, getSchoolProfile } from "../lib/school.js";
 import { prisma } from "../lib/prisma.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 import {
   DEFAULT_DISTINCTION_MIN,
   DEFAULT_EXAM_WEIGHTS,
@@ -14,6 +15,7 @@ import { parseWorkingDays, publicWorkingDays } from "../lib/workingDays.js";
 
 export const schoolRouter = Router();
 schoolRouter.use(auth);
+schoolRouter.use(requireSchoolTenant);
 
 function publicSchool(profile, { includeJoinCode = false } = {}) {
   return {

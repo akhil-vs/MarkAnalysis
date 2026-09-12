@@ -1,4 +1,4 @@
-import { NAV_GROUPS } from "./nav.js";
+import { NAV_GROUPS, PLATFORM_NAV_GROUPS } from "./nav.js";
 
 /** Page-level help shown behind the hint icon on each menu screen. */
 export const PAGE_HELP = {
@@ -116,6 +116,21 @@ export const PAGE_HELP = {
     title: "What's on this page",
     about: "Your name, email, school ID, and password.",
     useful: "Keep sign-in details up to date. A password change takes effect on the next login.",
+  },
+  platformDashboard: {
+    title: "What's on this page",
+    about: "Platform overview of every school on this deployment: how many are active or suspended, total staff and students, and the most recently added campuses.",
+    useful: "Start here to see whether onboarding is healthy, then open a school to edit its profile, suspend access, or reset a principal password.",
+  },
+  platformSchools: {
+    title: "What's on this page",
+    about: "Every school on the platform with status, board, staff and student counts. Search by name, code, or board, and filter active versus suspended campuses.",
+    useful: "Open a row to manage that school, or add a campus when a new institution should get its own principal and isolated marks data.",
+  },
+  platformSchoolNew: {
+    title: "What's on this page",
+    about: "Provision a new school: identity, a unique school code used at sign-up, and the first principal account.",
+    useful: "Share the school code with staff so they can request access, and give the principal their password once — they must change it on first sign-in.",
   },
 };
 
@@ -267,6 +282,7 @@ function collectHelpRoutes(items, out = []) {
 export function navHelpRoutes() {
   const routes = [];
   for (const group of NAV_GROUPS) collectHelpRoutes(group.items, routes);
+  for (const group of PLATFORM_NAV_GROUPS) collectHelpRoutes(group.items, routes);
   return routes;
 }
 
@@ -289,6 +305,7 @@ export function helpForPath(pathname, role) {
     if (role === "PRINCIPAL") return PAGE_HELP.dashboardPrincipal;
     if (role === "EXAM_COORDINATOR") return PAGE_HELP.dashboardCoordinator;
     if (role === "TEACHER") return PAGE_HELP.dashboardTeacher;
+    if (role === "PLATFORM_ADMIN") return PAGE_HELP.platformDashboard;
     return PAGE_HELP.dashboard;
   }
   return PAGE_HELP[id] || null;

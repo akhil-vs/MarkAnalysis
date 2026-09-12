@@ -5,10 +5,11 @@ import { auth, publicUser, requireRole } from "../middleware/auth.js";
 import { parseEmail } from "../lib/numbers.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
-import { runWithoutTenant } from "../lib/tenant.js";
+import { requireSchoolTenant, runWithoutTenant } from "../lib/tenant.js";
 
 export const usersRouter = Router();
 usersRouter.use(auth);
+usersRouter.use(requireSchoolTenant);
 
 usersRouter.get("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const status = req.query.status;

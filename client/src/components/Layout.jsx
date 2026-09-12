@@ -3,12 +3,13 @@ import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-do
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { isAnalysisPath, navGroupsForRole } from "../lib/nav.js";
-import { isLeadership } from "../lib/roles.js";
+import { isLeadership, isPlatformAdmin } from "../lib/roles.js";
 import { PageHelpHint } from "./HelpHint.jsx";
 import NotificationBell, { NotificationProvider } from "./NotificationBell.jsx";
 import PoweredBy from "./PoweredBy.jsx";
 
 const ROLE_LABEL = {
+  PLATFORM_ADMIN: "Platform admin",
   PRINCIPAL: "Principal",
   EXAM_COORDINATOR: "Exam Coordinator",
   TEACHER: "Teacher",
@@ -182,6 +183,7 @@ export default function Layout() {
   const [navOpen, setNavOpen] = useState(false);
   const navId = useId();
   const leadership = isLeadership(user.role);
+  const platform = isPlatformAdmin(user.role);
   const analysisOpen = isAnalysisPath(location.pathname);
   const groups = navGroupsForRole(user.role, { classTeacherOf });
 
@@ -267,9 +269,9 @@ export default function Layout() {
     <>
       <div className="px-5 py-5 border-b border-white/10 shrink-0 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <div className="font-serif text-xl leading-tight">Marks Analytics</div>
+          <div className="font-serif text-xl leading-tight">{platform ? "Platform console" : "Marks Analytics"}</div>
           <div className="mt-1 text-xs text-cream/60 truncate">
-            {user.school?.name || "School performance suite"}
+            {platform ? "Manage every school" : user.school?.name || "School performance suite"}
           </div>
         </div>
         <button
@@ -324,9 +326,7 @@ export default function Layout() {
             </Link>
             <div className="text-xs text-cream/50">{ROLE_LABEL[user.role]}</div>
           </div>
-          <div className="hidden lg:block">
-            <NotificationBell />
-          </div>
+          <div className="hidden lg:block">{!platform && <NotificationBell />}</div>
         </div>
         <button
           className="mt-3 text-xs text-cream/70 hover:text-white"
@@ -361,10 +361,12 @@ export default function Layout() {
               >
                 <MenuIcon open={navOpen} />
               </button>
-              <Link to="/" className="min-w-0 flex-1" onClick={closeNav}>
-                <div className="font-serif text-lg leading-tight truncate">Marks Analytics</div>
+              <Link to={platform ? "/platform" : "/"} className="min-w-0 flex-1" onClick={closeNav}>
+                <div className="font-serif text-lg leading-tight truncate">
+                  {platform ? "Platform console" : "Marks Analytics"}
+                </div>
               </Link>
-              <NotificationBell />
+              {!platform && <NotificationBell />}
             </div>
           </div>
         </header>
