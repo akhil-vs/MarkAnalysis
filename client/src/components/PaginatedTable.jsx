@@ -104,8 +104,21 @@ export function PaginatedTable({
   busy = false,
   busyLabel = "Updating…",
   children,
+  /** When set, pagination is controlled by the parent (server-side). */
+  server,
 }) {
-  const pagination = usePagination(items, { pageSize, resetKey });
+  const client = usePagination(items, { pageSize, resetKey });
+  const pagination = server
+    ? {
+        slice: items,
+        page: server.page,
+        setPage: server.setPage,
+        pageCount: Math.max(1, server.pageCount || Math.ceil((server.total || 0) / (server.pageSize || pageSize))),
+        pageSize: server.pageSize || pageSize,
+        setPageSize: server.setPageSize,
+        total: server.total ?? items.length,
+      }
+    : client;
 
   return (
     <div className={`relative ${className}`}>

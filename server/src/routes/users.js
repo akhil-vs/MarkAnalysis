@@ -4,27 +4,61 @@ import { prisma } from "../lib/prisma.js";
 import { auth, publicUser, requireRole } from "../middleware/auth.js";
 import { parseEmail } from "../lib/numbers.js";
 import { logActivity } from "../lib/activityAudit.js";
+import { pageResult, parsePageQuery } from "../lib/pagination.js";
 
 export const usersRouter = Router();
 usersRouter.use(auth);
 
 usersRouter.get("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const status = req.query.status;
-  const users = await prisma.user.findMany({
-    where: status ? { status } : undefined,
-    orderBy: [{ status: "asc" }, { name: "asc" }],
-    include: {
-      assignments: { include: { classSection: true, subject: true } },
-    },
-  });
-  res.json(
-    users.map((u) => ({
-      ...publicUser(u),
-      createdAt: u.createdAt,
-      assignments: u.assignments,
-    }))
-  );
+  const role = req.query.role;
+  const where = {
+    ...(status ? { status } : {}),
+    ...(role ? { role } : {}),
+  };
+  const paging = parsePageQuery(req.query);
+  if (paging.q) {
+    where.OR = [
+      { name: { contains: paging.q, mode: "insensitive" } },
+      { email: { contains: paging.q, mode: "insensitive" } },
+      { schoolId: { contains: paging.q, mode: "insensitive" } },
+    ];
+  }
+
+  const include = {
+    assignments: { include: { classSection: true, subject: true } },
+  };
+  const orderBy = [{ status: "asc" }, { name: "asc" }];
+
+  if (!paging.paged) {
+    const users = await prisma.user.findMany({ where, orderBy, include });
+    return res.json(
+      users.map((row) => ({
+        ...publicUser(row),
+        createdAt: row.createdAt,
+        assignments: row.assignments,
+      }))
+    );
+  }
+
+  const [total, users] = await Promise.all([
+    prisma.user.count({ where }),
+    prisma.user.findMany({
+      where,
+      orderBy,
+      include,
+      skip: paging.skip,
+      take: paging.take,
+    }),
+  ]);
+  const items = users.map((row) => ({
+    ...publicUser(row),
+    createdAt: row.createdAt,
+    assignments: row.assignments,
+  }));
+  res.json(pageResult({ items, total, page: paging.page, pageSize: paging.pageSize }));
 });
+
 
 usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { name, email, schoolId, password, role, status, assignments } = req.body || {};

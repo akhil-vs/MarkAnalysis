@@ -40,34 +40,53 @@ function auditSearchText(r) {
 
 function normalizeAuditPayload(data) {
   if (Array.isArray(data)) {
+    const rows = data.map((r) => ({
+      id: r.id,
+      source: "mark",
+      timestamp: r.timestamp,
+      action: r.newValue === -1 ? "MARK_DELETED" : "MARK_CHANGED",
+      actionLabel: r.newValue === -1 ? "Mark deleted" : "Mark edited",
+      summary: "",
+      actor: r.changedBy
+        ? {
+            id: r.changedBy.id,
+            name: r.changedBy.name,
+            role: r.changedBy.role,
+            roleLabel: ROLE_LABEL[r.changedBy.role] || r.changedBy.role,
+          }
+        : null,
+      exam: r.mark?.exam || null,
+      student: r.mark?.student || null,
+      subject: r.mark?.subject || null,
+      oldValue: r.oldValue,
+      newValue: r.newValue,
+      oldLabel: describeAuditValue(r.oldValue) ?? "—",
+      newLabel: describeAuditValue(r.newValue) ?? "—",
+    }));
     return {
       scope: "teachers",
-      rows: data.map((r) => ({
-        id: r.id,
-        source: "mark",
-        timestamp: r.timestamp,
-        action: r.newValue === -1 ? "MARK_DELETED" : "MARK_CHANGED",
-        actionLabel: r.newValue === -1 ? "Mark deleted" : "Mark edited",
-        summary: "",
-        actor: r.changedBy
-          ? {
-              id: r.changedBy.id,
-              name: r.changedBy.name,
-              role: r.changedBy.role,
-              roleLabel: ROLE_LABEL[r.changedBy.role] || r.changedBy.role,
-            }
-          : null,
-        exam: r.mark?.exam || null,
-        student: r.mark?.student || null,
-        subject: r.mark?.subject || null,
-        oldValue: r.oldValue,
-        newValue: r.newValue,
-        oldLabel: describeAuditValue(r.oldValue) ?? "—",
-        newLabel: describeAuditValue(r.newValue) ?? "—",
-      })),
+      rows,
+      total: rows.length,
+      page: 1,
+      pageSize: rows.length || 50,
+      pageCount: 1,
     };
   }
-  return { scope: data?.scope || "teachers", rows: data?.rows || [] };
+  const rows = Array.isArray(data?.rows) ? data.rows : Array.isArray(data?.items) ? data.items : [];
+  const total = Number(data?.total);
+  const page = Number(data?.page) || 1;
+  const pageSize = Number(data?.pageSize) || rows.length || 50;
+  const pageCount =
+    Number(data?.pageCount) ||
+    Math.max(1, Math.ceil((Number.isFinite(total) ? total : rows.length) / pageSize));
+  return {
+    scope: data?.scope || "teachers",
+    rows,
+    total: Number.isFinite(total) ? total : rows.length,
+    page,
+    pageSize,
+    pageCount,
+  };
 }
 
 function roleChipClass(role) {
@@ -80,6 +99,10 @@ export default function AuditLog() {
   const { user } = useAuth();
   const seeAllUsers = canViewAllAudits(user.role);
   const [rows, setRows] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [total, setTotal] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
   const [exams, setExams] = useState([]);
   const [staff, setStaff] = useState([]);
   const [examId, setExamId] = useState("");
@@ -95,30 +118,33 @@ export default function AuditLog() {
     return [...seen.values()].sort((a, b) => String(a.name).localeCompare(b.name));
   }, [staff, rows]);
 
-  async function load(id) {
-    const params = new URLSearchParams();
+  async function load(id = examId) {
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (id) params.set("examId", id);
-    const q = params.toString() ? `?${params}` : "";
-    const data = normalizeAuditPayload(await api(`/api/marks/audit${q}`));
+    if (table.q) params.set("q", table.q);
+    if (table.filters.role) params.set("role", table.filters.role);
+    if (table.filters.actorId) params.set("actorId", table.filters.actorId);
+    const data = normalizeAuditPayload(await api(`/api/marks/audit?${params}`));
     setScope(data.scope);
     setRows(data.rows);
+    setTotal(data.total ?? data.rows.length);
+    setPageCount(data.pageCount ?? 1);
   }
 
   useEffect(() => {
     api("/api/exams").then((e) => {
       setExams(e);
-      if (seeAllUsers) {
-        setExamId("");
-        load("");
-      } else if (e[0]) {
-        setExamId(e.at(-1).id);
-        load(e.at(-1).id);
-      } else load("");
+      if (seeAllUsers) setExamId("");
+      else if (e[0]) setExamId(e.at(-1).id);
     });
     if (seeAllUsers) {
-      api("/api/users").then(setStaff).catch(() => setStaff([]));
+      api("/api/users").then((u) => setStaff(Array.isArray(u) ? u : u.items || [])).catch(() => setStaff([]));
     }
   }, [seeAllUsers]);
+
+  useEffect(() => {
+    load(examId).catch(() => {});
+  }, [page, pageSize, table.q, table.filters.role, table.filters.actorId, examId]);
 
   const subtitle = seeAllUsers
     ? "Every staff action, including exam coordinator approvals and edits"
@@ -134,8 +160,8 @@ export default function AuditLog() {
             className="field-filter"
             value={examId}
             onChange={(e) => {
+              setPage(1);
               setExamId(e.target.value);
-              load(e.target.value);
             }}
           >
             <option value="">All activity</option>
@@ -151,16 +177,22 @@ export default function AuditLog() {
         <div className="p-3 border-b border-ink-900/10">
           <TableToolbar
             q={table.q}
-            setQ={table.setQ}
+            setQ={(value) => {
+              setPage(1);
+              table.setQ(value);
+            }}
             placeholder="Search staff, action, student, or subject"
-            matched={table.matched}
-            total={table.total}
+            matched={total}
+            total={total}
           >
             {seeAllUsers && (
               <select
                 className="field-filter"
                 value={table.filters.role || ""}
-                onChange={(e) => table.setFilter("role", e.target.value)}
+                onChange={(e) => {
+                  setPage(1);
+                  table.setFilter("role", e.target.value);
+                }}
                 aria-label="Filter by role"
               >
                 <option value="">All roles</option>
@@ -173,7 +205,10 @@ export default function AuditLog() {
               <select
                 className="field-filter"
                 value={table.filters.actorId || ""}
-                onChange={(e) => table.setFilter("actorId", e.target.value)}
+                onChange={(e) => {
+                  setPage(1);
+                  table.setFilter("actorId", e.target.value);
+                }}
                 aria-label="Filter by staff"
               >
                 <option value="">All staff</option>
@@ -188,8 +223,19 @@ export default function AuditLog() {
           </TableToolbar>
         </div>
         <PaginatedTable
-          items={table.filtered}
-          resetKey={`${examId}:${table.resetKey}:${scope}`}
+          items={rows}
+          server={{
+            page,
+            setPage,
+            pageSize,
+            setPageSize: (n) => {
+              setPageSize(n);
+              setPage(1);
+            },
+            total,
+            pageCount,
+          }}
+          resetKey={`${examId}:${scope}:${table.q}:${table.filters.role || ""}:${table.filters.actorId || ""}`}
           empty={examId ? "No activity recorded for this exam yet." : "No activity recorded yet."}
         >
           {(page) => (

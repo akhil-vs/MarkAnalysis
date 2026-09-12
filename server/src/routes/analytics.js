@@ -60,6 +60,14 @@ analyticsRouter.get("/school", async (req, res) => {
   const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true });
 
+  const includeParts = String(req.query.include || "full")
+    .split(",")
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  const wantAll = !includeParts.length || includeParts.includes("full");
+  const wantSummary = wantAll || includeParts.includes("summary");
+  const wantDetail = wantAll || includeParts.includes("detail");
+
   const grading = gradingHelpers(await getGradingConfig());
   const { passPercent, gradeFn, gradeBands, distinctionMin } = grading;
 
@@ -85,36 +93,28 @@ analyticsRouter.get("/school", async (req, res) => {
     subject: { select: { id: true, name: true, className: true, maxMarks: true } },
   };
 
-  const [
-    examMarks,
-    historyApproved,
-    classes,
-    subjects,
-    assignments,
-    activeStudents,
-    teacherCount,
-    activeStudentRows,
-    accessRequests,
-  ] = await Promise.all([
+  const sharedQueries = [
     prisma.mark.findMany({
       where: { examId: exam.id },
       select: markCoreSelect,
     }),
-    prisma.mark.findMany({
-      where: {
-        status: "APPROVED",
-        examId: { not: exam.id },
-        student: { status: "ACTIVE" },
-      },
-      select: {
-        studentId: true,
-        subjectId: true,
-        examId: true,
-        marksObtained: true,
-        outcome: true,
-        subject: { select: { maxMarks: true } },
-      },
-    }),
+    wantDetail
+      ? prisma.mark.findMany({
+          where: {
+            status: "APPROVED",
+            examId: { not: exam.id },
+            student: { status: "ACTIVE" },
+          },
+          select: {
+            studentId: true,
+            subjectId: true,
+            examId: true,
+            marksObtained: true,
+            outcome: true,
+            subject: { select: { maxMarks: true } },
+          },
+        })
+      : Promise.resolve([]),
     prisma.classSection.findMany({
       orderBy: [{ className: "asc" }, { section: "asc" }],
       include: { _count: { select: { students: { where: { status: "ACTIVE" } } } } },
@@ -139,155 +139,37 @@ analyticsRouter.get("/school", async (req, res) => {
       where: { examId: exam.id },
       select: { status: true, kind: true },
     }),
-  ]);
+  ];
 
-  // Attach exam onto rows so term/year helpers can read mark.exam without a nested include.
+  const [
+    examMarks,
+    historyApproved,
+    classes,
+    subjects,
+    assignments,
+    activeStudents,
+    teacherCount,
+    activeStudentRows,
+    accessRequests,
+  ] = await Promise.all(sharedQueries);
+
   const examById = new Map(exams.map((e) => [e.id, e]));
   const marks = examMarks
     .filter((m) => m.status === "APPROVED" && m.student?.status === "ACTIVE")
     .map((m) => ({ ...m, exam }));
-  const allApproved = [
-    ...marks,
-    ...historyApproved
-      .map((m) => {
-        const histExam = examById.get(m.examId);
-        return histExam ? { ...m, exam: histExam } : null;
-      })
-      .filter(Boolean),
-  ];
-  const pendingUploads = await buildPendingUploads(exam, {
-    assignments,
-    students: activeStudentRows,
-    marks: examMarks.map((m) => ({
-      studentId: m.studentId,
-      subjectId: m.subjectId,
-      status: m.status,
-    })),
-  });
-
-  const byClass = new Map();
-  for (const mark of marks) {
-    const key = mark.student.classSectionId;
-    if (!byClass.has(key)) byClass.set(key, []);
-    byClass.get(key).push(mark);
-  }
-
-  const sectionAverages = classes.map((cls) => {
-    const list = byClass.get(cls.id) || [];
-    const percents = percentsOf(list);
-    const stats = summarize(percents, { passPercent });
-    return {
-      id: cls.id,
-      className: cls.className,
-      section: cls.section,
-      label: classLabel(cls),
-      average: stats.average,
-      passRate: stats.passRate,
-      studentCount: cls._count.students,
-    };
-  });
-
-  const classWise = [...new Set(classes.map((c) => c.className))]
-    .sort(compareClassNames)
-    .map((className) => {
-      const sections = sectionAverages.filter((s) => s.className === className);
-      const stats = summarize(percentsOf(marks.filter((m) => m.student.classSection.className === className)), {
-        passPercent,
-      });
-      return {
-        className,
-        label: `Class ${className}`,
-        sectionCount: sections.length,
-        studentCount: sections.reduce((s, c) => s + c.studentCount, 0),
-        average: stats.average,
-        passRate: stats.passRate,
-      };
-    });
-
-  const subjectWise = [...new Set(subjects.map((s) => s.name))]
-    .sort()
-    .map((name) => {
-      const stats = summarize(percentsOf(marks.filter((m) => m.subject.name === name)), { passPercent });
-      return { name, average: stats.average, passRate: stats.passRate, count: stats.count };
-    })
-    .sort((a, b) => (a.average ?? 100) - (b.average ?? 100));
+  const allApproved = wantDetail
+    ? [
+        ...marks,
+        ...historyApproved
+          .map((m) => {
+            const histExam = examById.get(m.examId);
+            return histExam ? { ...m, exam: histExam } : null;
+          })
+          .filter(Boolean),
+      ]
+    : marks;
 
   const studentAvgs = studentTotals(groupBy(marks, (m) => m.studentId), { gradeFn });
-  const gradeDist = gradeDistFromStudents(studentAvgs, gradeBands);
-
-  const byTerm = new Map();
-  for (const mark of allApproved) {
-    const key = `${mark.exam.term}|${mark.exam.id}|${examLabel(mark.exam)}|${mark.exam.date.toISOString()}|${mark.exam.academicYear || ""}`;
-    if (!byTerm.has(key)) byTerm.set(key, []);
-    byTerm.get(key).push(toPercent(mark));
-  }
-  const termTrend = [...byTerm.entries()]
-    .map(([key, percents]) => {
-      const [term, id, name, date, academicYear] = key.split("|");
-      return { term, examId: id, examName: name, academicYear, date, average: round1(meanOf(percents)) };
-    })
-    .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-  const ranked = [...studentAvgs].sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
-  const toppers = ranked.slice(0, 10).map((s, i) => ({
-    rank: i + 1,
-    studentId: s.studentId,
-    name: s.student.name,
-    rollNo: s.student.rollNo,
-    classLabel: sectionLabel(s.student),
-    average: s.avg,
-    grade: s.grade,
-  }));
-  const atRisk = ranked
-    .filter((s) => (s.avg ?? 100) < passPercent)
-    .slice(-15)
-    .reverse()
-    .map((s) => ({
-      studentId: s.studentId,
-      name: s.student.name,
-      rollNo: s.student.rollNo,
-      classLabel: sectionLabel(s.student),
-      average: s.avg,
-      grade: s.grade,
-    }));
-
-  const marksBySubjectClass = new Map();
-  for (const mark of marks) {
-    const key = `${mark.subjectId}|${mark.student.classSectionId}`;
-    if (!marksBySubjectClass.has(key)) marksBySubjectClass.set(key, []);
-    marksBySubjectClass.get(key).push(mark);
-  }
-  const teacherPerf = [];
-  for (const a of assignments) {
-    const tMarks = marksBySubjectClass.get(`${a.subjectId}|${a.classSectionId}`) || [];
-    const percents = tMarks.map(toPercent).filter((p) => p != null);
-    if (!percents.length) continue;
-    teacherPerf.push({
-      teacherId: a.userId,
-      teacher: a.user.name,
-      subject: a.subject.name,
-      classLabel: classLabel(a.classSection),
-      average: round1(mean(percents)),
-      passRate: round1((percents.filter((p) => p >= passPercent).length / percents.length) * 100),
-    });
-  }
-
-  const approvedByExam = groupBy(allApproved, (m) => m.examId);
-  const examPass = exams.map((e) => {
-    const list = (approvedByExam.get(e.id) || []).map(toPercent).filter((p) => p != null);
-    return {
-      examId: e.id,
-      name: e.name,
-      term: e.term,
-      academicYear: e.academicYear,
-      label: examLabel(e),
-      passRate: list.length
-        ? round1((list.filter((p) => p >= passPercent).length / list.length) * 100)
-        : 0,
-      average: round1(mean(list)),
-    };
-  });
-
   const kpis = {
     students: activeStudents,
     teachers: teacherCount,
@@ -298,47 +180,194 @@ analyticsRouter.get("/school", async (req, res) => {
       : 0,
   };
 
-  const extras = await enrichMarksInsights(marks, grading);
-  const studentsByClass = groupBy(activeStudentRows, (s) => s.classSectionId);
-  const readiness = examReadiness({
-    exam,
-    assignments,
-    marks: examMarks,
-    studentsByClass,
-    accessRequests,
-  });
+  const payload = {};
 
-  res.json({
-    exam,
-    exams,
-    kpis,
-    sectionAverages,
-    classWise,
-    subjectWise,
-    gradeDist,
-    termTrend,
-    toppers,
-    atRisk,
-    teacherPerf,
-    examPass,
-    yearComparison: yearSeries(allApproved, exams, exam),
-    pendingUploads,
-    ...extras,
-    readiness: {
-      pastDeadline: readiness.pastDeadline,
-      deadline: readiness.deadline,
-      kpis: readiness.kpis,
-    },
-    dualCeiling: dualCeilingWarnings(subjects, exam.consolidationMaxMarks),
-    boardSummary: {
-      distinction: extras.outcomeLists.counts.distinction,
-      pass: extras.outcomeLists.counts.pass,
-      fail: extras.outcomeLists.counts.fail,
-      passPercent,
-      distinctionMin,
-    },
-  });
+  if (wantSummary) {
+    const pendingUploads = await buildPendingUploads(exam, {
+      assignments,
+      students: activeStudentRows,
+      marks: examMarks.map((m) => ({
+        studentId: m.studentId,
+        subjectId: m.subjectId,
+        status: m.status,
+      })),
+    });
+    const extras = await enrichMarksInsights(marks, grading);
+    const studentsByClass = groupBy(activeStudentRows, (s) => s.classSectionId);
+    const readiness = examReadiness({
+      exam,
+      assignments,
+      marks: examMarks,
+      studentsByClass,
+      accessRequests,
+    });
+    Object.assign(payload, {
+      exam,
+      exams,
+      kpis,
+      pendingUploads,
+      ...extras,
+      readiness: {
+        pastDeadline: readiness.pastDeadline,
+        deadline: readiness.deadline,
+        kpis: readiness.kpis,
+      },
+      dualCeiling: dualCeilingWarnings(subjects, exam.consolidationMaxMarks),
+      boardSummary: {
+        distinction: extras.outcomeLists.counts.distinction,
+        pass: extras.outcomeLists.counts.pass,
+        fail: extras.outcomeLists.counts.fail,
+        passPercent,
+        distinctionMin,
+      },
+    });
+  }
+
+  if (wantDetail) {
+    const byClass = new Map();
+    for (const mark of marks) {
+      const key = mark.student.classSectionId;
+      if (!byClass.has(key)) byClass.set(key, []);
+      byClass.get(key).push(mark);
+    }
+
+    const sectionAverages = classes.map((cls) => {
+      const list = byClass.get(cls.id) || [];
+      const percents = percentsOf(list);
+      const stats = summarize(percents, { passPercent });
+      return {
+        id: cls.id,
+        className: cls.className,
+        section: cls.section,
+        label: classLabel(cls),
+        average: stats.average,
+        passRate: stats.passRate,
+        studentCount: cls._count.students,
+      };
+    });
+
+    const classWise = [...new Set(classes.map((c) => c.className))]
+      .sort(compareClassNames)
+      .map((className) => {
+        const sections = sectionAverages.filter((s) => s.className === className);
+        const stats = summarize(percentsOf(marks.filter((m) => m.student.classSection.className === className)), {
+          passPercent,
+        });
+        return {
+          className,
+          label: `Class ${className}`,
+          sectionCount: sections.length,
+          studentCount: sections.reduce((s, c) => s + c.studentCount, 0),
+          average: stats.average,
+          passRate: stats.passRate,
+        };
+      });
+
+    const subjectWise = [...new Set(subjects.map((s) => s.name))]
+      .sort()
+      .map((name) => {
+        const stats = summarize(percentsOf(marks.filter((m) => m.subject.name === name)), { passPercent });
+        return { name, average: stats.average, passRate: stats.passRate, count: stats.count };
+      })
+      .sort((a, b) => (a.average ?? 100) - (b.average ?? 100));
+
+    const gradeDist = gradeDistFromStudents(studentAvgs, gradeBands);
+
+    const byTerm = new Map();
+    for (const mark of allApproved) {
+      const key = `${mark.exam.term}|${mark.exam.id}|${examLabel(mark.exam)}|${mark.exam.date.toISOString()}|${mark.exam.academicYear || ""}`;
+      if (!byTerm.has(key)) byTerm.set(key, []);
+      byTerm.get(key).push(toPercent(mark));
+    }
+    const termTrend = [...byTerm.entries()]
+      .map(([key, percents]) => {
+        const [term, id, name, date, academicYear] = key.split("|");
+        return { term, examId: id, examName: name, academicYear, date, average: round1(meanOf(percents)) };
+      })
+      .sort((a, b) => new Date(a.date) - new Date(b.date));
+
+    const ranked = [...studentAvgs].sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
+    const toppers = ranked.slice(0, 10).map((s, i) => ({
+      rank: i + 1,
+      studentId: s.studentId,
+      name: s.student.name,
+      rollNo: s.student.rollNo,
+      classLabel: sectionLabel(s.student),
+      average: s.avg,
+      grade: s.grade,
+    }));
+    const atRisk = ranked
+      .filter((s) => (s.avg ?? 100) < passPercent)
+      .slice(-15)
+      .reverse()
+      .map((s) => ({
+        studentId: s.studentId,
+        name: s.student.name,
+        rollNo: s.student.rollNo,
+        classLabel: sectionLabel(s.student),
+        average: s.avg,
+        grade: s.grade,
+      }));
+
+    const marksBySubjectClass = new Map();
+    for (const mark of marks) {
+      const key = `${mark.subjectId}|${mark.student.classSectionId}`;
+      if (!marksBySubjectClass.has(key)) marksBySubjectClass.set(key, []);
+      marksBySubjectClass.get(key).push(mark);
+    }
+    const teacherPerf = [];
+    for (const a of assignments) {
+      const tMarks = marksBySubjectClass.get(`${a.subjectId}|${a.classSectionId}`) || [];
+      const percents = tMarks.map(toPercent).filter((p) => p != null);
+      if (!percents.length) continue;
+      teacherPerf.push({
+        teacherId: a.userId,
+        teacher: a.user.name,
+        subject: a.subject.name,
+        classLabel: classLabel(a.classSection),
+        average: round1(mean(percents)),
+        passRate: round1((percents.filter((p) => p >= passPercent).length / percents.length) * 100),
+      });
+    }
+
+    const approvedByExam = groupBy(allApproved, (m) => m.examId);
+    const examPass = exams.map((e) => {
+      const list = (approvedByExam.get(e.id) || []).map(toPercent).filter((p) => p != null);
+      return {
+        examId: e.id,
+        name: e.name,
+        term: e.term,
+        academicYear: e.academicYear,
+        label: examLabel(e),
+        passRate: list.length
+          ? round1((list.filter((p) => p >= passPercent).length / list.length) * 100)
+          : 0,
+        average: round1(mean(list)),
+      };
+    });
+
+    // Detail-only responses still need exam/exams + mark extras so the client can merge safely.
+    if (!wantSummary) {
+      const extras = await enrichMarksInsights(marks, grading);
+      Object.assign(payload, { exam, exams, kpis, ...extras });
+    }
+    Object.assign(payload, {
+      sectionAverages,
+      classWise,
+      subjectWise,
+      gradeDist,
+      termTrend,
+      toppers,
+      atRisk,
+      teacherPerf,
+      examPass,
+      yearComparison: yearSeries(allApproved, exams, exam),
+    });
+  }
+
+  res.json(payload);
 });
+
 
 
 analyticsRouter.get("/coordinator", async (req, res) => {

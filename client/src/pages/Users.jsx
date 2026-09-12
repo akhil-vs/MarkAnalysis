@@ -89,6 +89,10 @@ export default function Users() {
   const canCreateCoordinator = canAddCoordinator(user.role);
   const leadership = isLeadership(user.role);
   const [users, setUsers] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [total, setTotal] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [editing, setEditing] = useState(null);
@@ -108,19 +112,31 @@ export default function Users() {
   const tableBusy = Boolean(busyId) || creating;
 
   async function load() {
-    const [u, c, s] = await Promise.all([
-      api("/api/users"),
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (table.q) params.set("q", table.q);
+    if (table.filters.status) params.set("status", table.filters.status);
+    if (table.filters.role) params.set("role", table.filters.role);
+    const [uRes, c, s] = await Promise.all([
+      api(`/api/users?${params}`),
       api("/api/classes"),
       api("/api/subjects"),
     ]);
-    setUsers(u);
+    if (Array.isArray(uRes)) {
+      setUsers(uRes);
+      setTotal(uRes.length);
+      setPageCount(1);
+    } else {
+      setUsers(uRes.items || []);
+      setTotal(uRes.total || 0);
+      setPageCount(uRes.pageCount || 1);
+    }
     setClasses(c);
     setSubjects(s);
   }
 
   useEffect(() => {
-    load();
-  }, []);
+    load().catch(() => {});
+  }, [page, pageSize, table.q, table.filters.status, table.filters.role]);
 
   async function setStatus(id, status) {
     setBusyId(id);
@@ -250,15 +266,21 @@ export default function Users() {
         <div className="p-3 border-b border-ink-900/10">
           <TableToolbar
             q={table.q}
-            setQ={table.setQ}
+            setQ={(value) => {
+              setPage(1);
+              table.setQ(value);
+            }}
             placeholder="Search name, email, or school ID"
-            matched={table.matched}
-            total={table.total}
+            matched={total}
+            total={total}
           >
             <select
               className="field-filter"
               value={table.filters.role || ""}
-              onChange={(e) => table.setFilter("role", e.target.value)}
+              onChange={(e) => {
+                setPage(1);
+                table.setFilter("role", e.target.value);
+              }}
               aria-label="Filter by role"
             >
               <option value="">All roles</option>
@@ -269,7 +291,10 @@ export default function Users() {
             <select
               className="field-filter"
               value={table.filters.status || ""}
-              onChange={(e) => table.setFilter("status", e.target.value)}
+              onChange={(e) => {
+                setPage(1);
+                table.setFilter("status", e.target.value);
+              }}
               aria-label="Filter by status"
             >
               <option value="">All statuses</option>
@@ -280,8 +305,19 @@ export default function Users() {
           </TableToolbar>
         </div>
         <PaginatedTable
-          items={table.filtered}
-          resetKey={table.resetKey}
+          server={{
+            page,
+            setPage,
+            pageSize,
+            setPageSize: (n) => {
+              setPageSize(n);
+              setPage(1);
+            },
+            total,
+            pageCount,
+          }}
+          items={users}
+          resetKey={`${page}:${pageSize}:${table.q}:${table.filters.role}:${table.filters.status}`}
           empty="No staff accounts yet."
           busy={tableBusy}
           busyLabel="Updating staff…"

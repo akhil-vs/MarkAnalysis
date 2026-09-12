@@ -506,6 +506,11 @@ const STUDENT_FILTERS = [
 
 function StudentsTab() {
   const [rows, setRows] = useState([]);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [total, setTotal] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
+  const [yearOptions, setYearOptions] = useState([]);
   const confirm = useConfirm();
   const [classes, setClasses] = useState([]);
   const [form, setForm] = useState(emptyStudentForm());
@@ -516,19 +521,31 @@ function StudentsTab() {
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const table = useTableSearch(rows, { getSearchText: studentSearchText, filterDefs: STUDENT_FILTERS });
-  const yearOptions = useMemo(
-    () => [...new Set(rows.map((r) => r.academicYear).filter(Boolean))].sort().reverse(),
-    [rows]
-  );
 
   async function load() {
-    const [s, c] = await Promise.all([api("/api/students"), api("/api/classes")]);
-    setRows(s);
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (table.q) params.set("q", table.q);
+    if (table.filters.classSectionId) params.set("classSectionId", table.filters.classSectionId);
+    if (table.filters.academicYear) params.set("academicYear", table.filters.academicYear);
+    const [sRes, c] = await Promise.all([api(`/api/students?${params}`), api("/api/classes")]);
+    if (Array.isArray(sRes)) {
+      setRows(sRes);
+      setTotal(sRes.length);
+      setPageCount(1);
+      setYearOptions([...new Set(sRes.map((r) => r.academicYear).filter(Boolean))].sort().reverse());
+    } else {
+      setRows(sRes.items || []);
+      setTotal(sRes.total || 0);
+      setPageCount(sRes.pageCount || 1);
+      if (Array.isArray(sRes.years)) setYearOptions(sRes.years);
+    }
     setClasses(c);
     if (!form.classSectionId && c[0]) setForm((f) => ({ ...f, classSectionId: c[0].id }));
     if (!classSectionId && c[0]) setClassSectionId(c[0].id);
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    load().catch(() => {});
+  }, [page, pageSize, table.q, table.filters.classSectionId, table.filters.academicYear]);
 
   function startEdit(row) {
     setEditingId(row.id);
@@ -759,15 +776,21 @@ function StudentsTab() {
           <div className="p-3 border-b border-ink-900/10">
             <TableToolbar
               q={table.q}
-              setQ={table.setQ}
+              setQ={(value) => {
+                setPage(1);
+                table.setQ(value);
+              }}
               placeholder="Search name, roll, guardian…"
-              matched={table.matched}
-              total={table.total}
+              matched={total}
+              total={total}
             >
               <select
                 className="field-filter"
                 value={table.filters.classSectionId || ""}
-                onChange={(e) => table.setFilter("classSectionId", e.target.value)}
+                onChange={(e) => {
+                  setPage(1);
+                  table.setFilter("classSectionId", e.target.value);
+                }}
                 aria-label="Filter by class"
               >
                 <option value="">All classes</option>
@@ -778,7 +801,10 @@ function StudentsTab() {
               <select
                 className="field-filter"
                 value={table.filters.academicYear || ""}
-                onChange={(e) => table.setFilter("academicYear", e.target.value)}
+                onChange={(e) => {
+                  setPage(1);
+                  table.setFilter("academicYear", e.target.value);
+                }}
                 aria-label="Filter by academic year"
               >
                 <option value="">All years</option>
@@ -788,7 +814,24 @@ function StudentsTab() {
               </select>
             </TableToolbar>
           </div>
-          <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No students yet." busy={busy} busyLabel="Updating students…">
+          <PaginatedTable
+            items={rows}
+            server={{
+              page,
+              setPage,
+              pageSize,
+              setPageSize: (n) => {
+                setPageSize(n);
+                setPage(1);
+              },
+              total,
+              pageCount,
+            }}
+            resetKey={`${page}:${pageSize}:${table.q}:${table.filters.classSectionId || ""}:${table.filters.academicYear || ""}`}
+            empty="No students yet."
+            busy={busy}
+            busyLabel="Updating students…"
+          >
             {(page) => (
               <table className="table">
                 <thead>
