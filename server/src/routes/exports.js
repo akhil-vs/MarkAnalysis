@@ -227,10 +227,21 @@ exportsRouter.get("/consolidated/:classSectionId", async (req, res) => {
   const format = String(req.query.format || "json").toLowerCase();
   if (format === "json") return res.json({ ...built, viewer: leadership ? "leadership" : "classTeacher" });
 
+  const wantOfficial = ["1", "true", "yes"].includes(String(req.query.official || "").toLowerCase());
+  if (wantOfficial && !built.ready) {
+    return res.status(409).json({
+      error: "Official consolidated download requires every subject register to be approved.",
+      code: "INCOMPLETE_CML",
+      ready: false,
+      missingSubjects: built.missingSubjects,
+      draftCount: built.draftCount,
+    });
+  }
+
   const school = await getSchoolProfile();
   const stem = fileStem(built);
   if (format === "xlsx") {
-    const buffer = await writeConsolidatedWorkbook(built, school);
+    const buffer = await writeConsolidatedWorkbook(built, school, { official: wantOfficial || built.ready });
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
     res.setHeader("Content-Disposition", `attachment; filename="${stem}.xlsx"`);
     return res.send(Buffer.from(buffer));
@@ -238,7 +249,7 @@ exportsRouter.get("/consolidated/:classSectionId", async (req, res) => {
   if (format === "pdf") {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${stem}.pdf"`);
-    return writeConsolidatedPdf(built, res, school);
+    return writeConsolidatedPdf(built, res, school, { official: wantOfficial || built.ready });
   }
   return res.status(400).json({ error: "format must be json, xlsx, or pdf" });
 });
@@ -287,7 +298,7 @@ exportsRouter.get("/table.xlsx", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), a
   res.send(Buffer.from(buffer));
 });
 
-async function writeConsolidatedWorkbook(built, school) {
+async function writeConsolidatedWorkbook(built, school, { official = false } = {}) {
   const workbook = new ExcelJS.Workbook();
   workbook.creator = school?.name || "Marks Analytics";
   const sheet = workbook.addWorksheet("Consolidated mark list", {
@@ -306,12 +317,17 @@ async function writeConsolidatedWorkbook(built, school) {
     `Class ${built.label}`,
     built.examLabel,
     built.classSection.classTeacher?.name ? `Class teacher: ${built.classSection.classTeacher.name}` : null,
-    built.ready ? "All subject registers approved" : `Incomplete: ${built.missingSubjects.join(", ") || "marks pending"}`,
+    official && built.ready
+      ? "Official — all subject registers approved"
+      : `PREVIEW ONLY — incomplete: ${built.missingSubjects.join(", ") || "marks pending"}`,
   ]
     .filter(Boolean)
     .join("  ·  ");
   sheet.getCell(2, 1).value = meta;
-  sheet.getCell(2, 1).font = { size: 11, color: { argb: "FF4A5568" } };
+  sheet.getCell(2, 1).font = {
+    size: 11,
+    color: { argb: official && built.ready ? "FF4A5568" : "FFC45C26" },
+  };
   sheet.getCell(2, 1).alignment = { horizontal: "center" };
 
   const headerRow = sheet.addRow(headers);
@@ -348,20 +364,44 @@ async function writeConsolidatedWorkbook(built, school) {
 
   const foot = sheet.addRow([]);
   const noteRow = sheet.addRow([
-    built.ready
+    official && built.ready
       ? "Official list — every assigned teacher has approved marks for this exam."
-      : "Preview — missing or unapproved papers are left blank. Approve remaining registers before using this as the official list.",
+      : "PREVIEW ONLY — not for publication. Missing or unapproved papers are blank. Approve remaining registers, then download Official Excel/PDF.",
   ]);
   sheet.mergeCells(noteRow.number, 1, noteRow.number, headers.length);
-  noteRow.getCell(1).font = { italic: true, size: 9, color: { argb: "FF4A5568" } };
+  noteRow.getCell(1).font = {
+    italic: true,
+    size: 9,
+    color: { argb: official && built.ready ? "FF4A5568" : "FFC45C26" },
+  };
   void foot;
 
   return workbook.xlsx.writeBuffer();
 }
 
-function writeConsolidatedPdf(built, res, school) {
+function stampPreviewWatermark(doc) {
+  const page = doc.page;
+  doc.save();
+  doc.fillColor("#c45c26").opacity(0.12);
+  doc.font("Helvetica-Bold").fontSize(54);
+  doc.rotate(-28, { origin: [page.width / 2, page.height / 2] });
+  doc.text("PREVIEW — INCOMPLETE", 40, page.height / 2 - 20, {
+    width: page.width - 80,
+    align: "center",
+    lineBreak: false,
+  });
+  doc.restore();
+  doc.fillColor("#000").opacity(1);
+}
+
+function writeConsolidatedPdf(built, res, school, { official = false } = {}) {
   const doc = new PDFDocument({ margin: 32, layout: "landscape", size: "A4" });
   doc.pipe(res);
+  if (!(official && built.ready)) {
+    // Draw under content so the table remains readable.
+    doc.on("pageAdded", () => stampPreviewWatermark(doc));
+    stampPreviewWatermark(doc);
+  }
   writeSchoolHeader(doc, school);
   doc.moveDown(0.2);
   doc.fontSize(12).font("Helvetica-Bold").text("Consolidated mark list", { align: "center" });
@@ -372,10 +412,10 @@ function writeConsolidatedPdf(built, res, school) {
     }`,
     { align: "center" }
   );
-  if (!built.ready) {
+  if (!(official && built.ready)) {
     doc.moveDown(0.2);
     doc.fontSize(9).fillColor("#c45c26").text(
-      `Incomplete — missing: ${built.missingSubjects.join(", ") || "unapproved drafts"}`,
+      `PREVIEW ONLY — incomplete: ${built.missingSubjects.join(", ") || "unapproved drafts"}`,
       { align: "center" }
     );
     doc.fillColor("#000");
@@ -423,9 +463,9 @@ function writeConsolidatedPdf(built, res, school) {
   }
   doc.y = y + 12;
   doc.fontSize(8).fillColor("#555").text(
-    built.ready
+    official && built.ready
       ? "Official list — all assigned subject registers are approved."
-      : "Preview only. Blank cells are missing or still in draft. Approve remaining registers for the official list.",
+      : "PREVIEW ONLY — not for publication. Blank cells are missing or still in draft. Download Official after all registers are approved.",
     32,
     doc.y,
     { width: 778 }

@@ -25,10 +25,26 @@ function seededScore(studentIndex, subjectIndex, examIndex, yearBoost = 0, teach
 }
 
 async function main() {
-  if (process.env.NODE_ENV === "production" && process.env.ALLOW_DESTRUCTIVE_SEED !== "true") {
-    throw new Error(
-      "Refusing to run destructive seed in production. Set ALLOW_DESTRUCTIVE_SEED=true to override."
+  const wipe =
+    process.env.SEED_MODE === "wipe" || process.env.ALLOW_DESTRUCTIVE_SEED === "true";
+  const existingUsers = await prisma.user.count();
+
+  if (existingUsers > 0 && !wipe) {
+    console.log(
+      `Database already has ${existingUsers} user(s). Skipping destructive seed.\n` +
+        "Set SEED_MODE=wipe (and ALLOW_DESTRUCTIVE_SEED=true in production) to reset demo data."
     );
+    return;
+  }
+
+  if (process.env.NODE_ENV === "production" && wipe && process.env.ALLOW_DESTRUCTIVE_SEED !== "true") {
+    throw new Error(
+      "Refusing destructive seed in production. Set ALLOW_DESTRUCTIVE_SEED=true to override."
+    );
+  }
+
+  if (wipe && existingUsers > 0) {
+    console.log("SEED_MODE=wipe — clearing existing demo data…");
   }
 
   await prisma.activityAudit.deleteMany();

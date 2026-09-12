@@ -11,8 +11,7 @@ Remaining work that would make this suitable for a live school:
 - ~~**Configurable grade bands** and pass percent (board-specific)~~ (School profile Analytics grading)
 - **Electives / additional subjects** per student
 - ~~**Class-teacher inbox** for section pending papers~~ (read access + gated CML for class teachers; dedicated inbox still open)
-- **Moderation / grace marks** with audit reason
-+ ~~**Moderation / grace marks** with audit reason~~ (`POST /api/marks/moderate` + Marks Entry Moderate)
+- ~~**Moderation / grace marks** with audit reason~~ (`POST /api/marks/moderate` + Marks Entry Moderate)
 - ~~One-time consolidation max-marks lock for principal / exam coordinator~~ (Records → Exams → Lock for consolidation)
 - ~~Teacher daily / weekly / monthly timetables for principal and exam coordinator~~ (Timetables nav + views + seed periods)
 - ~~All-teachers daily board + find free teacher for a period~~ (leadership Timetables modes)
@@ -26,12 +25,13 @@ Remaining work that would make this suitable for a live school:
 - Email digests for pending sign-ups, late entry, deadlines, approvals
 - ~~Force password change after admin reset; gate demo one-click accounts~~ (`mustChangePassword`, `VITE_ENABLE_DEMO_LOGIN`)
 - ~~Server-side search/pagination for students, staff, and audit log~~
-- Incomplete consolidated PDF watermark / hard block for official download
+- ~~Incomplete consolidated PDF watermark / hard block for official download~~ (`official=1` → 409 when incomplete; preview PDF watermark)
 
 ## Engineering
 
 - Broader API/integration tests against a real database
-- Production Docker Compose (`db` + `api` + `web`)
+- ~~Production Docker Compose (`db` + `api` + `web`)~~
 - ~~Rate limiting on auth~~ (in-memory limiter on login/signup; httpOnly / refresh tokens still open)
-- Non-destructive seed path for demos
+- ~~Non-destructive seed path for demos~~ (skip wipe unless `SEED_MODE=wipe`)
+- ~~Migrate-on-deploy~~ (`prisma migrate deploy` on API boot + GitHub Action; `ensurePendingSchema` fallback)
 - ~~Replace `xlsx` parse path with ExcelJS-only~~ (uploads parse via ExcelJS; legacy `.xls` rejected)

@@ -1,0 +1,33 @@
+name: Migrate database
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "server/prisma/migrations/**"
+      - "server/prisma/schema.prisma"
+
+jobs:
+  migrate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Install and migrate
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: |
+          if [ -z "$DATABASE_URL" ]; then
+            echo "DATABASE_URL secret not set — skipping migrate deploy"
+            exit 0
+          fi
+          npm ci
+          npx prisma migrate deploy
