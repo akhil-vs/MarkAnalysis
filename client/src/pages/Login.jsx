@@ -147,6 +147,9 @@ export default function Login() {
           New staff? <Link className="underline" to="/signup">Request an account</Link>
         </p>
       </form>
+        <p className="mt-4 text-center text-sm text-ink-700/70">
+          <a className="underline" href="/portal">Parent / student portal</a>
+        </p>
 
       {DEMO_LOGIN_ENABLED && (
         <div className="mt-8">

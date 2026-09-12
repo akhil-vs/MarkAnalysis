@@ -6,6 +6,7 @@ import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { useAuth } from "../auth.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
@@ -664,6 +665,8 @@ const STUDENT_FILTERS = [
 ];
 
 function StudentsTab() {
+  const { user } = useAuth();
+  const canIssuePortal = user?.role === "PRINCIPAL" || user?.role === "EXAM_COORDINATOR";
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -758,6 +761,35 @@ function StudentsTab() {
       await load();
     } catch (err) {
       toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+
+  async function issuePortalLink(row) {
+    setBusy(true);
+    try {
+      const exams = await api("/api/exams");
+      const latest = Array.isArray(exams) ? exams[0] : exams?.items?.[0];
+      const data = await api("/api/portal/links", {
+        method: "POST",
+        body: {
+          studentIds: [row.id],
+          examId: latest?.id || undefined,
+          label: `${row.name} portal`,
+        },
+      });
+      const url = `${window.location.origin}${data.portalPath}`;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast.success("Portal link copied to clipboard.");
+      } catch {
+        toast.success(`Portal link: ${url}`);
+      }
+      window.prompt("Parent portal link (copy and share):", url);
+    } catch (err) {
+      toast.error(err.message || "Could not create portal link");
     } finally {
       setBusy(false);
     }
@@ -1017,6 +1049,9 @@ function StudentsTab() {
                       <td>{r.guardianPhone || "—"}</td>
                       <td className="whitespace-nowrap space-x-2">
                         <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
+                        {canIssuePortal && (
+                          <button type="button" className="btn-ghost" onClick={() => issuePortalLink(r)} disabled={busy}>Portal link</button>
+                        )}
                         <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
                       </td>
                     </tr>

@@ -10,6 +10,7 @@ import { examsRouter } from "./routes/exams.js";
 import { marksRouter } from "./routes/marks.js";
 import { analyticsRouter } from "./routes/analytics.js";
 import { exportsRouter } from "./routes/exports.js";
+import { portalRouter } from "./routes/portal.js";
 import { markAccessRouter } from "./routes/markAccess.js";
 import { notificationsRouter } from "./routes/notifications.js";
 import { schoolRouter } from "./routes/school.js";
@@ -67,6 +68,7 @@ app.use("/api/school", schoolRouter);
 app.use("/api/timetable", timetableRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/exports", exportsRouter);
+app.use("/api/portal", portalRouter);
 
 app.use((err, _req, res, _next) => {
   console.error(err);
