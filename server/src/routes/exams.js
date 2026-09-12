@@ -6,6 +6,7 @@ import { academicYearFromDate } from "../lib/stats.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
 import { parsePositiveInt } from "../lib/numbers.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 import {
   assertExamConsolidationEditable,
   examConsolidationInclude,
@@ -16,6 +17,7 @@ import {
 
 export const examsRouter = Router();
 examsRouter.use(auth);
+examsRouter.use(requireSchoolTenant);
 
 function examJson(exam) {
   if (!exam) return exam;
@@ -69,6 +71,7 @@ examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
       academicYear: year,
       date: new Date(date),
       type,
+      tenantId: req.tenantId,
       marksEntryDeadline: deadline,
       ...(consol.value != null ? { consolidationMaxMarks: consol.value } : {}),
     },

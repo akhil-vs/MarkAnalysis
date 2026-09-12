@@ -8,6 +8,7 @@ import { guardRolesForRoute, paths } from "./lib/nav.js";
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Portal = lazy(() => import("./pages/Portal.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
+const RegisterSchool = lazy(() => import("./pages/RegisterSchool.jsx"));
 const Pending = lazy(() => import("./pages/Pending.jsx"));
 const PrincipalDashboard = lazy(() => import("./pages/PrincipalDashboard.jsx"));
 const CoordinatorDashboard = lazy(() => import("./pages/CoordinatorDashboard.jsx"));
@@ -37,6 +38,10 @@ const Profile = lazy(() => import("./pages/Profile.jsx"));
 const SchoolSettings = lazy(() => import("./pages/SchoolSettings.jsx"));
 const Timetables = lazy(() => import("./pages/Timetables.jsx"));
 const TeacherTimetable = lazy(() => import("./pages/TeacherTimetable.jsx"));
+const PlatformHome = lazy(() => import("./pages/PlatformHome.jsx"));
+const PlatformSchools = lazy(() => import("./pages/PlatformSchools.jsx"));
+const PlatformSchoolNew = lazy(() => import("./pages/PlatformSchoolNew.jsx"));
+const PlatformSchoolDetail = lazy(() => import("./pages/PlatformSchoolDetail.jsx"));
 
 function PageFallback() {
   return (
@@ -56,6 +61,14 @@ function Guard({ roles, children }) {
   if (user.mustChangePassword && location.pathname !== "/profile") {
     return <Navigate to="/profile" replace />;
   }
+  const onPlatform = location.pathname === "/platform" || location.pathname.startsWith("/platform/");
+  if (user.role === "PLATFORM_ADMIN") {
+    if (!onPlatform && location.pathname !== "/profile") {
+      return <Navigate to="/platform" replace />;
+    }
+  } else if (onPlatform) {
+    return <Navigate to="/" replace />;
+  }
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
 }
@@ -66,6 +79,7 @@ function Guarded({ route, children }) {
 
 function Home() {
   const { user } = useAuth();
+  if (user.role === "PLATFORM_ADMIN") return <Navigate to="/platform" replace />;
   if (user.role === "PRINCIPAL") return <PrincipalDashboard />;
   if (user.role === "EXAM_COORDINATOR") return <CoordinatorDashboard />;
   return <TeacherDashboard />;
@@ -97,6 +111,7 @@ export default function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/portal" element={<Portal />} />
         <Route path="/signup" element={<Signup />} />
+        <Route path="/register-school" element={<RegisterSchool />} />
         <Route path="/pending" element={<Pending />} />
         <Route
           path="/"
@@ -166,6 +181,10 @@ export default function App() {
           />
           <Route path="profile" element={<Profile />} />
           <Route path="school" element={<Guarded route="school"><SchoolSettings /></Guarded>} />
+          <Route path="platform" element={<Guarded route="platform"><PlatformHome /></Guarded>} />
+          <Route path="platform/schools" element={<Guarded route="platform/schools"><PlatformSchools /></Guarded>} />
+          <Route path="platform/schools/new" element={<Guarded route="platform/schools/new"><PlatformSchoolNew /></Guarded>} />
+          <Route path="platform/schools/:id" element={<Guarded route="platform/schools/:id"><PlatformSchoolDetail /></Guarded>} />
           {/* Legacy bookmarks */}
           <Route path="students/:id" element={<RedirectStudents />} />
           <Route path="classes/:id" element={<RedirectClasses />} />

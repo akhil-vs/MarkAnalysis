@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { FieldError } from "../components/FieldError.jsx";
-import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
+import { firstError, parseEmail, parseJoinCode, parsePassword, requiredText } from "../lib/formValidation.js";
 import PoweredBy from "../components/PoweredBy.jsx";
 
 const DEMO_PASSWORD = "password123";
@@ -13,6 +13,7 @@ const DEMO_LOGIN_ENABLED =
   (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_LOGIN !== "false");
 
 const DEMO_ACCOUNTS = [
+  { name: "Platform Admin", role: "Platform admin", email: "admin@platform.edu", schoolId: "PLT-A01" },
   { name: "Dr. Kavita Rao", role: "Principal", email: "principal@school.edu", schoolId: "SCH-P01" },
   { name: "Sanjay Menon", role: "Exam Coordinator", email: "coordinator@school.edu", schoolId: "SCH-C01" },
   { name: "Anita Sharma", role: "Teacher · Mathematics", email: "anita.sharma@school.edu", schoolId: "SCH-T01" },
@@ -21,6 +22,7 @@ const DEMO_ACCOUNTS = [
   { name: "David Thomas", role: "Teacher · English", email: "david.thomas@school.edu", schoolId: "SCH-T04" },
   { name: "Meera Iyer", role: "Teacher · Biology", email: "meera.iyer@school.edu", schoolId: "SCH-T05" },
   { name: "Kiran Bose", role: "Teacher · Mathematics", email: "kiran.bose@school.edu", schoolId: "SCH-T06" },
+  { name: "Asha Menon", role: "Principal · Riverside", email: "principal@riverside.school", schoolId: "RIV-P01" },
 ];
 
 export default function Login() {
@@ -29,19 +31,22 @@ export default function Login() {
   const [mode, setMode] = useState("email");
   const [email, setEmail] = useState("");
   const [schoolId, setSchoolId] = useState("");
+  const [joinCode, setJoinCode] = useState("");
   const [password, setPassword] = useState(DEMO_LOGIN_ENABLED ? DEMO_PASSWORD : "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
 
   if (user) {
-    return <Navigate to={user.mustChangePassword ? "/profile" : "/"} replace />;
+    const home = user.role === "PLATFORM_ADMIN" ? "/platform" : "/";
+    return <Navigate to={user.mustChangePassword ? "/profile" : home} replace />;
   }
 
   async function signIn(payload) {
     setError("");
     try {
       const data = await login(payload);
-      navigate(data?.user?.mustChangePassword ? "/profile" : "/");
+      const home = data?.user?.role === "PLATFORM_ADMIN" ? "/platform" : "/";
+      navigate(data?.user?.mustChangePassword ? "/profile" : home);
     } catch (err) {
       if (err.status === 403 && err.data?.user?.status === "PENDING") {
         navigate("/pending");
@@ -60,7 +65,8 @@ export default function Login() {
       mode === "email"
         ? parseEmail(email, { required: true })
         : requiredText(schoolId, "School ID");
-    const err = firstError(identity, passwordCheck);
+    const join = mode === "schoolId" && joinCode.trim() ? parseJoinCode(joinCode) : { value: "" };
+    const err = firstError(identity, passwordCheck, join);
     if (err) {
       setError(err);
       return;
@@ -69,7 +75,7 @@ export default function Login() {
     await signIn(
       mode === "email"
         ? { email: identity.value, password: passwordCheck.value }
-        : { schoolId: identity.value, password: passwordCheck.value }
+        : { schoolId: identity.value, password: passwordCheck.value, joinCode: join.value || undefined }
     );
   }
 
@@ -82,7 +88,8 @@ export default function Login() {
   }
 
   const teachers = DEMO_ACCOUNTS.filter((a) => a.role.startsWith("Teacher"));
-  const leadership = DEMO_ACCOUNTS.filter((a) => !a.role.startsWith("Teacher"));
+  const leadership = DEMO_ACCOUNTS.filter((a) => a.role === "Principal" || a.role === "Exam Coordinator");
+  const platform = DEMO_ACCOUNTS.filter((a) => a.role === "Platform admin");
   const subtitle = DEMO_LOGIN_ENABLED
     ? "Use any staff account. Seed password is password123."
     : "Sign in with your school email or staff ID.";
@@ -116,17 +123,29 @@ export default function Login() {
             />
           </div>
         ) : (
-          <div>
-            <label className="label">School ID</label>
-            <input
-              className="field"
-              autoComplete="username"
-              required
-              value={schoolId}
-              onChange={(e) => setSchoolId(e.target.value)}
-              placeholder="SCH-T01"
-            />
-          </div>
+          <>
+            <div>
+              <label className="label">School ID</label>
+              <input
+                className="field"
+                autoComplete="username"
+                required
+                value={schoolId}
+                onChange={(e) => setSchoolId(e.target.value)}
+                placeholder="SCH-T01"
+              />
+            </div>
+            <div>
+              <label className="label">School join code (if asked)</label>
+              <input
+                className="field"
+                autoComplete="off"
+                value={joinCode}
+                onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+                placeholder="DEMO-JOIN"
+              />
+            </div>
+          </>
         )}
         <div>
           <label className="label">Password</label>
@@ -145,6 +164,8 @@ export default function Login() {
         </button>
         <p className="text-sm text-ink-700/70">
           New staff? <Link className="underline" to="/signup">Request an account</Link>
+          {" · "}
+          New school? <Link className="underline" to="/register-school">Register your school</Link>
         </p>
       </form>
         <p className="mt-4 text-center text-sm text-ink-700/70">
@@ -153,7 +174,13 @@ export default function Login() {
 
       {DEMO_LOGIN_ENABLED && (
         <div className="mt-8">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mb-2">Leadership</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mb-2">Platform</h2>
+          <div className="space-y-2">
+            {platform.map((account) => (
+              <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
+            ))}
+          </div>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mt-5 mb-2">Leadership</h2>
           <div className="space-y-2">
             {leadership.map((account) => (
               <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
@@ -200,8 +227,8 @@ export function AuthShell({ title, subtitle, children }) {
         <div>
           <h2 className="font-serif text-4xl leading-tight">See the school, not just the scores.</h2>
           <p className="mt-4 text-cream/70 max-w-md">
-            Role-aware dashboards for principals, exam coordinators, and teachers — from mark entry to
-            term trends.
+            Role-aware dashboards for principals, exam coordinators, and teachers — and a platform console
+            to provision and manage every school.
           </p>
         </div>
         <div className="space-y-2">

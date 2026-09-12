@@ -6,9 +6,11 @@ import { auth, requireRole, getTeacherClassIds } from "../middleware/auth.js";
 import { cell, parseDob, parseSpreadsheet } from "../lib/upload.js";
 import { academicYearFromDate, nextAcademicYear, nextClassName } from "../lib/stats.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const studentsRouter = Router();
 studentsRouter.use(auth);
+studentsRouter.use(requireSchoolTenant);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -130,6 +132,7 @@ studentsRouter.post("/upload", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), upl
         dob: item.dob,
         guardianName: item.guardianName,
         guardianPhone: item.guardianPhone,
+        tenantId: req.tenantId,
       },
       update: {
         name: item.name,
@@ -240,6 +243,7 @@ studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
       dob: dob ? new Date(dob) : null,
       guardianName: guardianName || null,
       guardianPhone: guardianPhone || null,
+      tenantId: req.tenantId,
     },
   });
   res.status(201).json(created);
@@ -321,6 +325,7 @@ studentsRouter.post("/promote", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
         guardianName: student.guardianName,
         guardianPhone: student.guardianPhone,
         promotedFromId: student.id,
+        tenantId: req.tenantId,
       },
     });
     await prisma.student.update({

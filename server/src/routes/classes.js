@@ -2,9 +2,11 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { auth, getTeacherClassIds, requireRole } from "../middleware/auth.js";
 import { compareClassNames } from "../lib/stats.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const classesRouter = Router();
 classesRouter.use(auth);
+classesRouter.use(requireSchoolTenant);
 
 function sortClasses(classes) {
   return [...classes].sort((a, b) => {
@@ -38,7 +40,7 @@ classesRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
     return res.status(400).json({ error: "Class and section are required" });
   }
   const created = await prisma.classSection.create({
-    data: { className, section, classTeacherId: classTeacherId || null },
+    data: { className, section, classTeacherId: classTeacherId || null, tenantId: req.tenantId },
   });
   res.status(201).json(created);
 });

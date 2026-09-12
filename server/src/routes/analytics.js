@@ -8,6 +8,7 @@ import {
   round1,
 } from "../lib/grades.js";
 import { auth, getAssignments, isLeadership, teacherCanAccess } from "../middleware/auth.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 import {
   classLabel,
   compareClassNames,
@@ -39,6 +40,7 @@ import {
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
+analyticsRouter.use(requireSchoolTenant);
 analyticsRouter.use(async (_req, _res, next) => {
   try {
     await ensurePendingSchema();

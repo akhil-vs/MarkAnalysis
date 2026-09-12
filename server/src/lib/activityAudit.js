@@ -21,9 +21,13 @@ export const ACTION_LABELS = {
   EXAM_CREATED: "Exam created",
   EXAM_UPDATED: "Exam updated",
   EXAM_DELETED: "Exam deleted",
+  SCHOOL_CREATED: "School created",
+  SCHOOL_UPDATED: "School updated",
+  SCHOOL_STATUS_CHANGED: "School status",
 };
 
 const ROLE_LABELS = {
+  PLATFORM_ADMIN: "Platform admin",
   PRINCIPAL: "Principal",
   EXAM_COORDINATOR: "Exam coordinator",
   TEACHER: "Teacher",
@@ -135,19 +139,25 @@ export function mergeAuditFeeds(markRows, activityRows, limit = AUDIT_LIMIT) {
     .slice(0, limit);
 }
 
-export async function logActivity({ actorId, action, summary, examId = null, meta = undefined }) {
+export async function logActivity({ actorId, action, summary, examId = null, meta = undefined, tenantId = undefined }) {
   if (!actorId || !action || !summary) return;
   try {
     await ensureActivityAuditSchema();
-    await prisma.activityAudit.create({
-      data: {
-        actorId,
-        action,
-        summary,
-        examId: examId || null,
-        meta: meta ?? undefined,
-      },
-    });
+    const { getTenantId, runWithTenant } = await import("./tenant.js");
+    const data = {
+      actorId,
+      action,
+      summary,
+      examId: examId || null,
+      meta: meta ?? undefined,
+      ...(tenantId ? { tenantId } : {}),
+    };
+    const write = () => prisma.activityAudit.create({ data });
+    if (tenantId && !getTenantId()) {
+      await runWithTenant(tenantId, write);
+    } else {
+      await write();
+    }
   } catch (err) {
     console.error("Failed to write activity audit", err);
   }

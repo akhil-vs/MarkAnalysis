@@ -38,6 +38,16 @@ describe("toErrorPayload", () => {
       toErrorPayload(prismaErr("P2002", { meta: { target: "User_email_key" } })).body.error,
       "Email already registered"
     );
+    assert.equal(
+      toErrorPayload(prismaErr("P2002", { meta: { target: ["tenantId", "className", "section"] } }))
+        .body.error,
+      "Class section already exists"
+    );
+    assert.equal(
+      toErrorPayload(prismaErr("P2002", { meta: { target: ["tenantId", "name", "className"] } }))
+        .body.error,
+      "Subject already exists for this class"
+    );
   });
 
   it("maps missing records and foreign keys", () => {

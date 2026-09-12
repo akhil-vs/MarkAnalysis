@@ -2,6 +2,10 @@ export function isLeadership(role) {
   return role === "PRINCIPAL" || role === "EXAM_COORDINATOR";
 }
 
+export function isPlatformAdmin(role) {
+  return role === "PLATFORM_ADMIN";
+}
+
 export function canAddCoordinator(role) {
   return role === "PRINCIPAL";
 }

@@ -7,6 +7,7 @@ import { firstError, parsePassword } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
 
 const ROLE_LABEL = {
+  PLATFORM_ADMIN: "Platform admin",
   PRINCIPAL: "Principal",
   EXAM_COORDINATOR: "Exam Coordinator",
   TEACHER: "Teacher",
@@ -75,9 +76,22 @@ export default function Profile() {
               <dd>{user.email || "—"}</dd>
             </div>
             <div>
-              <dt className="text-ink-700/60">School ID</dt>
+              <dt className="text-ink-700/60">School</dt>
+              <dd>{user.school?.name || "—"}</dd>
+            </div>
+            <div>
+              <dt className="text-ink-700/60">Staff ID</dt>
               <dd>{user.schoolId || "—"}</dd>
             </div>
+            {user.school && (
+              <div>
+                <dt className="text-ink-700/60">School</dt>
+                <dd>
+                  {user.school.name}
+                  {user.school.slug ? ` · ${user.school.slug}` : ""}
+                </dd>
+              </div>
+            )}
           </dl>
         </div>
         <form className="card p-5 space-y-3" onSubmit={onSubmit}>

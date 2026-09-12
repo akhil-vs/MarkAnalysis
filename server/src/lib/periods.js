@@ -1,4 +1,5 @@
 import { prisma } from "./prisma.js";
+import { currentTenantId } from "./tenant.js";
 
 export const DEFAULT_PERIODS = [
   { name: "Period 1", sortOrder: 1, startTime: "08:00", endTime: "08:45", isBreak: false },
@@ -40,9 +41,20 @@ export async function listPeriodsWithCounts() {
 }
 
 /** Ensure the school has a bell schedule so timetable grids are usable after migrate. */
-export async function ensureDefaultPeriods() {
-  const existing = await prisma.period.findMany({ orderBy: { sortOrder: "asc" } });
+export async function ensureDefaultPeriods(tenantId = currentTenantId()) {
+  if (!tenantId) {
+    return prisma.period.findMany({ orderBy: { sortOrder: "asc" } });
+  }
+  const existing = await prisma.period.findMany({
+    where: { tenantId },
+    orderBy: { sortOrder: "asc" },
+  });
   if (existing.length) return existing;
-  await prisma.period.createMany({ data: DEFAULT_PERIODS });
-  return prisma.period.findMany({ orderBy: { sortOrder: "asc" } });
+  await prisma.period.createMany({
+    data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId })),
+  });
+  return prisma.period.findMany({
+    where: { tenantId },
+    orderBy: { sortOrder: "asc" },
+  });
 }

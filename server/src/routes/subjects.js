@@ -3,9 +3,11 @@ import { prisma } from "../lib/prisma.js";
 import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
 import { parseOptionalPositiveInt, parsePositiveInt } from "../lib/numbers.js";
 import { auth, requireRole } from "../middleware/auth.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const subjectsRouter = Router();
 subjectsRouter.use(auth);
+subjectsRouter.use(requireSchoolTenant);
 
 subjectsRouter.get("/", async (req, res) => {
   await ensureConsolidationSchema();
@@ -33,6 +35,7 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
       name,
       className,
       maxMarks: entry.value,
+      tenantId: req.tenantId,
       ...(typeof isElective === "boolean" ? { isElective } : {}),
       practicalMaxMarks: practical.value,
     },

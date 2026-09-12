@@ -15,9 +15,11 @@ import {
   requiredText,
 } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
+import { useAuth } from "../auth.jsx";
 
 const EMPTY = {
   name: "",
+  slug: "",
   board: "",
   affiliationNo: "",
   address: "",
@@ -36,7 +38,9 @@ const DEFAULT_BANDS = [
 
 export default function SchoolSettings() {
   const toast = useToast();
+  const { user } = useAuth();
   const [form, setForm] = useState(EMPTY);
+  const [joinCode, setJoinCode] = useState("");
   const [passPercent, setPassPercent] = useState(50);
   const [distinctionMin, setDistinctionMin] = useState(90);
   const [bands, setBands] = useState(DEFAULT_BANDS);
@@ -49,12 +53,14 @@ export default function SchoolSettings() {
       .then((s) => {
         setForm({
           name: s.name || "",
+          slug: s.slug || "",
           board: s.board || "",
           affiliationNo: s.affiliationNo || "",
           address: s.address || "",
           phone: s.phone || "",
           email: s.email || "",
         });
+        setJoinCode(s.joinCode || "");
         const g = s.grading || {};
         setPassPercent(g.passPercent ?? 50);
         setDistinctionMin(g.distinctionMin ?? 90);
@@ -103,7 +109,12 @@ export default function SchoolSettings() {
       await api("/api/school", {
         method: "PATCH",
         body: {
-          ...form,
+          name: name.value,
+          board: form.board,
+          affiliationNo: form.affiliationNo,
+          address: form.address,
+          phone: form.phone,
+          email: form.email,
           passPercent: Number(passPercent),
           distinctionMin: Number(distinctionMin),
           gradeBands: bands.map((b) => ({ grade: b.grade, min: Number(b.min) })),
@@ -134,6 +145,16 @@ export default function SchoolSettings() {
     }
   }
 
+  async function rotateJoinCode() {
+    try {
+      const s = await api("/api/school/join-code", { method: "POST", body: {} });
+      setJoinCode(s.joinCode || "");
+      toast.success("New join code issued. Share it with staff who still need to sign up.");
+    } catch (err) {
+      toast.error(err.message || "Could not rotate join code");
+    }
+  }
+
   function updateBand(i, key, value) {
     setBands((list) => list.map((b, idx) => (idx === i ? { ...b, [key]: value } : b)));
   }
@@ -149,6 +170,13 @@ export default function SchoolSettings() {
           <label className="label">School name</label>
           <input className={fieldClass(formError && !form.name.trim())} required value={form.name} onChange={(e) => set("name", e.target.value)} />
         </div>
+        {form.slug && (
+          <div>
+            <label className="label">School code</label>
+            <input className="field font-mono bg-ink-900/5" value={form.slug} readOnly />
+            <p className="mt-1 text-xs text-ink-700/55">Staff use this code when they request an account. Platform admins can change it.</p>
+          </div>
+        )}
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <label className="label">Board</label>
@@ -173,6 +201,23 @@ export default function SchoolSettings() {
             <input className="field" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
           </div>
         </div>
+
+        {joinCode ? (
+          <div className="rounded-xl border border-ink-900/10 bg-paper p-3">
+            <div className="text-xs font-medium uppercase tracking-wide text-ink-700/55">Staff join code</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <code className="font-mono text-lg tracking-widest">{joinCode}</code>
+              {user?.role === "PRINCIPAL" && (
+                <button type="button" className="btn-ghost text-xs" onClick={rotateJoinCode}>
+                  Rotate code
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-ink-700/60">
+              Teachers and coordinators enter this code when they request an account.
+            </p>
+          </div>
+        ) : null}
 
         <div className="pt-4 border-t border-ink-900/10">
           <h3 className="font-serif text-xl mb-2">Analytics grading</h3>
