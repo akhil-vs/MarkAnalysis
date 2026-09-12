@@ -109,8 +109,8 @@ export const PAGE_HELP = {
   },
   schoolProfile: {
     title: "What's on this page",
-    about: "School name and board, the 5- or 6-day working week and bell schedule, pass and distinction bands, and the unit / mid / final weights used for the annual composite.",
-    useful: "Set the school week and periods here so timetables match your day. Grading settings drive grades, pass lists, and Deep insights — configure them before you publish results.",
+    about: "School identity (name, crest, affiliation, address, and contact), the 5- or 6-day working week and bell schedule, pass and distinction bands, and the unit / mid / final weights used for the annual composite.",
+    useful: "Upload a PNG or JPEG logo so report cards and mark lists print with a proper letterhead. Set the school week and periods here so timetables match your day. Grading settings drive grades, pass lists, and Deep insights — configure them before you publish results.",
   },
   profile: {
     title: "What's on this page",

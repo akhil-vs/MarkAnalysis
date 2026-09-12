@@ -17,6 +17,7 @@ Remaining work that would make this suitable for a live school:
 - ~~All-teachers daily board + find free teacher for a period~~ (leadership Timetables modes)
 - ~~Configurable bell schedule (periods + timings) for principal and exam coordinator~~ (School profile → school day periods)
 - ~~Configurable 5/6-day working week on school profile~~ (drives weekly timetable grids)
+- ~~Detailed school profile with logo on downloadable document letterheads~~
 
 ## Product / access
 

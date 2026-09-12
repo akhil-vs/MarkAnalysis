@@ -84,6 +84,34 @@ export function parseAcademicYear(value, { required = false, label = "Academic y
   return { value: text };
 }
 
+export function parseWebsite(value, { required = false, label = "Website" } = {}) {
+  const text = String(value ?? "").trim();
+  if (!text) return required ? { error: `${label} is required` } : { value: "" };
+  const withProto = /^https?:\/\//i.test(text) ? text : `https://${text}`;
+  try {
+    const url = new URL(withProto);
+    if (!["http:", "https:"].includes(url.protocol)) {
+      return { error: `Enter a valid ${label.toLowerCase()}` };
+    }
+    if (!url.hostname || !url.hostname.includes(".")) {
+      return { error: `Enter a valid ${label.toLowerCase()}` };
+    }
+    return { value: withProto };
+  } catch {
+    return { error: `Enter a valid ${label.toLowerCase()}` };
+  }
+}
+
+export function parseOptionalYear(value, { label = "Year", min = 1800, max = new Date().getFullYear() } = {}) {
+  const text = String(value ?? "").trim();
+  if (!text) return { value: "" };
+  const n = Number(text);
+  if (!Number.isInteger(n) || n < min || n > max) {
+    return { error: `${label} must be between ${min} and ${max}` };
+  }
+  return { value: n };
+}
+
 /** Block typing a minus sign on non-negative numeric fields. */
 export function rejectNegativeKey(event) {
   if (event.key === "-" || event.key === "Minus" || event.key === "Subtract") {

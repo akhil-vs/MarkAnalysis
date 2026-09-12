@@ -32,6 +32,8 @@ import {
 import { ensureActivityAuditSchema } from "../lib/ensureSchema.js";
 import { electiveEnrollmentMap, enrollmentKeySet } from "../lib/electiveEnrollment.js";
 import { findStudentByRoll, parseSpreadsheet, studentRollIndex } from "../lib/upload.js";
+import { getSchoolLetterhead } from "../lib/school.js";
+import { writeExcelLetterhead } from "../lib/letterhead.js";
 
 const WRITE_CHUNK = 25;
 
@@ -331,10 +333,14 @@ marksRouter.get("/template", async (req, res) => {
   });
 
   const workbook = new ExcelJS.Workbook();
+  const letterhead = await getSchoolLetterhead();
+  workbook.creator = letterhead.name;
   const sheet = workbook.addWorksheet("Marks");
   const headers = ["Roll No", "Name", ...subjects.map((s) => `${s.name} (max ${s.maxMarks})`)];
-  sheet.addRow(headers);
-  sheet.getRow(1).font = { bold: true };
+  writeExcelLetterhead(workbook, sheet, letterhead, headers.length);
+  const headerRow = sheet.addRow(headers);
+  headerRow.font = { bold: true };
+  sheet.pageSetup.printTitlesRow = `1:${headerRow.number}`;
   // Keep roll numbers as text so Excel does not strip leading zeros (01 → 1).
   sheet.getColumn(1).numFmt = "@";
   for (const student of students) {

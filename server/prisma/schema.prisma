@@ -321,11 +321,27 @@ model ActivityAudit {
 model SchoolProfile {
   id              String   @id @default("school")
   name            String
+  /// Abbreviation used in compact UI (sidebar, mobile header).
+  shortName       String?
+  motto           String?
+  /// PNG or JPEG bytes for letterheads and the school profile preview.
+  logoBytes       Bytes?
+  logoMimeType    String?
   board           String?
   affiliationNo   String?
+  udiseCode       String?
+  recognitionNo   String?
+  establishedYear Int?
+  principalName   String?
   address         String?
+  city            String?
+  district        String?
+  state           String?
+  pincode         String?
   phone           String?
+  alternatePhone  String?
   email           String?
+  website         String?
   /// Pass threshold used in analytics (percent).
   passPercent     Float    @default(50)
   /// Distinction / high-achievement threshold (percent).

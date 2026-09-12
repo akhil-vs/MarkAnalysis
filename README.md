@@ -43,7 +43,7 @@ API on [http://localhost:4000](http://localhost:4000), web on [http://localhost:
 
 Seed is **non-destructive** when users already exist. To wipe and reseed locally: `SEED_MODE=wipe npm run seed`. In production also set `ALLOW_DESTRUCTIVE_SEED=true`.
 
-Leadership can set the **school name and board** under **School profile** (used on report cards and consolidated lists). After a year, use **Records → Promote** to move a class to the next section without losing last year’s marks. On the mark register, type `AB`, `EX`, or `WH` for absent, exempt, or withheld. Class teachers can open their section’s full register (read-only for papers they do not teach).
+Leadership can set the **school name, address, affiliation, and logo** under **School profile**. The crest, name, and address print as a letterhead on report cards, class summaries, consolidated lists, and Excel downloads. After a year, use **Records → Promote** to move a class to the next section without losing last year’s marks. On the mark register, type `AB`, `EX`, or `WH` for absent, exempt, or withheld. Class teachers can open their section’s full register (read-only for papers they do not teach).
 
 ## Seed logins
 

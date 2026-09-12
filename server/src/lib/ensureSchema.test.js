@@ -100,6 +100,21 @@ describe("ensureSchema bootstrap", () => {
     assert.ok(__test.SCHOOL_PROFILE_TABLE_STATEMENTS[0].includes("workingDays"));
   });
 
+  it("embeds school profile details migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260912190000_school_profile_details/migration.sql")
+    );
+    assert.equal(
+      __test.SCHOOL_PROFILE_DETAILS_CHECKSUM,
+      createHash("sha256").update(file).digest("hex")
+    );
+    assert.equal(__test.SCHOOL_PROFILE_DETAILS_MIGRATION, "20260912190000_school_profile_details");
+    assert.ok(__test.SCHOOL_PROFILE_DETAILS_STATEMENTS.some((s) => s.includes("logoBytes")));
+    assert.ok(__test.SCHOOL_PROFILE_DETAILS_STATEMENTS.some((s) => s.includes("principalName")));
+    assert.ok(__test.SCHOOL_PROFILE_TABLE_STATEMENTS[0].includes("logoBytes"));
+    assert.ok(__test.SCHOOL_PROFILE_TABLE_STATEMENTS[0].includes("website"));
+  });
+
   it("embeds multi-class-per-period timetable migration checksum", () => {
     const file = readFileSync(
       join(migrationsDir, "20260910213800_timetable_multi_class_per_period/migration.sql")

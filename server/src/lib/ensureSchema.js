@@ -142,6 +142,10 @@ const SCHOOL_WORKING_DAYS_MIGRATION = "20260911123800_school_working_days";
 const SCHOOL_WORKING_DAYS_CHECKSUM =
   "a8341203fab7f373220d136b8077369d49ba1751052cadef0eafcd5cfe890728";
 
+const SCHOOL_PROFILE_DETAILS_MIGRATION = "20260912190000_school_profile_details";
+const SCHOOL_PROFILE_DETAILS_CHECKSUM =
+  "ab5847bdcbf138cc5b4384002ef5672db343d8112c2274b955c4cd616c1bb7f0";
+
 const MUST_CHANGE_PASSWORD_MIGRATION = "20260912090000_user_must_change_password";
 const MUST_CHANGE_PASSWORD_CHECKSUM =
   "cde357849187ab04a5b7d0d174f5d74c14d52bfc306ee6715c7890351c42ed52";
@@ -154,11 +158,25 @@ const SCHOOL_PROFILE_TABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "SchoolProfile" (
     "id" TEXT NOT NULL DEFAULT 'school',
     "name" TEXT NOT NULL,
+    "shortName" TEXT,
+    "motto" TEXT,
+    "logoBytes" BYTEA,
+    "logoMimeType" TEXT,
     "board" TEXT,
     "affiliationNo" TEXT,
+    "udiseCode" TEXT,
+    "recognitionNo" TEXT,
+    "establishedYear" INTEGER,
+    "principalName" TEXT,
     "address" TEXT,
+    "city" TEXT,
+    "district" TEXT,
+    "state" TEXT,
+    "pincode" TEXT,
     "phone" TEXT,
+    "alternatePhone" TEXT,
     "email" TEXT,
+    "website" TEXT,
     "passPercent" DOUBLE PRECISION NOT NULL DEFAULT 50,
     "distinctionMin" DOUBLE PRECISION NOT NULL DEFAULT 90,
     "gradeBands" JSONB,
@@ -178,6 +196,23 @@ const SCHOOL_GRADING_STATEMENTS = [
 
 const SCHOOL_WORKING_DAYS_STATEMENTS = [
   `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "workingDays" JSONB`,
+];
+
+const SCHOOL_PROFILE_DETAILS_STATEMENTS = [
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "shortName" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "motto" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "logoBytes" BYTEA`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "logoMimeType" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "udiseCode" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "recognitionNo" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "establishedYear" INTEGER`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "principalName" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "city" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "district" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "state" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "pincode" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "website" TEXT`,
+  `ALTER TABLE "SchoolProfile" ADD COLUMN IF NOT EXISTS "alternatePhone" TEXT`,
 ];
 
 const TIMETABLE_STATEMENTS = [
@@ -486,6 +521,25 @@ async function ensureSchoolWorkingDaysColumn() {
   await recordMigration(SCHOOL_WORKING_DAYS_MIGRATION, SCHOOL_WORKING_DAYS_CHECKSUM);
 }
 
+async function ensureSchoolProfileDetailsColumns() {
+  const hasTable = await tableExists("SchoolProfile");
+  if (!hasTable) {
+    await applyStatements(SCHOOL_PROFILE_TABLE_STATEMENTS);
+    await recordMigration(SCHOOL_GRADING_MIGRATION, SCHOOL_GRADING_CHECKSUM);
+    await recordMigration(SCHOOL_WORKING_DAYS_MIGRATION, SCHOOL_WORKING_DAYS_CHECKSUM);
+    await recordMigration(SCHOOL_PROFILE_DETAILS_MIGRATION, SCHOOL_PROFILE_DETAILS_CHECKSUM);
+    return;
+  }
+
+  if (await columnExists("SchoolProfile", "logoMimeType")) {
+    await recordMigration(SCHOOL_PROFILE_DETAILS_MIGRATION, SCHOOL_PROFILE_DETAILS_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(SCHOOL_PROFILE_DETAILS_STATEMENTS);
+  await recordMigration(SCHOOL_PROFILE_DETAILS_MIGRATION, SCHOOL_PROFILE_DETAILS_CHECKSUM);
+}
+
 async function ensureMustChangePasswordColumn() {
   if (await columnExists("User", "mustChangePassword")) {
     await recordMigration(MUST_CHANGE_PASSWORD_MIGRATION, MUST_CHANGE_PASSWORD_CHECKSUM);
@@ -675,6 +729,7 @@ export async function ensurePendingSchema() {
         ensureSubjectConsolidationMaxMarksColumn(),
         ensureSchoolGradingColumns(),
         ensureSchoolWorkingDaysColumn(),
+        ensureSchoolProfileDetailsColumns(),
         ensureMustChangePasswordColumn(),
         ensureMarkAuditReasonColumn(),
         ensureElectiveEnrollments(),
@@ -730,6 +785,9 @@ export const __test = {
   SCHOOL_WORKING_DAYS_MIGRATION,
   SCHOOL_WORKING_DAYS_CHECKSUM,
   SCHOOL_WORKING_DAYS_STATEMENTS,
+  SCHOOL_PROFILE_DETAILS_MIGRATION,
+  SCHOOL_PROFILE_DETAILS_CHECKSUM,
+  SCHOOL_PROFILE_DETAILS_STATEMENTS,
   MUST_CHANGE_PASSWORD_MIGRATION,
   MUST_CHANGE_PASSWORD_CHECKSUM,
   MUST_CHANGE_PASSWORD_STATEMENTS,
