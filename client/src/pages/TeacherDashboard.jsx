@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import { ExamSelect } from "../components/ExamSelect.jsx";
 import { YearComparison } from "../components/AnalysisPanels.jsx";
 import {
@@ -31,11 +32,17 @@ export default function TeacherDashboard() {
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
   const [notices, setNotices] = useState([]);
+  const [error, setError] = useState("");
 
   async function load(id) {
-    const res = await api(`/api/analytics/teacher${id ? `?examId=${id}` : ""}`);
-    setData(res);
-    if (res.exam) setExamId(res.exam.id);
+    setError("");
+    try {
+      const res = await api(`/api/analytics/teacher${id ? `?examId=${id}` : ""}`);
+      setData(res);
+      if (res.exam) setExamId(res.exam.id);
+    } catch (err) {
+      setError(err.message || "Could not load your classes");
+    }
   }
 
   async function loadNotices() {
@@ -65,6 +72,7 @@ export default function TeacherDashboard() {
     }
   }
 
+  if (error) return <LoadError message={error} />;
   if (!data) return <p className="text-ink-700/60">Loading your classes…</p>;
 
   const registers = data.registers || [];

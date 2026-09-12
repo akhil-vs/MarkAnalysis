@@ -1,7 +1,8 @@
 import { Router } from "express";
 import multer from "multer";
-import { auth, requireRole } from "../middleware/auth.js";
+import { auth, isLeadership, requireRole } from "../middleware/auth.js";
 import {
+  allocateJoinCode,
   getSchoolProfile,
   parseLogoFile,
   parseSchoolIdentityPatch,
@@ -9,6 +10,7 @@ import {
   LOGO_MAX_BYTES,
 } from "../lib/school.js";
 import { prisma } from "../lib/prisma.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 import {
   DEFAULT_DISTINCTION_MIN,
   DEFAULT_EXAM_WEIGHTS,
@@ -21,16 +23,18 @@ import { parseWorkingDays, publicWorkingDays } from "../lib/workingDays.js";
 
 export const schoolRouter = Router();
 schoolRouter.use(auth);
+schoolRouter.use(requireSchoolTenant);
 
 const logoUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: LOGO_MAX_BYTES },
 });
 
-function publicSchool(profile) {
+function publicSchool(profile, { includeJoinCode = false } = {}) {
   return serializeSchool(profile, {
     workingDays: publicWorkingDays(profile),
     grading: publicGradingConfig(profile),
+    includeJoinCode,
   });
 }
 
@@ -44,9 +48,13 @@ function receiveLogo(req, res, next) {
   });
 }
 
-schoolRouter.get("/", async (_req, res) => {
+function schoolJson(req, profile) {
+  return publicSchool(profile, { includeJoinCode: isLeadership(req.user.role) });
+}
+
+schoolRouter.get("/", async (req, res) => {
   const profile = await getSchoolProfile();
-  res.json(publicSchool(profile));
+  res.json(schoolJson(req, profile));
 });
 
 schoolRouter.get("/logo", async (_req, res) => {
@@ -71,9 +79,9 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
   const workingDaysPatch = parseWorkingDays(req.body?.workingDays);
   if (workingDaysPatch.error) return res.status(400).json({ error: workingDaysPatch.error });
 
-  await getSchoolProfile();
-  const updated = await prisma.schoolProfile.update({
-    where: { id: "school" },
+  const profile = await getSchoolProfile();
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
     omit: { logoBytes: true },
     data: {
       ...identity.data,
@@ -81,36 +89,47 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
       ...gradingPatch.data,
     },
   });
-  res.json(publicSchool(updated));
+  res.json(schoolJson(req, updated));
+});
+
+schoolRouter.post("/join-code", requireRole("PRINCIPAL"), async (req, res) => {
+  const profile = await getSchoolProfile();
+  const joinCode = await allocateJoinCode();
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
+    omit: { logoBytes: true },
+    data: { joinCode },
+  });
+  res.json(schoolJson(req, updated));
 });
 
 schoolRouter.post("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), receiveLogo, async (req, res) => {
   const parsed = parseLogoFile(req.file);
   if (parsed.error) return res.status(400).json({ error: parsed.error });
 
-  await getSchoolProfile();
-  const updated = await prisma.schoolProfile.update({
-    where: { id: "school" },
+  const profile = await getSchoolProfile();
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
     omit: { logoBytes: true },
     data: { logoBytes: parsed.bytes, logoMimeType: parsed.mime },
   });
-  res.json(publicSchool(updated));
+  res.json(schoolJson(req, updated));
 });
 
-schoolRouter.delete("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (_req, res) => {
-  await getSchoolProfile();
-  const updated = await prisma.schoolProfile.update({
-    where: { id: "school" },
+schoolRouter.delete("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const profile = await getSchoolProfile();
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
     omit: { logoBytes: true },
     data: { logoBytes: null, logoMimeType: null },
   });
-  res.json(publicSchool(updated));
+  res.json(schoolJson(req, updated));
 });
 
-schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (_req, res) => {
-  await getSchoolProfile();
-  const updated = await prisma.schoolProfile.update({
-    where: { id: "school" },
+schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const profile = await getSchoolProfile();
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
     omit: { logoBytes: true },
     data: {
       passPercent: DEFAULT_PASS_PERCENT,
@@ -119,5 +138,5 @@ schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR")
       examWeights: DEFAULT_EXAM_WEIGHTS,
     },
   });
-  res.json(publicSchool(updated));
+  res.json(schoolJson(req, updated));
 });

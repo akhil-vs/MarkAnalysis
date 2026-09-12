@@ -34,11 +34,13 @@ import { electiveEnrollmentMap, enrollmentKeySet } from "../lib/electiveEnrollme
 import { findStudentByRoll, parseSpreadsheet, studentRollIndex } from "../lib/upload.js";
 import { getSchoolLetterhead } from "../lib/school.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 const WRITE_CHUNK = 25;
 
 export const marksRouter = Router();
 marksRouter.use(auth);
+marksRouter.use(requireSchoolTenant);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 

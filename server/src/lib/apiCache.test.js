@@ -32,3 +32,15 @@ test("API responses skip ETag and refuse caching", async () => {
     assert.deepEqual(await conditional.json(), { ok: true });
   });
 });
+
+test("malformed JSON body returns 400 JSON", async () => {
+  await withServer(async (base) => {
+    const res = await fetch(`${base}/api/auth/login`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{not-json",
+    });
+    assert.equal(res.status, 400);
+    assert.deepEqual(await res.json(), { error: "Invalid JSON body" });
+  });
+});

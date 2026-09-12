@@ -4,13 +4,16 @@ import {
   acceptNonNegativeInput,
   parseAcademicYear,
   parseEmail,
+  parseJoinCode,
   parsePassword,
   parsePercent,
   parsePhone,
   parsePositiveInt,
   parseOptionalYear,
   parseWebsite,
+  parseSlug,
   requiredText,
+  slugifyName,
 } from "./formValidation.js";
 import { markInputIssue, parseMarkInput } from "./markCodes.js";
 
@@ -80,5 +83,19 @@ describe("text form parsers", () => {
     assert.equal(parseOptionalYear("").value, "");
     assert.equal(parseOptionalYear("1998").value, 1998);
     assert.match(parseOptionalYear("12").error, /between/);
+  });
+
+  it("accepts school codes and rejects reserved ones", () => {
+    assert.equal(slugifyName("Greenfield Public School"), "greenfield-public-school");
+    assert.equal(parseSlug("greenfield").value, "greenfield");
+    assert.match(parseSlug("admin").error, /reserved/);
+    assert.match(parseSlug("").error, /required/);
+  });
+
+  it("normalizes school join codes", () => {
+    assert.equal(parseJoinCode("").error, "Join code is required");
+    assert.equal(parseJoinCode("ABCD").error, "Join code looks like ABCD-EFGH");
+    assert.equal(parseJoinCode("demo-join").value, "DEMO-JOIN");
+    assert.equal(parseJoinCode("DEMOJOIN").value, "DEMO-JOIN");
   });
 });

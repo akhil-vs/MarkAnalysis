@@ -3,9 +3,11 @@ import { prisma } from "../lib/prisma.js";
 import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
 import { parseOptionalPositiveInt, parsePositiveInt } from "../lib/numbers.js";
 import { auth, requireRole } from "../middleware/auth.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const subjectsRouter = Router();
 subjectsRouter.use(auth);
+subjectsRouter.use(requireSchoolTenant);
 
 subjectsRouter.get("/", async (req, res) => {
   await ensureConsolidationSchema();
@@ -27,21 +29,18 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
   const practical = parseOptionalPositiveInt(practicalMaxMarks, "Practical max marks");
   if (practical.error) return res.status(400).json({ error: practical.error });
 
-  try {
-    await ensureConsolidationSchema();
-    const created = await prisma.subject.create({
-      data: {
-        name,
-        className,
-        maxMarks: entry.value,
-        ...(typeof isElective === "boolean" ? { isElective } : {}),
-        practicalMaxMarks: practical.value,
-      },
-    });
-    res.status(201).json(created);
-  } catch {
-    res.status(409).json({ error: "Subject already exists for this class" });
-  }
+  await ensureConsolidationSchema();
+  const created = await prisma.subject.create({
+    data: {
+      name,
+      className,
+      maxMarks: entry.value,
+      tenantId: req.tenantId,
+      ...(typeof isElective === "boolean" ? { isElective } : {}),
+      practicalMaxMarks: practical.value,
+    },
+  });
+  res.status(201).json(created);
 });
 
 subjectsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {

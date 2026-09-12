@@ -8,9 +8,11 @@ import { academicYearFromDate, nextAcademicYear, nextClassName } from "../lib/st
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
 import { getSchoolLetterhead } from "../lib/school.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const studentsRouter = Router();
 studentsRouter.use(auth);
+studentsRouter.use(requireSchoolTenant);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -137,6 +139,7 @@ studentsRouter.post("/upload", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), upl
         dob: item.dob,
         guardianName: item.guardianName,
         guardianPhone: item.guardianPhone,
+        tenantId: req.tenantId,
       },
       update: {
         name: item.name,
@@ -237,23 +240,20 @@ studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
     return res.status(400).json({ error: "Name, roll number, and class are required" });
   }
   const year = String(academicYear || "").trim() || academicYearFromDate(new Date()) || "2025-26";
-  try {
-    const created = await prisma.student.create({
-      data: {
-        name,
-        rollNo: String(rollNo),
-        classSectionId,
-        academicYear: year,
-        status: "ACTIVE",
-        dob: dob ? new Date(dob) : null,
-        guardianName: guardianName || null,
-        guardianPhone: guardianPhone || null,
-      },
-    });
-    res.status(201).json(created);
-  } catch {
-    res.status(409).json({ error: "Roll number already exists in this class" });
-  }
+  const created = await prisma.student.create({
+    data: {
+      name,
+      rollNo: String(rollNo),
+      classSectionId,
+      academicYear: year,
+      status: "ACTIVE",
+      dob: dob ? new Date(dob) : null,
+      guardianName: guardianName || null,
+      guardianPhone: guardianPhone || null,
+      tenantId: req.tenantId,
+    },
+  });
+  res.status(201).json(created);
 });
 
 studentsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
@@ -332,6 +332,7 @@ studentsRouter.post("/promote", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
         guardianName: student.guardianName,
         guardianPhone: student.guardianPhone,
         promotedFromId: student.id,
+        tenantId: req.tenantId,
       },
     });
     await prisma.student.update({

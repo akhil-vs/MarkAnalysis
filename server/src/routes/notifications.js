@@ -3,9 +3,11 @@ import { prisma } from "../lib/prisma.js";
 import { ensureNotificationSchema } from "../lib/ensureSchema.js";
 import { sendTeacherNotices } from "../lib/teacherNotices.js";
 import { auth, requireRole } from "../middleware/auth.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const notificationsRouter = Router();
 notificationsRouter.use(auth);
+notificationsRouter.use(requireSchoolTenant);
 notificationsRouter.use(async (_req, _res, next) => {
   try {
     await ensureNotificationSchema();
@@ -17,30 +19,18 @@ notificationsRouter.use(async (_req, _res, next) => {
 
 notificationsRouter.post("/send", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { kind, examId, audience, teacherIds, classSectionId, message, preview, force } = req.body || {};
-  try {
-    const result = await sendTeacherNotices({
-      kind: kind ? String(kind).toUpperCase() : "",
-      examId: examId || null,
-      audience: audience ? String(audience).toUpperCase() : undefined,
-      teacherIds: Array.isArray(teacherIds) ? teacherIds.filter(Boolean) : [],
-      classSectionId: classSectionId || null,
-      message,
-      sender: req.user,
-      preview: Boolean(preview),
-      force: Boolean(force),
-    });
-    res.status(preview ? 200 : result.sent ? 201 : 200).json(result);
-  } catch (err) {
-    const status = err.status || 500;
-    const raw = String(err.message || "");
-    const schemaMissing =
-      err?.meta?.code === "22P02" || /invalid input value for enum/i.test(raw);
-    res.status(schemaMissing ? 503 : status).json({
-      error: schemaMissing
-        ? "Database schema is out of date. Redeploy so pending migrations can apply."
-        : err.message || "Could not send notice",
-    });
-  }
+  const result = await sendTeacherNotices({
+    kind: kind ? String(kind).toUpperCase() : "",
+    examId: examId || null,
+    audience: audience ? String(audience).toUpperCase() : undefined,
+    teacherIds: Array.isArray(teacherIds) ? teacherIds.filter(Boolean) : [],
+    classSectionId: classSectionId || null,
+    message,
+    sender: req.user,
+    preview: Boolean(preview),
+    force: Boolean(force),
+  });
+  res.status(preview ? 200 : result.sent ? 201 : 200).json(result);
 });
 
 notificationsRouter.get("/", async (req, res) => {

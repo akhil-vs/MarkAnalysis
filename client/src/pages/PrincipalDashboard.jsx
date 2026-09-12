@@ -13,6 +13,7 @@ import {
   YAxis,
 } from "recharts";
 import { api, download } from "../api.js";
+import { LoadError } from "../components/LoadError.jsx";
 import { useAuth } from "../auth.jsx";
 import { ExamSelect } from "../components/ExamSelect.jsx";
 import { YearComparison } from "../components/AnalysisPanels.jsx";
@@ -46,30 +47,35 @@ export default function PrincipalDashboard() {
   const [detailLoading, setDetailLoading] = useState(false);
 
   async function load(id) {
-    const base = new URLSearchParams();
-    if (id) base.set("examId", id);
-    base.set("include", "summary");
-    const summary = await api(`/api/analytics/school?${base}`);
-    setData(summary);
-    setDetailLoading(false);
-    if (summary.empty) return;
-    if (summary.exam) setExamId(summary.exam.id);
-
-    const detailQ = new URLSearchParams({
-      examId: summary.exam.id,
-      include: "detail",
-    });
-    setDetailLoading(true);
+    setError("");
     try {
-      const detail = await api(`/api/analytics/school?${detailQ}`);
-      setData((prev) => ({ ...(prev || {}), ...detail }));
-    } finally {
+      const base = new URLSearchParams();
+      if (id) base.set("examId", id);
+      base.set("include", "summary");
+      const summary = await api(`/api/analytics/school?${base}`);
+      setData(summary);
       setDetailLoading(false);
+      if (summary.empty) return;
+      if (summary.exam) setExamId(summary.exam.id);
+
+      const detailQ = new URLSearchParams({
+        examId: summary.exam.id,
+        include: "detail",
+      });
+      setDetailLoading(true);
+      try {
+        const detail = await api(`/api/analytics/school?${detailQ}`);
+        setData((prev) => ({ ...(prev || {}), ...detail }));
+      } finally {
+        setDetailLoading(false);
+      }
+    } catch (e) {
+      setError(e.message || "Could not load school view");
     }
   }
 
   useEffect(() => {
-    load("").catch((e) => setError(e.message));
+    load("");
   }, []);
 
   const grades = useMemo(
@@ -93,15 +99,18 @@ export default function PrincipalDashboard() {
     return deltaLabel(current?.average, prev?.average);
   }, [data, examId]);
 
-  if (error) return <p className="text-clay-600">{error}</p>;
+  if (error) return <LoadError message={error} />;
   if (!data) return <p className="text-ink-700/60">Loading school view…</p>;
   if (data.empty) return <p>No exam data yet.</p>;
 
   const pending = (data.pendingUploads?.teachers || []).filter((t) => t.pending);
   const awaitingApproval = (data.pendingUploads?.teachers || []).filter((t) => t.awaitingApproval && !t.pending);
+  // Detail fields arrive in a second request after summary — default to [] so summary paint is safe.
   const sections = [...(data.sectionAverages || [])].sort((a, b) => (b.average ?? 0) - (a.average ?? 0));
-  const bestSection = sections[0];
   const teachers = [...(data.teacherPerf || [])].sort((a, b) => (b.average ?? 0) - (a.average ?? 0));
+  const toppers = data.toppers || [];
+  const atRisk = data.atRisk || [];
+  const termTrend = data.termTrend || [];
   const examPass = data.examPass || [];
 
   const deskLabel = location.pathname.startsWith("/analysis/school")
@@ -125,7 +134,14 @@ export default function PrincipalDashboard() {
             <Link className="btn-ghost" to={`/consolidated?examId=${examId}`}>
               Consolidated lists
             </Link>
-            <button className="btn-ghost" onClick={() => download(`/api/exports/table.xlsx?examId=${examId}`, "marks.xlsx")}>
+            <button
+              className="btn-ghost"
+              onClick={() =>
+                download(`/api/exports/table.xlsx?examId=${examId}`, "marks.xlsx").catch((err) =>
+                  toast.error(err.message || "Download failed")
+                )
+              }
+            >
               Export Excel
             </button>
           </>
@@ -256,12 +272,12 @@ export default function PrincipalDashboard() {
           ) : (
             <EmptyNote>No missing registers for this exam.</EmptyNote>
           )}
-          {data.atRisk?.length > 0 && (
+          {atRisk.length > 0 && (
             <div className="mt-5 pt-4 border-t border-ink-900/10">
               <div className="text-[11px] uppercase tracking-wider text-ink-700/50 mb-2">
                 Students below {data.boardSummary?.passPercent ?? 50}%
               </div>
-              {data.atRisk.slice(0, 4).map((s, i) => (
+              {atRisk.slice(0, 4).map((s, i) => (
                 <RankRow
                   key={s.studentId}
                   rank={i + 1}
@@ -272,14 +288,13 @@ export default function PrincipalDashboard() {
                   to={paths.student(s.studentId)}
                 />
               ))}
-              {data.atRisk.length === 0 && <EmptyNote>No students currently at risk.</EmptyNote>}
             </div>
           )}
         </Panel>
 
         <Panel className="lg:col-span-7" title="How the school is moving">
           <ResponsiveContainer width="100%" height={220}>
-            <AreaChart data={data.termTrend}>
+            <AreaChart data={termTrend}>
               <defs>
                 <linearGradient id="avgFill" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor="#3d6b4f" stopOpacity={0.35} />
@@ -406,7 +421,7 @@ export default function PrincipalDashboard() {
 
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
         <Panel title="School toppers" action={<Link className="text-xs underline text-ink-700/60" to="/analysis/students">All students</Link>}>
-          {data.toppers.slice(0, 8).map((s) => (
+          {toppers.slice(0, 8).map((s) => (
             <RankRow
               key={s.studentId}
               rank={s.rank}
@@ -417,6 +432,9 @@ export default function PrincipalDashboard() {
               to={paths.student(s.studentId)}
             />
           ))}
+          {!toppers.length && (
+            <EmptyNote>{detailLoading ? "Loading rankings…" : "No toppers for this exam yet."}</EmptyNote>
+          )}
         </Panel>
         <Panel title="Teacher leaderboard" action={<Link className="text-xs underline text-ink-700/60" to="/analysis/teachers">By teacher</Link>}>
           {teachers.slice(0, 8).map((row, i) => (
@@ -436,6 +454,9 @@ export default function PrincipalDashboard() {
               <BarTrack value={row.average} color="#1b2437" />
             </Link>
           ))}
+          {!teachers.length && (
+            <EmptyNote>{detailLoading ? "Loading rankings…" : "No teacher averages for this exam yet."}</EmptyNote>
+          )}
         </Panel>
       </div>
       {notify && (

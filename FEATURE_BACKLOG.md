@@ -23,6 +23,7 @@ Remaining work that would make this suitable for a live school:
 
 - ~~Mobile-friendly sidebar and mark entry~~ (app shell with hamburger drawer, responsive mark register)
 - ~~Parent / student read-only portal~~ (principal-issued `/portal` link; approved marks for one exam)
+- ~~Multi-tenant schools~~ (shared DB, `School` tenant + join code; staff signup scoped per school)
 - Email digests for pending sign-ups, late entry, deadlines, approvals
 - ~~Force password change after admin reset; gate demo one-click accounts~~ (`mustChangePassword`, `VITE_ENABLE_DEMO_LOGIN`)
 - ~~Server-side search/pagination for students, staff, and audit log~~

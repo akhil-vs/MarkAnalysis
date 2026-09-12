@@ -1,4 +1,4 @@
-import { canAccessConsolidated, isLeadership } from "./roles.js";
+import { canAccessConsolidated, isLeadership, isPlatformAdmin } from "./roles.js";
 
 export const LEADERSHIP_ROLES = ["PRINCIPAL", "EXAM_COORDINATOR"];
 
@@ -54,6 +54,9 @@ export const NAV_LABELS = {
   timetables: "Timetables",
   schoolProfile: "School profile",
   profile: "Profile",
+  platformDashboard: "Overview",
+  platformSchools: "All schools",
+  platformSchoolNew: "Add school",
 };
 
 export const NAV_TITLES = {
@@ -77,6 +80,9 @@ export const NAV_TITLES = {
   timetables: "Teacher timetables",
   schoolProfile: "School profile",
   profile: "Your profile",
+  platformDashboard: "Platform overview",
+  platformSchools: "Schools",
+  platformSchoolNew: "Add a school",
 };
 
 export const NAV_BODIES = {
@@ -284,6 +290,56 @@ export const NAV_GROUPS = [
   },
 ];
 
+export const PLATFORM_NAV_GROUPS = [
+  {
+    id: "desk",
+    label: null,
+    items: [
+      {
+        id: "platformDashboard",
+        to: "/platform",
+        label: NAV_LABELS.platformDashboard,
+        icon: "dashboard",
+        roles: "platform",
+        end: true,
+      },
+    ],
+  },
+  {
+    id: "schools",
+    label: "Schools",
+    items: [
+      {
+        id: "platformSchools",
+        to: "/platform/schools",
+        label: NAV_LABELS.platformSchools,
+        icon: "school",
+        roles: "platform",
+      },
+      {
+        id: "platformSchoolNew",
+        to: "/platform/schools/new",
+        label: NAV_LABELS.platformSchoolNew,
+        icon: "staff",
+        roles: "platform",
+      },
+    ],
+  },
+  {
+    id: "account",
+    label: "Account",
+    items: [
+      {
+        id: "profile",
+        to: "/profile",
+        label: NAV_LABELS.profile,
+        icon: "teachers",
+        roles: "platform",
+      },
+    ],
+  },
+];
+
 /**
  * Extra nested routes that inherit leadership from a parent nav item
  * but are not listed as sidebar entries.
@@ -292,11 +348,13 @@ export const EXTRA_ROUTE_GUARDS = {
   "analysis/subjects/name/:name": "leadership",
   "analysis/subjects/:id": "leadership",
   "timetables/teachers/:id": "leadership",
+  "platform/schools/:id": "platform",
 };
 
 export function roleAllows(itemRoles, userRole, { classTeacherOf = [] } = {}) {
   if (!itemRoles || itemRoles === "all") return true;
   if (itemRoles === "leadership") return isLeadership(userRole);
+  if (itemRoles === "platform") return isPlatformAdmin(userRole);
   if (itemRoles === "consolidated") return canAccessConsolidated(userRole, classTeacherOf);
   if (Array.isArray(itemRoles)) return itemRoles.includes(userRole);
   return false;
@@ -306,6 +364,7 @@ export function roleAllows(itemRoles, userRole, { classTeacherOf = [] } = {}) {
 export function rolesForGuard(itemRoles) {
   if (!itemRoles || itemRoles === "all") return null;
   if (itemRoles === "leadership") return LEADERSHIP_ROLES;
+  if (itemRoles === "platform") return ["PLATFORM_ADMIN"];
   // Route is open to authenticated users; page/API enforce class-teacher rules.
   if (itemRoles === "consolidated") return null;
   if (Array.isArray(itemRoles)) return itemRoles;
@@ -329,6 +388,9 @@ export function routeGuardMap() {
   for (const group of NAV_GROUPS) {
     collectNavGuards(group.items, fromNav);
   }
+  for (const group of PLATFORM_NAV_GROUPS) {
+    collectNavGuards(group.items, fromNav);
+  }
   return { ...fromNav, ...EXTRA_ROUTE_GUARDS };
 }
 
@@ -348,6 +410,7 @@ export function filterNavItems(items, userRole, opts = {}) {
 }
 
 export function navGroupsForRole(userRole, { classTeacherOf = [] } = {}) {
+  if (isPlatformAdmin(userRole)) return PLATFORM_NAV_GROUPS;
   const opts = { classTeacherOf };
   return NAV_GROUPS.map((group) => ({
     ...group,

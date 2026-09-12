@@ -1,8 +1,7 @@
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { DEFAULT_PERIODS } from "../src/lib/periods.js";
-
-const prisma = new PrismaClient();
+import { prisma } from "../src/lib/prisma.js";
+import { runWithoutTenant, runWithTenant } from "../src/lib/tenant.js";
 
 const FIRST = [
   "Aarav", "Diya", "Ishaan", "Ananya", "Vihaan", "Sara", "Kabir", "Myra",
@@ -24,15 +23,34 @@ function seededScore(studentIndex, subjectIndex, examIndex, yearBoost = 0, teach
   return Math.max(28, Math.min(99, base + wobble + teacherShift));
 }
 
+async function ensurePlatformAdmin(db) {
+  const existing = await db.user.findFirst({ where: { role: "PLATFORM_ADMIN" } });
+  if (existing) return existing;
+  const passwordHash = await bcrypt.hash("password123", 10);
+  return db.user.create({
+    data: {
+      name: "Platform Admin",
+      email: "admin@platform.edu",
+      schoolId: "PLT-A01",
+      passwordHash,
+      role: "PLATFORM_ADMIN",
+      status: "ACTIVE",
+      mustChangePassword: false,
+    },
+  });
+}
+
 async function main() {
   const wipe =
     process.env.SEED_MODE === "wipe" || process.env.ALLOW_DESTRUCTIVE_SEED === "true";
-  const existingUsers = await prisma.user.count();
+  const existingUsers = await runWithoutTenant(() => prisma.user.count());
 
   if (existingUsers > 0 && !wipe) {
+    await runWithoutTenant(() => ensurePlatformAdmin(prisma));
     console.log(
       `Database already has ${existingUsers} user(s). Skipping destructive seed.\n` +
-        "Set SEED_MODE=wipe (and ALLOW_DESTRUCTIVE_SEED=true in production) to reset demo data."
+        "Set SEED_MODE=wipe (and ALLOW_DESTRUCTIVE_SEED=true in production) to reset demo data.\n" +
+        "Platform admin ensured at admin@platform.edu (password123) when missing."
     );
     return;
   }
@@ -47,19 +65,80 @@ async function main() {
     console.log("SEED_MODE=wipe — clearing existing demo data…");
   }
 
-  await prisma.activityAudit.deleteMany();
-  await prisma.markAudit.deleteMany();
-  await prisma.mark.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.markEntryAccessRequest.deleteMany();
-  await prisma.timetableEntry.deleteMany();
-  await prisma.period.deleteMany();
-  await prisma.teacherAssignment.deleteMany();
-  await prisma.student.deleteMany();
-  await prisma.exam.deleteMany();
-  await prisma.subject.deleteMany();
-  await prisma.classSection.deleteMany();
-  await prisma.user.deleteMany();
+  await runWithoutTenant(async () => {
+    await prisma.activityAudit.deleteMany();
+    await prisma.markAudit.deleteMany();
+    await prisma.mark.deleteMany();
+    await prisma.notification.deleteMany();
+    await prisma.markEntryAccessRequest.deleteMany();
+    await prisma.timetableEntry.deleteMany();
+    await prisma.period.deleteMany();
+    await prisma.teacherAssignment.deleteMany();
+    await prisma.studentSubjectEnrollment.deleteMany();
+    await prisma.student.deleteMany();
+    await prisma.exam.deleteMany();
+    await prisma.subject.deleteMany();
+    await prisma.classSection.deleteMany();
+    await prisma.portalAccessLink.deleteMany();
+    await prisma.refreshToken.deleteMany();
+    await prisma.user.deleteMany();
+    await prisma.school.deleteMany();
+  });
+
+  const school = await runWithoutTenant(() =>
+    prisma.school.create({
+      data: {
+        slug: "greenfield-public-school",
+        joinCode: "DEMO-JOIN",
+        name: "Greenfield Public School",
+        board: "CBSE",
+        affiliationNo: "1930123",
+        address: "12 Lake View Road, Bengaluru",
+        phone: "080-40001234",
+        email: "office@greenfield.school",
+      },
+    })
+  );
+
+  await runWithoutTenant(() => ensurePlatformAdmin(prisma));
+  await runWithTenant(school.id, () => seedSchool(school));
+
+  const riverside = await runWithoutTenant(async () => {
+    const campus = await prisma.school.create({
+      data: {
+        slug: "riverside",
+        joinCode: "RIVE-SIDE",
+        name: "Riverside Academy",
+        board: "CISCE",
+        affiliationNo: "KA045",
+        address: "88 Riverbank Road, Mysuru",
+        phone: "0821-2500450",
+        email: "office@riverside.school",
+      },
+    });
+    await prisma.period.createMany({
+      data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId: campus.id })),
+    });
+    await prisma.user.create({
+      data: {
+        tenantId: campus.id,
+        name: "Asha Menon",
+        email: "principal@riverside.school",
+        schoolId: "RIV-P01",
+        passwordHash: await bcrypt.hash("password123", 10),
+        role: "PRINCIPAL",
+        status: "ACTIVE",
+        mustChangePassword: process.env.SEED_FORCE_PASSWORD_CHANGE === "true",
+      },
+    });
+    return campus;
+  });
+
+  console.log(`  Platform admin: admin@platform.edu`);
+  console.log(`  Second school: ${riverside.name} (${riverside.slug}, join ${riverside.joinCode}) · principal@riverside.school`);
+}
+
+async function seedSchool(school) {
 
   const passwordHash = await bcrypt.hash("password123", 10);
   const forcePasswordChange = process.env.SEED_FORCE_PASSWORD_CHANGE === "true";
@@ -217,31 +296,9 @@ async function main() {
     data: studentData.map((s) => ({ ...s, academicYear: "2025-26", status: "ACTIVE" })),
   });
 
-  await prisma.schoolProfile.upsert({
-    where: { id: "school" },
-    create: {
-      id: "school",
-      name: "Greenfield Public School",
-      shortName: "GPS",
-      motto: "Learn. Lead. Serve.",
-      board: "CBSE",
-      affiliationNo: "1930123",
-      udiseCode: "29200123456",
-      recognitionNo: "DSE/REC/2014/089",
-      establishedYear: 1998,
-      principalName: "Dr. Kavitha Rao",
-      address: "12 Lake View Road",
-      city: "Bengaluru",
-      district: "Bengaluru Urban",
-      state: "Karnataka",
-      pincode: "560001",
-      phone: "080-40001234",
-      alternatePhone: "080-40001235",
-      email: "office@greenfield.school",
-      website: "https://greenfield.school",
-      updatedAt: new Date(),
-    },
-    update: {
+  await prisma.school.update({
+    where: { id: school.id },
+    data: {
       name: "Greenfield Public School",
       shortName: "GPS",
       motto: "Learn. Lead. Serve.",
@@ -443,7 +500,7 @@ async function main() {
   });
 
   console.log("Seeded:");
-  console.log(`  Principal: ${principal.email}`);
+  console.log(`  Principal: ${principal.email} (${school.slug}, join ${school.joinCode})`);
   console.log(`  Coordinator: ${coordinator.email}`);
   console.log(`  Teachers: ${teachers.length}`);
   console.log(`  Classes: ${Object.keys(byClassSection).join(", ")}`);
@@ -454,6 +511,7 @@ async function main() {
   console.log(`  Activity audits: 5 (including exam coordinator)`);
   console.log(`  Periods: ${periods.length}`);
   console.log(`  Timetable slots: ${timetableRows.length}`);
+  console.log(`  School: ${school.name} (join code ${school.joinCode})`);
   console.log("  Password for all seed users: password123");
 }
 

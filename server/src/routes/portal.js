@@ -6,6 +6,7 @@ import { formatMarkCell } from "../lib/markCodes.js";
 import { gradeFromPercent, percentOf } from "../lib/grades.js";
 import { ensurePendingSchema } from "../lib/ensureSchema.js";
 import { hashPortalToken, mintPortalToken } from "../lib/portalToken.js";
+import { runWithoutTenant, runWithTenant } from "../lib/tenant.js";
 
 export const portalRouter = Router();
 
@@ -14,6 +15,7 @@ function signPortalJwt(link) {
     {
       kind: "portal",
       linkId: link.id,
+      tenantId: link.tenantId,
       studentIds: link.studentIds,
       examId: link.examId || null,
     },
@@ -24,9 +26,11 @@ function signPortalJwt(link) {
 
 async function loadActiveLink(token) {
   if (!token) return null;
-  const link = await prisma.portalAccessLink.findUnique({
-    where: { tokenHash: hashPortalToken(token) },
-  });
+  const link = await runWithoutTenant(() =>
+    prisma.portalAccessLink.findUnique({
+      where: { tokenHash: hashPortalToken(token) },
+    })
+  );
   if (!link || link.revokedAt) return null;
   if (link.expiresAt && link.expiresAt.getTime() < Date.now()) return null;
   return link;
@@ -38,11 +42,11 @@ function portalAuth(req, res, next) {
   if (!bearer) return res.status(401).json({ error: "Unauthorized" });
   try {
     const payload = jwt.verify(bearer, process.env.JWT_SECRET);
-    if (payload?.kind !== "portal" || !payload.linkId) {
+    if (payload?.kind !== "portal" || !payload.linkId || !payload.tenantId) {
       return res.status(401).json({ error: "Invalid portal session" });
     }
     req.portal = payload;
-    return next();
+    return runWithTenant(payload.tenantId, () => next());
   } catch {
     return res.status(401).json({ error: "Invalid portal session" });
   }
@@ -140,8 +144,9 @@ portalRouter.post(
         select: { id: true, revokedAt: true },
       });
       res.json(link);
-    } catch {
-      res.status(404).json({ error: "Link not found" });
+    } catch (err) {
+      if (err?.code === "P2025") return res.status(404).json({ error: "Link not found" });
+      throw err;
     }
   }
 );

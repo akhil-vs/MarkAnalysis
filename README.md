@@ -43,7 +43,7 @@ API on [http://localhost:4000](http://localhost:4000), web on [http://localhost:
 
 Seed is **non-destructive** when users already exist. To wipe and reseed locally: `SEED_MODE=wipe npm run seed`. In production also set `ALLOW_DESTRUCTIVE_SEED=true`.
 
-Leadership can set the **school name, address, affiliation, and logo** under **School profile**. The crest, name, and address print as a letterhead on report cards, class summaries, consolidated lists, and Excel downloads. After a year, use **Records → Promote** to move a class to the next section without losing last year’s marks. On the mark register, type `AB`, `EX`, or `WH` for absent, exempt, or withheld. Class teachers can open their section’s full register (read-only for papers they do not teach).
+Leadership can set the **school name, address, affiliation, and logo** under **School profile**. The crest, name, and address print as a letterhead on report cards, class summaries, consolidated lists, and Excel downloads. Share the **staff join code** from that page so teachers can request access. After a year, use **Records → Promote** to move a class to the next section without losing last year’s marks. On the mark register, type `AB`, `EX`, or `WH` for absent, exempt, or withheld. Class teachers can open their section’s full register (read-only for papers they do not teach).
 
 ## Seed logins
 
@@ -51,7 +51,8 @@ All seed passwords are `password123`. The login page also has one-click sign-in 
 
 | Role | Email | School ID |
 |---|---|---|
-| Principal | `principal@school.edu` | `SCH-P01` |
+| Platform admin | `admin@platform.edu` | `PLT-A01` |
+| Principal · Greenfield | `principal@school.edu` | `SCH-P01` |
 | Exam Coordinator | `coordinator@school.edu` | `SCH-C01` |
 | Teacher · Mathematics | `anita.sharma@school.edu` | `SCH-T01` |
 | Teacher · Physics | `rahul.mehta@school.edu` | `SCH-T02` |
@@ -59,10 +60,23 @@ All seed passwords are `password123`. The login page also has one-click sign-in 
 | Teacher · English | `david.thomas@school.edu` | `SCH-T04` |
 | Teacher · Biology | `meera.iyer@school.edu` | `SCH-T05` |
 | Teacher · Mathematics | `kiran.bose@school.edu` | `SCH-T06` |
+| Principal · Riverside | `principal@riverside.school` | `RIV-P01` |
+
+**Platform console** (`/platform`): sign in as the platform admin to list every school, add a campus, suspend or reactivate it, and create or reset principal accounts. Staff request access with the school’s **join code** (Greenfield: `DEMO-JOIN`, Riverside: `RIVE-SIDE`). Marks, staff, and exams stay isolated per campus.
 
 The current Final Exam seed leaves Biology (all sections) and English 10-D empty so principals and coordinators can see pending teacher uploads. Teachers and leadership now default to the **same latest exam**. After a teacher saves marks they stay **draft** until a principal or coordinator clicks **Approve** on the mark register — only then do school analytics and consolidated lists include them.
 
-Mathematics is split across two teachers (Anita Sharma: 9-A, 10-A, 10-B; Kiran Bose: 9-B, 10-C, 10-D) so same-subject teacher comparison has data. Seed exams cover academic years 2024-25 and 2025-26.
+Mathematics is split across two teachers (Anita Sharma: 9-A, 10-A, 10-B; Kiran Bose: 9-B, 10-C, 10-D) so same-subject teacher comparison has data. Seed exams cover academic years 2024-25 and 2025-26. The demo school join code is `DEMO-JOIN`.
+
+## Multiple schools
+
+Each school is a tenant: staff, classes, exams, marks, timetables, and analytics stay isolated.
+
+- **Register your school** at `/register-school` — creates the school and an active principal
+- **Staff request access** at `/signup` with the school’s **join code** (shown on School profile). The principal still approves teachers and coordinators
+- Staff IDs such as `SCH-T01` are unique **inside a school**, not globally. Email stays unique across the platform
+
+Existing single-school databases migrate into one tenant and keep working.
 
 ## Analysis
 

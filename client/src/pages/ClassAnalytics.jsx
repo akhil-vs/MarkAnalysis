@@ -21,8 +21,10 @@ import { ExamSelect } from "../components/ExamSelect.jsx";
 import { YearComparison } from "../components/AnalysisPanels.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { NAV_LABELS, paths } from "../lib/nav.js";
 import { isLeadership } from "../lib/roles.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
@@ -132,22 +134,30 @@ function SearchableRankTable({ rows, showRank = true }) {
 export default function ClassAnalytics() {
   const { id } = useParams();
   const { user, classTeacherOf } = useAuth();
+  const toast = useToast();
   const leadership = isLeadership(user.role);
   const isClassTeacher = (classTeacherOf || []).some((c) => c.id === id);
   const canOpenCml = leadership || isClassTeacher;
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState("");
+  const [error, setError] = useState("");
 
   async function load(eid) {
-    const res = await api(`/api/analytics/class/${id}${eid ? `?examId=${eid}` : ""}`);
-    setData(res);
-    if (res.exam) setExamId(res.exam.id);
+    setError("");
+    try {
+      const res = await api(`/api/analytics/class/${id}${eid ? `?examId=${eid}` : ""}`);
+      setData(res);
+      if (res.exam) setExamId(res.exam.id);
+    } catch (err) {
+      setError(err.message || "Could not load class");
+    }
   }
 
   useEffect(() => {
     load("");
   }, [id]);
 
+  if (error) return <LoadError message={error} />;
   if (!data) return <p>Loading class…</p>;
   if (data.empty) return <p>No data for this class yet.</p>;
   const grades = Object.entries(data.gradeDist || {}).map(([grade, count]) => ({ grade, count }));
@@ -182,7 +192,11 @@ export default function ClassAnalytics() {
             )}
             <button
               className="btn-ghost"
-              onClick={() => download(`/api/exports/class-summary/${id}?examId=${examId}`, "class-summary.pdf")}
+              onClick={() =>
+                download(`/api/exports/class-summary/${id}?examId=${examId}`, "class-summary.pdf").catch((err) =>
+                  toast.error(err.message || "Download failed")
+                )
+              }
             >
               Printable summary
             </button>

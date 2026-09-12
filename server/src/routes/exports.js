@@ -19,9 +19,11 @@ import {
   pdfMargins,
   writeExcelLetterhead,
 } from "../lib/letterhead.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const exportsRouter = Router();
 exportsRouter.use(auth);
+exportsRouter.use(requireSchoolTenant);
 
 function pct(mark) {
   if (!isScoredMark(mark)) return null;

@@ -14,8 +14,10 @@ import { api, download } from "../api.js";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { HelpHint } from "../components/HelpHint.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
+import { LoadError } from "../components/LoadError.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { examLabel } from "../lib/exams.js";
 import { NAV_LABELS } from "../lib/nav.js";
 import { DEEP_INSIGHT_PANEL_HELP } from "../lib/pageHelp.js";
@@ -71,18 +73,24 @@ function SubjectSeriesTable({ rows, examNames }) {
 
 export default function StudentAnalytics() {
   const { id } = useParams();
+  const toast = useToast();
   const [data, setData] = useState(null);
   const [exams, setExams] = useState([]);
   const [examId, setExamId] = useState("");
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    api(`/api/analytics/student/${id}`).then(setData);
-    api("/api/exams").then((e) => {
-      setExams(e);
-      if (e[0]) setExamId(e.at(-1).id);
-    });
+    setError("");
+    Promise.all([api(`/api/analytics/student/${id}`), api("/api/exams")])
+      .then(([student, examList]) => {
+        setData(student);
+        setExams(examList);
+        if (examList[0]) setExamId(examList.at(-1).id);
+      })
+      .catch((err) => setError(err.message || "Could not load student"));
   }, [id]);
 
+  if (error) return <LoadError message={error} />;
   if (!data) return <p>Loading student…</p>;
   const s = data.student;
   const examNames = [...new Set(data.subjectSeries.flatMap((x) => x.points.map((p) => p.exam)))];
@@ -116,7 +124,11 @@ export default function StudentAnalytics() {
             </select>
             <button
               className="btn-ghost"
-              onClick={() => download(`/api/exports/report-card/${id}?examId=${examId}`, "report-card.pdf")}
+              onClick={() =>
+                download(`/api/exports/report-card/${id}?examId=${examId}`, "report-card.pdf").catch((err) =>
+                  toast.error(err.message || "Download failed")
+                )
+              }
             >
               PDF report card
             </button>

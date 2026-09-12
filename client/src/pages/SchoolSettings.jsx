@@ -18,9 +18,11 @@ import {
   requiredText,
 } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
+import { useAuth } from "../auth.jsx";
 
 const EMPTY = {
   name: "",
+  slug: "",
   shortName: "",
   motto: "",
   board: "",
@@ -52,6 +54,7 @@ const DEFAULT_BANDS = [
 function profileFromApi(s) {
   return {
     name: s.name || "",
+    slug: s.slug || "",
     shortName: s.shortName || "",
     motto: s.motto || "",
     board: s.board || "",
@@ -189,9 +192,11 @@ function LogoCard({ hasLogo, nonce, onChange }) {
 
 export default function SchoolSettings() {
   const toast = useToast();
+  const { user } = useAuth();
   const [form, setForm] = useState(EMPTY);
   const [hasLogo, setHasLogo] = useState(false);
   const [logoNonce, setLogoNonce] = useState(0);
+  const [joinCode, setJoinCode] = useState("");
   const [passPercent, setPassPercent] = useState(50);
   const [distinctionMin, setDistinctionMin] = useState(90);
   const [bands, setBands] = useState(DEFAULT_BANDS);
@@ -202,6 +207,7 @@ export default function SchoolSettings() {
   function applySchool(s) {
     setForm(profileFromApi(s));
     setHasLogo(Boolean(s.hasLogo));
+    setJoinCode(s.joinCode || "");
     const g = s.grading || {};
     setPassPercent(g.passPercent ?? 50);
     setDistinctionMin(g.distinctionMin ?? 90);
@@ -260,6 +266,7 @@ export default function SchoolSettings() {
         method: "PATCH",
         body: {
           ...form,
+          slug: undefined,
           establishedYear: year.value === "" ? null : year.value,
           website: website.value || null,
           passPercent: Number(passPercent),
@@ -286,6 +293,16 @@ export default function SchoolSettings() {
       toast.success("Grading defaults restored.");
     } catch (err) {
       toast.error(err.message || "Could not reset grading");
+    }
+  }
+
+  async function rotateJoinCode() {
+    try {
+      const s = await api("/api/school/join-code", { method: "POST", body: {} });
+      setJoinCode(s.joinCode || "");
+      toast.success("New join code issued. Share it with staff who still need to sign up.");
+    } catch (err) {
+      toast.error(err.message || "Could not rotate join code");
     }
   }
 
@@ -322,6 +339,15 @@ export default function SchoolSettings() {
               onChange={(e) => set("name", e.target.value)}
             />
           </div>
+          {form.slug && (
+            <div>
+              <label className="label">School code</label>
+              <input className="field font-mono bg-ink-900/5" value={form.slug} readOnly />
+              <p className="mt-1 text-xs text-ink-700/55">
+                Staff use this code when they request an account. Platform admins can change it.
+              </p>
+            </div>
+          )}
           <div className="grid sm:grid-cols-2 gap-3">
             <div>
               <label className="label">Short name</label>
@@ -457,6 +483,23 @@ export default function SchoolSettings() {
             </div>
           </div>
         </section>
+
+        {joinCode ? (
+          <div className="rounded-xl border border-ink-900/10 bg-paper p-3">
+            <div className="text-xs font-medium uppercase tracking-wide text-ink-700/55">Staff join code</div>
+            <div className="mt-1 flex flex-wrap items-center gap-2">
+              <code className="font-mono text-lg tracking-widest">{joinCode}</code>
+              {user?.role === "PRINCIPAL" && (
+                <button type="button" className="btn-ghost text-xs" onClick={rotateJoinCode}>
+                  Rotate code
+                </button>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-ink-700/60">
+              Teachers and coordinators enter this code when they request an account.
+            </p>
+          </div>
+        ) : null}
 
         <div className="pt-4 border-t border-ink-900/10">
           <h3 className="font-serif text-xl mb-2">Analytics grading</h3>

@@ -1,27 +1,7 @@
 import { prisma } from "./prisma.js";
 import { ensurePendingSchema } from "./ensureSchema.js";
-
-const DEFAULT_SCHOOL = {
-  id: "school",
-  name: "School Marks Analytics",
-  shortName: null,
-  motto: null,
-  board: null,
-  affiliationNo: null,
-  udiseCode: null,
-  recognitionNo: null,
-  establishedYear: null,
-  principalName: null,
-  address: null,
-  city: null,
-  district: null,
-  state: null,
-  pincode: null,
-  phone: null,
-  alternatePhone: null,
-  email: null,
-  website: null,
-};
+import { newJoinCode, slugifySchoolName } from "./schoolIdentity.js";
+import { parseSlug, requireTenantId, runWithoutTenant } from "./tenant.js";
 
 const OPTIONAL_TEXT_FIELDS = [
   "shortName",
@@ -48,18 +28,15 @@ export const LOGO_MAX_BYTES = 1024 * 1024;
 
 export async function getSchoolProfile({ includeLogo = false } = {}) {
   await ensurePendingSchema();
-  const query = includeLogo
-    ? { where: { id: "school" } }
-    : { where: { id: "school" }, omit: { logoBytes: true } };
-  const existing = await prisma.schoolProfile.findUnique(query);
-  if (existing) return existing;
-  const created = await prisma.schoolProfile.upsert({
-    where: { id: "school" },
-    create: { ...DEFAULT_SCHOOL, updatedAt: new Date() },
-    update: {},
+  const tenantId = requireTenantId();
+  const existing = await prisma.school.findUnique({
+    where: { id: tenantId },
     ...(includeLogo ? {} : { omit: { logoBytes: true } }),
   });
-  return created;
+  if (existing) return existing;
+  const err = new Error("School not found");
+  err.status = 404;
+  throw err;
 }
 
 export async function getSchoolLetterhead() {
@@ -208,9 +185,9 @@ export function parseLogoFile(file) {
   return { bytes: buf, mime: isPng ? "image/png" : "image/jpeg" };
 }
 
-export function publicSchool(profile, { grading, workingDays } = {}) {
+export function publicSchool(profile, { grading, workingDays, includeJoinCode = false } = {}) {
   if (!profile) return profile;
-  const { logoBytes, ...rest } = profile;
+  const { logoBytes, joinCode, ...rest } = profile;
   const hasLogo = Boolean(rest.logoMimeType) && (logoBytes == null || logoBytes.length > 0);
   return {
     ...rest,
@@ -218,5 +195,61 @@ export function publicSchool(profile, { grading, workingDays } = {}) {
     logoUrl: hasLogo ? "/api/school/logo" : null,
     workingDays,
     grading,
+    ...(includeJoinCode ? { joinCode } : {}),
   };
+}
+
+export async function allocateSchoolSlug(name) {
+  const base = slugifySchoolName(name);
+  return runWithoutTenant(async () => {
+    for (let i = 0; i < 50; i += 1) {
+      const slug = i === 0 ? base : `${base.slice(0, 40)}-${i + 1}`;
+      const exists = await prisma.school.findUnique({ where: { slug } });
+      if (!exists) return slug;
+    }
+    return `${base}-${Date.now().toString(36)}`;
+  });
+}
+
+export async function allocateJoinCode() {
+  return runWithoutTenant(async () => {
+    for (let i = 0; i < 24; i += 1) {
+      const joinCode = newJoinCode();
+      const exists = await prisma.school.findUnique({ where: { joinCode } });
+      if (!exists) return joinCode;
+    }
+    const err = new Error("Could not allocate a school join code");
+    err.status = 500;
+    throw err;
+  });
+}
+
+export async function findSchoolByJoinCode(joinCode) {
+  if (!joinCode) return null;
+  return runWithoutTenant(() => prisma.school.findUnique({ where: { joinCode } }));
+}
+
+export async function findActiveSchoolBySlug(slug) {
+  const parsed = parseSlug(slug);
+  if (parsed.error) return { error: parsed.error };
+  const school = await runWithoutTenant(() => prisma.school.findUnique({ where: { slug: parsed.value } }));
+  if (!school || school.status !== "ACTIVE") {
+    return { error: "School not found" };
+  }
+  return { school };
+}
+
+export async function assertSchoolActiveById(tenantId) {
+  if (!tenantId) return { error: "No school assigned to this account" };
+  const school = await runWithoutTenant(() =>
+    prisma.school.findUnique({
+      where: { id: tenantId },
+      select: { id: true, status: true, name: true, slug: true },
+    })
+  );
+  if (!school) return { error: "School not found" };
+  if (school.status === "SUSPENDED") {
+    return { error: "This school is suspended. Contact the platform administrator." };
+  }
+  return { school };
 }

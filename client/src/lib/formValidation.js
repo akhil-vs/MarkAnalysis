@@ -112,6 +112,47 @@ export function parseOptionalYear(value, { label = "Year", min = 1800, max = new
   return { value: n };
 }
 
+const RESERVED_SCHOOL_SLUGS = new Set([
+  "platform",
+  "admin",
+  "api",
+  "login",
+  "signup",
+  "portal",
+  "school",
+  "schools",
+  "www",
+]);
+
+export function slugifyName(name) {
+  return String(name || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 40);
+}
+
+export function parseSlug(raw, { required = true, label = "School code" } = {}) {
+  const slug = String(raw || "")
+    .trim()
+    .toLowerCase();
+  if (!slug) {
+    return required ? { error: `${label} is required` } : { value: "" };
+  }
+  if (slug.length < 2 || slug.length > 40) {
+    return { error: `${label} must be 2–40 characters` };
+  }
+  if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug)) {
+    return { error: `${label} must be lowercase letters, numbers, and hyphens` };
+  }
+  if (RESERVED_SCHOOL_SLUGS.has(slug)) {
+    return { error: `That ${label.toLowerCase()} is reserved` };
+  }
+  return { value: slug };
+}
+
 /** Block typing a minus sign on non-negative numeric fields. */
 export function rejectNegativeKey(event) {
   if (event.key === "-" || event.key === "Minus" || event.key === "Subtract") {
@@ -130,6 +171,15 @@ export function acceptNonNegativeInput(raw, previous, { integer = false, allowEm
   const n = Number(raw);
   if (!Number.isFinite(n) || n < 0) return previous;
   return integer ? Math.trunc(n) : n;
+}
+
+export function parseJoinCode(value, { required = true, label = "Join code" } = {}) {
+  const text = String(value ?? "")
+    .toUpperCase()
+    .replace(/[^A-Z0-9]/g, "");
+  if (!text) return required ? { error: `${label} is required` } : { value: "" };
+  if (text.length !== 8) return { error: `${label} looks like ABCD-EFGH` };
+  return { value: `${text.slice(0, 4)}-${text.slice(4)}` };
 }
 
 export function firstError(...results) {
