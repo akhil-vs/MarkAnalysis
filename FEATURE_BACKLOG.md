@@ -30,15 +30,9 @@ Remaining work that would make this suitable for a live school:
 ## Engineering
 
 - Broader API/integration tests against a real database
-<<<<<<< HEAD
-- Production Docker Compose (`db` + `api` + `web`)
+- ~~Production Docker Compose (`db` + `api` + `web`)~~
 - ~~Rate limiting on auth~~ (in-memory limiter on login/signup)
 - ~~httpOnly access + refresh cookies~~ (`sma_access` / `sma_refresh`, rotate on `/api/auth/refresh`)
-- Non-destructive seed path for demos
-=======
-- ~~Production Docker Compose (`db` + `api` + `web`)~~
-- ~~Rate limiting on auth~~ (in-memory limiter on login/signup; httpOnly / refresh tokens still open)
 - ~~Non-destructive seed path for demos~~ (skip wipe unless `SEED_MODE=wipe`)
 - ~~Migrate-on-deploy~~ (`prisma migrate deploy` on API boot + GitHub Action; `ensurePendingSchema` fallback)
->>>>>>> origin/main
 - ~~Replace `xlsx` parse path with ExcelJS-only~~ (uploads parse via ExcelJS; legacy `.xls` rejected)
