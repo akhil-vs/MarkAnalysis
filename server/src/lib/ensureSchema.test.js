@@ -125,4 +125,16 @@ describe("ensureSchema bootstrap", () => {
       )
     );
   });
+
+  it("embeds mustChangePassword user column migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260912090000_user_must_change_password/migration.sql")
+    );
+    assert.equal(
+      __test.MUST_CHANGE_PASSWORD_CHECKSUM,
+      createHash("sha256").update(file).digest("hex")
+    );
+    assert.equal(__test.MUST_CHANGE_PASSWORD_MIGRATION, "20260912090000_user_must_change_password");
+    assert.ok(__test.MUST_CHANGE_PASSWORD_STATEMENTS[0].includes('"mustChangePassword"'));
+  });
 });

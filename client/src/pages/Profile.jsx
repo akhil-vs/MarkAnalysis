@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { useToast } from "../components/Toast.jsx";
@@ -14,7 +13,7 @@ const ROLE_LABEL = {
 };
 
 export default function Profile() {
-  const { user } = useAuth();
+  const { user, changePassword } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState({
     currentPassword: "",
@@ -39,12 +38,9 @@ export default function Profile() {
       return;
     }
     try {
-      await api("/api/auth/change-password", {
-        method: "POST",
-        body: {
-          currentPassword: form.currentPassword,
-          newPassword: form.newPassword,
-        },
+      await changePassword({
+        currentPassword: form.currentPassword,
+        newPassword: form.newPassword,
       });
       setForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
       toast.success("Password updated.");
@@ -57,6 +53,11 @@ export default function Profile() {
   return (
     <div>
       <PageHeader title={NAV_TITLES.profile} subtitle="Account details and password" />
+      {user.mustChangePassword && (
+        <div className="mb-4 rounded-xl border border-clay-500/30 bg-clay-500/10 px-4 py-3 text-sm text-ink-900" role="status">
+          You must set a new password before using the rest of the app.
+        </div>
+      )}
       <div className="grid lg:grid-cols-2 gap-4">
         <div className="card p-5 space-y-3">
           <h3 className="font-serif text-lg">Account</h3>

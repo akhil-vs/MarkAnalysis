@@ -141,6 +141,14 @@ const SCHOOL_WORKING_DAYS_MIGRATION = "20260911123800_school_working_days";
 const SCHOOL_WORKING_DAYS_CHECKSUM =
   "a8341203fab7f373220d136b8077369d49ba1751052cadef0eafcd5cfe890728";
 
+const MUST_CHANGE_PASSWORD_MIGRATION = "20260912090000_user_must_change_password";
+const MUST_CHANGE_PASSWORD_CHECKSUM =
+  "cde357849187ab04a5b7d0d174f5d74c14d52bfc306ee6715c7890351c42ed52";
+
+const MUST_CHANGE_PASSWORD_STATEMENTS = [
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "mustChangePassword" BOOLEAN NOT NULL DEFAULT false`,
+];
+
 const SCHOOL_PROFILE_TABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "SchoolProfile" (
     "id" TEXT NOT NULL DEFAULT 'school',
@@ -477,6 +485,15 @@ async function ensureSchoolWorkingDaysColumn() {
   await recordMigration(SCHOOL_WORKING_DAYS_MIGRATION, SCHOOL_WORKING_DAYS_CHECKSUM);
 }
 
+async function ensureMustChangePasswordColumn() {
+  if (await columnExists("User", "mustChangePassword")) {
+    await recordMigration(MUST_CHANGE_PASSWORD_MIGRATION, MUST_CHANGE_PASSWORD_CHECKSUM);
+    return;
+  }
+  await applyStatements(MUST_CHANGE_PASSWORD_STATEMENTS);
+  await recordMigration(MUST_CHANGE_PASSWORD_MIGRATION, MUST_CHANGE_PASSWORD_CHECKSUM);
+}
+
 /**
  * Apply schema pieces that may be missing in production when Vercel builds
  * cannot run `prisma migrate deploy` (DATABASE_URL often runtime-only).
@@ -495,6 +512,7 @@ export async function ensurePendingSchema() {
         ensureSubjectConsolidationMaxMarksColumn(),
         ensureSchoolGradingColumns(),
         ensureSchoolWorkingDaysColumn(),
+        ensureMustChangePasswordColumn(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -544,6 +562,9 @@ export const __test = {
   SCHOOL_WORKING_DAYS_MIGRATION,
   SCHOOL_WORKING_DAYS_CHECKSUM,
   SCHOOL_WORKING_DAYS_STATEMENTS,
+  MUST_CHANGE_PASSWORD_MIGRATION,
+  MUST_CHANGE_PASSWORD_CHECKSUM,
+  MUST_CHANGE_PASSWORD_STATEMENTS,
   MULTI_CLASS_PERIOD_MIGRATION,
   MULTI_CLASS_PERIOD_CHECKSUM,
   MULTI_CLASS_PERIOD_STATEMENTS,
