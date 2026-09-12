@@ -7,8 +7,8 @@ Remaining work that would make this suitable for a live school:
 ## Domain / school operations
 
 - **Theory + practical / IA** split papers and weighted components
-- **Weighted annual result** across unit / mid / final
-- **Configurable grade bands** and pass percent (board-specific)
+- ~~**Weighted annual result** across unit / mid / final~~ (School profile exam weights + analytics insights)
+- ~~**Configurable grade bands** and pass percent (board-specific)~~ (School profile Analytics grading)
 - **Electives / additional subjects** per student
 - ~~**Class-teacher inbox** for section pending papers~~ (read access + gated CML for class teachers; dedicated inbox still open)
 - **Moderation / grace marks** with audit reason
@@ -33,4 +33,4 @@ Remaining work that would make this suitable for a live school:
 - Production Docker Compose (`db` + `api` + `web`)
 - ~~Rate limiting on auth~~ (in-memory limiter on login/signup; httpOnly / refresh tokens still open)
 - Non-destructive seed path for demos
-- Replace `xlsx` parse path with ExcelJS-only if supply-chain policy requires it
+- ~~Replace `xlsx` parse path with ExcelJS-only~~ (uploads parse via ExcelJS; legacy `.xls` rejected)
