@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
-import { api, getToken, setToken } from "./api.js";
+import { api, hasSessionHint, setSessionHint, setToken } from "./api.js";
 
 const AuthContext = createContext(null);
 const AUTH_CACHE_KEY = "sma_auth_cache";
@@ -32,23 +32,16 @@ function writeAuthCache({ user, assignments, classTeacherOf }) {
 }
 
 export function AuthProvider({ children }) {
-  const cached = getToken() ? readAuthCache() : null;
+  const cached = hasSessionHint() ? readAuthCache() : null;
   const [user, setUser] = useState(cached?.user || null);
   const [assignments, setAssignments] = useState(cached?.assignments || []);
   const [classTeacherOf, setClassTeacherOf] = useState(cached?.classTeacherOf || []);
   const [loading, setLoading] = useState(!cached);
 
   async function refresh() {
-    if (!getToken()) {
-      setUser(null);
-      setAssignments([]);
-      setClassTeacherOf([]);
-      writeAuthCache({ user: null });
-      setLoading(false);
-      return;
-    }
     try {
       const data = await api("/api/auth/me");
+      setSessionHint(true);
       setUser(data.user);
       setAssignments(data.assignments || []);
       setClassTeacherOf(data.classTeacherOf || []);
@@ -58,6 +51,7 @@ export function AuthProvider({ children }) {
         classTeacherOf: data.classTeacherOf || [],
       });
     } catch {
+      setSessionHint(false);
       setToken(null);
       setUser(null);
       setAssignments([]);
@@ -80,23 +74,19 @@ export function AuthProvider({ children }) {
       loading,
       async login(payload) {
         const data = await api("/api/auth/login", { method: "POST", body: payload });
-        setToken(data.token);
+        setSessionHint(true);
+        setToken(null);
         setUser(data.user);
         await refresh();
         return data;
       },
       async signup(payload) {
         const data = await api("/api/auth/signup", { method: "POST", body: payload });
-        if (data.token) {
-          setToken(data.token);
-          setUser(data.user);
-          await refresh();
-        }
         return data;
       },
       async changePassword(payload) {
         const data = await api("/api/auth/change-password", { method: "POST", body: payload });
-        if (data.token) setToken(data.token);
+        setSessionHint(true);
         if (data.user) {
           setUser(data.user);
           writeAuthCache({
@@ -109,7 +99,13 @@ export function AuthProvider({ children }) {
         }
         return data;
       },
-      logout() {
+      async logout() {
+        try {
+          await api("/api/auth/logout", { method: "POST" });
+        } catch {
+          // still clear local session
+        }
+        setSessionHint(false);
         setToken(null);
         setUser(null);
         setAssignments([]);

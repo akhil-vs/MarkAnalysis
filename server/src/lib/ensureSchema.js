@@ -548,9 +548,54 @@ async function ensureElectiveEnrollments() {
   }
 
   await applyStatements(ELECTIVE_STATEMENTS);
-  await applyStatements(ELECTIVE_FK_STATEMENTS);
+  for (const sql of ELECTIVE_FK_STATEMENTS) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (err) {
+      if (!/already exists/i.test(String(err?.message || err))) throw err;
+    }
+  }
   await recordMigration(ELECTIVE_MIGRATION, ELECTIVE_CHECKSUM);
 }
+
+const REFRESH_TOKEN_MIGRATION = "20260912120000_refresh_tokens";
+const REFRESH_TOKEN_CHECKSUM =
+  "de0285fba40449e21f54ec788c497c51c99ecb74efe352c2e65883119c7d12fe";
+const REFRESH_TOKEN_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "RefreshToken" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "revokedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "userAgent" TEXT,
+    CONSTRAINT "RefreshToken_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "RefreshToken_tokenHash_key" ON "RefreshToken"("tokenHash")`,
+  `CREATE INDEX IF NOT EXISTS "RefreshToken_userId_idx" ON "RefreshToken"("userId")`,
+  `CREATE INDEX IF NOT EXISTS "RefreshToken_expiresAt_idx" ON "RefreshToken"("expiresAt")`,
+];
+const REFRESH_TOKEN_FK_STATEMENTS = [
+  `ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+];
+
+async function ensureRefreshTokenTable() {
+  if (await tableExists("RefreshToken")) {
+    await recordMigration(REFRESH_TOKEN_MIGRATION, REFRESH_TOKEN_CHECKSUM);
+    return;
+  }
+  await applyStatements(REFRESH_TOKEN_STATEMENTS);
+  for (const sql of REFRESH_TOKEN_FK_STATEMENTS) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (err) {
+      if (!/already exists/i.test(String(err?.message || err))) throw err;
+    }
+  }
+  await recordMigration(REFRESH_TOKEN_MIGRATION, REFRESH_TOKEN_CHECKSUM);
+}
+
 
 /**
  * Apply schema pieces that may be missing in production when Vercel builds
@@ -573,6 +618,7 @@ export async function ensurePendingSchema() {
         ensureMustChangePasswordColumn(),
         ensureMarkAuditReasonColumn(),
         ensureElectiveEnrollments(),
+        ensureRefreshTokenTable(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -628,6 +674,9 @@ export const __test = {
   MARK_MODERATION_MIGRATION,
   MARK_MODERATION_CHECKSUM,
   MARK_MODERATION_STATEMENTS,
+  REFRESH_TOKEN_MIGRATION,
+  REFRESH_TOKEN_CHECKSUM,
+  REFRESH_TOKEN_STATEMENTS,
   MULTI_CLASS_PERIOD_MIGRATION,
   MULTI_CLASS_PERIOD_CHECKSUM,
   MULTI_CLASS_PERIOD_STATEMENTS,
