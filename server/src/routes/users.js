@@ -106,6 +106,7 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
       passwordHash: await bcrypt.hash(password, 10),
       role: chosenRole,
       status: chosenStatus,
+      mustChangePassword: true,
     },
   });
 
@@ -223,7 +224,10 @@ usersRouter.post("/:id/reset-password", requireRole("PRINCIPAL"), async (req, re
   if (!existing) return res.status(404).json({ error: "Not found" });
   await prisma.user.update({
     where: { id: existing.id },
-    data: { passwordHash: await bcrypt.hash(String(password), 10) },
+    data: {
+      passwordHash: await bcrypt.hash(String(password), 10),
+      mustChangePassword: true,
+    },
   });
   await logActivity({
     actorId: req.user.userId,

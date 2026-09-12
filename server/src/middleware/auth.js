@@ -1,16 +1,55 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 
-export function auth(req, res, next) {
+function verifyBearer(req, res) {
   const header = req.headers.authorization || "";
   const token = header.startsWith("Bearer ") ? header.slice(7) : null;
-  if (!token) return res.status(401).json({ error: "Unauthorized" });
-  try {
-    req.user = jwt.verify(token, process.env.JWT_SECRET);
-    next();
-  } catch {
-    return res.status(401).json({ error: "Invalid token" });
+  if (!token) {
+    res.status(401).json({ error: "Unauthorized" });
+    return null;
   }
+  try {
+    return jwt.verify(token, process.env.JWT_SECRET);
+  } catch {
+    res.status(401).json({ error: "Invalid token" });
+    return null;
+  }
+}
+
+/** Block API use until a required password change is completed. */
+export async function rejectIfMustChangePassword(req, res, next) {
+  if (!req.user?.userId || req.allowMustChangePassword) return next();
+  try {
+    const user = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { mustChangePassword: true },
+    });
+    if (user?.mustChangePassword) {
+      return res.status(403).json({
+        error: "Password change required",
+        code: "MUST_CHANGE_PASSWORD",
+      });
+    }
+    return next();
+  } catch (err) {
+    return next(err);
+  }
+}
+
+export function auth(req, res, next) {
+  const payload = verifyBearer(req, res);
+  if (!payload) return;
+  req.user = payload;
+  return rejectIfMustChangePassword(req, res, next);
+}
+
+/** Authenticate, but allow callers who still need to change a temporary password. */
+export function authAllowPasswordChange(req, res, next) {
+  const payload = verifyBearer(req, res);
+  if (!payload) return;
+  req.user = payload;
+  req.allowMustChangePassword = true;
+  return next();
 }
 
 export function requireRole(...roles) {
@@ -38,6 +77,7 @@ export function publicUser(user) {
     schoolId: user.schoolId,
     role: user.role,
     status: user.status,
+    mustChangePassword: Boolean(user.mustChangePassword),
   };
 }
 

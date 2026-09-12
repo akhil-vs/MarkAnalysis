@@ -2,11 +2,23 @@ import { Router } from "express";
 import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma.js";
 import { parseEmail } from "../lib/numbers.js";
-import { auth, publicUser, signToken } from "../middleware/auth.js";
+import {
+  authAllowPasswordChange,
+  publicUser,
+  signToken,
+} from "../middleware/auth.js";
+import { authAttemptKey, rateLimit } from "../lib/rateLimit.js";
 
 export const authRouter = Router();
 
-authRouter.post("/signup", async (req, res) => {
+const authWriteLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 20,
+  keyFn: authAttemptKey,
+  message: "Too many sign-in attempts. Try again in a few minutes.",
+});
+
+authRouter.post("/signup", authWriteLimit, async (req, res) => {
   const { name, email, schoolId, password, role } = req.body || {};
   if (!name || !String(name).trim()) {
     return res.status(400).json({ error: "Name is required" });
@@ -47,6 +59,7 @@ authRouter.post("/signup", async (req, res) => {
       passwordHash: await bcrypt.hash(password, 10),
       role: chosenRole,
       status: "PENDING",
+      mustChangePassword: false,
     },
   });
 
@@ -57,7 +70,7 @@ authRouter.post("/signup", async (req, res) => {
   });
 });
 
-authRouter.post("/login", async (req, res) => {
+authRouter.post("/login", authWriteLimit, async (req, res) => {
   const { email, schoolId, password } = req.body || {};
   if (!password || (!email && !schoolId)) {
     return res.status(400).json({ error: "Credentials are required" });
@@ -83,7 +96,7 @@ authRouter.post("/login", async (req, res) => {
   return res.json({ user: publicUser(user), token: signToken(user) });
 });
 
-authRouter.get("/me", auth, async (req, res) => {
+authRouter.get("/me", authAllowPasswordChange, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user.userId },
     include: {
@@ -107,13 +120,16 @@ authRouter.get("/me", auth, async (req, res) => {
   });
 });
 
-authRouter.post("/change-password", auth, async (req, res) => {
+authRouter.post("/change-password", authAllowPasswordChange, async (req, res) => {
   const { currentPassword, newPassword } = req.body || {};
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: "Current and new passwords are required" });
   }
   if (String(newPassword).length < 8) {
     return res.status(400).json({ error: "New password must be at least 8 characters" });
+  }
+  if (String(newPassword) === String(currentPassword)) {
+    return res.status(400).json({ error: "New password must be different from the current password" });
   }
 
   const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
@@ -122,9 +138,17 @@ authRouter.post("/change-password", auth, async (req, res) => {
     return res.status(401).json({ error: "Current password is incorrect" });
   }
 
-  await prisma.user.update({
+  const updated = await prisma.user.update({
     where: { id: user.id },
-    data: { passwordHash: await bcrypt.hash(newPassword, 10) },
+    data: {
+      passwordHash: await bcrypt.hash(newPassword, 10),
+      mustChangePassword: false,
+    },
   });
-  res.json({ ok: true, message: "Password updated" });
+  res.json({
+    ok: true,
+    message: "Password updated",
+    user: publicUser(updated),
+    token: signToken(updated),
+  });
 });

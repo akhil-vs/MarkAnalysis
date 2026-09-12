@@ -58,14 +58,15 @@ enum MarkEntryAccessStatus {
 }
 
 model User {
-  id           String     @id @default(cuid())
-  name         String
-  email        String?    @unique
-  schoolId     String?    @unique
-  passwordHash String
-  role         Role
-  status       UserStatus @default(PENDING)
-  createdAt    DateTime   @default(now())
+  id                  String     @id @default(cuid())
+  name                String
+  email               String?    @unique
+  schoolId            String?    @unique
+  passwordHash        String
+  mustChangePassword  Boolean    @default(false)
+  role                Role
+  status              UserStatus @default(PENDING)
+  createdAt           DateTime   @default(now())
 
   classTeacherOf ClassSection[]       @relation("ClassTeacher")
   assignments    TeacherAssignment[]

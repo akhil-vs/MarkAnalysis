@@ -46,6 +46,7 @@ async function main() {
   await prisma.user.deleteMany();
 
   const passwordHash = await bcrypt.hash("password123", 10);
+  const forcePasswordChange = process.env.SEED_FORCE_PASSWORD_CHANGE === "true";
 
   const principal = await prisma.user.create({
     data: {
@@ -55,6 +56,7 @@ async function main() {
       passwordHash,
       role: "PRINCIPAL",
       status: "ACTIVE",
+      mustChangePassword: forcePasswordChange,
     },
   });
 
@@ -66,17 +68,18 @@ async function main() {
       passwordHash,
       role: "EXAM_COORDINATOR",
       status: "ACTIVE",
+      mustChangePassword: forcePasswordChange,
     },
   });
 
   const teachers = await prisma.user.createManyAndReturn({
     data: [
-      { name: "Anita Sharma", email: "anita.sharma@school.edu", schoolId: "SCH-T01", passwordHash, role: "TEACHER", status: "ACTIVE" },
-      { name: "Rahul Mehta", email: "rahul.mehta@school.edu", schoolId: "SCH-T02", passwordHash, role: "TEACHER", status: "ACTIVE" },
-      { name: "Priya Nair", email: "priya.nair@school.edu", schoolId: "SCH-T03", passwordHash, role: "TEACHER", status: "ACTIVE" },
-      { name: "David Thomas", email: "david.thomas@school.edu", schoolId: "SCH-T04", passwordHash, role: "TEACHER", status: "ACTIVE" },
-      { name: "Meera Iyer", email: "meera.iyer@school.edu", schoolId: "SCH-T05", passwordHash, role: "TEACHER", status: "ACTIVE" },
-      { name: "Kiran Bose", email: "kiran.bose@school.edu", schoolId: "SCH-T06", passwordHash, role: "TEACHER", status: "ACTIVE" },
+      { name: "Anita Sharma", email: "anita.sharma@school.edu", schoolId: "SCH-T01", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
+      { name: "Rahul Mehta", email: "rahul.mehta@school.edu", schoolId: "SCH-T02", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
+      { name: "Priya Nair", email: "priya.nair@school.edu", schoolId: "SCH-T03", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
+      { name: "David Thomas", email: "david.thomas@school.edu", schoolId: "SCH-T04", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
+      { name: "Meera Iyer", email: "meera.iyer@school.edu", schoolId: "SCH-T05", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
+      { name: "Kiran Bose", email: "kiran.bose@school.edu", schoolId: "SCH-T06", passwordHash, role: "TEACHER", status: "ACTIVE", mustChangePassword: forcePasswordChange },
     ],
   });
 

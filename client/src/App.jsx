@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "./auth.jsx";
 import Layout from "./components/Layout.jsx";
 import { Spinner } from "./components/Spinner.jsx";
@@ -48,9 +48,13 @@ function PageFallback() {
 
 function Guard({ roles, children }) {
   const { user, loading } = useAuth();
+  const location = useLocation();
   if (loading) return <PageFallback />;
   if (!user) return <Navigate to="/login" replace />;
   if (user.status === "PENDING") return <Navigate to="/pending" replace />;
+  if (user.mustChangePassword && location.pathname !== "/profile") {
+    return <Navigate to="/profile" replace />;
+  }
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
   return children;
 }

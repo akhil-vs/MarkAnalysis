@@ -94,6 +94,21 @@ export function AuthProvider({ children }) {
         }
         return data;
       },
+      async changePassword(payload) {
+        const data = await api("/api/auth/change-password", { method: "POST", body: payload });
+        if (data.token) setToken(data.token);
+        if (data.user) {
+          setUser(data.user);
+          writeAuthCache({
+            user: data.user,
+            assignments,
+            classTeacherOf,
+          });
+        } else {
+          await refresh();
+        }
+        return data;
+      },
       logout() {
         setToken(null);
         setUser(null);

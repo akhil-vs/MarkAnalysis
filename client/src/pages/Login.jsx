@@ -7,6 +7,11 @@ import PoweredBy from "../components/PoweredBy.jsx";
 
 const DEMO_PASSWORD = "password123";
 
+/** One-click demos: on in Vite dev unless explicitly disabled; off in production builds unless enabled. */
+const DEMO_LOGIN_ENABLED =
+  import.meta.env.VITE_ENABLE_DEMO_LOGIN === "true" ||
+  (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_LOGIN !== "false");
+
 const DEMO_ACCOUNTS = [
   { name: "Dr. Kavita Rao", role: "Principal", email: "principal@school.edu", schoolId: "SCH-P01" },
   { name: "Sanjay Menon", role: "Exam Coordinator", email: "coordinator@school.edu", schoolId: "SCH-C01" },
@@ -24,17 +29,19 @@ export default function Login() {
   const [mode, setMode] = useState("email");
   const [email, setEmail] = useState("");
   const [schoolId, setSchoolId] = useState("");
-  const [password, setPassword] = useState(DEMO_PASSWORD);
+  const [password, setPassword] = useState(DEMO_LOGIN_ENABLED ? DEMO_PASSWORD : "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
 
-  if (user) return <Navigate to="/" replace />;
+  if (user) {
+    return <Navigate to={user.mustChangePassword ? "/profile" : "/"} replace />;
+  }
 
   async function signIn(payload) {
     setError("");
     try {
-      await login(payload);
-      navigate("/");
+      const data = await login(payload);
+      navigate(data?.user?.mustChangePassword ? "/profile" : "/");
     } catch (err) {
       if (err.status === 403 && err.data?.user?.status === "PENDING") {
         navigate("/pending");
@@ -76,9 +83,12 @@ export default function Login() {
 
   const teachers = DEMO_ACCOUNTS.filter((a) => a.role.startsWith("Teacher"));
   const leadership = DEMO_ACCOUNTS.filter((a) => !a.role.startsWith("Teacher"));
+  const subtitle = DEMO_LOGIN_ENABLED
+    ? "Use any staff account. Seed password is password123."
+    : "Sign in with your school email or staff ID.";
 
   return (
-    <AuthShell title="Sign in" subtitle="Use any staff account. Seed password is password123.">
+    <AuthShell title="Sign in" subtitle={subtitle}>
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="flex gap-2 text-xs">
           {["email", "schoolId"].map((m) => (
@@ -138,20 +148,22 @@ export default function Login() {
         </p>
       </form>
 
-      <div className="mt-8">
-        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mb-2">Leadership</h2>
-        <div className="space-y-2">
-          {leadership.map((account) => (
-            <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
-          ))}
+      {DEMO_LOGIN_ENABLED && (
+        <div className="mt-8">
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mb-2">Leadership</h2>
+          <div className="space-y-2">
+            {leadership.map((account) => (
+              <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
+            ))}
+          </div>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mt-5 mb-2">All teachers</h2>
+          <div className="space-y-2">
+            {teachers.map((account) => (
+              <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
+            ))}
+          </div>
         </div>
-        <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mt-5 mb-2">All teachers</h2>
-        <div className="space-y-2">
-          {teachers.map((account) => (
-            <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
-          ))}
-        </div>
-      </div>
+      )}
     </AuthShell>
   );
 }
@@ -190,7 +202,9 @@ export function AuthShell({ title, subtitle, children }) {
           </p>
         </div>
         <div className="space-y-2">
-          <div className="text-sm text-cream/40">Every seed account uses password123</div>
+          {DEMO_LOGIN_ENABLED && (
+            <div className="text-sm text-cream/40">Every seed account uses password123</div>
+          )}
           <PoweredBy tone="dark" />
         </div>
       </div>
