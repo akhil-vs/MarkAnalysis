@@ -1,9 +1,18 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
+import { ACCESS_COOKIE } from "../lib/authCookies.js";
 
-function verifyBearer(req, res) {
+function readAccessToken(req) {
   const header = req.headers.authorization || "";
-  const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+  if (header.startsWith("Bearer ")) {
+    const bearer = header.slice(7).trim();
+    if (bearer) return bearer;
+  }
+  return req.cookies?.[ACCESS_COOKIE] || null;
+}
+
+function verifyAccess(req, res) {
+  const token = readAccessToken(req);
   if (!token) {
     res.status(401).json({ error: "Unauthorized" });
     return null;
@@ -37,7 +46,7 @@ export async function rejectIfMustChangePassword(req, res, next) {
 }
 
 export function auth(req, res, next) {
-  const payload = verifyBearer(req, res);
+  const payload = verifyAccess(req, res);
   if (!payload) return;
   req.user = payload;
   return rejectIfMustChangePassword(req, res, next);
@@ -45,7 +54,7 @@ export function auth(req, res, next) {
 
 /** Authenticate, but allow callers who still need to change a temporary password. */
 export function authAllowPasswordChange(req, res, next) {
-  const payload = verifyBearer(req, res);
+  const payload = verifyAccess(req, res);
   if (!payload) return;
   req.user = payload;
   req.allowMustChangePassword = true;
@@ -65,7 +74,7 @@ export function signToken(user) {
   return jwt.sign(
     { userId: user.id, role: user.role, name: user.name },
     process.env.JWT_SECRET,
-    { expiresIn: "7d" }
+    { expiresIn: process.env.JWT_ACCESS_EXPIRES || "15m" }
   );
 }
 

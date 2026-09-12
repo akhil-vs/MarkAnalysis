@@ -8,6 +8,15 @@ import {
   signToken,
 } from "../middleware/auth.js";
 import { authAttemptKey, rateLimit } from "../lib/rateLimit.js";
+import {
+  clearAuthCookies,
+  createRefreshSession,
+  REFRESH_COOKIE,
+  revokeRefreshSession,
+  rotateRefreshSession,
+  setAccessCookie,
+  setRefreshCookie,
+} from "../lib/authCookies.js";
 
 export const authRouter = Router();
 
@@ -17,6 +26,14 @@ const authWriteLimit = rateLimit({
   keyFn: authAttemptKey,
   message: "Too many sign-in attempts. Try again in a few minutes.",
 });
+
+async function establishSession(req, res, user) {
+  const access = signToken(user);
+  const refresh = await createRefreshSession(user.id, { userAgent: req.get("user-agent") });
+  setAccessCookie(res, access);
+  setRefreshCookie(res, refresh.raw);
+  return { user: publicUser(user) };
+}
 
 authRouter.post("/signup", authWriteLimit, async (req, res) => {
   const { name, email, schoolId, password, role } = req.body || {};
@@ -65,7 +82,6 @@ authRouter.post("/signup", authWriteLimit, async (req, res) => {
 
   return res.status(201).json({
     user: publicUser(user),
-    token: null,
     message: "Account pending principal approval",
   });
 });
@@ -93,7 +109,31 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     return res.status(403).json({ error: "Account was rejected" });
   }
 
-  return res.json({ user: publicUser(user), token: signToken(user) });
+  return res.json(await establishSession(req, res, user));
+});
+
+authRouter.post("/refresh", authWriteLimit, async (req, res) => {
+  const rotated = await rotateRefreshSession(req.cookies?.[REFRESH_COOKIE], {
+    userAgent: req.get("user-agent"),
+  });
+  if (!rotated) {
+    clearAuthCookies(res);
+    return res.status(401).json({ error: "Session expired" });
+  }
+  const user = await prisma.user.findUnique({ where: { id: rotated.userId } });
+  if (!user || user.status === "PENDING" || user.status === "REJECTED") {
+    clearAuthCookies(res);
+    return res.status(401).json({ error: "Session expired" });
+  }
+  setAccessCookie(res, signToken(user));
+  setRefreshCookie(res, rotated.raw);
+  return res.json({ user: publicUser(user) });
+});
+
+authRouter.post("/logout", async (req, res) => {
+  await revokeRefreshSession(req.cookies?.[REFRESH_COOKIE]);
+  clearAuthCookies(res);
+  return res.json({ ok: true });
 });
 
 authRouter.get("/me", authAllowPasswordChange, async (req, res) => {
@@ -148,7 +188,6 @@ authRouter.post("/change-password", authAllowPasswordChange, async (req, res) =>
   res.json({
     ok: true,
     message: "Password updated",
-    user: publicUser(updated),
-    token: signToken(updated),
+    ...(await establishSession(req, res, updated)),
   });
 });

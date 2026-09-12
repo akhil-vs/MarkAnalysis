@@ -16,7 +16,7 @@ docker compose up -d
 cd server
 cp .env.example .env
 npm install
-npx prisma migrate dev --name init
+npx prisma migrate dev
 npm run seed
 npm test
 npm run dev
@@ -31,6 +31,17 @@ npm run dev
 ```
 
 Open [http://localhost:5173](http://localhost:5173).
+
+### Full stack in Docker
+
+```bash
+export JWT_SECRET=a-long-random-string
+docker compose up --build
+```
+
+API on [http://localhost:4000](http://localhost:4000), web on [http://localhost:8080](http://localhost:8080). The API container runs `prisma migrate deploy` before listening.
+
+Seed is **non-destructive** when users already exist. To wipe and reseed locally: `SEED_MODE=wipe npm run seed`. In production also set `ALLOW_DESTRUCTIVE_SEED=true`.
 
 Leadership can set the **school name and board** under **School profile** (used on report cards and consolidated lists). After a year, use **Records → Promote** to move a class to the next section without losing last year’s marks. On the mark register, type `AB`, `EX`, or `WH` for absent, exempt, or withheld. Class teachers can open their section’s full register (read-only for papers they do not teach).
 
@@ -75,7 +86,7 @@ The **working week** (5 or 6 school days) and **bell schedule** (period names, s
 
 Leadership can also add or remove teaching periods on a teacher’s timetable page.
 
-Deployments generate the Prisma client on Vercel build. If the live database is behind on timetable or staff-notice migrations (common when `DATABASE_URL` is runtime-only), the API applies missing `Period` / `TimetableEntry` tables and `NotificationType` enum values on first Timetables or Notify-teachers request, and seeds a default bell schedule when periods are empty.
+Deployments generate the Prisma client on Vercel build. On cold start the API runs `prisma migrate deploy` when `DATABASE_URL` is available, then `ensurePendingSchema` as a catch-up for environments that cannot migrate at build time. You can also run migrations from GitHub Actions (workflow **Migrate database**) when `secrets.DATABASE_URL` is set. Set `SKIP_MIGRATE_DEPLOY=true` to rely only on the catch-up path.
 
 ## Consolidated mark lists
 
@@ -85,7 +96,7 @@ Once teachers have entered marks for an exam and leadership has **approved** the
 
 Open **Consolidated lists** in the sidebar (or from the school desk / teacher desk). Choose an exam, then a class, then a division. The screen shows every student against every subject, with total, percent, grade, and rank. Divisions are marked **Ready** when every subject register is fully approved.
 
-Download **Excel** or **PDF**. Leadership can still preview incomplete divisions; missing or draft papers appear as blanks. Class teachers do not see incomplete lists. Approve remaining registers on the mark register before treating the file as official.
+Download **Excel** or **PDF**. Leadership can download a **preview** of incomplete divisions (watermarked / labelled preview-only). **Official** downloads require every subject register to be approved (`official=1`); incomplete official requests return HTTP 409. Class teachers do not see incomplete lists. Approve remaining registers on the mark register before treating the file as official.
 
 ## Notify teachers
 

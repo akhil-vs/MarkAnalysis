@@ -25,12 +25,14 @@ Remaining work that would make this suitable for a live school:
 - Email digests for pending sign-ups, late entry, deadlines, approvals
 - ~~Force password change after admin reset; gate demo one-click accounts~~ (`mustChangePassword`, `VITE_ENABLE_DEMO_LOGIN`)
 - ~~Server-side search/pagination for students, staff, and audit log~~
-- Incomplete consolidated PDF watermark / hard block for official download
+- ~~Incomplete consolidated PDF watermark / hard block for official download~~ (`official=1` → 409 when incomplete; preview PDF watermark)
 
 ## Engineering
 
 - Broader API/integration tests against a real database
-- Production Docker Compose (`db` + `api` + `web`)
-- ~~Rate limiting on auth~~ (in-memory limiter on login/signup; httpOnly / refresh tokens still open)
-- Non-destructive seed path for demos
+- ~~Production Docker Compose (`db` + `api` + `web`)~~
+- ~~Rate limiting on auth~~ (in-memory limiter on login/signup)
+- ~~httpOnly access + refresh cookies~~ (`sma_access` / `sma_refresh`, rotate on `/api/auth/refresh`)
+- ~~Non-destructive seed path for demos~~ (skip wipe unless `SEED_MODE=wipe`)
+- ~~Migrate-on-deploy~~ (`prisma migrate deploy` on API boot + GitHub Action; `ensurePendingSchema` fallback)
 - ~~Replace `xlsx` parse path with ExcelJS-only~~ (uploads parse via ExcelJS; legacy `.xls` rejected)
