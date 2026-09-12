@@ -8,10 +8,11 @@ import {
   round1,
 } from "./grades.js";
 import { isScoredMark } from "./markCodes.js";
+import { markObtainedTotal, subjectEntryMax } from "./subjectMarks.js";
 
 export function toPercent(mark) {
   if (!isScoredMark(mark)) return null;
-  return percentOf(mark.marksObtained, mark.subject.maxMarks);
+  return percentOf(markObtainedTotal(mark), subjectEntryMax(mark.subject));
 }
 
 export function percentsOf(marks) {
@@ -55,7 +56,7 @@ export function studentTotals(marksByStudent, { gradeFn = gradeFromPercent } = {
       student: marks[0].student,
       avg: round1(avg),
       grade: gradeFn(avg),
-      total: scored.reduce((s, m) => s + (m.marksObtained || 0), 0),
+      total: scored.reduce((s, m) => s + (markObtainedTotal(m) || 0), 0),
       count: scored.length,
     };
   });

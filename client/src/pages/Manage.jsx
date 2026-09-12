@@ -240,11 +240,11 @@ function ClassesTab() {
 }
 
 function emptySubjectForm(className = "") {
-  return { name: "", className, maxMarks: 100 };
+  return { name: "", className, maxMarks: 100, practicalMaxMarks: "", isElective: false, enrolledStudentIds: [] };
 }
 
 function subjectSearchText(r) {
-  return searchHaystack(r.name, r.className, r.maxMarks);
+  return searchHaystack(r.name, r.className, r.maxMarks, r.isElective ? "elective" : "");
 }
 
 function uniqueClassNames(sections = []) {
@@ -258,6 +258,7 @@ const SUBJECT_FILTERS = [{ key: "className", match: (r, v) => String(r.className
 function SubjectsTab() {
   const [rows, setRows] = useState([]);
   const [classSections, setClassSections] = useState([]);
+  const [classStudents, setClassStudents] = useState([]);
   const confirm = useConfirm();
   const [form, setForm] = useState(emptySubjectForm());
   const [formError, setFormError] = useState("");
@@ -272,6 +273,14 @@ function SubjectsTab() {
       String(a).localeCompare(String(b), undefined, { numeric: true })
     );
   }, [classOptions, form.className]);
+
+  const enrollmentCandidates = useMemo(() => {
+    if (!form.isElective || !form.className) return [];
+    return classStudents
+      .filter((s) => s.classSection?.className === form.className && s.status !== "PROMOTED")
+      .slice()
+      .sort((a, b) => String(a.rollNo).localeCompare(String(b.rollNo), undefined, { numeric: true }));
+  }, [classStudents, form.className, form.isElective]);
 
   async function load() {
     const [subjects, classes] = await Promise.all([
@@ -288,20 +297,72 @@ function SubjectsTab() {
   }
   useEffect(() => { load(); }, []);
 
-  function startEdit(row) {
+  async function loadClassStudents(className) {
+    if (!className) {
+      setClassStudents([]);
+      return;
+    }
+    const sectionIds = classSections
+      .filter((c) => c.className === className)
+      .map((c) => c.id);
+    if (!sectionIds.length) {
+      setClassStudents([]);
+      return;
+    }
+    const batches = await Promise.all(
+      sectionIds.map((id) => api(`/api/students?classSectionId=${id}`))
+    );
+    const merged = [];
+    for (const batch of batches) {
+      const list = Array.isArray(batch) ? batch : batch?.items || [];
+      merged.push(...list);
+    }
+    setClassStudents(merged);
+  }
+
+  async function startEdit(row) {
     setEditingId(row.id);
     setFormError("");
     setForm({
       name: row.name,
       className: row.className,
       maxMarks: row.maxMarks,
+      isElective: Boolean(row.isElective),
+      enrolledStudentIds: [],
+      practicalMaxMarks: row.practicalMaxMarks ?? "",
     });
+    if (row.isElective) {
+      try {
+        const [enrollments] = await Promise.all([
+          api(`/api/subjects/${row.id}/enrollments`),
+          loadClassStudents(row.className),
+        ]);
+        setForm((f) => ({
+          ...f,
+          enrolledStudentIds: enrollments?.studentIds || [],
+        }));
+      } catch (err) {
+        toast.error(err.message || "Could not load enrollments");
+      }
+    } else {
+      setClassStudents([]);
+    }
   }
 
   function cancelEdit() {
     setEditingId(null);
     setFormError("");
+    setClassStudents([]);
     setForm(emptySubjectForm(classOptions[0] || ""));
+  }
+
+  function toggleEnrollment(studentId) {
+    setForm((f) => {
+      const set = new Set(f.enrolledStudentIds || []);
+      if (set.has(studentId)) set.delete(studentId);
+      else set.add(studentId);
+      return { ...f, enrolledStudentIds: [...set] };
+    });
   }
 
   async function save(e) {
@@ -312,7 +373,12 @@ function SubjectsTab() {
     }
     const name = requiredText(form.name, "Subject name");
     const maxMarks = parsePositiveInt(form.maxMarks, "Max marks");
-    const err = firstError(name, maxMarks);
+    const practicalRaw = form.practicalMaxMarks;
+    const practicalMaxMarks =
+      practicalRaw === "" || practicalRaw == null
+        ? { value: null }
+        : parsePositiveInt(practicalRaw, "Practical max marks");
+    const err = firstError(name, maxMarks, practicalMaxMarks);
     if (err) {
       setFormError(err);
       toast.error(err);
@@ -321,13 +387,27 @@ function SubjectsTab() {
     setFormError("");
     setBusy(true);
     try {
-      const body = { name: name.value, className: form.className, maxMarks: maxMarks.value };
+      const body = {
+        name: name.value,
+        className: form.className,
+        maxMarks: maxMarks.value,
+        isElective: Boolean(form.isElective),
+        practicalMaxMarks: practicalMaxMarks.value,
+      };
+      let subjectId = editingId;
       if (editingId) {
         await api(`/api/subjects/${editingId}`, { method: "PATCH", body });
         toast.success("Subject updated.");
       } else {
-        await api("/api/subjects", { method: "POST", body });
+        const created = await api("/api/subjects", { method: "POST", body });
+        subjectId = created?.id;
         toast.success("Subject created.");
+      }
+      if (form.isElective && subjectId) {
+        await api(`/api/subjects/${subjectId}/enrollments`, {
+          method: "PUT",
+          body: { studentIds: form.enrolledStudentIds || [] },
+        });
       }
       cancelEdit();
       await load();
@@ -378,7 +458,11 @@ function SubjectsTab() {
           <select
             className="field"
             value={form.className}
-            onChange={(e) => setForm({ ...form, className: e.target.value })}
+            onChange={(e) => {
+              const className = e.target.value;
+              setForm({ ...form, className, enrolledStudentIds: [] });
+              if (form.isElective) loadClassStudents(className);
+            }}
             required
             disabled={busy || formClassOptions.length === 0}
             aria-label="Select class"
@@ -416,9 +500,80 @@ function SubjectsTab() {
             disabled={busy}
           />
           <p className="mt-1 text-xs text-ink-700/55">
-            Ceiling for mark entry and register validation. Must be 1 or more. Consolidation max is set per exam.
+            Theory ceiling for mark entry. Must be 1 or more. Consolidation max is set per exam.
           </p>
         </div>
+        <div>
+          <label className="label">Practical max (optional)</label>
+          <input
+            className={fieldClass(
+              formError &&
+                form.practicalMaxMarks !== "" &&
+                form.practicalMaxMarks != null &&
+                parsePositiveInt(form.practicalMaxMarks, "Practical max marks").error
+            )}
+            type="number"
+            min={1}
+            step={1}
+            inputMode="numeric"
+            placeholder="Leave blank for theory-only"
+            value={form.practicalMaxMarks}
+            onKeyDown={rejectNegativeKey}
+            onChange={(e) =>
+              setForm({
+                ...form,
+                practicalMaxMarks: acceptNonNegativeInput(e.target.value, form.practicalMaxMarks, {
+                  integer: true,
+                  allowEmpty: true,
+                }),
+              })
+            }
+            disabled={busy}
+          />
+          <p className="mt-1 text-xs text-ink-700/55">
+            When set, Marks Entry collects theory and practical separately (totals add up).
+          </p>
+        </div>
+        <label className="flex items-center gap-2 text-sm text-ink-800">
+          <input
+            type="checkbox"
+            checked={Boolean(form.isElective)}
+            disabled={busy}
+            onChange={(e) => {
+              const isElective = e.target.checked;
+              setForm((f) => ({ ...f, isElective, enrolledStudentIds: isElective ? f.enrolledStudentIds : [] }));
+              if (isElective) loadClassStudents(form.className);
+              else setClassStudents([]);
+            }}
+          />
+          Elective (enroll selected students only)
+        </label>
+        {form.isElective && (
+          <div className="rounded-md border border-ink-900/10 p-3 space-y-2 max-h-56 overflow-y-auto">
+            <p className="text-xs font-medium text-ink-700/70">
+              Enrolled students{editingId ? "" : " (saved after create)"}
+            </p>
+            {enrollmentCandidates.length === 0 ? (
+              <p className="text-xs text-ink-700/55">No students in this class yet.</p>
+            ) : (
+              enrollmentCandidates.map((student) => (
+                <label key={student.id} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={(form.enrolledStudentIds || []).includes(student.id)}
+                    disabled={busy}
+                    onChange={() => toggleEnrollment(student.id)}
+                  />
+                  <span className="tabular-nums text-ink-700/55 w-10">{student.rollNo}</span>
+                  <span>{student.name}</span>
+                  {student.classSection?.section ? (
+                    <span className="text-xs text-ink-700/45">§{student.classSection.section}</span>
+                  ) : null}
+                </label>
+              ))
+            )}
+          </div>
+        )}
         {formError && <FieldError message={formError} />}
         {classOptions.length === 0 && (
           <p className="text-sm text-clay-600">Add a class section under Classes before creating subjects.</p>
@@ -460,6 +615,8 @@ function SubjectsTab() {
                   <th>Subject</th>
                   <th>Class</th>
                   <th>Max marks</th>
+                  <th>Practical</th>
+                  <th>Elective</th>
                   <th></th>
                 </tr>
               </thead>
@@ -469,6 +626,8 @@ function SubjectsTab() {
                     <td>{r.name}</td>
                     <td>{r.className}</td>
                     <td>{r.maxMarks}</td>
+                    <td>{r.practicalMaxMarks ?? "—"}</td>
+                    <td>{r.isElective ? "Yes" : "—"}</td>
                     <td className="whitespace-nowrap space-x-2">
                       <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
                       <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>

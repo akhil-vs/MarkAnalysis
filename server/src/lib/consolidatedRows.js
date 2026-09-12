@@ -1,6 +1,8 @@
 import { gradeFromPercent, percentOf, round1 } from "./grades.js";
 import { formatMarkCell, isScoredMark } from "./markCodes.js";
+import { markObtainedTotal, subjectEntryMax } from "./subjectMarks.js";
 import { applyTiedRanks } from "./stats.js";
+import { enrollmentKeySet, studentTakesSubject } from "./electiveEnrollment.js";
 
 /**
  * Stamp each subject with this exam’s consolidation ceiling so CML totals
@@ -17,25 +19,24 @@ export function applyExamConsolidationMax(subjects, exam) {
 
 /**
  * Ceiling used for consolidated totals and percentages.
- * Falls back to entry maxMarks when the consolidation field is missing.
+ * Falls back to entry max when the consolidation field is missing.
  */
 export function subjectConsolidationMax(subject) {
   if (!subject) return null;
-  const value = subject.consolidationMaxMarks ?? subject.maxMarks;
+  const value = subject.consolidationMaxMarks ?? subjectEntryMax(subject);
   return value == null ? null : Number(value);
 }
 
 /**
  * Convert an entered score onto the consolidation ceiling.
- * Percent is obtained / entry max, so it stays within 0–100 when the
- * register rejected scores above Max marks — even if the consolidation
- * ceiling is lower (the Chemistry / dual-ceiling case).
+ * Percent is obtained / entry max (theory + practical), so dual-component
+ * papers scale the combined total.
  */
 export function scaleMarksToConsolidation(marksObtained, subject) {
   if (marksObtained == null) return null;
   const obtained = Number(marksObtained);
   if (!Number.isFinite(obtained)) return null;
-  const entryMax = subject?.maxMarks == null ? null : Number(subject.maxMarks);
+  const entryMax = subjectEntryMax(subject);
   const ceil = subjectConsolidationMax(subject);
   if (entryMax == null || entryMax <= 0 || ceil == null) {
     return ceil == null ? obtained : round1(Math.min(ceil, Math.max(0, obtained)));
@@ -45,10 +46,12 @@ export function scaleMarksToConsolidation(marksObtained, subject) {
 }
 
 function scoredConsolidated(mark, subject) {
-  if (!isScoredMark(mark) || mark?.marksObtained == null) return null;
+  if (!isScoredMark(mark)) return null;
+  const obtained = markObtainedTotal(mark);
+  if (obtained == null) return null;
   const ceil = subjectConsolidationMax(subject);
-  const scaled = scaleMarksToConsolidation(mark.marksObtained, subject);
-  const percent = percentOf(mark.marksObtained, subject?.maxMarks ?? ceil);
+  const scaled = scaleMarksToConsolidation(obtained, subject);
+  const percent = percentOf(obtained, subjectEntryMax(subject) ?? ceil);
   return { scaled, percent, ceil };
 }
 
@@ -56,15 +59,44 @@ function scoredConsolidated(mark, subject) {
  * Build per-student totals, percents, grades, and tied ranks from entered marks.
  * Draft/submitted papers count toward provisional totals so bulk uploads and
  * incomplete previews still show standing; "ready" remains approval-gated.
+ * Elective subjects the student is not enrolled in show as N/A and are omitted
+ * from totals / maxTotal.
+ *
+ * @param {Array} students
+ * @param {Array} subjects
+ * @param {Array} marks
+ * @param {Set|Array|null} enrollmentKeys
  */
-export function buildConsolidatedStudentRows(students, subjects, marks) {
+export function buildConsolidatedStudentRows(students, subjects, marks, enrollmentKeys = null) {
+  const keys =
+    enrollmentKeys instanceof Set
+      ? enrollmentKeys
+      : enrollmentKeys
+        ? enrollmentKeySet(enrollmentKeys)
+        : new Set();
+
   const rows = students.map((student) => {
     const bySubject = {};
     let obtained = 0;
     let maxForEntered = 0;
     let papers = 0;
     let approvedPapers = 0;
+    const applicableSubjects = [];
     for (const subject of subjects) {
+      if (!studentTakesSubject(subject, student.id, keys)) {
+        const ceil = subjectConsolidationMax(subject);
+        bySubject[subject.id] = {
+          marks: null,
+          display: "—",
+          outcome: null,
+          max: ceil,
+          percent: null,
+          grade: null,
+          status: "N/A",
+        };
+        continue;
+      }
+      applicableSubjects.push(subject);
       const mark = marks.find((m) => m.studentId === student.id && m.subjectId === subject.id);
       const scored = mark ? scoredConsolidated(mark, subject) : null;
       const ceil = scored?.ceil ?? subjectConsolidationMax(subject);
@@ -99,7 +131,7 @@ export function buildConsolidatedStudentRows(students, subjects, marks) {
       total: papers ? round1(obtained) : null,
       maxTotal: papers
         ? maxForEntered
-        : subjects.reduce((s, x) => s + (subjectConsolidationMax(x) || 0), 0),
+        : applicableSubjects.reduce((s, x) => s + (subjectConsolidationMax(x) || 0), 0),
       percent,
       grade: gradeFromPercent(percent),
       papers,

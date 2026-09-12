@@ -517,6 +517,47 @@ async function ensureMarkAuditReasonColumn() {
   await recordMigration(MARK_MODERATION_MIGRATION, MARK_MODERATION_CHECKSUM);
 }
 
+const ELECTIVE_MIGRATION = "20260912150000_elective_enrollments";
+const ELECTIVE_CHECKSUM =
+  "b279ae75c305c729d48e6c8b623b8f2c0d4bc7e824fcf1fcd921f8096c897f19";
+
+const ELECTIVE_STATEMENTS = [
+  `ALTER TABLE "Subject" ADD COLUMN IF NOT EXISTS "isElective" BOOLEAN NOT NULL DEFAULT false`,
+  `CREATE TABLE IF NOT EXISTS "StudentSubjectEnrollment" (
+    "id" TEXT NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "StudentSubjectEnrollment_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "StudentSubjectEnrollment_studentId_subjectId_key" ON "StudentSubjectEnrollment"("studentId", "subjectId")`,
+  `CREATE INDEX IF NOT EXISTS "StudentSubjectEnrollment_subjectId_idx" ON "StudentSubjectEnrollment"("subjectId")`,
+];
+
+const ELECTIVE_FK_STATEMENTS = [
+  `ALTER TABLE "StudentSubjectEnrollment" ADD CONSTRAINT "StudentSubjectEnrollment_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "StudentSubjectEnrollment" ADD CONSTRAINT "StudentSubjectEnrollment_subjectId_fkey" FOREIGN KEY ("subjectId") REFERENCES "Subject"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+];
+
+async function ensureElectiveEnrollments() {
+  const hasColumn = await columnExists("Subject", "isElective");
+  const hasTable = await tableExists("StudentSubjectEnrollment");
+  if (hasColumn && hasTable) {
+    await recordMigration(ELECTIVE_MIGRATION, ELECTIVE_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(ELECTIVE_STATEMENTS);
+  for (const sql of ELECTIVE_FK_STATEMENTS) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (err) {
+      if (!/already exists/i.test(String(err?.message || err))) throw err;
+    }
+  }
+  await recordMigration(ELECTIVE_MIGRATION, ELECTIVE_CHECKSUM);
+}
+
 const REFRESH_TOKEN_MIGRATION = "20260912120000_refresh_tokens";
 const REFRESH_TOKEN_CHECKSUM =
   "de0285fba40449e21f54ec788c497c51c99ecb74efe352c2e65883119c7d12fe";
@@ -554,6 +595,26 @@ async function ensureRefreshTokenTable() {
   }
   await recordMigration(REFRESH_TOKEN_MIGRATION, REFRESH_TOKEN_CHECKSUM);
 }
+
+const THEORY_PRACTICAL_MIGRATION = "20260912140000_theory_practical_marks";
+const THEORY_PRACTICAL_CHECKSUM =
+  "9cf2f657e0d9615394beb76827c2cb170fd78d034d000fe0ecdf63f170c6c202";
+const THEORY_PRACTICAL_STATEMENTS = [
+  `ALTER TABLE "Subject" ADD COLUMN IF NOT EXISTS "practicalMaxMarks" INTEGER`,
+  `ALTER TABLE "Mark" ADD COLUMN IF NOT EXISTS "practicalMarks" DOUBLE PRECISION`,
+];
+
+async function ensureTheoryPracticalColumns() {
+  const hasPracticalMax = await columnExists("Subject", "practicalMaxMarks");
+  const hasPracticalMarks = await columnExists("Mark", "practicalMarks");
+  if (hasPracticalMax && hasPracticalMarks) {
+    await recordMigration(THEORY_PRACTICAL_MIGRATION, THEORY_PRACTICAL_CHECKSUM);
+    return;
+  }
+  await applyStatements(THEORY_PRACTICAL_STATEMENTS);
+  await recordMigration(THEORY_PRACTICAL_MIGRATION, THEORY_PRACTICAL_CHECKSUM);
+}
+
 
 /**
  * Apply schema pieces that may be missing in production when Vercel builds
@@ -616,8 +677,10 @@ export async function ensurePendingSchema() {
         ensureSchoolWorkingDaysColumn(),
         ensureMustChangePasswordColumn(),
         ensureMarkAuditReasonColumn(),
-        ensurePortalAccessLinkTable(),
+        ensureElectiveEnrollments(),
         ensureRefreshTokenTable(),
+        ensureTheoryPracticalColumns(),
+        ensurePortalAccessLinkTable(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -679,7 +742,14 @@ export const __test = {
   REFRESH_TOKEN_MIGRATION,
   REFRESH_TOKEN_CHECKSUM,
   REFRESH_TOKEN_STATEMENTS,
+  THEORY_PRACTICAL_MIGRATION,
+  THEORY_PRACTICAL_CHECKSUM,
+  THEORY_PRACTICAL_STATEMENTS,
   MULTI_CLASS_PERIOD_MIGRATION,
   MULTI_CLASS_PERIOD_CHECKSUM,
   MULTI_CLASS_PERIOD_STATEMENTS,
+  ELECTIVE_MIGRATION,
+  ELECTIVE_CHECKSUM,
+  ELECTIVE_STATEMENTS,
+  ELECTIVE_FK_STATEMENTS,
 };

@@ -1,5 +1,6 @@
 import { auditValueFor, parseMarkInput } from "./markCodes.js";
 import { mutateBlockFromAccess } from "./markAccess.js";
+import { studentTakesSubject } from "./electiveEnrollment.js";
 
 /**
  * Deduplicate register cells (last write wins) and drop incomplete rows.
@@ -22,6 +23,7 @@ export function normalizeMarkEntries(entries) {
  * @param {Map} args.markMap `${studentId}:${subjectId}` -> existing mark
  * @param {Set|null} args.writableKeys `${classSectionId}:${subjectId}` for teachers; null = all writable
  * @param {object|null} args.accessBySubject entryAccess.bySubject map for teachers
+ * @param {Set|null} args.enrollmentKeys elective `${studentId}:${subjectId}` pairs
  */
 export function planMarkMutations({
   entries,
@@ -30,11 +32,13 @@ export function planMarkMutations({
   markMap,
   writableKeys = null,
   accessBySubject = null,
+  enrollmentKeys = null,
 }) {
   const plans = [];
+  const keys = enrollmentKeys instanceof Set ? enrollmentKeys : new Set();
 
   for (const entry of entries) {
-    const { studentId, subjectId, marksObtained } = entry;
+    const { studentId, subjectId, marksObtained, practicalMarks } = entry;
     const student = studentMap.get(studentId);
     const subject = subjectMap.get(subjectId);
     if (!student || !subject) {
@@ -43,6 +47,16 @@ export function planMarkMutations({
         studentId,
         subjectId,
         error: "Student or subject not found",
+      });
+      continue;
+    }
+
+    if (subject.isElective && !studentTakesSubject(subject, studentId, keys)) {
+      plans.push({
+        type: "error",
+        studentId,
+        subjectId,
+        error: "Student not enrolled in elective",
       });
       continue;
     }
@@ -85,10 +99,32 @@ export function planMarkMutations({
       continue;
     }
 
+    const hasPractical =
+      subject.practicalMaxMarks != null && Number(subject.practicalMaxMarks) > 0;
+    let nextPractical = null;
+    if (hasPractical && parsed.outcome === "SCORED") {
+      const practicalParsed = parseMarkInput(practicalMarks, subject.practicalMaxMarks);
+      if (practicalParsed.error) {
+        plans.push({ type: "error", studentId, subjectId, error: practicalParsed.error });
+        continue;
+      }
+      if (!practicalParsed.empty && practicalParsed.outcome !== "SCORED") {
+        plans.push({
+          type: "error",
+          studentId,
+          subjectId,
+          error: "Practical marks must be a number (use AB/EX/WH on theory only)",
+        });
+        continue;
+      }
+      nextPractical = practicalParsed.empty ? null : practicalParsed.marksObtained;
+    }
+
     const sameScore =
       existing &&
       existing.outcome === parsed.outcome &&
-      existing.marksObtained === parsed.marksObtained;
+      existing.marksObtained === parsed.marksObtained &&
+      (existing.practicalMarks ?? null) === nextPractical;
     if (sameScore) {
       plans.push({ type: "unchanged", studentId, subjectId, mark: existing });
       continue;
@@ -99,7 +135,7 @@ export function planMarkMutations({
       studentId,
       subjectId,
       existing,
-      parsed,
+      parsed: { ...parsed, practicalMarks: nextPractical },
       auditOld: existing ? auditValueFor(existing.outcome, existing.marksObtained) : null,
       auditNew: auditValueFor(parsed.outcome, parsed.marksObtained),
     });
@@ -184,6 +220,7 @@ export async function applyMarkPlans(prismaClient, { examId, userId, plans, chun
         subjectId: plan.subjectId,
         examId,
         marksObtained: plan.parsed.marksObtained,
+        practicalMarks: plan.parsed.practicalMarks ?? null,
         outcome: plan.parsed.outcome,
         enteredById: userId,
         status: "DRAFT",
@@ -225,6 +262,7 @@ export async function applyMarkPlans(prismaClient, { examId, userId, plans, chun
             where: { id: plan.existing.id },
             data: {
               marksObtained: plan.parsed.marksObtained,
+              practicalMarks: plan.parsed.practicalMarks ?? null,
               outcome: plan.parsed.outcome,
               enteredById: userId,
               status: "DRAFT",

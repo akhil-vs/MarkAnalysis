@@ -6,10 +6,10 @@ Remaining work that would make this suitable for a live school:
 
 ## Domain / school operations
 
-- **Theory + practical / IA** split papers and weighted components
+- ~~**Theory + practical / IA** split papers and weighted components~~ (optional `practicalMaxMarks`; Marks Entry theory+practical cells)
 - ~~**Weighted annual result** across unit / mid / final~~ (School profile exam weights + analytics insights)
 - ~~**Configurable grade bands** and pass percent (board-specific)~~ (School profile Analytics grading)
-- **Electives / additional subjects** per student
+- ~~**Electives / additional subjects** per student~~ (`Subject.isElective` + enrollments; register / CML skip non-enrolled)
 - ~~**Class-teacher inbox** for section pending papers~~ (read access + gated CML for class teachers; dedicated inbox still open)
 - ~~**Moderation / grace marks** with audit reason~~ (`POST /api/marks/moderate` + Marks Entry Moderate)
 - ~~One-time consolidation max-marks lock for principal / exam coordinator~~ (Records → Exams → Lock for consolidation)

@@ -262,7 +262,13 @@ export default function MarksEntry() {
 
     const next = {};
     for (const m of data.marks || []) {
-      next[`${m.studentId}:${m.subjectId}`] = formatMarkCell(m);
+      const key = `${m.studentId}:${m.subjectId}`;
+      next[key] = formatMarkCell(m);
+      if (m.practicalMarks != null && m.practicalMarks !== "") {
+        next[`${key}:p`] = String(m.practicalMarks);
+      } else {
+        next[`${key}:p`] = "";
+      }
     }
     setDraft(next);
     setErrors([]);
@@ -324,11 +330,27 @@ export default function MarksEntry() {
     return map;
   }, [grid]);
 
+  const electiveEnrollmentSets = useMemo(() => {
+    const map = {};
+    for (const [subjectId, ids] of Object.entries(grid?.electiveEnrollments || {})) {
+      map[subjectId] = new Set(ids || []);
+    }
+    return map;
+  }, [grid]);
+
+  function studentTakesSubjectCell(subject, studentId) {
+    if (!subject?.isElective) return true;
+    const enrolled = electiveEnrollmentSets[subject.id];
+    return enrolled ? enrolled.has(studentId) : false;
+  }
+
   function canEditSubject(id) {
     return leadership || grid?.entryAccess?.bySubject?.[id]?.canEnter !== false;
   }
 
-  function canEditCell(subjectId, meta) {
+  function canEditCell(subjectId, meta, studentId) {
+    const subject = grid?.subjects?.find((s) => s.id === subjectId);
+    if (subject && studentId && !studentTakesSubjectCell(subject, studentId)) return false;
     if (!canEditSubject(subjectId)) return false;
     if (leadership) return true;
     const locked = meta?.status === "SUBMITTED" || meta?.status === "APPROVED";
@@ -341,32 +363,52 @@ export default function MarksEntry() {
     if (!grid) return set;
     for (const student of grid.students || []) {
       for (const subject of grid.subjects || []) {
+        if (!studentTakesSubjectCell(subject, student.id)) continue;
         const key = `${student.id}:${subject.id}`;
         const meta = markMeta[key];
         const original = meta ? formatMarkCell(meta) : "";
         if (String(draft[key] ?? "") !== original) set.add(key);
+        if (subject.practicalMaxMarks != null && Number(subject.practicalMaxMarks) > 0) {
+          const pKey = `${key}:p`;
+          const originalP =
+            meta?.practicalMarks != null && meta.practicalMarks !== ""
+              ? String(meta.practicalMarks)
+              : "";
+          if (String(draft[pKey] ?? "") !== originalP) set.add(pKey);
+        }
       }
     }
     return set;
-  }, [grid, draft, markMeta]);
+  }, [grid, draft, markMeta, electiveEnrollmentSets]);
 
   const draftIssues = useMemo(() => {
     const map = {};
     if (!grid) return map;
     for (const student of grid.students || []) {
       for (const subject of grid.subjects || []) {
+        if (!studentTakesSubjectCell(subject, student.id)) continue;
         const key = `${student.id}:${subject.id}`;
         const issue = markInputIssue(draft[key], subject.maxMarks);
         if (issue) map[key] = issue;
+        if (subject.practicalMaxMarks != null && Number(subject.practicalMaxMarks) > 0) {
+          const pKey = `${key}:p`;
+          const theory = String(draft[key] ?? "").trim();
+          const practical = String(draft[pKey] ?? "").trim();
+          if (practical && !/^(AB|ABS|ABSENT|EX|EXEMPT|WH|WITHHELD)$/i.test(theory)) {
+            const pIssue = markInputIssue(draft[pKey], subject.practicalMaxMarks);
+            if (pIssue) map[pKey] = pIssue;
+          }
+        }
       }
     }
     return map;
-  }, [grid, draft]);
+  }, [grid, draft, electiveEnrollmentSets]);
 
   const stats = useMemo(() => {
     if (!grid?.students?.length || !grid?.subjects?.length) {
       return { cells: 0, entered: 0, draft: 0, submitted: 0, approved: 0, empty: 0, dirty: 0 };
     }
+    let cells = 0;
     let entered = 0;
     let draftCount = 0;
     let submitted = 0;
@@ -374,20 +416,22 @@ export default function MarksEntry() {
     let empty = 0;
     for (const student of grid.students) {
       for (const subject of grid.subjects) {
+        if (!studentTakesSubjectCell(subject, student.id)) continue;
+        cells += 1;
         const key = `${student.id}:${subject.id}`;
         const meta = markMeta[key];
         const value = draft[key];
         const hasValue = value !== undefined && value !== "";
         if (hasValue) entered += 1;
         else empty += 1;
-        if (dirtyKeys.has(key)) continue;
+        if (dirtyKeys.has(key) || dirtyKeys.has(`${key}:p`)) continue;
         if (meta?.status === "APPROVED") approved += 1;
         else if (meta?.status === "SUBMITTED") submitted += 1;
         else if (meta?.status === "DRAFT") draftCount += 1;
       }
     }
     return {
-      cells: grid.students.length * grid.subjects.length,
+      cells,
       entered,
       draft: draftCount,
       submitted,
@@ -395,7 +439,7 @@ export default function MarksEntry() {
       empty,
       dirty: dirtyKeys.size,
     };
-  }, [grid, draft, markMeta, dirtyKeys]);
+  }, [grid, draft, markMeta, dirtyKeys, electiveEnrollmentSets]);
 
   function collectChangedEntries({ subjectFilter } = {}) {
     if (!grid) return [];
@@ -403,13 +447,31 @@ export default function MarksEntry() {
     for (const student of grid.students) {
       for (const subject of grid.subjects) {
         if (subjectFilter && subject.id !== subjectFilter) continue;
-        if (!canEditCell(subject.id, markMeta[`${student.id}:${subject.id}`])) continue;
+        if (!studentTakesSubjectCell(subject, student.id)) continue;
+        if (!canEditCell(subject.id, markMeta[`${student.id}:${subject.id}`], student.id)) continue;
         const key = `${student.id}:${subject.id}`;
-        if (draft[key] === undefined) continue;
+        const pKey = `${key}:p`;
         const existing = markMeta[key];
         const original = existing ? formatMarkCell(existing) : "";
-        if (String(draft[key]) === original) continue;
-        entries.push({ studentId: student.id, subjectId: subject.id, marksObtained: draft[key] });
+        const originalP =
+          existing?.practicalMarks != null && existing.practicalMarks !== ""
+            ? String(existing.practicalMarks)
+            : "";
+        const hasPractical =
+          subject.practicalMaxMarks != null && Number(subject.practicalMaxMarks) > 0;
+        const theoryDirty = draft[key] !== undefined && String(draft[key]) !== original;
+        const practicalDirty =
+          hasPractical && draft[pKey] !== undefined && String(draft[pKey]) !== originalP;
+        if (!theoryDirty && !practicalDirty) continue;
+        const entry = {
+          studentId: student.id,
+          subjectId: subject.id,
+          marksObtained: draft[key] !== undefined ? draft[key] : original,
+        };
+        if (hasPractical) {
+          entry.practicalMarks = draft[pKey] !== undefined ? draft[pKey] : originalP;
+        }
+        entries.push(entry);
       }
     }
     return entries;
@@ -430,6 +492,25 @@ export default function MarksEntry() {
           error: parsed.error,
           label: [student?.name, subject?.name].filter(Boolean).join(" · "),
         });
+        continue;
+      }
+      if (
+        subject?.practicalMaxMarks != null &&
+        Number(subject.practicalMaxMarks) > 0 &&
+        parsed.outcome === "SCORED" &&
+        entry.practicalMarks != null &&
+        String(entry.practicalMarks).trim() !== ""
+      ) {
+        const practicalParsed = parseMarkInput(entry.practicalMarks, subject.practicalMaxMarks);
+        if (practicalParsed.error || (practicalParsed.outcome && practicalParsed.outcome !== "SCORED")) {
+          const student = studentById.get(entry.studentId);
+          failed.push({
+            studentId: entry.studentId,
+            subjectId: entry.subjectId,
+            error: practicalParsed.error || "Practical marks must be a number",
+            label: [student?.name, subject?.name, "practical"].filter(Boolean).join(" · "),
+          });
+        }
       }
     }
     return failed;
@@ -1221,7 +1302,9 @@ export default function MarksEntry() {
             <div>
               <div className="font-serif text-lg">{singleSubject.name}</div>
               <div className="text-xs text-ink-700/55">
-                Max {singleSubject.maxMarks} · Enter moves to the next student · AB / EX / WH for absent, exempt, withheld
+                {singleSubject.practicalMaxMarks
+                  ? `Theory max ${singleSubject.maxMarks} · Practical max ${singleSubject.practicalMaxMarks} · AB / EX / WH on theory only`
+                  : `Max ${singleSubject.maxMarks} · Enter moves to the next student · AB / EX / WH for absent, exempt, withheld`}
               </div>
             </div>
             {!canEditSubject(singleSubject.id) && (
@@ -1252,8 +1335,9 @@ export default function MarksEntry() {
                   {page.map((student, rowIdx) => {
                     const key = `${student.id}:${singleSubject.id}`;
                     const meta = markMeta[key];
-                    const editable = canEditCell(singleSubject.id, meta);
-                    const dirty = dirtyKeys.has(key);
+                    const takesSubject = studentTakesSubjectCell(singleSubject, student.id);
+                    const editable = takesSubject && canEditCell(singleSubject.id, meta, student.id);
+                    const dirty = takesSubject && dirtyKeys.has(key);
                     const studentIndex = offset + rowIdx;
                     return (
                       <div
@@ -1269,27 +1353,60 @@ export default function MarksEntry() {
                           <div className="min-w-0 flex-1 font-medium">{student.name}</div>
                         </div>
                         <div className="flex flex-col items-end gap-1 sm:ml-auto">
-                          <div className="flex items-center gap-2">
-                          <MarkCellInput
-                            cellKey={key}
-                            student={student}
-                            subject={singleSubject}
-                            value={draft[key]}
-                            editable={editable}
-                            dirty={dirty}
-                            issue={draftIssues[key]}
-                            inputRefs={inputRefs}
-                            widthClass="w-24"
-                            showMessage={false}
-                            onChange={setMarkDraft}
-                            onKeyDown={(e) => onMarkKeyDown(e, studentIndex, 0)}
-                          />
-                          <span className="text-[11px] text-ink-700/40">/ {singleSubject.maxMarks}</span>
-                          <StatusChip status={meta?.status} dirty={dirty} />
+                          <div className="flex flex-wrap items-center justify-end gap-2">
+                          {takesSubject ? (
+                            <>
+                              <div className="flex items-center gap-1">
+                                <span className="text-[10px] uppercase tracking-wide text-ink-700/45">
+                                  {singleSubject.practicalMaxMarks ? "Th" : ""}
+                                </span>
+                                <MarkCellInput
+                                  cellKey={key}
+                                  student={student}
+                                  subject={singleSubject}
+                                  value={draft[key]}
+                                  editable={editable}
+                                  dirty={dirty || dirtyKeys.has(key)}
+                                  issue={draftIssues[key]}
+                                  inputRefs={inputRefs}
+                                  widthClass="w-20"
+                                  showMessage={false}
+                                  onChange={setMarkDraft}
+                                  onKeyDown={(e) => onMarkKeyDown(e, studentIndex, 0)}
+                                />
+                                <span className="text-[11px] text-ink-700/40">/ {singleSubject.maxMarks}</span>
+                              </div>
+                              {singleSubject.practicalMaxMarks != null && Number(singleSubject.practicalMaxMarks) > 0 ? (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-[10px] uppercase tracking-wide text-ink-700/45">Pr</span>
+                                  <MarkCellInput
+                                    cellKey={`${key}:p`}
+                                    student={student}
+                                    subject={singleSubject}
+                                    value={draft[`${key}:p`]}
+                                    editable={editable}
+                                    dirty={dirtyKeys.has(`${key}:p`)}
+                                    issue={draftIssues[`${key}:p`]}
+                                    inputRefs={inputRefs}
+                                    widthClass="w-20"
+                                    showMessage={false}
+                                    onChange={setMarkDraft}
+                                    onKeyDown={(e) => onMarkKeyDown(e, studentIndex, 0)}
+                                  />
+                                  <span className="text-[11px] text-ink-700/40">/ {singleSubject.practicalMaxMarks}</span>
+                                </div>
+                              ) : null}
+                              <StatusChip status={meta?.status} dirty={dirty || dirtyKeys.has(`${key}:p`)} />
+                            </>
+                          ) : (
+                            <span className="w-24 text-center text-ink-700/40 tabular-nums" title="Not enrolled">
+                              —
+                            </span>
+                          )}
                           </div>
-                          {draftIssues[key] ? (
+                          {takesSubject && (draftIssues[key] || draftIssues[`${key}:p`]) ? (
                             <span className="text-[10px] text-clay-600" role="alert">
-                              {draftIssues[key]}
+                              {draftIssues[key] || draftIssues[`${key}:p`]}
                             </span>
                           ) : null}
                         </div>
@@ -1345,8 +1462,9 @@ export default function MarksEntry() {
                           {grid.subjects.map((subject, subjectIndex) => {
                             const key = `${student.id}:${subject.id}`;
                             const meta = markMeta[key];
-                            const editable = canEditCell(subject.id, meta);
-                            const dirty = dirtyKeys.has(key);
+                            const takesSubject = studentTakesSubjectCell(subject, student.id);
+                            const editable = takesSubject && canEditCell(subject.id, meta, student.id);
+                            const dirty = takesSubject && dirtyKeys.has(key);
                             return (
                               <div
                                 key={subject.id}
@@ -1360,23 +1478,31 @@ export default function MarksEntry() {
                                 </div>
                                 <div className="flex flex-col items-end gap-0.5">
                                   <div className="flex items-center gap-2">
-                                  <MarkCellInput
-                                    cellKey={key}
-                                    student={student}
-                                    subject={subject}
-                                    value={draft[key]}
-                                    editable={editable}
-                                    dirty={dirty}
-                                    issue={draftIssues[key]}
-                                    inputRefs={inputRefs}
-                                    widthClass="w-[4.75rem]"
-                                    showMessage={false}
-                                    onChange={setMarkDraft}
-                                    onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
-                                  />
-                                  <StatusChip status={meta?.status} dirty={dirty} />
+                                  {takesSubject ? (
+                                    <>
+                                      <MarkCellInput
+                                        cellKey={key}
+                                        student={student}
+                                        subject={subject}
+                                        value={draft[key]}
+                                        editable={editable}
+                                        dirty={dirty}
+                                        issue={draftIssues[key]}
+                                        inputRefs={inputRefs}
+                                        widthClass="w-[4.75rem]"
+                                        showMessage={false}
+                                        onChange={setMarkDraft}
+                                        onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
+                                      />
+                                      <StatusChip status={meta?.status} dirty={dirty} />
+                                    </>
+                                  ) : (
+                                    <span className="w-[4.75rem] text-center text-ink-700/40" title="Not enrolled">
+                                      —
+                                    </span>
+                                  )}
                                   </div>
-                                  {draftIssues[key] ? (
+                                  {takesSubject && draftIssues[key] ? (
                                     <span className="text-[10px] text-clay-600" role="alert">
                                       {draftIssues[key]}
                                     </span>
@@ -1418,26 +1544,35 @@ export default function MarksEntry() {
                           {grid.subjects.map((subject, subjectIndex) => {
                             const key = `${student.id}:${subject.id}`;
                             const meta = markMeta[key];
-                            const editable = canEditCell(subject.id, meta);
-                            const dirty = dirtyKeys.has(key);
+                            const takesSubject = studentTakesSubjectCell(subject, student.id);
+                            const editable = takesSubject && canEditCell(subject.id, meta, student.id);
+                            const dirty = takesSubject && dirtyKeys.has(key);
                             return (
                               <td key={subject.id} className="align-top">
                                 <div className="flex flex-col items-center gap-1 py-1">
-                                  <MarkCellInput
-                                    cellKey={key}
-                                    student={student}
-                                    subject={subject}
-                                    value={draft[key]}
-                                    editable={editable}
-                                    dirty={dirty}
-                                    issue={draftIssues[key]}
-                                    inputRefs={inputRefs}
-                                    widthClass="w-20"
-                                    showMessage
-                                    onChange={setMarkDraft}
-                                    onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
-                                  />
-                                  <StatusChip status={meta?.status} dirty={dirty} />
+                                  {takesSubject ? (
+                                    <>
+                                      <MarkCellInput
+                                        cellKey={key}
+                                        student={student}
+                                        subject={subject}
+                                        value={draft[key]}
+                                        editable={editable}
+                                        dirty={dirty}
+                                        issue={draftIssues[key]}
+                                        inputRefs={inputRefs}
+                                        widthClass="w-20"
+                                        showMessage
+                                        onChange={setMarkDraft}
+                                        onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
+                                      />
+                                      <StatusChip status={meta?.status} dirty={dirty} />
+                                    </>
+                                  ) : (
+                                    <span className="w-20 text-center text-ink-700/40 py-2" title="Not enrolled">
+                                      —
+                                    </span>
+                                  )}
                                 </div>
                               </td>
                             );

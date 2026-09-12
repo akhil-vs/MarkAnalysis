@@ -30,6 +30,7 @@ import {
   mergeAuditFeeds,
 } from "../lib/activityAudit.js";
 import { ensureActivityAuditSchema } from "../lib/ensureSchema.js";
+import { electiveEnrollmentMap, enrollmentKeySet } from "../lib/electiveEnrollment.js";
 import { findStudentByRoll, parseSpreadsheet, studentRollIndex } from "../lib/upload.js";
 
 const WRITE_CHUNK = 25;
@@ -93,9 +94,10 @@ marksRouter.get("/", async (req, res) => {
 
   const studentIds = students.map((s) => s.id);
   const subjectIds = subjects.map((s) => s.id);
-  const marks =
+  const electiveSubjectIds = subjects.filter((s) => s.isElective).map((s) => s.id);
+  const [marks, electiveRows] = await Promise.all([
     studentIds.length && subjectIds.length
-      ? await prisma.mark.findMany({
+      ? prisma.mark.findMany({
           where: {
             examId,
             studentId: { in: studentIds },
@@ -103,7 +105,17 @@ marksRouter.get("/", async (req, res) => {
           },
           include: { enteredBy: { select: { id: true, name: true } } },
         })
-      : [];
+      : Promise.resolve([]),
+    electiveSubjectIds.length && studentIds.length
+      ? prisma.studentSubjectEnrollment.findMany({
+          where: {
+            subjectId: { in: electiveSubjectIds },
+            studentId: { in: studentIds },
+          },
+          select: { studentId: true, subjectId: true },
+        })
+      : Promise.resolve([]),
+  ]);
 
   const writable =
     req.user.role === "TEACHER"
@@ -124,6 +136,7 @@ marksRouter.get("/", async (req, res) => {
     students,
     marks,
     entryAccess,
+    electiveEnrollments: electiveEnrollmentMap(subjects, electiveRows),
     classTeacherView: req.user.role === "TEACHER" && classSection.classTeacherId === req.user.userId,
   });
 });
@@ -156,6 +169,19 @@ marksRouter.put("/", async (req, res) => {
   const subjectMap = new Map(subjects.map((s) => [s.id, s]));
   const markMap = new Map(existingMarks.map((m) => [`${m.studentId}:${m.subjectId}`, m]));
 
+  const electiveSubjectIds = subjects.filter((s) => s.isElective).map((s) => s.id);
+  const enrollmentKeys = electiveSubjectIds.length
+    ? enrollmentKeySet(
+        await prisma.studentSubjectEnrollment.findMany({
+          where: {
+            subjectId: { in: electiveSubjectIds },
+            studentId: { in: studentIds },
+          },
+          select: { studentId: true, subjectId: true },
+        })
+      )
+    : new Set();
+
   let writableKeys = null;
   let accessBySubject = null;
   if (req.user.role === "TEACHER") {
@@ -184,6 +210,7 @@ marksRouter.put("/", async (req, res) => {
     markMap,
     writableKeys,
     accessBySubject,
+    enrollmentKeys,
   });
 
   const results = await applyMarkPlans(prisma, {

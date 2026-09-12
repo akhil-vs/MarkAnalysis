@@ -17,6 +17,12 @@ export function parsePositiveInt(value, label = "Value") {
   return { value: n };
 }
 
+/** Empty / null clears the optional practical ceiling (theory-only subject). */
+export function parseOptionalPositiveInt(value, label = "Value") {
+  if (value == null || value === "") return { value: null };
+  return parsePositiveInt(value, label);
+}
+
 export function parseNonNegativeNumber(value, label = "Value", { max } = {}) {
   if (value == null || value === "") {
     return { error: `${label} is required` };

@@ -159,6 +159,23 @@ describe("planMarkMutations", () => {
     });
     assert.equal(plans[0].error, "Not assigned");
   });
+
+  it("rejects marks for students not enrolled in an elective", () => {
+    const electiveMap = new Map([
+      ["comp", { id: "comp", maxMarks: 100, isElective: true }],
+    ]);
+    const plans = planMarkMutations({
+      entries: [{ studentId: "s1", subjectId: "comp", marksObtained: "40" }],
+      studentMap,
+      subjectMap: electiveMap,
+      markMap: new Map(),
+      writableKeys: null,
+      accessBySubject: null,
+      enrollmentKeys: new Set(["s2:comp"]),
+    });
+    assert.equal(plans[0].type, "error");
+    assert.equal(plans[0].error, "Student not enrolled in elective");
+  });
 });
 
 describe("mapInChunks", () => {
