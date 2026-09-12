@@ -18,7 +18,7 @@ subjectsRouter.get("/", async (req, res) => {
 });
 
 subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, className, maxMarks } = req.body || {};
+  const { name, className, maxMarks, isElective } = req.body || {};
   if (!name || !className) {
     return res.status(400).json({ error: "Name and class are required" });
   }
@@ -32,6 +32,7 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
         name,
         className,
         maxMarks: entry.value,
+        ...(typeof isElective === "boolean" ? { isElective } : {}),
       },
     });
     res.status(201).json(created);
@@ -41,12 +42,13 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
 });
 
 subjectsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, className, maxMarks } = req.body || {};
+  const { name, className, maxMarks, isElective } = req.body || {};
   await ensureConsolidationSchema();
 
   const data = {
     ...(name && { name }),
     ...(className && { className }),
+    ...(typeof isElective === "boolean" ? { isElective } : {}),
   };
 
   if (maxMarks != null) {
@@ -60,6 +62,58 @@ subjectsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
     data,
   });
   res.json(updated);
+});
+
+subjectsRouter.get("/:id/enrollments", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  await ensureConsolidationSchema();
+  const subject = await prisma.subject.findUnique({ where: { id: req.params.id } });
+  if (!subject) return res.status(404).json({ error: "Subject not found" });
+
+  const rows = await prisma.studentSubjectEnrollment.findMany({
+    where: { subjectId: subject.id },
+    select: { studentId: true },
+  });
+  res.json({ studentIds: rows.map((r) => r.studentId) });
+});
+
+subjectsRouter.put("/:id/enrollments", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  await ensureConsolidationSchema();
+  const subject = await prisma.subject.findUnique({ where: { id: req.params.id } });
+  if (!subject) return res.status(404).json({ error: "Subject not found" });
+  if (!subject.isElective) {
+    return res.status(400).json({ error: "Subject is not elective" });
+  }
+
+  const rawIds = req.body?.studentIds;
+  if (!Array.isArray(rawIds)) {
+    return res.status(400).json({ error: "studentIds array is required" });
+  }
+  const studentIds = [...new Set(rawIds.map((id) => String(id)).filter(Boolean))];
+
+  if (studentIds.length) {
+    const students = await prisma.student.findMany({
+      where: { id: { in: studentIds } },
+      include: { classSection: { select: { className: true } } },
+    });
+    if (students.length !== studentIds.length) {
+      return res.status(400).json({ error: "One or more students not found" });
+    }
+    const mismatched = students.filter((s) => s.classSection?.className !== subject.className);
+    if (mismatched.length) {
+      return res.status(400).json({ error: "Students must belong to the subject's class" });
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    await tx.studentSubjectEnrollment.deleteMany({ where: { subjectId: subject.id } });
+    if (studentIds.length) {
+      await tx.studentSubjectEnrollment.createMany({
+        data: studentIds.map((studentId) => ({ studentId, subjectId: subject.id })),
+      });
+    }
+  });
+
+  res.json({ studentIds });
 });
 
 subjectsRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {

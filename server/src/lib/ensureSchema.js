@@ -517,6 +517,47 @@ async function ensureMarkAuditReasonColumn() {
   await recordMigration(MARK_MODERATION_MIGRATION, MARK_MODERATION_CHECKSUM);
 }
 
+const ELECTIVE_MIGRATION = "20260912150000_elective_enrollments";
+const ELECTIVE_CHECKSUM =
+  "b279ae75c305c729d48e6c8b623b8f2c0d4bc7e824fcf1fcd921f8096c897f19";
+
+const ELECTIVE_STATEMENTS = [
+  `ALTER TABLE "Subject" ADD COLUMN IF NOT EXISTS "isElective" BOOLEAN NOT NULL DEFAULT false`,
+  `CREATE TABLE IF NOT EXISTS "StudentSubjectEnrollment" (
+    "id" TEXT NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "StudentSubjectEnrollment_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "StudentSubjectEnrollment_studentId_subjectId_key" ON "StudentSubjectEnrollment"("studentId", "subjectId")`,
+  `CREATE INDEX IF NOT EXISTS "StudentSubjectEnrollment_subjectId_idx" ON "StudentSubjectEnrollment"("subjectId")`,
+];
+
+const ELECTIVE_FK_STATEMENTS = [
+  `ALTER TABLE "StudentSubjectEnrollment" ADD CONSTRAINT "StudentSubjectEnrollment_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "StudentSubjectEnrollment" ADD CONSTRAINT "StudentSubjectEnrollment_subjectId_fkey" FOREIGN KEY ("subjectId") REFERENCES "Subject"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+];
+
+async function ensureElectiveEnrollments() {
+  const hasColumn = await columnExists("Subject", "isElective");
+  const hasTable = await tableExists("StudentSubjectEnrollment");
+  if (hasColumn && hasTable) {
+    await recordMigration(ELECTIVE_MIGRATION, ELECTIVE_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(ELECTIVE_STATEMENTS);
+  for (const sql of ELECTIVE_FK_STATEMENTS) {
+    try {
+      await prisma.$executeRawUnsafe(sql);
+    } catch (err) {
+      if (!/already exists/i.test(String(err?.message || err))) throw err;
+    }
+  }
+  await recordMigration(ELECTIVE_MIGRATION, ELECTIVE_CHECKSUM);
+}
+
 const REFRESH_TOKEN_MIGRATION = "20260912120000_refresh_tokens";
 const REFRESH_TOKEN_CHECKSUM =
   "de0285fba40449e21f54ec788c497c51c99ecb74efe352c2e65883119c7d12fe";
@@ -555,6 +596,7 @@ async function ensureRefreshTokenTable() {
   await recordMigration(REFRESH_TOKEN_MIGRATION, REFRESH_TOKEN_CHECKSUM);
 }
 
+
 /**
  * Apply schema pieces that may be missing in production when Vercel builds
  * cannot run `prisma migrate deploy` (DATABASE_URL often runtime-only).
@@ -575,6 +617,7 @@ export async function ensurePendingSchema() {
         ensureSchoolWorkingDaysColumn(),
         ensureMustChangePasswordColumn(),
         ensureMarkAuditReasonColumn(),
+        ensureElectiveEnrollments(),
         ensureRefreshTokenTable(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
@@ -637,4 +680,8 @@ export const __test = {
   MULTI_CLASS_PERIOD_MIGRATION,
   MULTI_CLASS_PERIOD_CHECKSUM,
   MULTI_CLASS_PERIOD_STATEMENTS,
+  ELECTIVE_MIGRATION,
+  ELECTIVE_CHECKSUM,
+  ELECTIVE_STATEMENTS,
+  ELECTIVE_FK_STATEMENTS,
 };

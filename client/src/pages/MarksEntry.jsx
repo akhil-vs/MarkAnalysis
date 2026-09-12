@@ -324,11 +324,27 @@ export default function MarksEntry() {
     return map;
   }, [grid]);
 
+  const electiveEnrollmentSets = useMemo(() => {
+    const map = {};
+    for (const [subjectId, ids] of Object.entries(grid?.electiveEnrollments || {})) {
+      map[subjectId] = new Set(ids || []);
+    }
+    return map;
+  }, [grid]);
+
+  function studentTakesSubjectCell(subject, studentId) {
+    if (!subject?.isElective) return true;
+    const enrolled = electiveEnrollmentSets[subject.id];
+    return enrolled ? enrolled.has(studentId) : false;
+  }
+
   function canEditSubject(id) {
     return leadership || grid?.entryAccess?.bySubject?.[id]?.canEnter !== false;
   }
 
-  function canEditCell(subjectId, meta) {
+  function canEditCell(subjectId, meta, studentId) {
+    const subject = grid?.subjects?.find((s) => s.id === subjectId);
+    if (subject && studentId && !studentTakesSubjectCell(subject, studentId)) return false;
     if (!canEditSubject(subjectId)) return false;
     if (leadership) return true;
     const locked = meta?.status === "SUBMITTED" || meta?.status === "APPROVED";
@@ -341,6 +357,7 @@ export default function MarksEntry() {
     if (!grid) return set;
     for (const student of grid.students || []) {
       for (const subject of grid.subjects || []) {
+        if (!studentTakesSubjectCell(subject, student.id)) continue;
         const key = `${student.id}:${subject.id}`;
         const meta = markMeta[key];
         const original = meta ? formatMarkCell(meta) : "";
@@ -348,25 +365,27 @@ export default function MarksEntry() {
       }
     }
     return set;
-  }, [grid, draft, markMeta]);
+  }, [grid, draft, markMeta, electiveEnrollmentSets]);
 
   const draftIssues = useMemo(() => {
     const map = {};
     if (!grid) return map;
     for (const student of grid.students || []) {
       for (const subject of grid.subjects || []) {
+        if (!studentTakesSubjectCell(subject, student.id)) continue;
         const key = `${student.id}:${subject.id}`;
         const issue = markInputIssue(draft[key], subject.maxMarks);
         if (issue) map[key] = issue;
       }
     }
     return map;
-  }, [grid, draft]);
+  }, [grid, draft, electiveEnrollmentSets]);
 
   const stats = useMemo(() => {
     if (!grid?.students?.length || !grid?.subjects?.length) {
       return { cells: 0, entered: 0, draft: 0, submitted: 0, approved: 0, empty: 0, dirty: 0 };
     }
+    let cells = 0;
     let entered = 0;
     let draftCount = 0;
     let submitted = 0;
@@ -374,6 +393,8 @@ export default function MarksEntry() {
     let empty = 0;
     for (const student of grid.students) {
       for (const subject of grid.subjects) {
+        if (!studentTakesSubjectCell(subject, student.id)) continue;
+        cells += 1;
         const key = `${student.id}:${subject.id}`;
         const meta = markMeta[key];
         const value = draft[key];
@@ -387,7 +408,7 @@ export default function MarksEntry() {
       }
     }
     return {
-      cells: grid.students.length * grid.subjects.length,
+      cells,
       entered,
       draft: draftCount,
       submitted,
@@ -395,7 +416,7 @@ export default function MarksEntry() {
       empty,
       dirty: dirtyKeys.size,
     };
-  }, [grid, draft, markMeta, dirtyKeys]);
+  }, [grid, draft, markMeta, dirtyKeys, electiveEnrollmentSets]);
 
   function collectChangedEntries({ subjectFilter } = {}) {
     if (!grid) return [];
@@ -403,7 +424,8 @@ export default function MarksEntry() {
     for (const student of grid.students) {
       for (const subject of grid.subjects) {
         if (subjectFilter && subject.id !== subjectFilter) continue;
-        if (!canEditCell(subject.id, markMeta[`${student.id}:${subject.id}`])) continue;
+        if (!studentTakesSubjectCell(subject, student.id)) continue;
+        if (!canEditCell(subject.id, markMeta[`${student.id}:${subject.id}`], student.id)) continue;
         const key = `${student.id}:${subject.id}`;
         if (draft[key] === undefined) continue;
         const existing = markMeta[key];
@@ -1252,8 +1274,9 @@ export default function MarksEntry() {
                   {page.map((student, rowIdx) => {
                     const key = `${student.id}:${singleSubject.id}`;
                     const meta = markMeta[key];
-                    const editable = canEditCell(singleSubject.id, meta);
-                    const dirty = dirtyKeys.has(key);
+                    const takesSubject = studentTakesSubjectCell(singleSubject, student.id);
+                    const editable = takesSubject && canEditCell(singleSubject.id, meta, student.id);
+                    const dirty = takesSubject && dirtyKeys.has(key);
                     const studentIndex = offset + rowIdx;
                     return (
                       <div
@@ -1270,24 +1293,32 @@ export default function MarksEntry() {
                         </div>
                         <div className="flex flex-col items-end gap-1 sm:ml-auto">
                           <div className="flex items-center gap-2">
-                          <MarkCellInput
-                            cellKey={key}
-                            student={student}
-                            subject={singleSubject}
-                            value={draft[key]}
-                            editable={editable}
-                            dirty={dirty}
-                            issue={draftIssues[key]}
-                            inputRefs={inputRefs}
-                            widthClass="w-24"
-                            showMessage={false}
-                            onChange={setMarkDraft}
-                            onKeyDown={(e) => onMarkKeyDown(e, studentIndex, 0)}
-                          />
-                          <span className="text-[11px] text-ink-700/40">/ {singleSubject.maxMarks}</span>
-                          <StatusChip status={meta?.status} dirty={dirty} />
+                          {takesSubject ? (
+                            <>
+                              <MarkCellInput
+                                cellKey={key}
+                                student={student}
+                                subject={singleSubject}
+                                value={draft[key]}
+                                editable={editable}
+                                dirty={dirty}
+                                issue={draftIssues[key]}
+                                inputRefs={inputRefs}
+                                widthClass="w-24"
+                                showMessage={false}
+                                onChange={setMarkDraft}
+                                onKeyDown={(e) => onMarkKeyDown(e, studentIndex, 0)}
+                              />
+                              <span className="text-[11px] text-ink-700/40">/ {singleSubject.maxMarks}</span>
+                              <StatusChip status={meta?.status} dirty={dirty} />
+                            </>
+                          ) : (
+                            <span className="w-24 text-center text-ink-700/40 tabular-nums" title="Not enrolled">
+                              —
+                            </span>
+                          )}
                           </div>
-                          {draftIssues[key] ? (
+                          {takesSubject && draftIssues[key] ? (
                             <span className="text-[10px] text-clay-600" role="alert">
                               {draftIssues[key]}
                             </span>
@@ -1345,8 +1376,9 @@ export default function MarksEntry() {
                           {grid.subjects.map((subject, subjectIndex) => {
                             const key = `${student.id}:${subject.id}`;
                             const meta = markMeta[key];
-                            const editable = canEditCell(subject.id, meta);
-                            const dirty = dirtyKeys.has(key);
+                            const takesSubject = studentTakesSubjectCell(subject, student.id);
+                            const editable = takesSubject && canEditCell(subject.id, meta, student.id);
+                            const dirty = takesSubject && dirtyKeys.has(key);
                             return (
                               <div
                                 key={subject.id}
@@ -1360,23 +1392,31 @@ export default function MarksEntry() {
                                 </div>
                                 <div className="flex flex-col items-end gap-0.5">
                                   <div className="flex items-center gap-2">
-                                  <MarkCellInput
-                                    cellKey={key}
-                                    student={student}
-                                    subject={subject}
-                                    value={draft[key]}
-                                    editable={editable}
-                                    dirty={dirty}
-                                    issue={draftIssues[key]}
-                                    inputRefs={inputRefs}
-                                    widthClass="w-[4.75rem]"
-                                    showMessage={false}
-                                    onChange={setMarkDraft}
-                                    onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
-                                  />
-                                  <StatusChip status={meta?.status} dirty={dirty} />
+                                  {takesSubject ? (
+                                    <>
+                                      <MarkCellInput
+                                        cellKey={key}
+                                        student={student}
+                                        subject={subject}
+                                        value={draft[key]}
+                                        editable={editable}
+                                        dirty={dirty}
+                                        issue={draftIssues[key]}
+                                        inputRefs={inputRefs}
+                                        widthClass="w-[4.75rem]"
+                                        showMessage={false}
+                                        onChange={setMarkDraft}
+                                        onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
+                                      />
+                                      <StatusChip status={meta?.status} dirty={dirty} />
+                                    </>
+                                  ) : (
+                                    <span className="w-[4.75rem] text-center text-ink-700/40" title="Not enrolled">
+                                      —
+                                    </span>
+                                  )}
                                   </div>
-                                  {draftIssues[key] ? (
+                                  {takesSubject && draftIssues[key] ? (
                                     <span className="text-[10px] text-clay-600" role="alert">
                                       {draftIssues[key]}
                                     </span>
@@ -1418,26 +1458,35 @@ export default function MarksEntry() {
                           {grid.subjects.map((subject, subjectIndex) => {
                             const key = `${student.id}:${subject.id}`;
                             const meta = markMeta[key];
-                            const editable = canEditCell(subject.id, meta);
-                            const dirty = dirtyKeys.has(key);
+                            const takesSubject = studentTakesSubjectCell(subject, student.id);
+                            const editable = takesSubject && canEditCell(subject.id, meta, student.id);
+                            const dirty = takesSubject && dirtyKeys.has(key);
                             return (
                               <td key={subject.id} className="align-top">
                                 <div className="flex flex-col items-center gap-1 py-1">
-                                  <MarkCellInput
-                                    cellKey={key}
-                                    student={student}
-                                    subject={subject}
-                                    value={draft[key]}
-                                    editable={editable}
-                                    dirty={dirty}
-                                    issue={draftIssues[key]}
-                                    inputRefs={inputRefs}
-                                    widthClass="w-20"
-                                    showMessage
-                                    onChange={setMarkDraft}
-                                    onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
-                                  />
-                                  <StatusChip status={meta?.status} dirty={dirty} />
+                                  {takesSubject ? (
+                                    <>
+                                      <MarkCellInput
+                                        cellKey={key}
+                                        student={student}
+                                        subject={subject}
+                                        value={draft[key]}
+                                        editable={editable}
+                                        dirty={dirty}
+                                        issue={draftIssues[key]}
+                                        inputRefs={inputRefs}
+                                        widthClass="w-20"
+                                        showMessage
+                                        onChange={setMarkDraft}
+                                        onKeyDown={(e) => onMarkKeyDown(e, offset + rowIdx, subjectIndex)}
+                                      />
+                                      <StatusChip status={meta?.status} dirty={dirty} />
+                                    </>
+                                  ) : (
+                                    <span className="w-20 text-center text-ink-700/40 py-2" title="Not enrolled">
+                                      —
+                                    </span>
+                                  )}
                                 </div>
                               </td>
                             );
