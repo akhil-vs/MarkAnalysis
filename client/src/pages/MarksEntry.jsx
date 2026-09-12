@@ -51,6 +51,68 @@ function StatPill({ label, value, tone }) {
   );
 }
 
+function ModerateReasonModal({ count, onClose, onConfirm, busy }) {
+  const [reason, setReason] = useState("");
+  const [error, setError] = useState("");
+
+  async function submit(e) {
+    e.preventDefault();
+    const note = reason.trim();
+    if (note.length < 3) {
+      setError("Enter a reason of at least 3 characters");
+      return;
+    }
+    setError("");
+    await onConfirm(note);
+  }
+
+  return (
+    <div className="fixed inset-0 z-20 flex items-end justify-center bg-ink-950/40 p-0 sm:items-center sm:p-4">
+      <form
+        className="card safe-pb w-full max-w-md space-y-3 rounded-b-none p-5 sm:rounded-xl"
+        onSubmit={submit}
+      >
+        <h3 className="font-serif text-xl">Moderate marks</h3>
+        <p className="text-sm text-ink-700/65">
+          Apply grace or correction to {count} cell{count === 1 ? "" : "s"} while keeping approved
+          status. The reason is stored in the audit log.
+        </p>
+        <label className="block space-y-1.5">
+          <span className="text-xs font-medium text-ink-700/70">Reason</span>
+          <textarea
+            className="field min-h-[5.5rem] resize-y"
+            value={reason}
+            disabled={busy}
+            autoFocus
+            required
+            minLength={3}
+            placeholder="e.g. Board grace for borderline fail"
+            onChange={(e) => setReason(e.target.value)}
+          />
+        </label>
+        {error ? (
+          <p className="text-sm text-clay-600" role="alert">
+            {error}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap gap-2">
+          <button className="btn-primary flex-1 sm:flex-none" disabled={busy}>
+            <BusyLabel busy={busy} idle="Apply moderation" busyText="Saving…" />
+          </button>
+          <button
+            type="button"
+            className="btn-ghost flex-1 sm:flex-none"
+            onClick={onClose}
+            disabled={busy}
+          >
+            Cancel
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function MarkCellInput({
   cellKey,
   student,
@@ -113,6 +175,8 @@ export default function MarksEntry() {
   const [submitting, setSubmitting] = useState(false);
   const [requestingEdit, setRequestingEdit] = useState(false);
   const [approving, setApproving] = useState(false);
+  const [moderating, setModerating] = useState(false);
+  const [moderateOpen, setModerateOpen] = useState(false);
   const [catalogReady, setCatalogReady] = useState(false);
   const [subjectsReady, setSubjectsReady] = useState(false);
   const inputRefs = useRef({});
@@ -404,17 +468,30 @@ export default function MarksEntry() {
         break;
       }
     }
-    if (
-      touchingLocked &&
-      !(await confirm({
-        title: "Save over submitted marks?",
-        message:
-          "Some cells are already submitted or approved. Saving will move those marks back to draft until you submit again.",
-        confirmLabel: "Save progress",
-        tone: "danger",
-      }))
-    ) {
-      return { ok: false, cancelled: true };
+    if (touchingLocked) {
+      if (leadership) {
+        if (
+          !(await confirm({
+            title: "Save over locked marks?",
+            message:
+              "Some cells are already submitted or approved. Saving as draft unlocks them. Prefer Moderate with reason to keep approved status and record why the mark changed.",
+            confirmLabel: "Save as draft",
+            tone: "danger",
+          }))
+        ) {
+          return { ok: false, cancelled: true };
+        }
+      } else if (
+        !(await confirm({
+          title: "Save over submitted marks?",
+          message:
+            "Some cells are already submitted or approved. Saving will move those marks back to draft until you submit again.",
+          confirmLabel: "Save progress",
+          tone: "danger",
+        }))
+      ) {
+        return { ok: false, cancelled: true };
+      }
     }
 
     setSaving(true);
@@ -575,6 +652,65 @@ export default function MarksEntry() {
     }
   }
 
+  async function applyModeration(reason) {
+    const entries = collectChangedEntries();
+    if (!entries.length) {
+      toast.info("No changes to moderate");
+      setModerateOpen(false);
+      return;
+    }
+    const invalid = validateEntries(entries);
+    if (invalid.length) {
+      setErrors(invalid);
+      toast.error(
+        invalid.length === 1
+          ? invalid[0].error
+          : `${invalid.length} cells need a valid mark before moderation`
+      );
+      return;
+    }
+
+    setModerating(true);
+    try {
+      const results = await Promise.all(
+        entries.map((entry) =>
+          api("/api/marks/moderate", {
+            method: "POST",
+            body: {
+              examId,
+              studentId: entry.studentId,
+              subjectId: entry.subjectId,
+              marksObtained: entry.marksObtained,
+              reason,
+            },
+          }).then(
+            () => ({ ok: true }),
+            (err) => ({ ok: false, error: err.message || "Moderation failed" })
+          )
+        )
+      );
+      const failed = results.filter((r) => !r.ok);
+      if (failed.length) {
+        toast.error(
+          failed.length === 1
+            ? failed[0].error
+            : `${failed.length} of ${entries.length} cells failed moderation`
+        );
+        if (failed.length < entries.length) await loadGrid({ keepMessage: true });
+        return;
+      }
+      setModerateOpen(false);
+      toast.success(
+        `Moderated ${entries.length} mark${entries.length === 1 ? "" : "s"} with audit reason`
+      );
+      await loadGrid({ keepMessage: true });
+    } catch (err) {
+      toast.error(err.message || "Could not moderate marks");
+    } finally {
+      setModerating(false);
+    }
+  }
+
   async function unapprove(teacher) {
     const approvedCount =
       teacher?.count ?? (grid?.marks || []).filter((m) => m.status === "APPROVED").length;
@@ -719,18 +855,20 @@ export default function MarksEntry() {
     Boolean(effectiveSubjectId) &&
     selectedSubjectAccess?.editRequestStatus === "PENDING";
 
-  const tableBusy = loading || saving || submitting || requestingEdit || approving;
+  const tableBusy = loading || saving || submitting || requestingEdit || approving || moderating;
   const tableBusyLabel = loading
     ? "Loading register…"
     : saving
       ? "Saving marks…"
-      : submitting
-        ? "Submitting marks…"
-        : requestingEdit
-          ? "Requesting edit…"
-          : approving
-            ? "Updating approval…"
-            : "Updating…";
+      : moderating
+        ? "Moderating marks…"
+        : submitting
+          ? "Submitting marks…"
+          : requestingEdit
+            ? "Requesting edit…"
+            : approving
+              ? "Updating approval…"
+              : "Updating…";
 
   const classSelectReady = catalogReady && classes.length > 0;
   const examSelectReady = classSelectReady && Boolean(classSectionId);
@@ -740,22 +878,40 @@ export default function MarksEntry() {
     <div>
       <PageHeader
         title={NAV_TITLES.marks}
-        subtitle="Enter marks by class and subject. Save progress as draft, then submit for leadership approval."
+        subtitle={
+          leadership
+            ? "Review and approve submitted marks. Use Moderate with reason for grace adjustments that stay approved."
+            : "Enter marks by class and subject. Save progress as draft, then submit for leadership approval."
+        }
         actions={
           <div className="hidden lg:flex flex-wrap gap-2">
             {!leadership && (
               <button
                 className="btn-primary"
                 onClick={submitMarks}
-                disabled={allLocked || !grid || submitting || saving || approving || !effectiveSubjectId}
+                disabled={allLocked || !grid || submitting || saving || approving || moderating || !effectiveSubjectId}
               >
                 <BusyLabel busy={submitting} idle="Submit marks" busyText="Submitting…" />
               </button>
             )}
+            {leadership && (
+              <button
+                className="btn-accent"
+                type="button"
+                onClick={() => setModerateOpen(true)}
+                disabled={allLocked || !grid || tableBusy || stats.dirty === 0}
+              >
+                <BusyLabel
+                  busy={moderating}
+                  idle={stats.dirty ? `Moderate (${stats.dirty})` : "Moderate"}
+                  busyText="Saving…"
+                />
+              </button>
+            )}
             <button
-              className={leadership ? "btn-primary" : "btn-ghost"}
+              className="btn-ghost"
               onClick={() => save()}
-              disabled={allLocked || !grid || saving || submitting || approving || stats.dirty === 0}
+              disabled={allLocked || !grid || saving || submitting || approving || moderating || stats.dirty === 0}
             >
               <BusyLabel
                 busy={saving}
@@ -768,7 +924,7 @@ export default function MarksEntry() {
                 className="btn-ghost"
                 type="button"
                 onClick={requestEdit}
-                disabled={requestingEdit || saving || submitting || approving}
+                disabled={requestingEdit || saving || submitting || approving || moderating}
               >
                 <BusyLabel
                   busy={requestingEdit}
@@ -812,15 +968,29 @@ export default function MarksEntry() {
             <button
               className="btn-primary flex-1 min-w-[8rem]"
               onClick={submitMarks}
-              disabled={allLocked || !grid || submitting || saving || approving || !effectiveSubjectId}
+              disabled={allLocked || !grid || submitting || saving || approving || moderating || !effectiveSubjectId}
             >
               <BusyLabel busy={submitting} idle="Submit" busyText="Submitting…" />
             </button>
           )}
+          {leadership && (
+            <button
+              className="btn-accent flex-1 min-w-[8rem]"
+              type="button"
+              onClick={() => setModerateOpen(true)}
+              disabled={allLocked || !grid || tableBusy || stats.dirty === 0}
+            >
+              <BusyLabel
+                busy={moderating}
+                idle={stats.dirty ? `Moderate (${stats.dirty})` : "Moderate"}
+                busyText="Saving…"
+              />
+            </button>
+          )}
           <button
-            className={`${leadership ? "btn-primary" : "btn-ghost"} flex-1 min-w-[8rem]`}
+            className="btn-ghost flex-1 min-w-[8rem]"
             onClick={() => save()}
-            disabled={allLocked || !grid || saving || submitting || approving || stats.dirty === 0}
+            disabled={allLocked || !grid || saving || submitting || approving || moderating || stats.dirty === 0}
           >
             <BusyLabel
               busy={saving}
@@ -833,7 +1003,7 @@ export default function MarksEntry() {
               className="btn-ghost flex-1 min-w-[8rem]"
               type="button"
               onClick={requestEdit}
-              disabled={requestingEdit || saving || submitting || approving}
+              disabled={requestingEdit || saving || submitting || approving || moderating}
             >
               <BusyLabel busy={requestingEdit} idle="Request edit" busyText="Requesting…" />
             </button>
@@ -1281,6 +1451,15 @@ export default function MarksEntry() {
             }}
           </PaginatedTable>
         </div>
+      )}
+
+      {moderateOpen && leadership && (
+        <ModerateReasonModal
+          count={stats.dirty}
+          busy={moderating}
+          onClose={() => !moderating && setModerateOpen(false)}
+          onConfirm={applyModeration}
+        />
       )}
     </div>
   );

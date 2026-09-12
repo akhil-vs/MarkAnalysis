@@ -12,6 +12,7 @@ Remaining work that would make this suitable for a live school:
 - **Electives / additional subjects** per student
 - ~~**Class-teacher inbox** for section pending papers~~ (read access + gated CML for class teachers; dedicated inbox still open)
 - **Moderation / grace marks** with audit reason
++ ~~**Moderation / grace marks** with audit reason~~ (`POST /api/marks/moderate` + Marks Entry Moderate)
 - ~~One-time consolidation max-marks lock for principal / exam coordinator~~ (Records → Exams → Lock for consolidation)
 - ~~Teacher daily / weekly / monthly timetables for principal and exam coordinator~~ (Timetables nav + views + seed periods)
 - ~~All-teachers daily board + find free teacher for a period~~ (leadership Timetables modes)

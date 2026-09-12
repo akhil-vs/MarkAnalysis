@@ -10,7 +10,7 @@ import {
   isLockedMarkStatus,
   mutateBlockFromAccess,
 } from "../lib/markAccess.js";
-import { auditValueFor, formatMarkCell, parseMarkInput } from "../lib/markCodes.js";
+import { auditValueFor, describeAuditValue, formatMarkCell, parseMarkInput } from "../lib/markCodes.js";
 import {
   applyMarkPlans,
   mapInChunks,
@@ -23,6 +23,7 @@ import { notifyMarksSubmitted } from "../lib/notifications.js";
 import {
   AUDIT_LIMIT,
   actorFilterForViewer,
+  logActivity,
   logRegisterActivity,
   mapActivityAudit,
   mapMarkAudit,
@@ -693,4 +694,103 @@ marksRouter.post("/unapprove", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
     });
   }
   res.json({ reverted: result.count, teacherId });
+});
+
+/**
+ * Leadership grace / moderation adjustment for a single mark cell.
+ * Requires a reason; keeps the mark APPROVED when it already was.
+ */
+marksRouter.post("/moderate", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  await ensureActivityAuditSchema();
+  const { examId, studentId, subjectId, marksObtained, reason } = req.body || {};
+  if (!examId || !studentId || !subjectId) {
+    return res.status(400).json({ error: "examId, studentId, and subjectId are required" });
+  }
+  const note = String(reason || "").trim();
+  if (note.length < 3) {
+    return res.status(400).json({ error: "A moderation reason of at least 3 characters is required" });
+  }
+
+  const [student, subject, exam, existing] = await Promise.all([
+    prisma.student.findUnique({ where: { id: studentId }, include: { classSection: true } }),
+    prisma.subject.findUnique({ where: { id: subjectId } }),
+    prisma.exam.findUnique({ where: { id: examId } }),
+    prisma.mark.findUnique({
+      where: { studentId_subjectId_examId: { studentId, subjectId, examId } },
+    }),
+  ]);
+  if (!student || !subject || !exam) {
+    return res.status(404).json({ error: "Student, subject, or exam not found" });
+  }
+
+  const parsed = parseMarkInput(marksObtained, subject.maxMarks);
+  if (parsed.empty) {
+    return res.status(400).json({ error: "Enter a mark or AB, EX, or WH" });
+  }
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+
+  const oldAudit = existing
+    ? auditValueFor(existing.outcome, existing.marksObtained)
+    : null;
+  const newAudit = auditValueFor(parsed.outcome, parsed.marksObtained);
+  // Moderation keeps approved registers approved; drafts / submitted promote to approved.
+  const nextStatus =
+    existing?.status === "APPROVED" || existing?.status === "SUBMITTED"
+      ? "APPROVED"
+      : existing?.status === "DRAFT"
+        ? "APPROVED"
+        : "APPROVED";
+
+  const mark = existing
+    ? await prisma.mark.update({
+        where: { id: existing.id },
+        data: {
+          marksObtained: parsed.marksObtained,
+          outcome: parsed.outcome,
+          status: nextStatus,
+          enteredById: existing.enteredById || req.user.userId,
+        },
+      })
+    : await prisma.mark.create({
+        data: {
+          studentId,
+          subjectId,
+          examId,
+          marksObtained: parsed.marksObtained,
+          outcome: parsed.outcome,
+          status: "APPROVED",
+          enteredById: req.user.userId,
+        },
+      });
+
+  await prisma.markAudit.create({
+    data: {
+      markId: mark.id,
+      changedById: req.user.userId,
+      oldValue: oldAudit,
+      newValue: newAudit,
+      reason: note,
+    },
+  });
+
+  await logActivity({
+    actorId: req.user.userId,
+    action: "MARK_MODERATED",
+    summary: `Moderated ${subject.name} for ${student.rollNo} ${student.name}: ${describeAuditValue(oldAudit) ?? "—"} → ${describeAuditValue(newAudit)} (${note})`,
+    examId,
+    meta: {
+      studentId,
+      subjectId,
+      classSectionId: student.classSectionId,
+      reason: note,
+      oldValue: oldAudit,
+      newValue: newAudit,
+    },
+  });
+
+  res.json({
+    mark,
+    reason: note,
+    message: "Mark moderated",
+  });
 });

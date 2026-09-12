@@ -18,6 +18,7 @@ const ACTIVITY_ACTIONS = [
   "MARK_SUBMITTED",
   "MARK_APPROVED",
   "MARK_UNAPPROVED",
+  "MARK_MODERATED",
   "ACCESS_REQUESTED",
   "ACCESS_APPROVED",
   "ACCESS_REJECTED",
@@ -494,6 +495,28 @@ async function ensureMustChangePasswordColumn() {
   await recordMigration(MUST_CHANGE_PASSWORD_MIGRATION, MUST_CHANGE_PASSWORD_CHECKSUM);
 }
 
+const MARK_MODERATION_MIGRATION = "20260912093000_mark_moderation_reason";
+const MARK_MODERATION_CHECKSUM =
+  "800c54cd56cab0c8184af28b61465dec8aa3a191b5b328930761e6dd51e449cd";
+const MARK_MODERATION_STATEMENTS = [
+  `ALTER TABLE "MarkAudit" ADD COLUMN IF NOT EXISTS "reason" TEXT`,
+  `DO $$ BEGIN
+     ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS 'MARK_MODERATED';
+   EXCEPTION
+     WHEN duplicate_object THEN null;
+   END $$;`,
+];
+
+async function ensureMarkAuditReasonColumn() {
+  if (await columnExists("MarkAudit", "reason")) {
+    await recordMigration(MARK_MODERATION_MIGRATION, MARK_MODERATION_CHECKSUM);
+    return;
+  }
+  await applyStatements(MARK_MODERATION_STATEMENTS);
+  // Enum value is added by ensureActivityAuditTable from ACTIVITY_ACTIONS.
+  await recordMigration(MARK_MODERATION_MIGRATION, MARK_MODERATION_CHECKSUM);
+}
+
 /**
  * Apply schema pieces that may be missing in production when Vercel builds
  * cannot run `prisma migrate deploy` (DATABASE_URL often runtime-only).
@@ -513,6 +536,7 @@ export async function ensurePendingSchema() {
         ensureSchoolGradingColumns(),
         ensureSchoolWorkingDaysColumn(),
         ensureMustChangePasswordColumn(),
+        ensureMarkAuditReasonColumn(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -565,6 +589,9 @@ export const __test = {
   MUST_CHANGE_PASSWORD_MIGRATION,
   MUST_CHANGE_PASSWORD_CHECKSUM,
   MUST_CHANGE_PASSWORD_STATEMENTS,
+  MARK_MODERATION_MIGRATION,
+  MARK_MODERATION_CHECKSUM,
+  MARK_MODERATION_STATEMENTS,
   MULTI_CLASS_PERIOD_MIGRATION,
   MULTI_CLASS_PERIOD_CHECKSUM,
   MULTI_CLASS_PERIOD_STATEMENTS,
