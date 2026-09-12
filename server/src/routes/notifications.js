@@ -3,9 +3,11 @@ import { prisma } from "../lib/prisma.js";
 import { ensureNotificationSchema } from "../lib/ensureSchema.js";
 import { sendTeacherNotices } from "../lib/teacherNotices.js";
 import { auth, requireRole } from "../middleware/auth.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const notificationsRouter = Router();
 notificationsRouter.use(auth);
+notificationsRouter.use(requireSchoolTenant);
 notificationsRouter.use(async (_req, _res, next) => {
   try {
     await ensureNotificationSchema();

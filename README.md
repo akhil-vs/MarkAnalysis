@@ -51,7 +51,8 @@ All seed passwords are `password123`. The login page also has one-click sign-in 
 
 | Role | Email | School ID |
 |---|---|---|
-| Principal | `principal@school.edu` | `SCH-P01` |
+| Platform admin | `admin@platform.edu` | `PLT-A01` |
+| Principal · Greenfield | `principal@school.edu` | `SCH-P01` |
 | Exam Coordinator | `coordinator@school.edu` | `SCH-C01` |
 | Teacher · Mathematics | `anita.sharma@school.edu` | `SCH-T01` |
 | Teacher · Physics | `rahul.mehta@school.edu` | `SCH-T02` |
@@ -59,6 +60,9 @@ All seed passwords are `password123`. The login page also has one-click sign-in 
 | Teacher · English | `david.thomas@school.edu` | `SCH-T04` |
 | Teacher · Biology | `meera.iyer@school.edu` | `SCH-T05` |
 | Teacher · Mathematics | `kiran.bose@school.edu` | `SCH-T06` |
+| Principal · Riverside | `principal@riverside.school` | `RIV-P01` |
+
+**Platform console** (`/platform`): sign in as the platform admin to list every school, add a campus, suspend or reactivate it, and create or reset principal accounts. Each school has a **school code** (Greenfield: `greenfield`, Riverside: `riverside`) that staff enter when they request an account. Marks, staff, and exams stay isolated per campus.
 
 The current Final Exam seed leaves Biology (all sections) and English 10-D empty so principals and coordinators can see pending teacher uploads. Teachers and leadership now default to the **same latest exam**. After a teacher saves marks they stay **draft** until a principal or coordinator clicks **Approve** on the mark register — only then do school analytics and consolidated lists include them.
 

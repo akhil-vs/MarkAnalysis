@@ -32,11 +32,13 @@ import {
 import { ensureActivityAuditSchema } from "../lib/ensureSchema.js";
 import { electiveEnrollmentMap, enrollmentKeySet } from "../lib/electiveEnrollment.js";
 import { findStudentByRoll, parseSpreadsheet, studentRollIndex } from "../lib/upload.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 const WRITE_CHUNK = 25;
 
 export const marksRouter = Router();
 marksRouter.use(auth);
+marksRouter.use(requireSchoolTenant);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 

@@ -21,9 +21,13 @@ export const ACTION_LABELS = {
   EXAM_CREATED: "Exam created",
   EXAM_UPDATED: "Exam updated",
   EXAM_DELETED: "Exam deleted",
+  SCHOOL_CREATED: "School created",
+  SCHOOL_UPDATED: "School updated",
+  SCHOOL_STATUS_CHANGED: "School status",
 };
 
 const ROLE_LABELS = {
+  PLATFORM_ADMIN: "Platform admin",
   PRINCIPAL: "Principal",
   EXAM_COORDINATOR: "Exam coordinator",
   TEACHER: "Teacher",

@@ -2,6 +2,7 @@ import { Router } from "express";
 import { auth, requireRole } from "../middleware/auth.js";
 import { getSchoolProfile } from "../lib/school.js";
 import { prisma } from "../lib/prisma.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 import {
   DEFAULT_DISTINCTION_MIN,
   DEFAULT_EXAM_WEIGHTS,
@@ -14,6 +15,7 @@ import { parseWorkingDays, publicWorkingDays } from "../lib/workingDays.js";
 
 export const schoolRouter = Router();
 schoolRouter.use(auth);
+schoolRouter.use(requireSchoolTenant);
 
 function publicSchool(profile) {
   return {
@@ -23,8 +25,9 @@ function publicSchool(profile) {
   };
 }
 
-schoolRouter.get("/", async (_req, res) => {
-  const profile = await getSchoolProfile();
+schoolRouter.get("/", async (req, res) => {
+  const profile = await getSchoolProfile(req.tenantId);
+  if (!profile) return res.status(404).json({ error: "School not found" });
   res.json(publicSchool(profile));
 });
 
@@ -39,9 +42,9 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
   const workingDaysPatch = parseWorkingDays(req.body?.workingDays);
   if (workingDaysPatch.error) return res.status(400).json({ error: workingDaysPatch.error });
 
-  await getSchoolProfile();
+  await getSchoolProfile(req.tenantId);
   const updated = await prisma.schoolProfile.update({
-    where: { id: "school" },
+    where: { id: req.tenantId },
     data: {
       ...(name !== undefined && { name: String(name).trim() }),
       ...(board !== undefined && { board: board ? String(board).trim() : null }),
@@ -56,10 +59,10 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
   res.json(publicSchool(updated));
 });
 
-schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (_req, res) => {
-  await getSchoolProfile();
+schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  await getSchoolProfile(req.tenantId);
   const updated = await prisma.schoolProfile.update({
-    where: { id: "school" },
+    where: { id: req.tenantId },
     data: {
       passPercent: DEFAULT_PASS_PERCENT,
       distinctionMin: DEFAULT_DISTINCTION_MIN,

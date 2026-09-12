@@ -8,6 +8,7 @@ import {
   signToken,
 } from "../middleware/auth.js";
 import { authAttemptKey, rateLimit } from "../lib/rateLimit.js";
+import { assertSchoolActive, findActiveSchoolBySlug, parseSlug } from "../lib/tenant.js";
 import {
   clearAuthCookies,
   createRefreshSession,
@@ -35,8 +36,16 @@ async function establishSession(req, res, user) {
   return { user: publicUser(user) };
 }
 
+authRouter.get("/school-lookup", async (req, res) => {
+  const parsed = parseSlug(req.query.slug);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+  const found = await findActiveSchoolBySlug(parsed.value);
+  if (found.error) return res.status(404).json({ error: "School not found" });
+  res.json({ name: found.school.name, slug: found.school.slug, board: found.school.board });
+});
+
 authRouter.post("/signup", authWriteLimit, async (req, res) => {
-  const { name, email, schoolId, password, role } = req.body || {};
+  const { name, email, schoolId, password, role, schoolSlug } = req.body || {};
   if (!name || !String(name).trim()) {
     return res.status(400).json({ error: "Name is required" });
   }
@@ -59,6 +68,9 @@ authRouter.post("/signup", authWriteLimit, async (req, res) => {
   }
   const chosenRole = allowed.includes(role) ? role : "TEACHER";
 
+  const found = await findActiveSchoolBySlug(schoolSlug);
+  if (found.error) return res.status(400).json({ error: found.error });
+
   if (email) {
     const exists = await prisma.user.findUnique({ where: { email } });
     if (exists) return res.status(409).json({ error: "Email already registered" });
@@ -77,6 +89,7 @@ authRouter.post("/signup", authWriteLimit, async (req, res) => {
       role: chosenRole,
       status: "PENDING",
       mustChangePassword: false,
+      tenantId: found.school.id,
     },
   });
 
@@ -108,6 +121,10 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
   if (user.status === "REJECTED") {
     return res.status(403).json({ error: "Account was rejected" });
   }
+  if (user.role !== "PLATFORM_ADMIN") {
+    const active = await assertSchoolActive(user.tenantId);
+    if (active.error) return res.status(403).json({ error: active.error });
+  }
 
   return res.json(await establishSession(req, res, user));
 });
@@ -125,6 +142,13 @@ authRouter.post("/refresh", authWriteLimit, async (req, res) => {
     clearAuthCookies(res);
     return res.status(401).json({ error: "Session expired" });
   }
+  if (user.role !== "PLATFORM_ADMIN") {
+    const active = await assertSchoolActive(user.tenantId);
+    if (active.error) {
+      clearAuthCookies(res);
+      return res.status(403).json({ error: active.error });
+    }
+  }
   setAccessCookie(res, signToken(user));
   setRefreshCookie(res, rotated.raw);
   return res.json({ user: publicUser(user) });
@@ -140,6 +164,7 @@ authRouter.get("/me", authAllowPasswordChange, async (req, res) => {
   const user = await prisma.user.findUnique({
     where: { id: req.user.userId },
     include: {
+      tenant: { select: { id: true, name: true, slug: true, status: true } },
       assignments: { include: { classSection: true, subject: true } },
       classTeacherOf: {
         select: { id: true, className: true, section: true },

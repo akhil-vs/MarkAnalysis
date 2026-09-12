@@ -1,25 +1,12 @@
 import { prisma } from "./prisma.js";
 import { ensurePendingSchema } from "./ensureSchema.js";
+import { currentTenantId } from "./tenantContext.js";
 
-const DEFAULT_SCHOOL = {
-  id: "school",
-  name: "School Marks Analytics",
-  board: null,
-  affiliationNo: null,
-  address: null,
-  phone: null,
-  email: null,
-};
-
-export async function getSchoolProfile() {
+export async function getSchoolProfile(explicitId) {
   await ensurePendingSchema();
-  const existing = await prisma.schoolProfile.findUnique({ where: { id: "school" } });
-  if (existing) return existing;
-  return prisma.schoolProfile.upsert({
-    where: { id: "school" },
-    create: { ...DEFAULT_SCHOOL, updatedAt: new Date() },
-    update: {},
-  });
+  const id = explicitId || currentTenantId();
+  if (!id) return null;
+  return prisma.schoolProfile.findUnique({ where: { id } });
 }
 
 export function schoolHeaderLines(profile) {

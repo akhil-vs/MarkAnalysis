@@ -74,7 +74,7 @@ export function requireRole(...roles) {
 
 export function signToken(user) {
   return jwt.sign(
-    { userId: user.id, role: user.role, name: user.name },
+    { userId: user.id, role: user.role, name: user.name, tenantId: user.tenantId || null },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_ACCESS_EXPIRES || "15m" }
   );
@@ -89,6 +89,15 @@ export function publicUser(user) {
     role: user.role,
     status: user.status,
     mustChangePassword: Boolean(user.mustChangePassword),
+    tenantId: user.tenantId || null,
+    school: user.tenant
+      ? {
+          id: user.tenant.id,
+          name: user.tenant.name,
+          slug: user.tenant.slug,
+          status: user.tenant.status,
+        }
+      : null,
   };
 }
 

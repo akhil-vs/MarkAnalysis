@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api.js";
+import { useAuth } from "../auth.jsx";
 
 function relativeTime(iso) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -42,20 +43,24 @@ const NotificationContext = createContext(null);
 
 /** Shared notification state so mobile + desktop bells do not double-fetch. */
 export function NotificationProvider({ children }) {
+  const { user } = useAuth();
+  const skip = user?.role === "PLATFORM_ADMIN";
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [listLoaded, setListLoaded] = useState(false);
 
   const refreshUnread = useCallback(async () => {
+    if (skip) return;
     try {
       const data = await api("/api/notifications/unread-count");
       setUnreadCount(Number(data.unreadCount) || 0);
     } catch {
       // keep last known count
     }
-  }, []);
+  }, [skip]);
 
   const loadList = useCallback(async () => {
+    if (skip) return;
     try {
       const data = await api("/api/notifications?limit=20");
       setItems(Array.isArray(data.items) ? data.items : []);
@@ -64,7 +69,7 @@ export function NotificationProvider({ children }) {
     } catch {
       // keep last known items
     }
-  }, []);
+  }, [skip]);
 
   useEffect(() => {
     refreshUnread();

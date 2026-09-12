@@ -18,6 +18,7 @@ import { NAV_TITLES } from "../lib/nav.js";
 
 const EMPTY = {
   name: "",
+  slug: "",
   board: "",
   affiliationNo: "",
   address: "",
@@ -49,6 +50,7 @@ export default function SchoolSettings() {
       .then((s) => {
         setForm({
           name: s.name || "",
+          slug: s.slug || "",
           board: s.board || "",
           affiliationNo: s.affiliationNo || "",
           address: s.address || "",
@@ -103,7 +105,12 @@ export default function SchoolSettings() {
       await api("/api/school", {
         method: "PATCH",
         body: {
-          ...form,
+          name: name.value,
+          board: form.board,
+          affiliationNo: form.affiliationNo,
+          address: form.address,
+          phone: form.phone,
+          email: form.email,
           passPercent: Number(passPercent),
           distinctionMin: Number(distinctionMin),
           gradeBands: bands.map((b) => ({ grade: b.grade, min: Number(b.min) })),
@@ -149,6 +156,13 @@ export default function SchoolSettings() {
           <label className="label">School name</label>
           <input className={fieldClass(formError && !form.name.trim())} required value={form.name} onChange={(e) => set("name", e.target.value)} />
         </div>
+        {form.slug && (
+          <div>
+            <label className="label">School code</label>
+            <input className="field font-mono bg-ink-900/5" value={form.slug} readOnly />
+            <p className="mt-1 text-xs text-ink-700/55">Staff use this code when they request an account. Platform admins can change it.</p>
+          </div>
+        )}
         <div className="grid sm:grid-cols-2 gap-3">
           <div>
             <label className="label">Board</label>

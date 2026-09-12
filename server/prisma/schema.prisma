@@ -9,9 +9,15 @@ datasource db {
 }
 
 enum Role {
+  PLATFORM_ADMIN
   PRINCIPAL
   EXAM_COORDINATOR
   TEACHER
+}
+
+enum SchoolStatus {
+  ACTIVE
+  SUSPENDED
 }
 
 enum UserStatus {
@@ -67,7 +73,10 @@ model User {
   role                Role
   status              UserStatus @default(PENDING)
   createdAt           DateTime   @default(now())
+  /// Tenant school. Null only for PLATFORM_ADMIN.
+  tenantId            String?
 
+  tenant         SchoolProfile?       @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   classTeacherOf ClassSection[]       @relation("ClassTeacher")
   assignments    TeacherAssignment[]
   enteredMarks   Mark[]               @relation("EnteredBy")
@@ -80,6 +89,8 @@ model User {
   consolidationLocks Exam[] @relation("ConsolidationLockedBy")
   portalLinks        PortalAccessLink[] @relation("PortalLinkCreator")
   refreshTokens  RefreshToken[]
+
+  @@index([tenantId])
 }
 
 /// Opaque refresh sessions (hashed) for httpOnly cookie auth.
@@ -103,20 +114,24 @@ model ClassSection {
   className      String
   section        String
   classTeacherId String?
-  classTeacher   User?   @relation("ClassTeacher", fields: [classTeacherId], references: [id])
+  tenantId       String
+  classTeacher   User?          @relation("ClassTeacher", fields: [classTeacherId], references: [id])
+  tenant         SchoolProfile  @relation(fields: [tenantId], references: [id], onDelete: Restrict)
 
   students          Student[]
   assignments       TeacherAssignment[]
   markEntryRequests MarkEntryAccessRequest[]
   timetableEntries  TimetableEntry[]
 
-  @@unique([className, section])
+  @@unique([tenantId, className, section])
+  @@index([tenantId])
 }
 
 model Subject {
   id        String @id @default(cuid())
   name      String
   className String
+  tenantId  String
   /// Theory ceiling for mark entry and register validation.
   maxMarks  Int
   /// When true, only enrolled students are expected on the register / CML.
@@ -124,13 +139,15 @@ model Subject {
   /// When set, register also collects practical marks (additive with maxMarks).
   practicalMaxMarks Int?
 
+  tenant      SchoolProfile @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   assignments TeacherAssignment[]
   marks       Mark[]
   markEntryRequests MarkEntryAccessRequest[]
   timetableEntries TimetableEntry[]
   enrollments StudentSubjectEnrollment[]
 
-  @@unique([name, className])
+  @@unique([tenantId, name, className])
+  @@index([tenantId])
 }
 
 
@@ -165,6 +182,7 @@ model Student {
   name           String
   rollNo         String
   classSectionId String
+  tenantId       String
   academicYear   String        @default("2025-26")
   status         StudentStatus @default(ACTIVE)
   dob            DateTime?
@@ -173,6 +191,7 @@ model Student {
   promotedFromId String?
 
   classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  tenant       SchoolProfile @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   marks        Mark[]
   subjectEnrollments StudentSubjectEnrollment[]
   promotedFrom Student?  @relation("StudentPromotion", fields: [promotedFromId], references: [id], onDelete: SetNull)
@@ -180,6 +199,7 @@ model Student {
 
   @@unique([rollNo, classSectionId])
   @@index([classSectionId, academicYear, status])
+  @@index([tenantId])
 }
 
 
@@ -207,6 +227,7 @@ model Exam {
   academicYear       String
   date               DateTime
   type               ExamType
+  tenantId           String
   marksEntryDeadline DateTime?
   /// Ceiling used for this exam’s consolidated mark-list totals and percentages.
   consolidationMaxMarks Int      @default(100)
@@ -214,9 +235,12 @@ model Exam {
   consolidationLockedAt DateTime?
   consolidationLockedById String?
   consolidationLockedBy User?    @relation("ConsolidationLockedBy", fields: [consolidationLockedById], references: [id], onDelete: SetNull)
+  tenant             SchoolProfile @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   marks              Mark[]
   markEntryRequests  MarkEntryAccessRequest[]
   portalLinks        PortalAccessLink[]
+
+  @@index([tenantId])
 }
 
 model MarkEntryAccessRequest {
@@ -298,6 +322,9 @@ enum AuditAction {
   EXAM_CREATED
   EXAM_UPDATED
   EXAM_DELETED
+  SCHOOL_CREATED
+  SCHOOL_UPDATED
+  SCHOOL_STATUS_CHANGED
 }
 
 /// Operational audit trail (approvals, access reviews, staff/exam changes).
@@ -319,24 +346,34 @@ model ActivityAudit {
 }
 
 model SchoolProfile {
-  id              String   @id @default("school")
+  id              String       @id @default(cuid())
+  slug            String       @unique
   name            String
   board           String?
   affiliationNo   String?
   address         String?
   phone           String?
   email           String?
+  status          SchoolStatus @default(ACTIVE)
   /// Pass threshold used in analytics (percent).
-  passPercent     Float    @default(50)
+  passPercent     Float        @default(50)
   /// Distinction / high-achievement threshold (percent).
-  distinctionMin  Float    @default(90)
+  distinctionMin  Float        @default(90)
   /// Optional override of letter-grade bands: [{ grade, min }, ...] sorted high→low.
   gradeBands      Json?
   /// Weights for annual composite by ExamType: { UNIT_TEST, MID_TERM, FINAL }.
   examWeights     Json?
   /// Working weekdays as ISO numbers 1=Mon … 7=Sun. Length 5 or 6; order is column order.
   workingDays     Json?
-  updatedAt       DateTime @updatedAt
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  users         User[]
+  classSections ClassSection[]
+  subjects      Subject[]
+  exams         Exam[]
+  periods       Period[]
+  students      Student[]
 }
 
 enum NotificationType {
@@ -372,12 +409,17 @@ model Notification {
 model Period {
   id        String  @id @default(cuid())
   name      String
-  sortOrder Int     @unique
+  sortOrder Int
   startTime String
   endTime   String
   isBreak   Boolean @default(false)
+  tenantId  String
 
+  tenant  SchoolProfile    @relation(fields: [tenantId], references: [id], onDelete: Restrict)
   entries TimetableEntry[]
+
+  @@unique([tenantId, sortOrder])
+  @@index([tenantId])
 }
 
 /// Weekly template slot: teacher teaches subject to a class in a period on a weekday.

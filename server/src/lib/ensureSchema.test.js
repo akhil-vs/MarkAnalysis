@@ -155,4 +155,19 @@ describe("ensureSchema bootstrap", () => {
     );
     assert.equal(__test.ELECTIVE_FK_STATEMENTS.length, 2);
   });
+
+  it("embeds platform schools tenant migration checksum", () => {
+    const file = readFileSync(
+      join(migrationsDir, "20260912180000_platform_schools/migration.sql")
+    );
+    assert.equal(
+      __test.PLATFORM_SCHOOLS_CHECKSUM,
+      createHash("sha256").update(file).digest("hex")
+    );
+    assert.equal(__test.PLATFORM_SCHOOLS_MIGRATION, "20260912180000_platform_schools");
+    assert.ok(__test.PLATFORM_SCHOOLS_STATEMENTS.some((s) => s.includes("PLATFORM_ADMIN")));
+    assert.ok(__test.PLATFORM_SCHOOLS_STATEMENTS.some((s) => s.includes('"tenantId"')));
+    assert.ok(__test.PLATFORM_SCHOOLS_STATEMENTS.some((s) => s.includes("SchoolProfile_slug_key")));
+    assert.equal(__test.PLATFORM_SCHOOLS_FK_STATEMENTS.length, 6);
+  });
 });

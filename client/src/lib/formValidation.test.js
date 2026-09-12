@@ -8,7 +8,9 @@ import {
   parsePercent,
   parsePhone,
   parsePositiveInt,
+  parseSlug,
   requiredText,
+  slugifyName,
 } from "./formValidation.js";
 import { markInputIssue, parseMarkInput } from "./markCodes.js";
 
@@ -69,5 +71,12 @@ describe("text form parsers", () => {
     assert.equal(parsePhone("123").error, "Enter a valid phone number");
     assert.equal(parseAcademicYear("2025").error, "Academic year must look like 2025-26");
     assert.equal(parseAcademicYear("2025-26").value, "2025-26");
+  });
+
+  it("accepts school codes and rejects reserved ones", () => {
+    assert.equal(slugifyName("Greenfield Public School"), "greenfield-public-school");
+    assert.equal(parseSlug("greenfield").value, "greenfield");
+    assert.match(parseSlug("admin").error, /reserved/);
+    assert.match(parseSlug("").error, /required/);
   });
 });

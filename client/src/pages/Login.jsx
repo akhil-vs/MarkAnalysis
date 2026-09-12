@@ -13,6 +13,7 @@ const DEMO_LOGIN_ENABLED =
   (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_LOGIN !== "false");
 
 const DEMO_ACCOUNTS = [
+  { name: "Platform Admin", role: "Platform admin", email: "admin@platform.edu", schoolId: "PLT-A01" },
   { name: "Dr. Kavita Rao", role: "Principal", email: "principal@school.edu", schoolId: "SCH-P01" },
   { name: "Sanjay Menon", role: "Exam Coordinator", email: "coordinator@school.edu", schoolId: "SCH-C01" },
   { name: "Anita Sharma", role: "Teacher · Mathematics", email: "anita.sharma@school.edu", schoolId: "SCH-T01" },
@@ -34,14 +35,16 @@ export default function Login() {
   const [busy, setBusy] = useState("");
 
   if (user) {
-    return <Navigate to={user.mustChangePassword ? "/profile" : "/"} replace />;
+    const home = user.role === "PLATFORM_ADMIN" ? "/platform" : "/";
+    return <Navigate to={user.mustChangePassword ? "/profile" : home} replace />;
   }
 
   async function signIn(payload) {
     setError("");
     try {
       const data = await login(payload);
-      navigate(data?.user?.mustChangePassword ? "/profile" : "/");
+      const home = data?.user?.role === "PLATFORM_ADMIN" ? "/platform" : "/";
+      navigate(data?.user?.mustChangePassword ? "/profile" : home);
     } catch (err) {
       if (err.status === 403 && err.data?.user?.status === "PENDING") {
         navigate("/pending");
@@ -82,7 +85,8 @@ export default function Login() {
   }
 
   const teachers = DEMO_ACCOUNTS.filter((a) => a.role.startsWith("Teacher"));
-  const leadership = DEMO_ACCOUNTS.filter((a) => !a.role.startsWith("Teacher"));
+  const leadership = DEMO_ACCOUNTS.filter((a) => a.role === "Principal" || a.role === "Exam Coordinator");
+  const platform = DEMO_ACCOUNTS.filter((a) => a.role === "Platform admin");
   const subtitle = DEMO_LOGIN_ENABLED
     ? "Use any staff account. Seed password is password123."
     : "Sign in with your school email or staff ID.";
@@ -153,7 +157,13 @@ export default function Login() {
 
       {DEMO_LOGIN_ENABLED && (
         <div className="mt-8">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mb-2">Leadership</h2>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mb-2">Platform</h2>
+          <div className="space-y-2">
+            {platform.map((account) => (
+              <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
+            ))}
+          </div>
+          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mt-5 mb-2">Leadership</h2>
           <div className="space-y-2">
             {leadership.map((account) => (
               <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
@@ -200,8 +210,8 @@ export function AuthShell({ title, subtitle, children }) {
         <div>
           <h2 className="font-serif text-4xl leading-tight">See the school, not just the scores.</h2>
           <p className="mt-4 text-cream/70 max-w-md">
-            Role-aware dashboards for principals, exam coordinators, and teachers — from mark entry to
-            term trends.
+            Role-aware dashboards for principals, exam coordinators, and teachers — and a platform console
+            to provision and manage every school.
           </p>
         </div>
         <div className="space-y-2">

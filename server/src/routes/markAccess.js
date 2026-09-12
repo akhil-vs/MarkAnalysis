@@ -9,9 +9,11 @@ import {
   notifyEditReviewed,
 } from "../lib/notifications.js";
 import { logActivity } from "../lib/activityAudit.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const markAccessRouter = Router();
 markAccessRouter.use(auth);
+markAccessRouter.use(requireSchoolTenant);
 
 async function decorateRequest(row) {
   const classSection = await prisma.classSection.findUnique({

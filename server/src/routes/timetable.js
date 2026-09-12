@@ -10,9 +10,11 @@ import { ensureTimetableSchema } from "../lib/ensureSchema.js";
 import { auth, isLeadership, publicUser, requireLeadership } from "../middleware/auth.js";
 import { getSchoolProfile } from "../lib/school.js";
 import { DAY_NAMES, isWorkingDay, publicWorkingDays } from "../lib/workingDays.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const timetableRouter = Router();
 timetableRouter.use(auth);
+timetableRouter.use(requireSchoolTenant);
 timetableRouter.use(async (_req, _res, next) => {
   try {
     await ensureTimetableSchema();
@@ -154,11 +156,13 @@ timetableRouter.put("/periods", requireLeadership(), async (req, res) => {
   }
 
   await prisma.$transaction(async (tx) => {
-    const existing = await tx.period.findMany();
+    const existing = await tx.period.findMany({ where: { tenantId: req.tenantId } });
     const keepIds = new Set(cleaned.map((p) => p.id).filter(Boolean));
     const toDelete = existing.filter((p) => !keepIds.has(p.id));
     if (toDelete.length) {
-      await tx.period.deleteMany({ where: { id: { in: toDelete.map((p) => p.id) } } });
+      await tx.period.deleteMany({
+        where: { tenantId: req.tenantId, id: { in: toDelete.map((p) => p.id) } },
+      });
     }
     for (const p of cleaned) {
       if (p.id && existing.some((e) => e.id === p.id)) {
@@ -180,6 +184,7 @@ timetableRouter.put("/periods", requireLeadership(), async (req, res) => {
             startTime: p.startTime,
             endTime: p.endTime,
             isBreak: p.isBreak,
+            tenantId: req.tenantId,
           },
         });
       }
