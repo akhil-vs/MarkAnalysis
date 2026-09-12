@@ -11,6 +11,7 @@ import {
 } from "../lib/markAccess.js";
 import { auditValueFor, formatMarkCell, parseMarkInput } from "../lib/markCodes.js";
 import {
+  applyMarkPlans,
   mapInChunks,
   normalizeMarkEntries,
   planMarkMutations,
@@ -183,59 +184,11 @@ marksRouter.put("/", async (req, res) => {
     accessBySubject,
   });
 
-  const results = await mapInChunks(plans, WRITE_CHUNK, async (plan) => {
-    if (plan.type === "error" || plan.type === "unchanged" || plan.type === "noop") {
-      return resultFromPlan(plan);
-    }
-
-    if (plan.type === "delete") {
-      await prisma.$transaction([
-        prisma.markAudit.create({
-          data: {
-            markId: plan.existing.id,
-            changedById: req.user.userId,
-            oldValue: plan.auditOld,
-            newValue: -1,
-          },
-        }),
-        prisma.mark.delete({ where: { id: plan.existing.id } }),
-      ]);
-      return resultFromPlan(plan);
-    }
-
-    const mark = await prisma.mark.upsert({
-      where: {
-        studentId_subjectId_examId: {
-          studentId: plan.studentId,
-          subjectId: plan.subjectId,
-          examId,
-        },
-      },
-      create: {
-        studentId: plan.studentId,
-        subjectId: plan.subjectId,
-        examId,
-        marksObtained: plan.parsed.marksObtained,
-        outcome: plan.parsed.outcome,
-        enteredById: req.user.userId,
-        status: "DRAFT",
-      },
-      update: {
-        marksObtained: plan.parsed.marksObtained,
-        outcome: plan.parsed.outcome,
-        enteredById: req.user.userId,
-        status: "DRAFT",
-      },
-    });
-    await prisma.markAudit.create({
-      data: {
-        markId: mark.id,
-        changedById: req.user.userId,
-        oldValue: plan.auditOld,
-        newValue: plan.auditNew,
-      },
-    });
-    return resultFromPlan(plan, mark);
+  const results = await applyMarkPlans(prisma, {
+    examId,
+    userId: req.user.userId,
+    plans,
+    chunkSize: WRITE_CHUNK,
   });
 
   res.json({ results });

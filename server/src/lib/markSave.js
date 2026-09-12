@@ -132,3 +132,120 @@ export async function mapInChunks(items, chunkSize, mapper) {
   }
   return out;
 }
+
+/**
+ * Apply planned mark mutations with fewer DB round-trips:
+ * - deletes: one createMany audits + one deleteMany
+ * - creates: createMany + createMany audits
+ * - updates: parallel chunked updates + createMany audits per chunk
+ */
+export async function applyMarkPlans(prismaClient, { examId, userId, plans, chunkSize = 40 }) {
+  const results = new Array(plans.length);
+  const toDelete = [];
+  const toCreate = [];
+  const toUpdate = [];
+
+  plans.forEach((plan, index) => {
+    if (plan.type === "error" || plan.type === "unchanged" || plan.type === "noop") {
+      results[index] = resultFromPlan(plan);
+      return;
+    }
+    if (plan.type === "delete") {
+      toDelete.push({ plan, index });
+      return;
+    }
+    if (plan.existing) toUpdate.push({ plan, index });
+    else toCreate.push({ plan, index });
+  });
+
+  if (toDelete.length) {
+    await prismaClient.$transaction([
+      prismaClient.markAudit.createMany({
+        data: toDelete.map(({ plan }) => ({
+          markId: plan.existing.id,
+          changedById: userId,
+          oldValue: plan.auditOld,
+          newValue: -1,
+        })),
+      }),
+      prismaClient.mark.deleteMany({
+        where: { id: { in: toDelete.map(({ plan }) => plan.existing.id) } },
+      }),
+    ]);
+    for (const { plan, index } of toDelete) {
+      results[index] = resultFromPlan(plan);
+    }
+  }
+
+  if (toCreate.length) {
+    await prismaClient.mark.createMany({
+      data: toCreate.map(({ plan }) => ({
+        studentId: plan.studentId,
+        subjectId: plan.subjectId,
+        examId,
+        marksObtained: plan.parsed.marksObtained,
+        outcome: plan.parsed.outcome,
+        enteredById: userId,
+        status: "DRAFT",
+      })),
+    });
+    const created = await prismaClient.mark.findMany({
+      where: {
+        examId,
+        OR: toCreate.map(({ plan }) => ({
+          studentId: plan.studentId,
+          subjectId: plan.subjectId,
+        })),
+      },
+    });
+    const createdMap = new Map(created.map((m) => [`${m.studentId}:${m.subjectId}`, m]));
+    await prismaClient.markAudit.createMany({
+      data: toCreate.map(({ plan }) => {
+        const mark = createdMap.get(`${plan.studentId}:${plan.subjectId}`);
+        return {
+          markId: mark.id,
+          changedById: userId,
+          oldValue: plan.auditOld,
+          newValue: plan.auditNew,
+        };
+      }),
+    });
+    for (const { plan, index } of toCreate) {
+      results[index] = resultFromPlan(plan, createdMap.get(`${plan.studentId}:${plan.subjectId}`));
+    }
+  }
+
+  if (toUpdate.length) {
+    const size = Math.max(1, chunkSize | 0);
+    for (let i = 0; i < toUpdate.length; i += size) {
+      const chunk = toUpdate.slice(i, i + size);
+      const marks = await Promise.all(
+        chunk.map(({ plan }) =>
+          prismaClient.mark.update({
+            where: { id: plan.existing.id },
+            data: {
+              marksObtained: plan.parsed.marksObtained,
+              outcome: plan.parsed.outcome,
+              enteredById: userId,
+              status: "DRAFT",
+            },
+          })
+        )
+      );
+      await prismaClient.markAudit.createMany({
+        data: chunk.map(({ plan }, j) => ({
+          markId: marks[j].id,
+          changedById: userId,
+          oldValue: plan.auditOld,
+          newValue: plan.auditNew,
+        })),
+      });
+      chunk.forEach(({ plan, index }, j) => {
+        results[index] = resultFromPlan(plan, marks[j]);
+      });
+    }
+  }
+
+  return results;
+}
+
