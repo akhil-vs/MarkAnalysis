@@ -190,4 +190,13 @@ describe("ensureSchema bootstrap", () => {
     assert.ok(__test.PLATFORM_ADMIN_STATEMENTS.some((s) => s.includes("PLATFORM_ADMIN")));
     assert.ok(__test.PLATFORM_ADMIN_STATEMENTS.some((s) => s.includes("DROP NOT NULL")));
   });
+
+  it("lists every catch-up migration for the cold-start fast path", () => {
+    assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.REFRESH_TOKEN_MIGRATION));
+    assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.MUST_CHANGE_PASSWORD_MIGRATION));
+    assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.TENANT_MIGRATION));
+    assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.SCHOOL_PROFILE_DETAILS_MIGRATION));
+    assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.PLATFORM_ADMIN_MIGRATION));
+    assert.equal(new Set(__test.CATCHUP_MIGRATION_NAMES).size, __test.CATCHUP_MIGRATION_NAMES.length);
+  });
 });
