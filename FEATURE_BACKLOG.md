@@ -11,8 +11,7 @@ Remaining work that would make this suitable for a live school:
 - ~~**Configurable grade bands** and pass percent (board-specific)~~ (School profile Analytics grading)
 - **Electives / additional subjects** per student
 - ~~**Class-teacher inbox** for section pending papers~~ (read access + gated CML for class teachers; dedicated inbox still open)
-- **Moderation / grace marks** with audit reason
-+ ~~**Moderation / grace marks** with audit reason~~ (`POST /api/marks/moderate` + Marks Entry Moderate)
+- ~~**Moderation / grace marks** with audit reason~~ (`POST /api/marks/moderate` + Marks Entry Moderate)
 - ~~One-time consolidation max-marks lock for principal / exam coordinator~~ (Records → Exams → Lock for consolidation)
 - ~~Teacher daily / weekly / monthly timetables for principal and exam coordinator~~ (Timetables nav + views + seed periods)
 - ~~All-teachers daily board + find free teacher for a period~~ (leadership Timetables modes)
@@ -32,6 +31,7 @@ Remaining work that would make this suitable for a live school:
 
 - Broader API/integration tests against a real database
 - Production Docker Compose (`db` + `api` + `web`)
-- ~~Rate limiting on auth~~ (in-memory limiter on login/signup; httpOnly / refresh tokens still open)
+- ~~Rate limiting on auth~~ (in-memory limiter on login/signup)
+- ~~httpOnly access + refresh cookies~~ (`sma_access` / `sma_refresh`, rotate on `/api/auth/refresh`)
 - Non-destructive seed path for demos
 - ~~Replace `xlsx` parse path with ExcelJS-only~~ (uploads parse via ExcelJS; legacy `.xls` rejected)
