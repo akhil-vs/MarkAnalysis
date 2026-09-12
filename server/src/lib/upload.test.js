@@ -1,5 +1,6 @@
 import { describe, it } from "node:test";
 import assert from "node:assert/strict";
+import ExcelJS from "exceljs";
 import {
   findStudentByRoll,
   normalizeRollKey,
@@ -34,9 +35,29 @@ describe("studentRollIndex / findStudentByRoll", () => {
 });
 
 describe("parseSpreadsheet", () => {
-  it("keeps excel values as strings (raw: false)", () => {
-    // Minimal CSV path covers string trim behavior used by upload preview.
-    const rows = parseSpreadsheet(Buffer.from("Roll No,Name\n01,Yash\n"), "marks.csv");
+  it("keeps CSV values as trimmed strings", async () => {
+    const rows = await parseSpreadsheet(Buffer.from("Roll No,Name\n01,Yash\n"), "marks.csv");
     assert.deepEqual(rows, [{ "Roll No": "01", Name: "Yash" }]);
+  });
+
+  it("parses .xlsx via ExcelJS", async () => {
+    const workbook = new ExcelJS.Workbook();
+    const sheet = workbook.addWorksheet("Marks");
+    sheet.addRow(["Roll No", "Name", "Marks"]);
+    sheet.addRow(["01", "Yash", "88"]);
+    sheet.addRow(["12", "Myra", "AB"]);
+    const buffer = Buffer.from(await workbook.xlsx.writeBuffer());
+    const rows = await parseSpreadsheet(buffer, "marks.xlsx");
+    assert.deepEqual(rows, [
+      { "Roll No": "01", Name: "Yash", Marks: "88" },
+      { "Roll No": "12", Name: "Myra", Marks: "AB" },
+    ]);
+  });
+
+  it("rejects legacy .xls uploads", async () => {
+    await assert.rejects(
+      () => parseSpreadsheet(Buffer.from("not-a-real-xls"), "legacy.xls"),
+      /Legacy \.xls/
+    );
   });
 });

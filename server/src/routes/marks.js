@@ -365,9 +365,9 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
 
   let rows;
   try {
-    rows = parseSpreadsheet(req.file.buffer, req.file.originalname);
-  } catch {
-    return res.status(400).json({ error: "Could not parse file" });
+    rows = await parseSpreadsheet(req.file.buffer, req.file.originalname);
+  } catch (err) {
+    return res.status(err.status || 400).json({ error: err.message || "Could not parse file" });
   }
 
   const errors = [];

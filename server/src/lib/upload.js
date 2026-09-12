@@ -1,14 +1,67 @@
 import { parse } from "csv-parse/sync";
-import * as XLSX from "xlsx";
+import ExcelJS from "exceljs";
 
-export function parseSpreadsheet(buffer, originalname) {
+function excelCellToString(value) {
+  if (value == null || value === "") return "";
+  if (value instanceof Date) return value.toISOString().slice(0, 10);
+  if (typeof value === "object") {
+    if (value.text != null) return String(value.text).trim();
+    if (value.result != null) return String(value.result).trim();
+    if (value.richText) {
+      return value.richText.map((part) => part.text || "").join("").trim();
+    }
+    if (value.hyperlink && value.text != null) return String(value.text).trim();
+  }
+  return String(value).trim();
+}
+
+async function parseExcelBuffer(buffer) {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+  const sheet = workbook.worksheets[0];
+  if (!sheet) return [];
+
+  const rows = [];
+  sheet.eachRow({ includeEmpty: false }, (row) => {
+    rows.push(row.values || []);
+  });
+  if (!rows.length) return [];
+
+  const headerRow = rows[0];
+  const headers = [];
+  for (let i = 1; i < headerRow.length; i += 1) {
+    headers[i] = excelCellToString(headerRow[i]);
+  }
+
+  const out = [];
+  for (let r = 1; r < rows.length; r += 1) {
+    const values = rows[r];
+    const obj = {};
+    let hasValue = false;
+    for (let i = 1; i < headers.length; i += 1) {
+      const key = headers[i];
+      if (!key) continue;
+      const cellValue = excelCellToString(values[i]);
+      obj[key] = cellValue;
+      if (cellValue !== "") hasValue = true;
+    }
+    if (hasValue) out.push(obj);
+  }
+  return out;
+}
+
+/** Parse CSV or .xlsx uploads into an array of row objects (header keys preserved). */
+export async function parseSpreadsheet(buffer, originalname) {
   const name = (originalname || "").toLowerCase();
   if (name.endsWith(".csv")) {
     return parse(buffer.toString("utf8"), { columns: true, skip_empty_lines: true, trim: true });
   }
-  const workbook = XLSX.read(buffer, { type: "buffer", cellDates: true });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  return XLSX.utils.sheet_to_json(sheet, { defval: "", raw: false });
+  if (name.endsWith(".xls") && !name.endsWith(".xlsx")) {
+    const err = new Error("Legacy .xls uploads are not supported. Save as .xlsx or CSV and try again.");
+    err.status = 400;
+    throw err;
+  }
+  return parseExcelBuffer(buffer);
 }
 
 /**
