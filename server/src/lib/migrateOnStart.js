@@ -1,7 +1,7 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ensurePendingSchema } from "./ensureSchema.js";
+import { ensureAuthSchema, ensurePendingSchema } from "./ensureSchema.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prismaDir = path.resolve(__dirname, "../../prisma");
@@ -64,6 +64,7 @@ export function runMigrateDeploy({ timeoutMs = 25_000 } = {}) {
 }
 
 let bootstrapPromise = null;
+let authBootstrapPromise = null;
 
 /**
  * Prefer real migrations; fall back to ensurePendingSchema catch-up used on Vercel.
@@ -104,6 +105,35 @@ export function bootstrapSchema() {
     });
   }
   return bootstrapPromise;
+}
+
+/**
+ * Auth routes only: ensure login/refresh tables and tenant columns, then kick the
+ * full catch-up in the background so the first sign-in is not stuck behind logo
+ * / timetable / analytics ALTERs (Vercel 504 on cold start).
+ */
+export function bootstrapAuthSchema() {
+  if (!authBootstrapPromise) {
+    authBootstrapPromise = (async () => {
+      const vercelFastPath =
+        Boolean(process.env.VERCEL) && process.env.FORCE_MIGRATE_DEPLOY !== "true";
+      if (!vercelFastPath) {
+        // Non-Vercel: share the full bootstrap (migrate deploy + ensure).
+        await bootstrapSchema();
+        return { ensureAuthSchema: true, full: true };
+      }
+      await ensureAuthSchema();
+      // Warm the rest without blocking login/me/refresh.
+      bootstrapSchema().catch((err) => {
+        console.error("background bootstrapSchema failed", err);
+      });
+      return { ensureAuthSchema: true, full: false };
+    })().catch((err) => {
+      authBootstrapPromise = null;
+      throw err;
+    });
+  }
+  return authBootstrapPromise;
 }
 
 export const __test = { prismaDir };

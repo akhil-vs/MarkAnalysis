@@ -376,13 +376,26 @@ async function ensureMultiClassPerPeriod() {
   await recordMigration(MULTI_CLASS_PERIOD_MIGRATION, MULTI_CLASS_PERIOD_CHECKSUM);
 }
 
+/** One round-trip: which enum labels are still missing. */
+async function missingEnumLabels(typeName, labels) {
+  if (!labels.length) return [];
+  const rows = await prisma.$queryRaw`
+    SELECT e.enumlabel AS "label"
+    FROM pg_catalog.pg_enum e
+    JOIN pg_catalog.pg_type t ON t.oid = e.enumtypid
+    JOIN pg_catalog.pg_namespace n ON n.oid = t.typnamespace
+    WHERE n.nspname = 'public'
+      AND t.typname = ${typeName}
+      AND e.enumlabel = ANY(${labels})
+  `;
+  const present = new Set((rows || []).map((r) => r.label));
+  return labels.filter((label) => !present.has(label));
+}
+
 async function ensureActivityAuditTable() {
   const hasTable = await tableExists("ActivityAudit");
   if (hasTable) {
-    const missing = [];
-    for (const label of ACTIVITY_ACTIONS) {
-      if (!(await enumHasLabel("AuditAction", label))) missing.push(label);
-    }
+    const missing = await missingEnumLabels("AuditAction", ACTIVITY_ACTIONS);
     for (const label of missing) {
       try {
         await prisma.$executeRawUnsafe(
@@ -403,10 +416,7 @@ async function ensureActivityAuditTable() {
 }
 
 async function ensureStaffNoticeEnum() {
-  const missing = [];
-  for (const label of STAFF_NOTICE_TYPES) {
-    if (!(await enumHasLabel("NotificationType", label))) missing.push(label);
-  }
+  const missing = await missingEnumLabels("NotificationType", STAFF_NOTICE_TYPES);
   if (!missing.length) {
     await recordMigration(NOTICES_MIGRATION, NOTICES_CHECKSUM);
     return;
@@ -927,9 +937,80 @@ async function ensurePlatformAdminRole() {
   await recordMigration(PLATFORM_ADMIN_MIGRATION, PLATFORM_ADMIN_CHECKSUM);
 }
 
+/** Migrations this catch-up owns — used to skip work when history is complete. */
+export const CATCHUP_MIGRATION_NAMES = [
+  TIMETABLE_MIGRATION,
+  MULTI_CLASS_PERIOD_MIGRATION,
+  NOTICES_MIGRATION,
+  ACTIVITY_MIGRATION,
+  CONSOLIDATION_MIGRATION,
+  SUBJECT_CONSOL_MAX_MIGRATION,
+  EXAM_CONSOL_MAX_MIGRATION,
+  SCHOOL_GRADING_MIGRATION,
+  SCHOOL_WORKING_DAYS_MIGRATION,
+  MUST_CHANGE_PASSWORD_MIGRATION,
+  MARK_MODERATION_MIGRATION,
+  ELECTIVE_MIGRATION,
+  REFRESH_TOKEN_MIGRATION,
+  THEORY_PRACTICAL_MIGRATION,
+  PORTAL_LINK_MIGRATION,
+  TENANT_MIGRATION,
+  SCHOOL_PROFILE_DETAILS_MIGRATION,
+  PLATFORM_ADMIN_MIGRATION,
+];
+
+/** Subset required before login / refresh / me can safely query User + RefreshToken. */
+export const AUTH_CATCHUP_MIGRATION_NAMES = [
+  MUST_CHANGE_PASSWORD_MIGRATION,
+  REFRESH_TOKEN_MIGRATION,
+  TENANT_MIGRATION,
+  PLATFORM_ADMIN_MIGRATION,
+];
+
+async function catchupsAlreadyApplied(names = CATCHUP_MIGRATION_NAMES) {
+  try {
+    const rows = await prisma.$queryRaw`
+      SELECT COUNT(*)::int AS "n"
+      FROM "_prisma_migrations"
+      WHERE "migration_name" = ANY(${names})
+    `;
+    return Number(rows?.[0]?.n || 0) >= names.length;
+  } catch {
+    return false;
+  }
+}
+
+let authEnsurePromise = null;
+
+/**
+ * Auth-critical catch-up only (login / refresh / me).
+ * Avoids logo, timetable, analytics, and other catch-ups that blow the Vercel
+ * cold-start budget and turn sign-in into a 504.
+ */
+export async function ensureAuthSchema() {
+  if (!authEnsurePromise) {
+    authEnsurePromise = (async () => {
+      if (await catchupsAlreadyApplied(AUTH_CATCHUP_MIGRATION_NAMES)) return;
+      await Promise.all([ensureMustChangePasswordColumn(), ensureRefreshTokenTable()]);
+      await ensureMultiTenantSchools();
+      await ensurePlatformAdminRole();
+    })().catch((err) => {
+      authEnsurePromise = null;
+      throw err;
+    });
+  }
+  return authEnsurePromise;
+}
+
 export async function ensurePendingSchema() {
   if (!ensurePromise) {
     ensurePromise = (async () => {
+      if (await catchupsAlreadyApplied()) {
+        if (!authEnsurePromise) authEnsurePromise = Promise.resolve();
+        return { skipped: true, reason: "migrations-present" };
+      }
+      // Auth pieces first so concurrent login can finish while the rest runs.
+      await ensureAuthSchema();
       // Timetable table must exist before period uniqueness migrate.
       await ensureTimetableTables();
       await ensureMultiClassPerPeriod();
@@ -941,19 +1022,15 @@ export async function ensurePendingSchema() {
         ensureSubjectConsolidationMaxMarksColumn(),
         ensureSchoolGradingColumns(),
         ensureSchoolWorkingDaysColumn(),
-        ensureMustChangePasswordColumn(),
         ensureMarkAuditReasonColumn(),
         ensureElectiveEnrollments(),
-        ensureRefreshTokenTable(),
         ensureTheoryPracticalColumns(),
         ensurePortalAccessLinkTable(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
       await ensureExamConsolidationColumns();
-      await ensureMultiTenantSchools();
       await ensureSchoolProfileDetailsColumns();
-      await ensurePlatformAdminRole();
     })().catch((err) => {
       ensurePromise = null;
       throw err;
@@ -969,6 +1046,8 @@ export const ensureConsolidationSchema = ensurePendingSchema;
 export const ensureSchoolGradingSchema = ensurePendingSchema;
 
 export const __test = {
+  CATCHUP_MIGRATION_NAMES,
+  AUTH_CATCHUP_MIGRATION_NAMES,
   TIMETABLE_MIGRATION,
   TIMETABLE_CHECKSUM,
   NOTICES_MIGRATION,

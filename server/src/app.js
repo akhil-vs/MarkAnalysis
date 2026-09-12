@@ -17,16 +17,22 @@ import { schoolRouter } from "./routes/school.js";
 import { schoolsRouter } from "./routes/schools.js";
 import { timetableRouter } from "./routes/timetable.js";
 import { platformRouter } from "./routes/platform.js";
-import { bootstrapSchema } from "./lib/migrateOnStart.js";
+import { bootstrapAuthSchema, bootstrapSchema } from "./lib/migrateOnStart.js";
 import { toErrorPayload } from "./lib/httpErrors.js";
 
 const app = express();
 
 /** Once per process: wait for migrate/ensure before handling API traffic (Vercel cold start). */
 let schemaReady = null;
+let authSchemaReady = null;
 function awaitSchema(_req, _res, next) {
   if (!schemaReady) schemaReady = bootstrapSchema();
   schemaReady.then(() => next()).catch((err) => next(err));
+}
+/** Login/refresh/me only need auth tables — full catch-up runs in the background. */
+function awaitAuthSchema(_req, _res, next) {
+  if (!authSchemaReady) authSchemaReady = bootstrapAuthSchema();
+  authSchemaReady.then(() => next()).catch((err) => next(err));
 }
 
 // Dynamic, auth-scoped JSON should not use Express ETags. Hashing large
@@ -66,8 +72,8 @@ app.use("/api", (_req, res, next) => {
 });
 
 app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.use("/api/auth", awaitAuthSchema, authRouter);
 app.use("/api", awaitSchema);
-app.use("/api/auth", authRouter);
 app.use("/api/users", usersRouter);
 app.use("/api/classes", classesRouter);
 app.use("/api/subjects", subjectsRouter);
