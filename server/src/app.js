@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import { authRouter } from "./routes/auth.js";
 import { usersRouter } from "./routes/users.js";
 import { classesRouter } from "./routes/classes.js";
@@ -35,12 +36,15 @@ app.use(
         allowedOrigins.includes("*") ||
         allowedOrigins.includes(origin)
       ) {
-        return callback(null, true);
+        // Reflect the request origin so credentialed browsers accept Set-Cookie.
+        return callback(null, origin || true);
       }
       return callback(null, false);
     },
+    credentials: true,
   })
 );
+app.use(cookieParser());
 app.use(express.json({ limit: "2mb" }));
 
 app.use("/api", (_req, res, next) => {

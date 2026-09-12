@@ -78,6 +78,23 @@ model User {
   timetableEntries TimetableEntry[]
   activityAudits ActivityAudit[]
   consolidationLocks Exam[] @relation("ConsolidationLockedBy")
+  refreshTokens  RefreshToken[]
+}
+
+/// Opaque refresh sessions (hashed) for httpOnly cookie auth.
+model RefreshToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model ClassSection {
