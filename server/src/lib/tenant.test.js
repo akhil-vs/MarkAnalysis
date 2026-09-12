@@ -33,6 +33,13 @@ describe("tenant context", () => {
     });
   });
 
+  it("keeps context when the callback returns a thenable", async () => {
+    const id = await runWithTenant("school-a", () => Promise.resolve().then(() => getTenantId()));
+    assert.equal(id, "school-a");
+    const bypassed = await runWithoutTenant(() => Promise.resolve().then(() => requireTenantId()));
+    assert.equal(bypassed, null);
+  });
+
   it("scopes the school-owned models", () => {
     assert.ok(TENANT_MODELS.has("User"));
     assert.ok(TENANT_MODELS.has("Exam"));

@@ -47,11 +47,11 @@ export function runWithTenant(tenantId, fn) {
   if (!tenantId) {
     throw new Error("Missing tenant id");
   }
-  return tenantAls.run({ tenantId: String(tenantId) }, fn);
+  return tenantAls.run({ tenantId: String(tenantId) }, async () => fn());
 }
 
 export function runWithoutTenant(fn) {
-  return tenantAls.run({ bypass: true }, fn);
+  return tenantAls.run({ bypass: true }, async () => fn());
 }
 
 export function requireTenantId() {
