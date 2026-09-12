@@ -1,9 +1,9 @@
 import app from "../server/src/app.js";
-import { ensurePendingSchema } from "../server/src/lib/ensureSchema.js";
+import { bootstrapSchema } from "../server/src/lib/migrateOnStart.js";
 
-// Best-effort schema catch-up on cold start (Vercel often cannot migrate at build time).
-ensurePendingSchema().catch((err) => {
-  console.error("ensurePendingSchema failed", err);
+// Prefer prisma migrate deploy on cold start; fall back to ensurePendingSchema.
+bootstrapSchema().catch((err) => {
+  console.error("bootstrapSchema failed", err);
 });
 
 export default app;

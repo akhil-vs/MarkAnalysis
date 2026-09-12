@@ -196,19 +196,35 @@ export default function ConsolidatedLists() {
     syncParams({ className, classSectionId: id || "" });
   }
 
-  async function generate(format) {
+  async function generate(format, { official = false } = {}) {
     if (!selectedId || !examId) return;
-    setBusy(format);
+    if (official && preview && !preview.ready) {
+      const msg = "Official download needs every subject register approved.";
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+    setBusy(`${format}${official ? "-official" : ""}`);
     setError("");
     const stem = preview
       ? `CML-${preview.label}-${(preview.exam?.name || "exam").replace(/\s+/g, "_")}`
       : "consolidated-mark-list";
+    const suffix = official || preview?.ready ? "" : "-PREVIEW";
     try {
+      const q = new URLSearchParams({
+        examId,
+        format,
+        ...(official ? { official: "1" } : {}),
+      });
       await download(
-        `/api/exports/consolidated/${selectedId}?examId=${examId}&format=${format}`,
-        `${stem}.${format}`
+        `/api/exports/consolidated/${selectedId}?${q}`,
+        `${stem}${suffix}.${format}`
       );
-      toast.success(`Downloaded ${format.toUpperCase()} mark list.`);
+      toast.success(
+        official || preview?.ready
+          ? `Downloaded official ${format.toUpperCase()} mark list.`
+          : `Downloaded preview ${format.toUpperCase()} (incomplete).`
+      );
     } catch (e) {
       const msg = e.message || "Download failed";
       setError(msg);
@@ -438,12 +454,32 @@ export default function ConsolidatedLists() {
                       Notify teachers
                     </button>
                   )}
-                  <button className="btn-primary" disabled={tableBusy} onClick={() => generate("xlsx")}>
-                    {busy === "xlsx" ? "Preparing…" : "Excel"}
-                  </button>
-                  <button className="btn-ghost" disabled={tableBusy} onClick={() => generate("pdf")}>
-                    {busy === "pdf" ? "Preparing…" : "PDF"}
-                  </button>
+                  {preview.ready ? (
+                    <>
+                      <button className="btn-primary" disabled={tableBusy} onClick={() => generate("xlsx", { official: true })}>
+                        {busy === "xlsx-official" ? "Preparing…" : "Official Excel"}
+                      </button>
+                      <button className="btn-ghost" disabled={tableBusy} onClick={() => generate("pdf", { official: true })}>
+                        {busy === "pdf-official" ? "Preparing…" : "Official PDF"}
+                      </button>
+                    </>
+                  ) : leadership ? (
+                    <>
+                      <button className="btn-ghost" disabled={tableBusy} onClick={() => generate("xlsx")}>
+                        {busy === "xlsx" ? "Preparing…" : "Preview Excel"}
+                      </button>
+                      <button className="btn-ghost" disabled={tableBusy} onClick={() => generate("pdf")}>
+                        {busy === "pdf" ? "Preparing…" : "Preview PDF"}
+                      </button>
+                      <button
+                        className="btn-primary"
+                        disabled
+                        title="Approve every subject register before downloading the official list"
+                      >
+                        Official (locked)
+                      </button>
+                    </>
+                  ) : null}
                 </div>
               }
             >

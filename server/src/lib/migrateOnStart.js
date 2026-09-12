@@ -1,0 +1,84 @@
+import { spawn } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { ensurePendingSchema } from "./ensureSchema.js";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const prismaDir = path.resolve(__dirname, "../../prisma");
+
+let migratePromise = null;
+
+/**
+ * Run `prisma migrate deploy` once per process when DATABASE_URL is set.
+ * Returns true when migrate exited 0, false when skipped/failed.
+ */
+export function runMigrateDeploy({ timeoutMs = 25_000 } = {}) {
+  if (!process.env.DATABASE_URL && !process.env.POSTGRES_PRISMA_URL && !process.env.POSTGRES_URL) {
+    return Promise.resolve({ ok: false, skipped: true, reason: "no-database-url" });
+  }
+  if (process.env.SKIP_MIGRATE_DEPLOY === "true") {
+    return Promise.resolve({ ok: false, skipped: true, reason: "skipped-by-env" });
+  }
+  if (!migratePromise) {
+    migratePromise = new Promise((resolve) => {
+      const child = spawn(
+        process.platform === "win32" ? "npx.cmd" : "npx",
+        ["prisma", "migrate", "deploy"],
+        {
+          cwd: path.resolve(__dirname, "../.."),
+          env: process.env,
+          stdio: ["ignore", "pipe", "pipe"],
+        }
+      );
+      let stdout = "";
+      let stderr = "";
+      const timer = setTimeout(() => {
+        child.kill("SIGTERM");
+        resolve({ ok: false, skipped: false, reason: "timeout", stdout, stderr });
+      }, timeoutMs);
+      child.stdout?.on("data", (chunk) => {
+        stdout += String(chunk);
+      });
+      child.stderr?.on("data", (chunk) => {
+        stderr += String(chunk);
+      });
+      child.on("error", (err) => {
+        clearTimeout(timer);
+        resolve({ ok: false, skipped: false, reason: err.message, stdout, stderr });
+      });
+      child.on("close", (code) => {
+        clearTimeout(timer);
+        resolve({
+          ok: code === 0,
+          skipped: false,
+          reason: code === 0 ? "applied" : `exit-${code}`,
+          stdout,
+          stderr,
+        });
+      });
+    }).finally(() => {
+      /* keep migratePromise so later callers reuse the settled result */
+    });
+  }
+  return migratePromise;
+}
+
+/**
+ * Prefer real migrations; fall back to ensurePendingSchema catch-up used on Vercel.
+ */
+export async function bootstrapSchema() {
+  const result = await runMigrateDeploy();
+  if (!result.ok) {
+    if (!result.skipped) {
+      console.warn("prisma migrate deploy did not succeed:", result.reason, result.stderr || result.stdout);
+    }
+    await ensurePendingSchema();
+    return { migrate: result, ensureSchema: true };
+  }
+  // Still run catch-up for any columns ensureSchema owns that might predate a
+  // migration landing on a lagging environment.
+  await ensurePendingSchema();
+  return { migrate: result, ensureSchema: true };
+}
+
+export const __test = { prismaDir };
