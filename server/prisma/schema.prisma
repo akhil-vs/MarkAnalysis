@@ -214,6 +214,8 @@ model MarkAudit {
   changedById String
   oldValue    Float?
   newValue    Float
+  /// Present when leadership applies a moderation / grace adjustment.
+  reason      String?
   timestamp   DateTime @default(now())
 
   mark      Mark @relation(fields: [markId], references: [id], onDelete: Cascade)
@@ -226,6 +228,7 @@ enum AuditAction {
   MARK_SUBMITTED
   MARK_APPROVED
   MARK_UNAPPROVED
+  MARK_MODERATED
   ACCESS_REQUESTED
   ACCESS_APPROVED
   ACCESS_REJECTED

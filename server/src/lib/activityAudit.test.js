@@ -66,6 +66,27 @@ describe("audit row mapping", () => {
     assert.match(row.summary, /Mathematics/);
   });
 
+  it("maps grace / moderation rows when a reason is present", () => {
+    const row = mapMarkAudit({
+      id: "a2",
+      timestamp: "2026-03-12T10:30:00.000Z",
+      oldValue: 28,
+      newValue: 33,
+      reason: "Board grace for borderline fail",
+      changedBy: { id: "p1", name: "Principal", role: "PRINCIPAL" },
+      mark: {
+        student: { name: "Aarav Sharma", rollNo: "01" },
+        subject: { name: "Mathematics" },
+        exam: { id: "e1", name: "Final Exam" },
+      },
+    });
+    assert.equal(row.action, "MARK_MODERATED");
+    assert.equal(row.actionLabel, ACTION_LABELS.MARK_MODERATED);
+    assert.equal(row.reason, "Board grace for borderline fail");
+    assert.match(row.summary, /Moderated/);
+    assert.match(row.summary, /Board grace/);
+  });
+
   it("maps operational activity such as coordinator approvals", () => {
     const row = mapActivityAudit({
       id: "b1",

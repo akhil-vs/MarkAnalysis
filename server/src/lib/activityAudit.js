@@ -10,6 +10,7 @@ export const ACTION_LABELS = {
   MARK_SUBMITTED: "Marks submitted",
   MARK_APPROVED: "Marks approved",
   MARK_UNAPPROVED: "Approval reverted",
+  MARK_MODERATED: "Mark moderated",
   ACCESS_REQUESTED: "Access requested",
   ACCESS_APPROVED: "Access approved",
   ACCESS_REJECTED: "Access rejected",
@@ -62,13 +63,13 @@ export function actorFilterForViewer(viewerRole, requestedRole, actorId) {
 
 export function mapMarkAudit(row) {
   const deleted = row.newValue === -1;
-  const action = deleted ? "MARK_DELETED" : "MARK_CHANGED";
+  const moderated = Boolean(row.reason);
+  const action = deleted ? "MARK_DELETED" : moderated ? "MARK_MODERATED" : "MARK_CHANGED";
   const student = row.mark?.student;
   const subject = row.mark?.subject;
   const exam = row.mark?.exam;
   const studentLabel = student ? `${student.rollNo} ${student.name}`.trim() : "—";
   const subjectName = subject?.name || "—";
-  const examName = exam?.name || "—";
   const oldLabel = describeAuditValue(row.oldValue);
   const newLabel = describeAuditValue(row.newValue);
   return {
@@ -79,7 +80,9 @@ export function mapMarkAudit(row) {
     actionLabel: actionLabel(action),
     summary: deleted
       ? `Deleted ${subjectName} for ${studentLabel}`
-      : `Changed ${subjectName} for ${studentLabel} (${oldLabel ?? "—"} → ${newLabel})`,
+      : moderated
+        ? `Moderated ${subjectName} for ${studentLabel} (${oldLabel ?? "—"} → ${newLabel}): ${row.reason}`
+        : `Changed ${subjectName} for ${studentLabel} (${oldLabel ?? "—"} → ${newLabel})`,
     actor: row.changedBy
       ? {
           id: row.changedBy.id,
@@ -93,6 +96,7 @@ export function mapMarkAudit(row) {
     subject: subject ? { name: subject.name } : null,
     oldValue: row.oldValue,
     newValue: row.newValue,
+    reason: row.reason || null,
     oldLabel: oldLabel ?? "—",
     newLabel: newLabel ?? "—",
   };
