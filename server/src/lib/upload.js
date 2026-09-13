@@ -23,6 +23,13 @@ function rowLooksLikeHeader(values) {
   const keys = new Set((values || []).map(normalizeHeaderKey).filter(Boolean));
   if (keys.has("rollno") && keys.has("name")) return true;
   if (keys.has("class") && keys.has("section") && (keys.has("name") || keys.has("rollno"))) return true;
+  // Staff bulk import: Name + Email / School ID / Role
+  if (
+    keys.has("name") &&
+    (keys.has("email") || keys.has("emailaddress") || keys.has("schoolid") || keys.has("role"))
+  ) {
+    return true;
+  }
   return false;
 }
 
