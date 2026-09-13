@@ -277,7 +277,11 @@ analyticsRouter.get("/school", async (req, res) => {
 
     const byTerm = new Map();
     for (const mark of allApproved) {
-      const key = `${mark.exam.term}|${mark.exam.id}|${examLabel(mark.exam)}|${mark.exam.date.toISOString()}|${mark.exam.academicYear || ""}`;
+      // Exam.date is TimestamptzString under Prisma ORM 8 — never assume a Date.
+      const parsed = mark.exam.date instanceof Date ? mark.exam.date : new Date(mark.exam.date);
+      const examDate =
+        mark.exam.date && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : String(mark.exam.date || "");
+      const key = `${mark.exam.term}|${mark.exam.id}|${examLabel(mark.exam)}|${examDate}|${mark.exam.academicYear || ""}`;
       if (!byTerm.has(key)) byTerm.set(key, []);
       byTerm.get(key).push(toPercent(mark));
     }

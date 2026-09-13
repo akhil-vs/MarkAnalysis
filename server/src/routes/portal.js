@@ -32,7 +32,7 @@ async function loadActiveLink(token) {
     })
   );
   if (!link || link.revokedAt) return null;
-  if (link.expiresAt && link.expiresAt.getTime() < Date.now()) return null;
+  if (link.expiresAt && new Date(link.expiresAt).getTime() < Date.now()) return null;
   return link;
 }
 
@@ -168,7 +168,7 @@ portalRouter.get("/marks", portalAuth, async (req, res) => {
   await ensurePendingSchema();
   const link = await prisma.portalAccessLink.findUnique({ where: { id: req.portal.linkId } });
   if (!link || link.revokedAt) return res.status(401).json({ error: "Link revoked" });
-  if (link.expiresAt && link.expiresAt.getTime() < Date.now()) {
+  if (link.expiresAt && new Date(link.expiresAt).getTime() < Date.now()) {
     return res.status(401).json({ error: "Link expired" });
   }
 

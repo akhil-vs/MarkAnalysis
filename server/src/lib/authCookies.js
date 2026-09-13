@@ -65,7 +65,11 @@ export async function rotateRefreshSession(rawToken, { userAgent } = {}) {
   if (!rawToken) return null;
   const tokenHash = hashRefreshToken(rawToken);
   const existing = await prisma.refreshToken.findUnique({ where: { tokenHash } });
-  if (!existing || existing.revokedAt || existing.expiresAt.getTime() <= Date.now()) {
+  if (
+    !existing ||
+    existing.revokedAt ||
+    new Date(existing.expiresAt).getTime() <= Date.now()
+  ) {
     return null;
   }
   await prisma.refreshToken.update({

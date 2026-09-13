@@ -127,7 +127,27 @@ function combineOr(parts) {
   return or(...filtered);
 }
 
+function isRelationFilterProxy(fieldProxy) {
+  return (
+    fieldProxy != null &&
+    typeof fieldProxy === "object" &&
+    typeof fieldProxy.some === "function" &&
+    typeof fieldProxy.none === "function"
+  );
+}
+
+/** Prisma Client to-one `is` / nested relation where → ORM 8 `some` / `none`. */
+function relationWherePredicate(fieldProxy, inner) {
+  if (inner == null || (isPlainObject(inner) && !Object.keys(inner).length)) {
+    return fieldProxy.some();
+  }
+  return fieldProxy.some((rel) => whereToPredicate(rel, inner));
+}
+
 function fieldToPredicate(fieldProxy, value) {
+  if (fieldProxy == null) {
+    throw new Error("prismaCompat: unknown field in where clause");
+  }
   if (value === null) return fieldProxy.isNull();
   if (value === undefined) return null;
 
@@ -155,17 +175,36 @@ function fieldToPredicate(fieldProxy, value) {
       parts.push(fieldProxy.every((rel) => whereToPredicate(rel, value.every)));
     }
     if ("is" in value) {
-      if (value.is === null) parts.push(fieldProxy.isNull());
-      else parts.push(whereToPredicate(fieldProxy, value.is));
+      // ORM 8 relation proxies expose some/none (not is/isNull).
+      if (value.is === null) {
+        parts.push(isRelationFilterProxy(fieldProxy) ? fieldProxy.none() : fieldProxy.isNull());
+      } else if (isRelationFilterProxy(fieldProxy)) {
+        parts.push(relationWherePredicate(fieldProxy, value.is));
+      } else {
+        parts.push(whereToPredicate(fieldProxy, value.is));
+      }
     }
     if ("isNot" in value) {
-      if (value.isNot === null) parts.push(fieldProxy.isNotNull());
-      else parts.push(not(whereToPredicate(fieldProxy, value.isNot)));
+      if (value.isNot === null) {
+        parts.push(isRelationFilterProxy(fieldProxy) ? fieldProxy.some() : fieldProxy.isNotNull());
+      } else if (isRelationFilterProxy(fieldProxy)) {
+        parts.push(
+          value.isNot == null || (isPlainObject(value.isNot) && !Object.keys(value.isNot).length)
+            ? fieldProxy.none()
+            : fieldProxy.none((rel) => whereToPredicate(rel, value.isNot))
+        );
+      } else {
+        parts.push(not(whereToPredicate(fieldProxy, value.isNot)));
+      }
     }
     return combineAnd(parts);
   }
 
   if (!isFilterOperatorObject(value)) {
+    // Prisma Client allows to-one shorthand: `student: { status: "ACTIVE" }`
+    if (isRelationFilterProxy(fieldProxy)) {
+      return relationWherePredicate(fieldProxy, value);
+    }
     return whereToPredicate(fieldProxy, value);
   }
 
