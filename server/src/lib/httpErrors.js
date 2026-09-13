@@ -51,7 +51,15 @@ export class HttpError extends Error {
 }
 
 export function prismaErrorCode(err) {
-  return String(err?.code || err?.meta?.code || "");
+  const raw = err?.code || err?.sqlState || err?.meta?.code || err?.cause?.code || err?.cause?.sqlState || "";
+  const code = String(raw);
+  // Prisma 8 / node-pg surface SQLSTATE; keep legacy Prisma P2xxx codes working.
+  if (code === "23505") return "P2002";
+  if (code === "23503") return "P2003";
+  if (code === "23502") return "P2011";
+  if (code === "22001") return "P2000";
+  if (code === "RUNTIME.NO_ROWS") return "P2025";
+  return code;
 }
 
 function targetTokens(err) {
@@ -108,7 +116,9 @@ function isDatabaseUnavailable(err) {
     err?.name === "PrismaClientInitializationError" ||
     code === "P1001" ||
     code === "P1002" ||
-    code === "P1017"
+    code === "P1017" ||
+    code === "ECONNREFUSED" ||
+    code === "57P01"
   );
 }
 

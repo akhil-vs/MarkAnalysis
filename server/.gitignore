@@ -1,0 +1,5 @@
+# Prisma agent skill copies (regenerate with `npx prisma skills sync`)
+.agents/
+.claude/
+.cursor/
+.devin/

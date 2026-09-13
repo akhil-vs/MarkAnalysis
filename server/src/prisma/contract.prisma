@@ -1,0 +1,513 @@
+// use prisma-8
+
+native_enum Role {
+  PLATFORM_ADMIN = "PLATFORM_ADMIN"
+  PRINCIPAL = "PRINCIPAL"
+  EXAM_COORDINATOR = "EXAM_COORDINATOR"
+  TEACHER = "TEACHER"
+}
+
+native_enum UserStatus {
+  PENDING = "PENDING"
+  ACTIVE = "ACTIVE"
+  REJECTED = "REJECTED"
+}
+
+native_enum SchoolStatus {
+  ACTIVE = "ACTIVE"
+  SUSPENDED = "SUSPENDED"
+}
+
+native_enum ExamType {
+  UNIT_TEST = "UNIT_TEST"
+  MID_TERM = "MID_TERM"
+  FINAL = "FINAL"
+}
+
+native_enum MarkStatus {
+  DRAFT = "DRAFT"
+  SUBMITTED = "SUBMITTED"
+  APPROVED = "APPROVED"
+}
+
+native_enum MarkOutcome {
+  SCORED = "SCORED"
+  ABSENT = "ABSENT"
+  EXEMPT = "EXEMPT"
+  WITHHELD = "WITHHELD"
+}
+
+native_enum StudentStatus {
+  ACTIVE = "ACTIVE"
+  PROMOTED = "PROMOTED"
+  TRANSFERRED = "TRANSFERRED"
+  LEFT = "LEFT"
+}
+
+native_enum MarkEntryAccessKind {
+  LATE_ENTRY = "LATE_ENTRY"
+  EDIT = "EDIT"
+}
+
+native_enum MarkEntryAccessStatus {
+  PENDING = "PENDING"
+  APPROVED = "APPROVED"
+  REJECTED = "REJECTED"
+}
+
+/// One tenant: a school that owns users, records, and settings.
+model School {
+  id             String       @id @default(cuid(2))
+  slug           String       @unique
+  joinCode       String       @unique
+  name           String
+  /// Abbreviation used in compact UI (sidebar, mobile header).
+  shortName      String?
+  motto          String?
+  /// PNG or JPEG bytes for letterheads and the school profile preview.
+  logoBytes      Bytes?
+  logoMimeType   String?
+  board          String?
+  affiliationNo  String?
+  udiseCode      String?
+  recognitionNo  String?
+  establishedYear Int?
+  principalName  String?
+  address        String?
+  city           String?
+  district       String?
+  state          String?
+  pincode        String?
+  phone          String?
+  alternatePhone String?
+  email          String?
+  website        String?
+  status         pg.enum(SchoolStatus) @default("ACTIVE")
+  /// Pass threshold used in analytics (percent).
+  passPercent    Float        @default(50)
+  /// Distinction / high-achievement threshold (percent).
+  distinctionMin Float        @default(90)
+  /// Optional override of letter-grade bands: [{ grade, min }, ...] sorted high→low.
+  gradeBands     Jsonb?
+  /// Weights for annual composite by ExamType: { UNIT_TEST, MID_TERM, FINAL }.
+  examWeights    Jsonb?
+  /// Working weekdays as ISO numbers 1=Mon … 7=Sun. Length 5 or 6; order is column order.
+  workingDays    Jsonb?
+  createdAt      TimestamptzString     @default(now())
+  updatedAt temporal.updatedAtString()
+
+  users                 User[]
+  classSections         ClassSection[]
+  subjects              Subject[]
+  students              Student[]
+  exams                 Exam[]
+  periods               Period[]
+  timetableEntries      TimetableEntry[]
+  assignments           TeacherAssignment[]
+  marks                 Mark[]
+  markAudits            MarkAudit[]
+  markEntryRequests     MarkEntryAccessRequest[]
+  notifications         Notification[]
+  activityAudits        ActivityAudit[]
+  portalLinks           PortalAccessLink[]
+  subjectEnrollments    StudentSubjectEnrollment[]
+  @@map("School")
+}
+
+model User {
+  id                 String     @id @default(cuid(2))
+  /// Tenant school. Null only for PLATFORM_ADMIN.
+  tenantId           String?
+  name               String
+  email              String?    @unique
+  /// Staff / employee code, unique within the school (not the tenant id).
+  schoolId           String?
+  passwordHash       String
+  mustChangePassword Boolean    @default(false)
+  role               pg.enum(Role)
+  status             pg.enum(UserStatus) @default("PENDING")
+  createdAt          TimestamptzString   @default(now())
+
+  tenant             School? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  classTeacherOf     ClassSection[]            @relation("ClassTeacher")
+  assignments        TeacherAssignment[]
+  enteredMarks       Mark[]                    @relation("EnteredBy")
+  audits             MarkAudit[]
+  markEntryRequests  MarkEntryAccessRequest[]  @relation("MarkEntryTeacher")
+  reviewedMarkEntryRequests MarkEntryAccessRequest[] @relation("MarkEntryReviewer")
+  notifications      Notification[]
+  timetableEntries   TimetableEntry[]
+  activityAudits     ActivityAudit[]
+  consolidationLocks Exam[]                    @relation("ConsolidationLockedBy")
+  portalLinks        PortalAccessLink[]        @relation("PortalLinkCreator")
+  refreshTokens      RefreshToken[]
+
+  @@unique([tenantId, schoolId])
+  @@index([tenantId])
+  @@map("User")
+}
+
+/// Opaque refresh sessions (hashed) for httpOnly cookie auth.
+model RefreshToken {
+  id        String    @id @default(cuid(2))
+  userId    String
+  tokenHash String    @unique
+  expiresAt TimestamptzString
+  revokedAt TimestamptzString?
+  createdAt TimestamptzString  @default(now())
+  userAgent String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("RefreshToken")
+}
+
+model ClassSection {
+  id             String  @id @default(cuid(2))
+  tenantId       String
+  className      String
+  section        String
+  classTeacherId String?
+  classTeacher   User?   @relation("ClassTeacher", fields: [classTeacherId], references: [id])
+  tenant         School  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  students          Student[]
+  assignments       TeacherAssignment[]
+  markEntryRequests MarkEntryAccessRequest[]
+  timetableEntries  TimetableEntry[]
+
+  @@unique([tenantId, className, section])
+  @@index([tenantId])
+  @@map("ClassSection")
+}
+
+model Subject {
+  id                String  @id @default(cuid(2))
+  tenantId          String
+  name              String
+  className         String
+  /// Theory ceiling for mark entry and register validation.
+  maxMarks          Int
+  /// When true, only enrolled students are expected on the register / CML.
+  isElective        Boolean @default(false)
+  /// When set, register also collects practical marks (additive with maxMarks).
+  practicalMaxMarks Int?
+
+  tenant            School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  assignments       TeacherAssignment[]
+  marks             Mark[]
+  markEntryRequests MarkEntryAccessRequest[]
+  timetableEntries  TimetableEntry[]
+  enrollments       StudentSubjectEnrollment[]
+
+  @@unique([tenantId, name, className])
+  @@index([tenantId])
+  @@map("Subject")
+}
+
+model StudentSubjectEnrollment {
+  id        String   @id @default(cuid(2))
+  tenantId  String
+  studentId String
+  subjectId String
+  createdAt TimestamptzString @default(now())
+
+  tenant  School  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, subjectId])
+  @@index([subjectId])
+  @@index([tenantId])
+  @@map("StudentSubjectEnrollment")
+}
+
+model TeacherAssignment {
+  id             String @id @default(cuid(2))
+  tenantId       String
+  userId         String
+  classSectionId String
+  subjectId      String
+
+  tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, classSectionId, subjectId])
+  @@index([tenantId])
+  @@map("TeacherAssignment")
+}
+
+model Student {
+  id             String        @id @default(cuid(2))
+  tenantId       String
+  name           String
+  rollNo         String
+  classSectionId String
+  academicYear   String        @default("2025-26")
+  status         pg.enum(StudentStatus) @default("ACTIVE")
+  dob            TimestamptzString?
+  guardianName   String?
+  guardianPhone  String?
+  promotedFromId String?
+
+  tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  marks        Mark[]
+  subjectEnrollments StudentSubjectEnrollment[]
+  promotedFrom Student?  @relation("StudentPromotion", fields: [promotedFromId], references: [id], onDelete: SetNull)
+  promotedTo   Student[] @relation("StudentPromotion")
+
+  @@unique([rollNo, classSectionId])
+  @@index([classSectionId, academicYear, status])
+  @@index([tenantId])
+  @@map("Student")
+}
+
+model PortalAccessLink {
+  id          String    @id @default(cuid(2))
+  tenantId    String
+  tokenHash   String    @unique
+  label       String?
+  studentIds  String[]
+  examId      String?
+  expiresAt   TimestamptzString?
+  revokedAt   TimestamptzString?
+  createdById String
+  createdAt   TimestamptzString  @default(now())
+
+  tenant    School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("PortalLinkCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  exam      Exam?  @relation(fields: [examId], references: [id], onDelete: SetNull)
+
+  @@index([createdById])
+  @@index([tenantId])
+  @@map("PortalAccessLink")
+}
+
+model Exam {
+  id                      String    @id @default(cuid(2))
+  tenantId                String
+  name                    String
+  term                    String
+  academicYear            String
+  date                    TimestamptzString
+  type                    pg.enum(ExamType)
+  marksEntryDeadline      TimestamptzString?
+  /// Ceiling used for this exam’s consolidated mark-list totals and percentages.
+  consolidationMaxMarks   Int       @default(100)
+  consolidationLocked     Boolean   @default(false)
+  consolidationLockedAt   TimestamptzString?
+  consolidationLockedById String?
+  consolidationLockedBy   User?     @relation("ConsolidationLockedBy", fields: [consolidationLockedById], references: [id], onDelete: SetNull)
+  tenant                  School    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  marks                   Mark[]
+  markEntryRequests       MarkEntryAccessRequest[]
+  portalLinks             PortalAccessLink[]
+
+  @@index([tenantId])
+  @@map("Exam")
+}
+
+model MarkEntryAccessRequest {
+  id             String                  @id @default(cuid(2))
+  tenantId       String
+  examId         String
+  teacherId      String
+  classSectionId String
+  subjectId      String
+  kind           pg.enum(MarkEntryAccessKind)     @default("LATE_ENTRY")
+  status         pg.enum(MarkEntryAccessStatus)   @default("PENDING")
+  message        String?
+  requestedAt    TimestamptzString                @default(now())
+  reviewedById   String?
+  reviewedAt     TimestamptzString?
+
+  tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  exam         Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  teacher      User         @relation("MarkEntryTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  reviewedBy   User?        @relation("MarkEntryReviewer", fields: [reviewedById], references: [id])
+
+  @@unique([examId, teacherId, classSectionId, subjectId])
+  @@index([status, requestedAt])
+  @@index([tenantId])
+  @@map("MarkEntryAccessRequest")
+}
+
+model Mark {
+  id             String     @id @default(cuid(2))
+  tenantId       String
+  studentId      String
+  subjectId      String
+  examId         String
+  marksObtained  Float?
+  /// Practical component when Subject.practicalMaxMarks is set.
+  practicalMarks Float?
+  outcome        pg.enum(MarkOutcome) @default("SCORED")
+  enteredById    String
+  status         pg.enum(MarkStatus)  @default("DRAFT")
+  updatedAt temporal.updatedAtString()
+
+  tenant    School  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  student   Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  exam      Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  enteredBy User    @relation("EnteredBy", fields: [enteredById], references: [id])
+  audits    MarkAudit[]
+
+  @@unique([studentId, subjectId, examId])
+  @@index([examId, status])
+  @@index([status])
+  @@index([studentId])
+  @@index([tenantId])
+  @@map("Mark")
+}
+
+model MarkAudit {
+  id          String   @id @default(cuid(2))
+  tenantId    String
+  markId      String
+  changedById String
+  oldValue    Float?
+  newValue    Float
+  /// Present when leadership applies a moderation / grace adjustment.
+  reason      String?
+  timestamp   TimestamptzString @default(now())
+
+  tenant    School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mark      Mark   @relation(fields: [markId], references: [id], onDelete: Cascade)
+  changedBy User   @relation(fields: [changedById], references: [id])
+
+  @@index([tenantId])
+  @@map("MarkAudit")
+}
+
+native_enum AuditAction {
+  MARK_CHANGED = "MARK_CHANGED"
+  MARK_DELETED = "MARK_DELETED"
+  MARK_SUBMITTED = "MARK_SUBMITTED"
+  MARK_APPROVED = "MARK_APPROVED"
+  MARK_UNAPPROVED = "MARK_UNAPPROVED"
+  MARK_MODERATED = "MARK_MODERATED"
+  ACCESS_REQUESTED = "ACCESS_REQUESTED"
+  ACCESS_APPROVED = "ACCESS_APPROVED"
+  ACCESS_REJECTED = "ACCESS_REJECTED"
+  USER_CREATED = "USER_CREATED"
+  USER_STATUS_CHANGED = "USER_STATUS_CHANGED"
+  USER_ROLE_CHANGED = "USER_ROLE_CHANGED"
+  USER_PASSWORD_RESET = "USER_PASSWORD_RESET"
+  EXAM_CREATED = "EXAM_CREATED"
+  EXAM_UPDATED = "EXAM_UPDATED"
+  EXAM_DELETED = "EXAM_DELETED"
+  SCHOOL_CREATED = "SCHOOL_CREATED"
+  SCHOOL_UPDATED = "SCHOOL_UPDATED"
+  SCHOOL_STATUS_CHANGED = "SCHOOL_STATUS_CHANGED"
+}
+
+/// Operational audit trail (approvals, access reviews, staff/exam changes).
+/// Mark cell edits stay in MarkAudit; both feeds are merged for the audit page.
+model ActivityAudit {
+  id        String      @id @default(cuid(2))
+  tenantId  String
+  actorId   String
+  action    pg.enum(AuditAction)
+  summary   String
+  examId    String?
+  meta      Jsonb?
+  timestamp TimestamptzString    @default(now())
+
+  tenant School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor  User   @relation(fields: [actorId], references: [id])
+
+  @@index([timestamp])
+  @@index([actorId, timestamp])
+  @@index([examId, timestamp])
+  @@index([tenantId])
+  @@map("ActivityAudit")
+}
+
+native_enum NotificationType {
+  LATE_ENTRY_REQUESTED = "LATE_ENTRY_REQUESTED"
+  LATE_ENTRY_APPROVED = "LATE_ENTRY_APPROVED"
+  LATE_ENTRY_REJECTED = "LATE_ENTRY_REJECTED"
+  EDIT_REQUESTED = "EDIT_REQUESTED"
+  EDIT_APPROVED = "EDIT_APPROVED"
+  EDIT_REJECTED = "EDIT_REJECTED"
+  MARKS_SUBMITTED = "MARKS_SUBMITTED"
+  DEADLINE_REMINDER = "DEADLINE_REMINDER"
+  INCOMPLETE_MARKLIST = "INCOMPLETE_MARKLIST"
+  STAFF_NOTICE = "STAFF_NOTICE"
+}
+
+model Notification {
+  id        String           @id @default(cuid(2))
+  tenantId  String
+  userId    String
+  type      pg.enum(NotificationType)
+  title     String
+  body      String
+  link      String?
+  meta      Jsonb?
+  readAt    TimestamptzString?
+  createdAt TimestamptzString         @default(now())
+
+  tenant School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, readAt, createdAt])
+  @@index([tenantId])
+  @@map("Notification")
+}
+
+/// School bell periods (teaching slots and breaks). sortOrder controls grid order.
+model Period {
+  id        String  @id @default(cuid(2))
+  tenantId  String
+  name      String
+  sortOrder Int
+  startTime String
+  endTime   String
+  isBreak   Boolean @default(false)
+
+  tenant  School           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  entries TimetableEntry[]
+
+  @@unique([tenantId, sortOrder])
+  @@index([tenantId])
+  @@map("Period")
+}
+
+/// Weekly template slot: teacher teaches subject to a class in a period on a weekday.
+/// dayOfWeek uses ISO weekday: 1 = Monday … 7 = Sunday.
+model TimetableEntry {
+  id             String  @id @default(cuid(2))
+  tenantId       String
+  teacherId      String
+  classSectionId String
+  subjectId      String
+  periodId       String
+  dayOfWeek      Int
+  room           String?
+
+  tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher      User         @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  period       Period       @relation(fields: [periodId], references: [id], onDelete: Cascade)
+
+  /// Same teacher may teach multiple classes in one period (e.g. combined sections).
+  @@unique([teacherId, dayOfWeek, periodId, classSectionId])
+  /// A class section still has at most one subject/teacher per period.
+  @@unique([classSectionId, dayOfWeek, periodId])
+  @@index([teacherId, dayOfWeek])
+  @@index([dayOfWeek, periodId])
+  @@index([tenantId])
+  @@map("TimetableEntry")
+}
+

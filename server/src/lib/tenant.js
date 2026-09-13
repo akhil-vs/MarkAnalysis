@@ -89,74 +89,102 @@ function notFoundError(model) {
   return err;
 }
 
-/**
- * Fail-closed tenant scoping for school-owned tables.
- * Unauthenticated lookups must run inside `runWithoutTenant`.
- */
-export function extendPrismaWithTenant(client) {
-  return client.$extends({
-    name: "tenantScope",
-    query: {
-      $allModels: {
-        async $allOperations({ model, operation, args, query }) {
-          if (!TENANT_MODELS.has(model)) return query(args || {});
-          if (isTenantBypass()) return query(args || {});
+function wrapDelegate(client, model, delegate) {
+  if (!delegate || typeof delegate !== "object") return delegate;
 
-          const tenantId = requireTenantId();
-          const nextArgs = { ...(args || {}) };
+  return new Proxy(delegate, {
+    get(target, prop, receiver) {
+      const value = Reflect.get(target, prop, receiver);
+      if (typeof value !== "function" || typeof prop !== "string") return value;
 
-          if (CREATE_OPS.has(operation)) {
-            nextArgs.data = withTenantData(nextArgs.data, tenantId);
-            return query(nextArgs);
-          }
+      return (args = {}) => {
+        if (!TENANT_MODELS.has(model) || isTenantBypass()) {
+          return value.call(target, args);
+        }
 
-          if (operation === "upsert") {
-            const delegate = client[delegateName(model)];
-            const existing = await delegate.findFirst({
-              where: withTenantWhere(nextArgs.where, tenantId),
-              select: { id: true },
-            });
+        const tenantId = requireTenantId();
+        const nextArgs = { ...(args || {}) };
+        const operation = prop;
+
+        if (CREATE_OPS.has(operation)) {
+          nextArgs.data = withTenantData(nextArgs.data, tenantId);
+          return value.call(target, nextArgs);
+        }
+
+        if (operation === "upsert") {
+          const existing = client[delegateName(model)].findFirst({
+            where: withTenantWhere(nextArgs.where, tenantId),
+            select: { id: true },
+          });
+          return Promise.resolve(existing).then((row) => {
             const opts = {};
             if (nextArgs.include) opts.include = nextArgs.include;
             if (nextArgs.select) opts.select = nextArgs.select;
-            if (existing) {
-              return delegate.update({
-                where: { id: existing.id },
+            if (row) {
+              return client[delegateName(model)].update({
+                where: { id: row.id },
                 data: nextArgs.update || {},
                 ...opts,
               });
             }
-            return delegate.create({
+            return client[delegateName(model)].create({
               data: withTenantData(nextArgs.create, tenantId),
               ...opts,
             });
-          }
+          });
+        }
 
-          if (UNIQUE_READS.has(operation) || UNIQUE_WRITES.has(operation)) {
-            const scoped = await client[delegateName(model)].findFirst({
+        if (UNIQUE_READS.has(operation) || UNIQUE_WRITES.has(operation)) {
+          return Promise.resolve(
+            client[delegateName(model)].findFirst({
               where: withTenantWhere(nextArgs.where, tenantId),
               select: { id: true },
-            });
+            })
+          ).then((scoped) => {
             if (!scoped) {
               if (operation === "findUnique") return null;
               if (operation === "findUniqueOrThrow" || UNIQUE_WRITES.has(operation)) {
                 throw notFoundError(model);
               }
             }
-            if (operation === "findUnique" || operation === "findUniqueOrThrow") {
-              return query({ ...nextArgs, where: { id: scoped.id } });
-            }
-            return query({ ...nextArgs, where: { id: scoped.id } });
-          }
+            return value.call(target, { ...nextArgs, where: { id: scoped.id } });
+          });
+        }
 
-          if (WHERE_OPS.has(operation)) {
-            nextArgs.where = withTenantWhere(nextArgs.where, tenantId);
-            return query(nextArgs);
-          }
+        if (WHERE_OPS.has(operation)) {
+          nextArgs.where = withTenantWhere(nextArgs.where, tenantId);
+          return value.call(target, nextArgs);
+        }
 
-          return query(nextArgs);
-        },
-      },
+        return value.call(target, nextArgs);
+      };
+    },
+  });
+}
+
+/**
+ * Fail-closed tenant scoping for school-owned tables.
+ * Unauthenticated lookups must run inside `runWithoutTenant`.
+ * Prisma 8 no longer has `$extends`; wrap model delegates instead.
+ */
+export function extendPrismaWithTenant(client) {
+  const wrapped = {};
+  for (const model of TENANT_MODELS) {
+    const name = delegateName(model);
+    if (client[name]) wrapped[name] = wrapDelegate(client, model, client[name]);
+  }
+
+  return new Proxy(client, {
+    get(target, prop, receiver) {
+      if (typeof prop === "string" && prop in wrapped) return wrapped[prop];
+      if (typeof prop === "string" && !prop.startsWith("$")) {
+        const model = prop.charAt(0).toUpperCase() + prop.slice(1);
+        if (TENANT_MODELS.has(model) && target[prop]) {
+          wrapped[prop] = wrapDelegate(target, model, target[prop]);
+          return wrapped[prop];
+        }
+      }
+      return Reflect.get(target, prop, receiver);
     },
   });
 }
