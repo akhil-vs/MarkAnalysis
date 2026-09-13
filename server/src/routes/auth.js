@@ -139,7 +139,15 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
   let user;
   try {
     user = await runWithoutTenant(async () => {
-      if (email) return prisma.user.findUnique({ where: { email } });
+      if (email) {
+        const normalized = String(email).trim().toLowerCase();
+        return (
+          (await prisma.user.findUnique({ where: { email: normalized } })) ||
+          (await prisma.user.findFirst({
+            where: { email: { equals: normalized, mode: "insensitive" } },
+          }))
+        );
+      }
       const matches = await prisma.user.findMany({ where: { schoolId } });
       if (!matches.length) return null;
       if (matches.length === 1) return matches[0];

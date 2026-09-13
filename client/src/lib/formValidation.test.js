@@ -65,6 +65,7 @@ describe("text form parsers", () => {
     assert.equal(requiredText("  ", "Name").error, "Name is required");
     assert.equal(parseEmail("not-an-email", { required: true }).error, "Enter a valid email");
     assert.equal(parseEmail("a@b.co").value, "a@b.co");
+    assert.equal(parseEmail("Admin@Platform.EDU").value, "admin@platform.edu");
   });
 
   it("enforces password length, phone digits, and year shape", () => {

@@ -1,5 +1,6 @@
 import { randomUUID } from "node:crypto";
 import { prisma } from "./prisma.js";
+import { ensureSeedPlatformAdmin } from "./platformAdmin.js";
 
 const TIMETABLE_MIGRATION = "20260908103000_teacher_timetable";
 const TIMETABLE_CHECKSUM = "887d49c8c5a5a80c55657cc8aab9425c4fdcb9dd1f6fe6336a9508f3984f4549";
@@ -896,6 +897,13 @@ export async function ensurePendingSchema() {
       await ensureExamConsolidationColumns();
       await ensureMultiTenantSchools();
       await ensurePlatformAdminRole();
+      try {
+        await ensureSeedPlatformAdmin({
+          resetPassword: process.env.SEED_RESET_PLATFORM_ADMIN === "true",
+        });
+      } catch (err) {
+        console.warn("Could not ensure platform admin account:", err?.message || err);
+      }
     })().catch((err) => {
       ensurePromise = null;
       throw err;

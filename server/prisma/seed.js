@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { DEFAULT_PERIODS } from "../src/lib/periods.js";
+import { ensureSeedPlatformAdmin } from "../src/lib/platformAdmin.js";
 import { prisma } from "../src/lib/prisma.js";
 import { runWithoutTenant, runWithTenant } from "../src/lib/tenant.js";
 
@@ -23,34 +24,17 @@ function seededScore(studentIndex, subjectIndex, examIndex, yearBoost = 0, teach
   return Math.max(28, Math.min(99, base + wobble + teacherShift));
 }
 
-async function ensurePlatformAdmin(db) {
-  const existing = await db.user.findFirst({ where: { role: "PLATFORM_ADMIN" } });
-  if (existing) return existing;
-  const passwordHash = await bcrypt.hash("password123", 10);
-  return db.user.create({
-    data: {
-      name: "Platform Admin",
-      email: "admin@platform.edu",
-      schoolId: "PLT-A01",
-      passwordHash,
-      role: "PLATFORM_ADMIN",
-      status: "ACTIVE",
-      mustChangePassword: false,
-    },
-  });
-}
-
 async function main() {
   const wipe =
     process.env.SEED_MODE === "wipe" || process.env.ALLOW_DESTRUCTIVE_SEED === "true";
   const existingUsers = await runWithoutTenant(() => prisma.user.count());
 
   if (existingUsers > 0 && !wipe) {
-    await runWithoutTenant(() => ensurePlatformAdmin(prisma));
+    await ensureSeedPlatformAdmin({ resetPassword: true });
     console.log(
       `Database already has ${existingUsers} user(s). Skipping destructive seed.\n` +
         "Set SEED_MODE=wipe (and ALLOW_DESTRUCTIVE_SEED=true in production) to reset demo data.\n" +
-        "Platform admin ensured at admin@platform.edu (password123) when missing."
+        "Platform admin is admin@platform.edu (password123)."
     );
     return;
   }
@@ -100,7 +84,7 @@ async function main() {
     })
   );
 
-  await runWithoutTenant(() => ensurePlatformAdmin(prisma));
+  await ensureSeedPlatformAdmin({ resetPassword: true });
   await runWithTenant(school.id, () => seedSchool(school));
 
   const riverside = await runWithoutTenant(async () => {

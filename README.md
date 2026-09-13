@@ -41,7 +41,7 @@ docker compose up --build
 
 API on [http://localhost:4000](http://localhost:4000), web on [http://localhost:8080](http://localhost:8080). The API container runs `prisma migrate deploy` before listening.
 
-Seed is **non-destructive** when users already exist. To wipe and reseed locally: `SEED_MODE=wipe npm run seed`. In production also set `ALLOW_DESTRUCTIVE_SEED=true`.
+Seed is **non-destructive** when users already exist. A non-wipe seed (and API startup) still creates the platform admin at `admin@platform.edu` / `password123` if that account is missing. To wipe and reseed locally: `SEED_MODE=wipe npm run seed`. In production also set `ALLOW_DESTRUCTIVE_SEED=true`. To reset that demo admin password on the next API boot, set `SEED_RESET_PLATFORM_ADMIN=true`.
 
 Leadership can set the **school name and board** under **School profile** (used on report cards and consolidated lists). Share the **staff join code** from that page so teachers can request access. After a year, use **Records → Promote** to move a class to the next section without losing last year’s marks. On the mark register, type `AB`, `EX`, or `WH` for absent, exempt, or withheld. Class teachers can open their section’s full register (read-only for papers they do not teach).
 

@@ -10,7 +10,7 @@ export function requiredText(value, label) {
 }
 
 export function parseEmail(value, { required = false, label = "Email" } = {}) {
-  const text = String(value ?? "").trim();
+  const text = String(value ?? "").trim().toLowerCase();
   if (!text) {
     return required ? { error: `${label} is required` } : { value: "" };
   }
