@@ -1,4 +1,5 @@
 import bcrypt from "bcryptjs";
+import { ensurePlatformAdmin } from "../src/lib/ensurePlatformAdmin.js";
 import { DEFAULT_PERIODS } from "../src/lib/periods.js";
 import { prisma } from "../src/lib/prisma.js";
 import { runWithoutTenant, runWithTenant } from "../src/lib/tenant.js";
@@ -21,23 +22,6 @@ function seededScore(studentIndex, subjectIndex, examIndex, yearBoost = 0, teach
   const base = 54 + yearBoost + ((studentIndex * 7 + subjectIndex * 11 + examIndex * 5) % 38);
   const wobble = ((studentIndex + subjectIndex * 3 - examIndex * 4) % 13) - 6;
   return Math.max(28, Math.min(99, base + wobble + teacherShift));
-}
-
-async function ensurePlatformAdmin(db) {
-  const existing = await db.user.findFirst({ where: { role: "PLATFORM_ADMIN" } });
-  if (existing) return existing;
-  const passwordHash = await bcrypt.hash("password123", 10);
-  return db.user.create({
-    data: {
-      name: "Platform Admin",
-      email: "admin@platform.edu",
-      schoolId: "PLT-A01",
-      passwordHash,
-      role: "PLATFORM_ADMIN",
-      status: "ACTIVE",
-      mustChangePassword: false,
-    },
-  });
 }
 
 async function main() {

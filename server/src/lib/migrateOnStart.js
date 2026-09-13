@@ -1,7 +1,10 @@
 import { spawn } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ensurePlatformAdmin } from "./ensurePlatformAdmin.js";
 import { ensureAuthSchema, ensurePendingSchema } from "./ensureSchema.js";
+import { prisma } from "./prisma.js";
+import { runWithoutTenant } from "./tenant.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const prismaDir = path.resolve(__dirname, "../../prisma");
@@ -112,6 +115,22 @@ export function bootstrapSchema() {
  * full catch-up in the background so the first sign-in is not stuck behind logo
  * / timetable / analytics ALTERs (Vercel 504 on cold start).
  */
+async function ensureSeedPlatformAdmin() {
+  try {
+    const result = await runWithoutTenant(() => ensurePlatformAdmin(prisma));
+    if (result?.created) {
+      console.log("ensurePlatformAdmin: created", result.user?.email);
+    } else if (result?.updated) {
+      console.log("ensurePlatformAdmin: updated", result.user?.email);
+    }
+    return result;
+  } catch (err) {
+    // Never block login on a bootstrap convenience — schema may still be warming.
+    console.error("ensurePlatformAdmin failed", err);
+    return { skipped: true, reason: "error", error: err };
+  }
+}
+
 export function bootstrapAuthSchema() {
   if (!authBootstrapPromise) {
     authBootstrapPromise = (async () => {
@@ -120,9 +139,11 @@ export function bootstrapAuthSchema() {
       if (!vercelFastPath) {
         // Non-Vercel: share the full bootstrap (migrate deploy + ensure).
         await bootstrapSchema();
+        await ensureSeedPlatformAdmin();
         return { ensureAuthSchema: true, full: true };
       }
       await ensureAuthSchema();
+      await ensureSeedPlatformAdmin();
       // Warm the rest without blocking login/me/refresh.
       bootstrapSchema().catch((err) => {
         console.error("background bootstrapSchema failed", err);
