@@ -9,7 +9,7 @@ const prismaDir = path.resolve(__dirname, "../../prisma");
 let migratePromise = null;
 
 /**
- * Run `prisma migrate deploy` once per process when DATABASE_URL is set.
+ * Run `prisma db migrate` once per process when DATABASE_URL is set.
  * Returns true when migrate exited 0, false when skipped/failed.
  */
 export function runMigrateDeploy({ timeoutMs = 25_000 } = {}) {
@@ -23,7 +23,7 @@ export function runMigrateDeploy({ timeoutMs = 25_000 } = {}) {
     migratePromise = new Promise((resolve) => {
       const child = spawn(
         process.platform === "win32" ? "npx.cmd" : "npx",
-        ["prisma", "migrate", "deploy"],
+        ["prisma", "db", "migrate", "--advance-ref", "db"],
         {
           cwd: path.resolve(__dirname, "../.."),
           env: process.env,
@@ -87,7 +87,7 @@ export function bootstrapSchema() {
       if (!result.ok) {
         if (!result.skipped) {
           console.warn(
-            "prisma migrate deploy did not succeed:",
+            "prisma db migrate did not succeed:",
             result.reason,
             result.stderr || result.stdout
           );

@@ -5,18 +5,24 @@ Role-based marks upload and analytics for principals, exam coordinators, and tea
 ## Stack
 
 - React + Vite + Tailwind CSS + Recharts
-- Express REST API + Prisma
+- Express REST API + Prisma ORM 8
 - PostgreSQL (Docker)
 - JWT auth with RBAC
 
 ## Local setup
+
+Requires **Node.js 22.18+** (Node 24 recommended).
 
 ```bash
 docker compose up -d
 cd server
 cp .env.example .env
 npm install
-npx prisma migrate dev
+npx prisma contract emit
+# Apply schema to an empty database the first time, or use ensureSchema on boot:
+# npx prisma db init
+# For existing databases already matching the contract:
+# npx prisma db sign && npx prisma migration ref set db <baseline>
 npm run seed
 npm test
 npm run dev
@@ -39,7 +45,7 @@ export JWT_SECRET=a-long-random-string
 docker compose up --build
 ```
 
-API on [http://localhost:4000](http://localhost:4000), web on [http://localhost:8080](http://localhost:8080). The API container runs `prisma migrate deploy` before listening.
+API on [http://localhost:4000](http://localhost:4000), web on [http://localhost:8080](http://localhost:8080). The API container runs `prisma db migrate` before listening.
 
 Seed is **non-destructive** when users already exist. To wipe and reseed locally: `SEED_MODE=wipe npm run seed`. In production also set `ALLOW_DESTRUCTIVE_SEED=true`.
 

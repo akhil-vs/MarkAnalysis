@@ -7,24 +7,35 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "seed": "node prisma/seed.js",
-    "test": "node --test src/**/*.test.js"
+    "test": "node --test src/**/*.test.js",
+    "contract:emit": "prisma contract emit",
+    "db:migrate": "prisma db migrate --advance-ref db",
+    "db:verify": "prisma db verify"
   },
-  "prisma": {
-    "seed": "node prisma/seed.js"
+  "engines": {
+    "node": ">=22.18.0"
   },
   "dependencies": {
-    "@prisma/client": "^6.8.2",
+    "@prisma/cli-engine": "^0.3.0",
+    "@prisma/orm-postgres": "^8.0.0-rc.11",
     "bcryptjs": "^3.0.2",
     "cookie-parser": "^1.4.7",
     "cors": "^2.8.5",
     "csv-parse": "^5.6.0",
+    "dotenv": "^17.4.2",
     "exceljs": "^4.4.0",
     "express": "^5.1.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^2.0.1",
-    "pdfkit": "^0.17.1"
+    "pdfkit": "^0.17.1",
+    "pg": "^8.16.3",
+    "temporal-polyfill": "^1.0.5"
   },
   "devDependencies": {
-    "prisma": "^6.8.2"
+    "@types/node": "^26.5.1",
+    "@types/pg": "^8.15.5",
+    "prisma": "^8.0.0-rc.14",
+    "tsx": "^4.23.13",
+    "typescript": "^5.9.3"
   }
 }

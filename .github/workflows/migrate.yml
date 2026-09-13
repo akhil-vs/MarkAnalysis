@@ -5,8 +5,9 @@ on:
   push:
     branches: [main]
     paths:
-      - "server/prisma/migrations/**"
-      - "server/prisma/schema.prisma"
+      - "migrations/**"
+      - "server/src/prisma/contract.prisma"
+      - "server/prisma.config.ts"
 
 jobs:
   migrate:
@@ -18,7 +19,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24"
           cache: npm
           cache-dependency-path: server/package-lock.json
       - name: Install and migrate
@@ -26,8 +27,9 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "DATABASE_URL secret not set — skipping migrate deploy"
+            echo "DATABASE_URL secret not set — skipping migrate"
             exit 0
           fi
           npm ci
-          npx prisma migrate deploy
+          npx prisma contract emit
+          npx prisma db migrate --advance-ref db

@@ -1,19 +1,30 @@
 /**
  * Prisma Client v6-compatible façade over Prisma ORM 8 (`db.orm.public.*`).
- *
- * Usage:
- *   import { db } from "../prisma/db.js";
- *   import pg from "pg";
- *   import { createPrismaCompat } from "./prismaCompat.js";
- *
- *   const pool = new pg.Pool({ connectionString: process.env.DATABASE_URL });
- *   export const prisma = createPrismaCompat(db, { pool });
  */
-
 import { AsyncLocalStorage } from "node:async_hooks";
 import { and, or, not } from "@prisma/orm-postgres/orm-client";
 
 const txAls = new AsyncLocalStorage();
+
+const MODEL_NAMES = [
+  "ActivityAudit",
+  "ClassSection",
+  "Exam",
+  "Mark",
+  "MarkAudit",
+  "MarkEntryAccessRequest",
+  "Notification",
+  "Period",
+  "PortalAccessLink",
+  "RefreshToken",
+  "School",
+  "Student",
+  "StudentSubjectEnrollment",
+  "Subject",
+  "TeacherAssignment",
+  "TimetableEntry",
+  "User",
+];
 
 const FILTER_OPS = new Set([
   "equals",
@@ -27,15 +38,7 @@ const FILTER_OPS = new Set([
   "contains",
   "startsWith",
   "endsWith",
-  "search",
   "mode",
-  "path",
-  "string_contains",
-  "string_starts_with",
-  "string_ends_with",
-  "array_contains",
-  "array_starts_with",
-  "array_ends_with",
   "some",
   "none",
   "every",
@@ -45,13 +48,11 @@ const FILTER_OPS = new Set([
 
 const LOGIC_KEYS = new Set(["AND", "OR", "NOT"]);
 
-/** @param {string} model */
 export function delegateName(model) {
   if (!model) return model;
   return model.charAt(0).toLowerCase() + model.slice(1);
 }
 
-/** @param {string} name */
 function modelNameFromDelegate(name) {
   if (!name) return name;
   return name.charAt(0).toUpperCase() + name.slice(1);
@@ -70,14 +71,9 @@ function isPlainObject(value) {
 function isFilterOperatorObject(value) {
   if (!isPlainObject(value)) return false;
   const keys = Object.keys(value);
-  if (!keys.length) return false;
-  return keys.every((k) => FILTER_OPS.has(k));
+  return keys.length > 0 && keys.every((k) => FILTER_OPS.has(k));
 }
 
-/**
- * Flatten Prisma compound unique where keys, e.g.
- * `{ studentId_subjectId_examId: { studentId, subjectId, examId } }` → flat fields.
- */
 export function flattenUniqueWhere(where) {
   if (!isPlainObject(where)) return where;
   const out = {};
@@ -114,24 +110,29 @@ function likePattern(value, kind) {
 
 function applyStringMatch(fieldProxy, kind, value, mode) {
   const pattern = likePattern(value, kind);
-  if (mode === "insensitive") return fieldProxy.ilike(pattern);
-  return fieldProxy.like(pattern);
+  return mode === "insensitive" ? fieldProxy.ilike(pattern) : fieldProxy.like(pattern);
 }
 
-/**
- * Convert a Prisma Client where value for one field into a Prisma 8 predicate.
- * @param {*} fieldProxy
- * @param {*} value
- */
+function combineAnd(parts) {
+  const filtered = parts.filter((p) => p != null);
+  if (!filtered.length) return null;
+  if (filtered.length === 1) return filtered[0];
+  return and(...filtered);
+}
+
+function combineOr(parts) {
+  const filtered = parts.filter((p) => p != null);
+  if (!filtered.length) return null;
+  if (filtered.length === 1) return filtered[0];
+  return or(...filtered);
+}
+
 function fieldToPredicate(fieldProxy, value) {
   if (value === null) return fieldProxy.isNull();
   if (value === undefined) return null;
 
-  if (!isPlainObject(value)) {
-    return fieldProxy.eq(value);
-  }
+  if (!isPlainObject(value)) return fieldProxy.eq(value);
 
-  // Relation filters
   if ("some" in value || "none" in value || "every" in value || "is" in value || "isNot" in value) {
     const parts = [];
     if ("some" in value) {
@@ -154,23 +155,16 @@ function fieldToPredicate(fieldProxy, value) {
       parts.push(fieldProxy.every((rel) => whereToPredicate(rel, value.every)));
     }
     if ("is" in value) {
-      if (value.is === null) {
-        parts.push(fieldProxy.isNull());
-      } else {
-        parts.push(whereToPredicate(fieldProxy, value.is));
-      }
+      if (value.is === null) parts.push(fieldProxy.isNull());
+      else parts.push(whereToPredicate(fieldProxy, value.is));
     }
     if ("isNot" in value) {
-      if (value.isNot === null) {
-        parts.push(fieldProxy.isNotNull());
-      } else {
-        parts.push(not(whereToPredicate(fieldProxy, value.isNot)));
-      }
+      if (value.isNot === null) parts.push(fieldProxy.isNotNull());
+      else parts.push(not(whereToPredicate(fieldProxy, value.isNot)));
     }
     return combineAnd(parts);
   }
 
-  // Nested to-one where (or relation object without some/none/every) — field access
   if (!isFilterOperatorObject(value)) {
     return whereToPredicate(fieldProxy, value);
   }
@@ -182,21 +176,8 @@ function fieldToPredicate(fieldProxy, value) {
     if (value.equals === null) parts.push(fieldProxy.isNull());
     else parts.push(fieldProxy.eq(value.equals));
   }
-  if ("in" in value) {
-    const list = value.in;
-    if (Array.isArray(list)) {
-      if (list.length === 0) {
-        // Match nothing
-        parts.push(fieldProxy.in([]));
-      } else {
-        parts.push(fieldProxy.in(list));
-      }
-    }
-  }
-  if ("notIn" in value) {
-    const list = value.notIn;
-    if (Array.isArray(list)) parts.push(not(fieldProxy.in(list)));
-  }
+  if ("in" in value && Array.isArray(value.in)) parts.push(fieldProxy.in(value.in));
+  if ("notIn" in value && Array.isArray(value.notIn)) parts.push(not(fieldProxy.in(value.notIn)));
   if ("lt" in value) parts.push(fieldProxy.lt(value.lt));
   if ("lte" in value) parts.push(fieldProxy.lte(value.lte));
   if ("gt" in value) parts.push(fieldProxy.gt(value.gt));
@@ -210,38 +191,15 @@ function fieldToPredicate(fieldProxy, value) {
   }
   if ("not" in value) {
     const n = value.not;
-    if (n === null) {
-      parts.push(fieldProxy.isNotNull());
-    } else if (isPlainObject(n) && isFilterOperatorObject(n)) {
-      parts.push(not(fieldToPredicate(fieldProxy, n)));
-    } else if (isPlainObject(n)) {
-      parts.push(not(whereToPredicate(fieldProxy, n)));
-    } else {
-      parts.push(fieldProxy.neq(n));
-    }
+    if (n === null) parts.push(fieldProxy.isNotNull());
+    else if (isPlainObject(n) && isFilterOperatorObject(n)) parts.push(not(fieldToPredicate(fieldProxy, n)));
+    else if (isPlainObject(n)) parts.push(not(whereToPredicate(fieldProxy, n)));
+    else parts.push(fieldProxy.neq(n));
   }
 
   return combineAnd(parts);
 }
 
-function combineAnd(parts) {
-  const filtered = parts.filter((p) => p != null);
-  if (!filtered.length) return null;
-  if (filtered.length === 1) return filtered[0];
-  return and(...filtered);
-}
-
-function combineOr(parts) {
-  const filtered = parts.filter((p) => p != null);
-  if (!filtered.length) return null;
-  if (filtered.length === 1) return filtered[0];
-  return or(...filtered);
-}
-
-/**
- * @param {*} rowProxy - Prisma 8 field proxy for the model (or nested relation)
- * @param {object|undefined} where - Prisma Client where object
- */
 export function whereToPredicate(rowProxy, where) {
   if (where == null) return null;
   if (typeof where === "function") return where(rowProxy);
@@ -250,10 +208,8 @@ export function whereToPredicate(rowProxy, where) {
   if (!isPlainObject(flat)) return null;
 
   const parts = [];
-
   for (const [key, value] of Object.entries(flat)) {
     if (value === undefined) continue;
-
     if (key === "AND") {
       const list = Array.isArray(value) ? value : [value];
       parts.push(combineAnd(list.map((item) => whereToPredicate(rowProxy, item))));
@@ -270,11 +226,9 @@ export function whereToPredicate(rowProxy, where) {
       if (inner) parts.push(not(inner));
       continue;
     }
-
     const pred = fieldToPredicate(rowProxy[key], value);
     if (pred != null) parts.push(pred);
   }
-
   return combineAnd(parts);
 }
 
@@ -287,10 +241,6 @@ function omitUndefined(data) {
   return out;
 }
 
-/**
- * Strip Prisma nested-write wrappers we don't translate; keep scalars.
- * connect/disconnect/create on relations are left for callers that use P8 APIs directly.
- */
 function normalizeWriteData(data) {
   return omitUndefined(data);
 }
@@ -305,13 +255,8 @@ function normalizeOrderByList(orderBy) {
       if (val === "asc" || val === "desc") {
         specs.push({ path: [key], direction: val, relation: false });
       } else if (isPlainObject(val)) {
-        const nested = normalizeOrderByList(val);
-        for (const n of nested) {
-          specs.push({
-            path: [key, ...n.path],
-            direction: n.direction,
-            relation: true,
-          });
+        for (const n of normalizeOrderByList(val)) {
+          specs.push({ path: [key, ...n.path], direction: n.direction, relation: true });
         }
       }
     }
@@ -321,9 +266,7 @@ function normalizeOrderByList(orderBy) {
 
 function orderExpr(rowProxy, spec) {
   let proxy = rowProxy;
-  for (const part of spec.path) {
-    proxy = proxy[part];
-  }
+  for (const part of spec.path) proxy = proxy[part];
   return spec.direction === "desc" ? proxy.desc() : proxy.asc();
 }
 
@@ -342,7 +285,6 @@ function compareValues(a, b) {
   if (b == null) return -1;
   if (a instanceof Date && b instanceof Date) return a.getTime() - b.getTime();
   if (typeof a === "number" && typeof b === "number") return a - b;
-  if (typeof a === "bigint" && typeof b === "bigint") return a < b ? -1 : a > b ? 1 : 0;
   const as = String(a);
   const bs = String(b);
   return as < bs ? -1 : as > bs ? 1 : 0;
@@ -359,15 +301,9 @@ function postSort(rows, specs) {
   });
 }
 
-/**
- * Partition select/include into scalar selects, relation includes, and _count reducers.
- */
 function partitionProjection(select, include) {
-  /** @type {string[]} */
   const scalarSelect = [];
-  /** @type {Record<string, any>} */
   const relations = {};
-  /** @type {Record<string, any>} */
   const countSelect = {};
 
   function absorb(obj, asInclude) {
@@ -388,19 +324,12 @@ function partitionProjection(select, include) {
         else scalarSelect.push(key);
         continue;
       }
-      if (isPlainObject(value)) {
-        relations[key] = value;
-      }
+      if (isPlainObject(value)) relations[key] = value;
     }
   }
 
   absorb(select, false);
   absorb(include, true);
-
-  // If select listed a relation as `true`, it landed in scalarSelect — move known
-  // overlaps when the same key also appears under include, otherwise leave as select
-  // (Prisma treats bare `true` in select as a scalar). Relation objects always go to relations.
-
   return { scalarSelect, relations, countSelect };
 }
 
@@ -408,8 +337,7 @@ function applyBranchOptions(branch, opts) {
   if (!opts || opts === true) return branch;
   let b = branch;
   if (opts.where && Object.keys(opts.where).length) {
-    const pred = (row) => whereToPredicate(row, opts.where);
-    b = b.where((row) => pred(row));
+    b = b.where((row) => whereToPredicate(row, opts.where));
   }
   if (opts.select || opts.include) {
     const { scalarSelect, relations, countSelect } = partitionProjection(opts.select, opts.include);
@@ -418,10 +346,7 @@ function applyBranchOptions(branch, opts) {
       b = b.include(rel, (child) => applyBranchOptions(child, relOpts));
     }
     for (const [rel, relOpts] of Object.entries(countSelect)) {
-      b = b.include(rel, (child) => {
-        let c = applyBranchOptions(child, relOpts);
-        return c.count();
-      });
+      b = b.include(rel, (child) => applyBranchOptions(child, relOpts).count());
     }
   }
   const orderSpecs = normalizeOrderByList(opts.orderBy);
@@ -436,10 +361,6 @@ function applyBranchOptions(branch, opts) {
   return b;
 }
 
-/**
- * Apply Prisma Client args onto a Prisma 8 collection.
- * Returns `{ collection, countKeys, postSortSpecs, take, skip, usedSqlPaging }`.
- */
 function applyArgs(collection, args = {}, { ignorePaging = false } = {}) {
   let q = collection;
   const countKeys = [];
@@ -449,21 +370,14 @@ function applyArgs(collection, args = {}, { ignorePaging = false } = {}) {
   }
 
   const { scalarSelect, relations, countSelect } = partitionProjection(args.select, args.include);
-
-  if (scalarSelect.length) {
-    q = q.select(...scalarSelect);
-  }
+  if (scalarSelect.length) q = q.select(...scalarSelect);
 
   for (const [rel, relOpts] of Object.entries(relations)) {
     q = q.include(rel, (child) => applyBranchOptions(child, relOpts));
   }
-
   for (const [rel, relOpts] of Object.entries(countSelect)) {
     countKeys.push(rel);
-    q = q.include(rel, (child) => {
-      let c = applyBranchOptions(child, relOpts);
-      return c.count();
-    });
+    q = q.include(rel, (child) => applyBranchOptions(child, relOpts).count());
   }
 
   const orderSpecs = normalizeOrderByList(args.orderBy);
@@ -476,7 +390,6 @@ function applyArgs(collection, args = {}, { ignorePaging = false } = {}) {
         ? q.orderBy((row) => orderExpr(row, orderSpecs[0]))
         : q.orderBy(orderSpecs.map((spec) => (row) => orderExpr(row, spec)));
   } else if (orderSpecs.length && relationOrder) {
-    // Try native nested orderBy first (e.g. u.exam.date.asc()).
     try {
       q =
         orderSpecs.length === 1
@@ -513,9 +426,7 @@ function reshapeCountFields(row, countKeys) {
       delete out[key];
     }
   }
-  if (Object.keys(counts).length) {
-    out._count = { ...(out._count || {}), ...counts };
-  }
+  if (Object.keys(counts).length) out._count = { ...(out._count || {}), ...counts };
   return out;
 }
 
@@ -527,29 +438,18 @@ function reshapeRows(rows, countKeys) {
 
 function finishRead(rows, meta) {
   let list = Array.isArray(rows) ? rows : rows == null ? [] : [rows];
-  if (meta.postSortSpecs?.length) {
-    list = postSort(list, meta.postSortSpecs);
-  }
+  if (meta.postSortSpecs?.length) list = postSort(list, meta.postSortSpecs);
   if (!meta.usedSqlPaging) {
     const skip = meta.skip ?? 0;
     const take = meta.take;
     list = take == null ? list.slice(skip) : list.slice(skip, skip + take);
   }
-  list = reshapeRows(list, meta.countKeys || []);
-  return list;
+  return reshapeRows(list, meta.countKeys || []);
 }
 
 function sqlState(err) {
   if (!err || typeof err !== "object") return null;
-  return (
-    err.code ||
-    err.sqlState ||
-    err.cause?.code ||
-    err.cause?.sqlState ||
-    err.meta?.code ||
-    err.originalCode ||
-    null
-  );
+  return err.code || err.sqlState || err.cause?.code || err.cause?.sqlState || err.meta?.code || null;
 }
 
 function constraintTarget(err) {
@@ -561,9 +461,6 @@ function constraintTarget(err) {
   return undefined;
 }
 
-/**
- * Map Postgres SQLSTATE / driver errors onto Prisma Client-like codes.
- */
 export function mapDriverError(err) {
   if (!err || typeof err !== "object") return err;
   const state = String(sqlState(err) || "");
@@ -581,23 +478,22 @@ function rethrowMapped(err) {
   throw mapDriverError(err);
 }
 
-function notFoundError(model, cause) {
+function notFoundError(model) {
   const err = new Error(`No ${model} record was found for a query.`);
   err.code = "P2025";
-  err.meta = { modelName: model, cause };
+  err.meta = { modelName: model };
   return err;
 }
 
-/**
- * Lazy thenable so `$transaction([...])` can run ops inside a tx ALS context.
- */
 function prismaPromise(executor) {
   let started = null;
   const start = () => {
     if (!started) {
-      started = Promise.resolve().then(() => executor()).catch((err) => {
-        rethrowMapped(err);
-      });
+      started = Promise.resolve()
+        .then(() => executor())
+        .catch((err) => {
+          rethrowMapped(err);
+        });
     }
     return started;
   };
@@ -622,10 +518,8 @@ function buildTaggedSql(strings, values) {
     text += strings[i];
     if (i < values.length) {
       const v = values[i];
-      // Nested Prisma.sql-like fragments: { strings, values } or { text, values }
       if (v && typeof v === "object" && Array.isArray(v.strings) && Array.isArray(v.values)) {
         const nested = buildTaggedSql(v.strings, v.values);
-        // Remap nested $n placeholders
         let nestedText = nested.text;
         const offset = params.length;
         nestedText = nestedText.replace(/\$(\d+)/g, (_, n) => `$${Number(n) + offset}`);
@@ -641,7 +535,7 @@ function buildTaggedSql(strings, values) {
 }
 
 /**
- * @param {any} db - Prisma 8 client (`postgres(...)` result) or transaction client
+ * @param {any} db Prisma 8 client or transaction client
  * @param {{ pool?: import('pg').Pool }} [options]
  */
 export function createPrismaCompat(db, options = {}) {
@@ -655,25 +549,10 @@ export function createPrismaCompat(db, options = {}) {
     return txAls.getStore()?.orm ?? getDb().orm ?? db.orm;
   }
 
-  function publicModels() {
-    return getOrm().public;
-  }
-
   function modelCollection(modelName) {
-    const models = publicModels();
-    const coll = models[modelName];
-    if (!coll) {
-      throw new Error(`Unknown model on db.orm.public: ${modelName}`);
-    }
+    const coll = getOrm().public[modelName];
+    if (!coll) throw new Error(`Unknown model on db.orm.public: ${modelName}`);
     return coll;
-  }
-
-  function listModelNames() {
-    const models = publicModels();
-    return Object.keys(models).filter((k) => {
-      const v = models[k];
-      return v && typeof v === "object" && (typeof v.where === "function" || typeof v.create === "function");
-    });
   }
 
   function createDelegate(modelName) {
@@ -683,14 +562,13 @@ export function createPrismaCompat(db, options = {}) {
       findMany(args = {}) {
         return run(async (Model) => {
           const meta = applyArgs(Model, args);
-          let rows;
           try {
-            rows = await meta.collection.all();
+            const rows = await meta.collection.all();
+            return finishRead(rows, meta);
           } catch (err) {
-            // Native relation orderBy may fail at execution — fall back to post-sort.
             if (meta.postSortSpecs?.length || normalizeOrderByList(args.orderBy).some((s) => s.relation)) {
               const retry = applyArgs(Model, { ...args, orderBy: undefined }, { ignorePaging: true });
-              rows = await retry.collection.all();
+              const rows = await retry.collection.all();
               return finishRead(rows, {
                 countKeys: meta.countKeys,
                 postSortSpecs: normalizeOrderByList(args.orderBy),
@@ -701,32 +579,19 @@ export function createPrismaCompat(db, options = {}) {
             }
             rethrowMapped(err);
           }
-          return finishRead(rows, meta);
         });
       },
 
       findFirst(args = {}) {
         return run(async (Model) => {
-          const meta = applyArgs(Model, { ...args, take: 1, skip: args.skip });
-          let row;
-          try {
-            if (meta.postSortSpecs?.length) {
-              const allMeta = applyArgs(Model, { ...args, take: undefined, skip: undefined });
-              const rows = finishRead(await allMeta.collection.all(), {
-                ...allMeta,
-                take: 1,
-                skip: args.skip ?? 0,
-                usedSqlPaging: false,
-                postSortSpecs: meta.postSortSpecs,
-              });
-              return rows[0] ?? null;
-            }
-            row = await meta.collection.first();
-          } catch (err) {
-            rethrowMapped(err);
+          const orderSpecs = normalizeOrderByList(args.orderBy);
+          if (orderSpecs.some((s) => s.relation)) {
+            const rows = await createDelegate(modelName).findMany({ ...args, take: 1 });
+            return rows[0] ?? null;
           }
-          if (row == null) return null;
-          return reshapeCountFields(row, meta.countKeys);
+          const meta = applyArgs(Model, { ...args, take: 1 });
+          const row = await meta.collection.first();
+          return row == null ? null : reshapeCountFields(row, meta.countKeys);
         });
       },
 
@@ -735,18 +600,15 @@ export function createPrismaCompat(db, options = {}) {
           const where = flattenUniqueWhere(args.where || {});
           const meta = applyArgs(Model, { ...args, where });
           const row = await meta.collection.first();
-          if (row == null) return null;
-          return reshapeCountFields(row, meta.countKeys);
+          return row == null ? null : reshapeCountFields(row, meta.countKeys);
         });
       },
 
       findUniqueOrThrow(args = {}) {
-        return run(async (Model) => {
-          const where = flattenUniqueWhere(args.where || {});
-          const meta = applyArgs(Model, { ...args, where });
-          const row = await meta.collection.first();
+        return run(async () => {
+          const row = await createDelegate(modelName).findUnique(args);
           if (row == null) throw notFoundError(modelName);
-          return reshapeCountFields(row, meta.countKeys);
+          return row;
         });
       },
 
@@ -761,14 +623,11 @@ export function createPrismaCompat(db, options = {}) {
       create(args = {}) {
         return run(async (Model) => {
           const data = normalizeWriteData(args.data);
-          let q = Model;
           if (args.select || args.include) {
-            const meta = applyArgs(q, { select: args.select, include: args.include });
-            q = meta.collection;
-            const row = await q.create(data);
-            return reshapeCountFields(row, meta.countKeys);
+            const meta = applyArgs(Model, { select: args.select, include: args.include });
+            return reshapeCountFields(await meta.collection.create(data), meta.countKeys);
           }
-          return q.create(data);
+          return Model.create(data);
         });
       },
 
@@ -777,15 +636,11 @@ export function createPrismaCompat(db, options = {}) {
           const rows = Array.isArray(args.data) ? args.data : args.data == null ? [] : [args.data];
           const cleaned = rows.map(normalizeWriteData);
           if (!cleaned.length) return { count: 0 };
-
           if (!args.skipDuplicates) {
-            const count = await Model.createAndCount(cleaned);
-            return { count };
+            return { count: await Model.createAndCount(cleaned) };
           }
-
           try {
-            const count = await Model.createAndCount(cleaned);
-            return { count };
+            return { count: await Model.createAndCount(cleaned) };
           } catch (err) {
             mapDriverError(err);
             if (err.code !== "P2002" && sqlState(err) !== "23505") rethrowMapped(err);
@@ -810,7 +665,6 @@ export function createPrismaCompat(db, options = {}) {
           const rows = Array.isArray(args.data) ? args.data : args.data == null ? [] : [args.data];
           const cleaned = rows.map(normalizeWriteData);
           if (!cleaned.length) return [];
-
           let q = Model;
           if (args.select) {
             const scalars = Object.entries(args.select)
@@ -818,11 +672,7 @@ export function createPrismaCompat(db, options = {}) {
               .map(([k]) => k);
             if (scalars.length) q = q.select(...scalars);
           }
-
-          if (!args.skipDuplicates) {
-            return await q.createAll(cleaned);
-          }
-
+          if (!args.skipDuplicates) return q.createAll(cleaned);
           try {
             return await q.createAll(cleaned);
           } catch (err) {
@@ -850,11 +700,7 @@ export function createPrismaCompat(db, options = {}) {
           let q = Model.where((row) => whereToPredicate(row, where));
           let countKeys = [];
           if (args.select || args.include) {
-            const meta = applyArgs(Model, {
-              where,
-              select: args.select,
-              include: args.include,
-            });
+            const meta = applyArgs(Model, { where, select: args.select, include: args.include });
             q = meta.collection;
             countKeys = meta.countKeys;
           }
@@ -870,8 +716,7 @@ export function createPrismaCompat(db, options = {}) {
           const data = normalizeWriteData(args.data);
           let q = Model;
           if (where) q = q.where((row) => whereToPredicate(row, where));
-          const count = await q.updateAndCount(data);
-          return { count };
+          return { count: await q.updateAndCount(data) };
         });
       },
 
@@ -881,11 +726,7 @@ export function createPrismaCompat(db, options = {}) {
           let q = Model.where((row) => whereToPredicate(row, where));
           let countKeys = [];
           if (args.select || args.include) {
-            const meta = applyArgs(Model, {
-              where,
-              select: args.select,
-              include: args.include,
-            });
+            const meta = applyArgs(Model, { where, select: args.select, include: args.include });
             q = meta.collection;
             countKeys = meta.countKeys;
           }
@@ -900,8 +741,7 @@ export function createPrismaCompat(db, options = {}) {
           const where = args.where && Object.keys(args.where).length ? args.where : undefined;
           let q = Model;
           if (where) q = q.where((row) => whereToPredicate(row, where));
-          const count = await q.deleteAndCount();
-          return { count };
+          return { count: await q.deleteAndCount() };
         });
       },
 
@@ -913,15 +753,11 @@ export function createPrismaCompat(db, options = {}) {
           let q = Model;
           let countKeys = [];
           if (args.select || args.include) {
-            const meta = applyArgs(Model, {
-              select: args.select,
-              include: args.include,
-            });
+            const meta = applyArgs(Model, { select: args.select, include: args.include });
             q = meta.collection;
             countKeys = meta.countKeys;
           }
-          const conflictOn = { ...where };
-          const row = await q.upsert({ create, update, conflictOn });
+          const row = await q.upsert({ create, update, conflictOn: { ...where } });
           return reshapeCountFields(row, countKeys);
         });
       },
@@ -932,105 +768,33 @@ export function createPrismaCompat(db, options = {}) {
           if (args.where && Object.keys(args.where).length) {
             q = q.where((row) => whereToPredicate(row, args.where));
           }
-          // Prisma Client `select` on count is for relation counts / field counts;
-          // support the common scalar total via aggregate.
-          if (args.select && isPlainObject(args.select) && !args.select._all) {
-            // Limited: only `_all` / bare count supported for full parity of simple count().
-          }
           const result = await q.aggregate((agg) => ({ total: agg.count() }));
           return result?.total ?? 0;
-        });
-      },
-
-      aggregate(args = {}) {
-        return run(async (Model) => {
-          let q = Model;
-          if (args.where && Object.keys(args.where).length) {
-            q = q.where((row) => whereToPredicate(row, args.where));
-          }
-          const result = await q.aggregate((agg) => {
-            const out = {};
-            if (args._count) {
-              if (args._count === true || args._count._all) {
-                out._count = agg.count();
-              } else if (isPlainObject(args._count)) {
-                // Per-field counts aren't mapped 1:1; expose total under _all when requested.
-                out._count = agg.count();
-              }
-            }
-            if (args._min && isPlainObject(args._min)) {
-              out._min = {};
-              for (const [field, on] of Object.entries(args._min)) {
-                if (on) out._min[field] = agg.min(field);
-              }
-            }
-            if (args._max && isPlainObject(args._max)) {
-              out._max = {};
-              for (const [field, on] of Object.entries(args._max)) {
-                if (on) out._max[field] = agg.max(field);
-              }
-            }
-            if (args._avg && isPlainObject(args._avg)) {
-              out._avg = {};
-              for (const [field, on] of Object.entries(args._avg)) {
-                if (on) out._avg[field] = agg.avg(field);
-              }
-            }
-            if (args._sum && isPlainObject(args._sum)) {
-              out._sum = {};
-              for (const [field, on] of Object.entries(args._sum)) {
-                if (on) out._sum[field] = agg.sum(field);
-              }
-            }
-            if (!Object.keys(out).length) {
-              out._count = agg.count();
-            }
-            return out;
-          });
-
-          // Prisma shapes `_count: { _all: n }` when `_count: { _all: true }`
-          if (args._count && args._count !== true && result && typeof result._count === "number") {
-            if (args._count._all) {
-              return { ...result, _count: { _all: result._count } };
-            }
-          }
-          return result;
         });
       },
     };
   }
 
   async function withTransaction(fn) {
-    const active = getDb();
-    return active.transaction(async (tx) => {
+    return getDb().transaction(async (tx) => {
       const txClient = createPrismaCompat(tx, { pool });
       return txAls.run({ db: tx, orm: tx.orm }, () => fn(txClient));
     });
   }
 
   async function requirePool() {
-    if (!pool) {
-      throw new Error("createPrismaCompat: `pool` is required for raw SQL helpers");
-    }
+    if (!pool) throw new Error("createPrismaCompat: `pool` is required for raw SQL helpers");
     return pool;
   }
 
   const client = {
-    get $parent() {
-      return client;
-    },
-
-    $transaction(arg, _options) {
+    $transaction(arg) {
       return prismaPromise(async () => {
-        if (typeof arg === "function") {
-          return withTransaction(arg);
-        }
+        if (typeof arg === "function") return withTransaction(arg);
         if (Array.isArray(arg)) {
           return withTransaction(async () => {
             const results = [];
-            for (const item of arg) {
-              results.push(await item);
-            }
+            for (const item of arg) results.push(await item);
             return results;
           });
         }
@@ -1043,13 +807,7 @@ export function createPrismaCompat(db, options = {}) {
         const p = await requirePool();
         if (Array.isArray(strings) && Object.prototype.hasOwnProperty.call(strings, "raw")) {
           const { text, params } = buildTaggedSql(strings, values);
-          const result = await p.query(text, params);
-          return result.rows;
-        }
-        // Prisma.sql object / plain text fallback
-        if (strings && typeof strings === "object" && strings.text) {
-          const result = await p.query(strings.text, strings.values || values);
-          return result.rows;
+          return (await p.query(text, params)).rows;
         }
         throw new TypeError("$queryRaw must be used as a tagged template");
       });
@@ -1058,8 +816,7 @@ export function createPrismaCompat(db, options = {}) {
     $queryRawUnsafe(query, ...values) {
       return prismaPromise(async () => {
         const p = await requirePool();
-        const result = await p.query(query, values);
-        return result.rows;
+        return (await p.query(query, values)).rows;
       });
     },
 
@@ -1068,8 +825,7 @@ export function createPrismaCompat(db, options = {}) {
         const p = await requirePool();
         if (Array.isArray(strings) && Object.prototype.hasOwnProperty.call(strings, "raw")) {
           const { text, params } = buildTaggedSql(strings, values);
-          const result = await p.query(text, params);
-          return result.rowCount ?? 0;
+          return (await p.query(text, params)).rowCount ?? 0;
         }
         throw new TypeError("$executeRaw must be used as a tagged template");
       });
@@ -1078,8 +834,7 @@ export function createPrismaCompat(db, options = {}) {
     $executeRawUnsafe(query, ...values) {
       return prismaPromise(async () => {
         const p = await requirePool();
-        const result = await p.query(query, values);
-        return result.rowCount ?? 0;
+        return (await p.query(query, values)).rowCount ?? 0;
       });
     },
 
@@ -1098,32 +853,19 @@ export function createPrismaCompat(db, options = {}) {
       if (errors.length) throw mapDriverError(errors[0]);
     },
 
-    async $connect() {
-      // Prisma 8 connects lazily; touch runtime if available.
-      try {
-        getDb().runtime?.();
-      } catch {
-        /* ignore */
-      }
-    },
+    async $connect() {},
   };
 
-  // Attach camelCase delegates for every model currently on db.orm.public
-  for (const name of listModelNames()) {
-    const del = delegateName(name);
-    client[del] = createDelegate(name);
+  for (const name of MODEL_NAMES) {
+    client[delegateName(name)] = createDelegate(name);
   }
 
-  // Proxy unknown model access in case models are added later on the same client shape
   return new Proxy(client, {
     get(target, prop, receiver) {
-      if (prop in target || typeof prop === "symbol") {
-        return Reflect.get(target, prop, receiver);
-      }
+      if (prop in target || typeof prop === "symbol") return Reflect.get(target, prop, receiver);
       if (typeof prop !== "string" || prop.startsWith("$")) return undefined;
       const model = modelNameFromDelegate(prop);
-      const models = publicModels();
-      if (models[model]) {
+      if (MODEL_NAMES.includes(model) || getOrm().public[model]) {
         const delegate = createDelegate(model);
         target[prop] = delegate;
         return delegate;
