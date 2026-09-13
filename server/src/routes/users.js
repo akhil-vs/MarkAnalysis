@@ -11,6 +11,22 @@ export const usersRouter = Router();
 usersRouter.use(auth);
 usersRouter.use(requireSchoolTenant);
 
+function usersOrderBy(sort) {
+  switch (String(sort || "")) {
+    case "name_desc":
+      return [{ name: "desc" }];
+    case "role":
+      return [{ role: "asc" }, { name: "asc" }];
+    case "status":
+      return [{ status: "asc" }, { name: "asc" }];
+    case "name":
+    case "name_asc":
+      return [{ name: "asc" }];
+    default:
+      return [{ status: "asc" }, { name: "asc" }];
+  }
+}
+
 usersRouter.get("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const status = req.query.status;
   const role = req.query.role;
@@ -30,7 +46,7 @@ usersRouter.get("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, r
   const include = {
     assignments: { include: { classSection: true, subject: true } },
   };
-  const orderBy = [{ status: "asc" }, { name: "asc" }];
+  const orderBy = usersOrderBy(req.query.sort);
 
   if (!paging.paged) {
     const users = await prisma.user.findMany({ where, orderBy, include });
@@ -43,7 +59,7 @@ usersRouter.get("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, r
     );
   }
 
-  const [total, users] = await Promise.all([
+  const [total, users, summary] = await Promise.all([
     prisma.user.count({ where }),
     prisma.user.findMany({
       where,
@@ -52,13 +68,21 @@ usersRouter.get("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, r
       skip: paging.skip,
       take: paging.take,
     }),
+    Promise.all([
+      prisma.user.count(),
+      prisma.user.count({ where: { status: "ACTIVE" } }),
+      prisma.user.count({ where: { status: "PENDING" } }),
+    ]).then(([all, active, pending]) => ({ total: all, active, pending })),
   ]);
   const items = users.map((row) => ({
     ...publicUser(row),
     createdAt: row.createdAt,
     assignments: row.assignments,
   }));
-  res.json(pageResult({ items, total, page: paging.page, pageSize: paging.pageSize }));
+  res.json({
+    ...pageResult({ items, total, page: paging.page, pageSize: paging.pageSize }),
+    summary,
+  });
 });
 
 
