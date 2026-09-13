@@ -5,14 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "build": "prisma contract emit",
-    "start": "node src/index.js",
+    "build": "node scripts/build.mjs",
+    "start": "node dist/src/index.js",
     "seed": "node prisma/seed.js",
     "test": "node --test src/**/*.test.js",
     "contract:emit": "prisma contract emit",
     "db:migrate": "prisma db migrate --advance-ref db",
     "db:verify": "prisma db verify"
   },
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=22.18.0"
   },
