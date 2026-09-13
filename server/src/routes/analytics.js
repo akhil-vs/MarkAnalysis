@@ -17,7 +17,6 @@ import {
   groupBy,
   meanOf,
   percentsOf,
-  pickExam,
   sectionLabel,
   studentTotals,
   summarize,
@@ -31,6 +30,7 @@ import { summarizeRegister } from "../lib/registerStatus.js";
 import { collectStudentLineageIds } from "../lib/studentScope.js";
 import { getGradingConfig, gradingHelpers } from "../lib/gradingConfig.js";
 import { ensurePendingSchema } from "../lib/ensureSchema.js";
+import { loadExams, listExamsBasic } from "../lib/examCatalog.js";
 import {
   dualCeilingWarnings,
   examReadiness,
@@ -49,11 +49,6 @@ analyticsRouter.use(async (_req, _res, next) => {
     next(err);
   }
 });
-
-async function loadExams(examId) {
-  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
-  return { exams, exam: pickExam(exams, examId) };
-}
 
 analyticsRouter.get("/school", async (req, res) => {
   if (!isLeadership(req.user.role)) {
@@ -654,10 +649,7 @@ analyticsRouter.get("/student/:id", async (req, res) => {
 
   let annualComposite = null;
   if (student.academicYear) {
-    const yearExams = await prisma.exam.findMany({
-      where: { academicYear: student.academicYear },
-      orderBy: { date: "asc" },
-    });
+    const yearExams = (await listExamsBasic()).filter((e) => e.academicYear === student.academicYear);
     annualComposite = weightedAnnualForStudent(
       marks.filter((m) => m.exam?.academicYear === student.academicYear && m.status === "APPROVED"),
       yearExams,

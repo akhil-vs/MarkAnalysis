@@ -14,6 +14,7 @@ import {
   publicExamConsolidation,
   setExamConsolidationLock,
 } from "../lib/consolidationMaxMarks.js";
+import { invalidateExamCatalog } from "../lib/examCatalog.js";
 
 export const examsRouter = Router();
 examsRouter.use(auth);
@@ -89,6 +90,7 @@ examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
       consolidationMaxMarks: created.consolidationMaxMarks,
     },
   });
+  invalidateExamCatalog();
   res.status(201).json(examJson(created));
 });
 
@@ -137,6 +139,7 @@ examsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
       consolidationMaxMarks: updated.consolidationMaxMarks,
     },
   });
+  invalidateExamCatalog();
   res.json(examJson(updated));
 });
 
@@ -156,6 +159,7 @@ examsRouter.post("/:id/consolidation/lock", requireRole("PRINCIPAL", "EXAM_COORD
     });
   }
   const locked = await setExamConsolidationLock(existing.id, true, req.user.userId);
+  invalidateExamCatalog();
   res.json(examJson(locked));
 });
 
@@ -164,6 +168,7 @@ examsRouter.post("/:id/consolidation/unlock", requireRole("PRINCIPAL", "EXAM_COO
   const existing = await getExamWithConsolidation(req.params.id);
   if (!existing) return res.status(404).json({ error: "Exam not found" });
   const unlocked = await setExamConsolidationLock(existing.id, false, req.user.userId);
+  invalidateExamCatalog();
   res.json(examJson(unlocked));
 });
 
@@ -173,6 +178,7 @@ examsRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (
     select: { id: true, name: true, academicYear: true },
   });
   await prisma.exam.delete({ where: { id: req.params.id } });
+  invalidateExamCatalog();
   if (existing) {
     await logActivity({
       actorId: req.user.userId,

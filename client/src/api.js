@@ -21,11 +21,18 @@ export function setToken(_token) {
 }
 
 
-/** Short-lived GET cache for stable catalogs (classes/exams/subjects/users). */
+/** Short-lived GET cache for stable catalogs (classes/exams/subjects/users/school/periods). */
 const catalogCache = new Map();
 const catalogInflight = new Map();
 const CATALOG_TTL_MS = 60_000;
-const CATALOG_PATHS = ["/api/classes", "/api/exams", "/api/subjects", "/api/users"];
+const CATALOG_PATHS = [
+  "/api/classes",
+  "/api/exams",
+  "/api/subjects",
+  "/api/users",
+  "/api/school",
+  "/api/timetable/periods",
+];
 
 function catalogKey(path) {
   const base = path.split("?")[0];
@@ -48,6 +55,10 @@ function invalidateForMutation(path) {
   if (path.startsWith("/api/exams")) invalidateApiCache("/api/exams");
   if (path.startsWith("/api/subjects")) invalidateApiCache("/api/subjects");
   if (path.startsWith("/api/users")) invalidateApiCache("/api/users");
+  if (path.startsWith("/api/school")) invalidateApiCache("/api/school");
+  if (path.startsWith("/api/timetable/periods") || path.startsWith("/api/timetable/entries")) {
+    invalidateApiCache("/api/timetable/periods");
+  }
 }
 
 let refreshPromise = null;

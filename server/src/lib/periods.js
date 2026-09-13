@@ -1,5 +1,6 @@
 import { prisma } from "./prisma.js";
 import { currentTenantId } from "./tenant.js";
+import { CacheKeys, cachedTenantLoad, invalidateCurrentTenantCache } from "./tenantCache.js";
 
 export const DEFAULT_PERIODS = [
   { name: "Period 1", sortOrder: 1, startTime: "08:00", endTime: "08:45", isBreak: false },
@@ -30,14 +31,16 @@ export function isValidPeriodTime(value) {
 
 /** List periods with teaching-slot counts for leadership editing. */
 export async function listPeriodsWithCounts() {
-  const periods = await prisma.period.findMany({
-    orderBy: { sortOrder: "asc" },
-    include: { _count: { select: { entries: true } } },
+  return cachedTenantLoad(CacheKeys.PERIODS_WITH_COUNTS, async () => {
+    const periods = await prisma.period.findMany({
+      orderBy: { sortOrder: "asc" },
+      include: { _count: { select: { entries: true } } },
+    });
+    return periods.map(({ _count, ...period }) => ({
+      ...period,
+      entryCount: _count.entries,
+    }));
   });
-  return periods.map(({ _count, ...period }) => ({
-    ...period,
-    entryCount: _count.entries,
-  }));
 }
 
 /** Ensure the school has a bell schedule so timetable grids are usable after migrate. */
@@ -45,16 +48,28 @@ export async function ensureDefaultPeriods(tenantId = currentTenantId()) {
   if (!tenantId) {
     return prisma.period.findMany({ orderBy: { sortOrder: "asc" } });
   }
-  const existing = await prisma.period.findMany({
-    where: { tenantId },
-    orderBy: { sortOrder: "asc" },
-  });
-  if (existing.length) return existing;
-  await prisma.period.createMany({
-    data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId })),
-  });
-  return prisma.period.findMany({
-    where: { tenantId },
-    orderBy: { sortOrder: "asc" },
-  });
+  return cachedTenantLoad(
+    CacheKeys.PERIODS,
+    async () => {
+      const existing = await prisma.period.findMany({
+        where: { tenantId },
+        orderBy: { sortOrder: "asc" },
+      });
+      if (existing.length) return existing;
+      await prisma.period.createMany({
+        data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId })),
+      });
+      invalidateCurrentTenantCache(CacheKeys.PERIODS_WITH_COUNTS);
+      return prisma.period.findMany({
+        where: { tenantId },
+        orderBy: { sortOrder: "asc" },
+      });
+    },
+    { tenantId }
+  );
+}
+
+/** Call after bell-schedule mutations. */
+export function invalidatePeriodsCache() {
+  invalidateCurrentTenantCache("periods:");
 }

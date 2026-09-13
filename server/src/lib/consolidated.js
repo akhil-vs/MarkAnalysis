@@ -8,6 +8,7 @@ import {
   summarizeClassStatus,
 } from "./consolidatedStatus.js";
 import { enrollmentKeySet } from "./electiveEnrollment.js";
+import { listExamsBasic } from "./examCatalog.js";
 
 export { applyExamConsolidationMax, buildConsolidatedStudentRows } from "./consolidatedRows.js";
 export {
@@ -17,7 +18,7 @@ export {
 } from "./consolidatedStatus.js";
 
 export async function pickExam(examId) {
-  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
+  const exams = await listExamsBasic();
   if (!exams.length) return { exams, exam: null };
   const exam = examId ? exams.find((e) => e.id === examId) || exams[exams.length - 1] : exams[exams.length - 1];
   return { exams, exam };

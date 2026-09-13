@@ -23,14 +23,16 @@ export function isLockedMarkStatus(status) {
   return status === "SUBMITTED" || status === "APPROVED";
 }
 
-export async function teacherHasMarkEntryAccess(user, { examId, classSectionId, subjectId }) {
+export async function teacherHasMarkEntryAccess(user, { examId, classSectionId, subjectId, exam = null }) {
   if (isLeadership(user.role)) return true;
 
-  const exam = await prisma.exam.findUnique({
-    where: { id: examId },
-    select: { marksEntryDeadline: true },
-  });
-  if (!exam || !isPastDeadline(exam.marksEntryDeadline)) return true;
+  const examRow =
+    exam ||
+    (await prisma.exam.findUnique({
+      where: { id: examId },
+      select: { marksEntryDeadline: true },
+    }));
+  if (!examRow || !isPastDeadline(examRow.marksEntryDeadline)) return true;
 
   const approved = await prisma.markEntryAccessRequest.findFirst({
     where: {
@@ -61,12 +63,20 @@ export async function teacherHasEditAccess(user, { examId, classSectionId, subje
   return Boolean(approved);
 }
 
-export async function getMarkEntryAccessMap(user, examId, classSectionId, subjectIds, { writableSubjectIds } = {}) {
-  const exam = await prisma.exam.findUnique({
-    where: { id: examId },
-    select: { marksEntryDeadline: true },
-  });
-  const deadline = exam?.marksEntryDeadline ?? null;
+export async function getMarkEntryAccessMap(
+  user,
+  examId,
+  classSectionId,
+  subjectIds,
+  { writableSubjectIds, exam = null } = {}
+) {
+  const examRow =
+    exam ||
+    (await prisma.exam.findUnique({
+      where: { id: examId },
+      select: { marksEntryDeadline: true },
+    }));
+  const deadline = examRow?.marksEntryDeadline ?? null;
   const pastDeadline = isPastDeadline(deadline);
   const writable = writableSubjectIds ? new Set(writableSubjectIds) : null;
 
