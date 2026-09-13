@@ -76,9 +76,11 @@ authRouter.post("/signup", authWriteLimit, async (req, res) => {
   if (!email && !schoolId) {
     return res.status(400).json({ error: "Provide an email or school ID" });
   }
+  let normalizedEmail = null;
   if (email) {
     const parsedEmail = parseEmail(email, { required: true });
     if (parsedEmail.error) return res.status(400).json({ error: parsedEmail.error });
+    normalizedEmail = parsedEmail.value;
   }
   const allowed = ["TEACHER", "EXAM_COORDINATOR"];
   if (role === "PRINCIPAL") {
@@ -98,8 +100,8 @@ authRouter.post("/signup", authWriteLimit, async (req, res) => {
     return res.status(err.status || 403).json({ error: err.message });
   }
 
-  if (email) {
-    const exists = await runWithoutTenant(() => prisma.user.findUnique({ where: { email } }));
+  if (normalizedEmail) {
+    const exists = await runWithoutTenant(() => prisma.user.findUnique({ where: { email: normalizedEmail } }));
     if (exists) return res.status(409).json({ error: "Email already registered" });
   }
   if (schoolId) {
@@ -114,7 +116,7 @@ authRouter.post("/signup", authWriteLimit, async (req, res) => {
     prisma.user.create({
       data: {
         name,
-        email: email || null,
+        email: normalizedEmail || null,
         schoolId: schoolId || null,
         passwordHash,
         role: chosenRole,
@@ -136,10 +138,17 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     return res.status(400).json({ error: "Credentials are required" });
   }
 
+  let normalizedEmail = null;
+  if (email) {
+    const parsedEmail = parseEmail(email, { required: true });
+    if (parsedEmail.error) return res.status(400).json({ error: parsedEmail.error });
+    normalizedEmail = parsedEmail.value;
+  }
+
   let user;
   try {
     user = await runWithoutTenant(async () => {
-      if (email) return prisma.user.findUnique({ where: { email } });
+      if (normalizedEmail) return prisma.user.findUnique({ where: { email: normalizedEmail } });
       const matches = await prisma.user.findMany({ where: { schoolId } });
       if (!matches.length) return null;
       if (matches.length === 1) return matches[0];

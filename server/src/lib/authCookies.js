@@ -61,11 +61,19 @@ export async function createRefreshSession(userId, { userAgent } = {}) {
   return { raw, expiresAt };
 }
 
+function asDate(value) {
+  if (value == null) return null;
+  if (value instanceof Date) return value;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 export async function rotateRefreshSession(rawToken, { userAgent } = {}) {
   if (!rawToken) return null;
   const tokenHash = hashRefreshToken(rawToken);
   const existing = await prisma.refreshToken.findUnique({ where: { tokenHash } });
-  if (!existing || existing.revokedAt || existing.expiresAt.getTime() <= Date.now()) {
+  const expiresAt = asDate(existing?.expiresAt);
+  if (!existing || existing.revokedAt || !expiresAt || expiresAt.getTime() <= Date.now()) {
     return null;
   }
   await prisma.refreshToken.update({
