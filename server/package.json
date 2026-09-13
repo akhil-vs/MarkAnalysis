@@ -8,6 +8,7 @@
     "build": "node scripts/build.mjs",
     "start": "node dist/src/index.js",
     "seed": "node prisma/seed.js",
+    "ensure:admin": "node scripts/ensurePlatformAdmin.mjs",
     "test": "node --test src/**/*.test.js",
     "contract:emit": "prisma contract emit",
     "db:migrate": "prisma db migrate --advance-ref db",
