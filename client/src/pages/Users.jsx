@@ -654,7 +654,7 @@ export default function Users() {
                 {pageItems.map((u) => {
                   const busy = busyId === u.id;
                   const canApprove = leadership && u.status !== "ACTIVE";
-                  const canReject = leadership && u.status !== "REJECTED" && u.role !== "PRINCIPAL";
+                  const canReject = leadership && u.status === "PENDING";
                   const canAssign = u.role === "TEACHER";
                   const canReset = user.role === "PRINCIPAL" && u.id !== user.id;
                   const isLeadershipRole = u.role === "PRINCIPAL" || u.role === "EXAM_COORDINATOR";
@@ -685,7 +685,11 @@ export default function Users() {
                         </div>
                       </td>
                       <td>
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${roleChipClass(u.role)}`}>
+                        <span
+                          className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide ${
+                            u.role === "TEACHER" ? "uppercase" : ""
+                          } ${roleChipClass(u.role)}`}
+                        >
                           {ROLE_LABEL[u.role] || u.role.replaceAll("_", " ")}
                         </span>
                       </td>
