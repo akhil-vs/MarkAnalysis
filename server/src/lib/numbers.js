@@ -47,7 +47,7 @@ export function parsePercent(value, label = "Percent") {
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function parseEmail(value, { required = false, label = "Email" } = {}) {
-  const text = String(value ?? "").trim();
+  const text = String(value ?? "").trim().toLowerCase();
   if (!text) {
     return required ? { error: `${label} is required` } : { value: "" };
   }
