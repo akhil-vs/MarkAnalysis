@@ -12,6 +12,7 @@ import { canAddCoordinator, isLeadership } from "../lib/roles.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
+import { downloadStaffImportTemplate, parseStaffCsv } from "../lib/staffCsv.js";
 
 function userSearchText(u) {
   return searchHaystack(
@@ -158,70 +159,6 @@ function StaffStats({ summary }) {
   );
 }
 
-function parseStaffCsv(text) {
-  const lines = String(text || "")
-    .replace(/^\uFEFF/, "")
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .filter(Boolean);
-  if (!lines.length) return { error: "CSV file is empty" };
-
-  const split = (line) => {
-    const cells = [];
-    let cur = "";
-    let inQuotes = false;
-    for (let i = 0; i < line.length; i += 1) {
-      const ch = line[i];
-      if (ch === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          cur += '"';
-          i += 1;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (ch === "," && !inQuotes) {
-        cells.push(cur.trim());
-        cur = "";
-      } else {
-        cur += ch;
-      }
-    }
-    cells.push(cur.trim());
-    return cells;
-  };
-
-  const header = split(lines[0]).map((h) => h.toLowerCase().replace(/\s+/g, ""));
-  const hasHeader = header.some((h) => ["name", "fullname", "email", "schoolid", "password", "role"].includes(h));
-  const rows = [];
-  const start = hasHeader ? 1 : 0;
-  const idx = (keys, fallback) => {
-    for (const key of keys) {
-      const i = header.indexOf(key);
-      if (i >= 0) return i;
-    }
-    return fallback;
-  };
-  const nameIdx = hasHeader ? idx(["name", "fullname"], 0) : 0;
-  const emailIdx = hasHeader ? idx(["email", "emailaddress"], 1) : 1;
-  const schoolIdx = hasHeader ? idx(["schoolid", "id"], 2) : 2;
-  const passwordIdx = hasHeader ? idx(["password", "temporarypassword", "temppassword"], 3) : 3;
-  const roleIdx = hasHeader ? idx(["role", "assignedrole"], 4) : 4;
-
-  for (let i = start; i < lines.length; i += 1) {
-    const cells = split(lines[i]);
-    if (!cells.some(Boolean)) continue;
-    rows.push({
-      name: cells[nameIdx] || "",
-      email: cells[emailIdx] || "",
-      schoolId: cells[schoolIdx] || "",
-      password: cells[passwordIdx] || generateTempPassword(),
-      role: (cells[roleIdx] || "TEACHER").toUpperCase().replace(/\s+/g, "_"),
-    });
-  }
-  if (!rows.length) return { error: "No staff rows found in CSV" };
-  return { rows };
-}
-
 export default function Users() {
   const { user } = useAuth();
   const toast = useToast();
@@ -360,7 +297,7 @@ export default function Users() {
     setImporting(true);
     try {
       const text = await file.text();
-      const parsed = parseStaffCsv(text);
+      const parsed = parseStaffCsv(text, { generatePassword: generateTempPassword });
       if (parsed.error) {
         toast.error(parsed.error);
         return;
@@ -428,7 +365,20 @@ export default function Users() {
               Creates an active account — they do not wait for approval.
             </p>
           </div>
-          <div className="shrink-0">
+          <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+            <button
+              type="button"
+              className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-800 hover:text-ink-950"
+              disabled={tableBusy}
+              onClick={() => downloadStaffImportTemplate()}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d="M12 8v9" strokeLinecap="round" />
+                <path d="M8.5 13.5 12 17l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
+                <path d="M5 5h14" strokeLinecap="round" />
+              </svg>
+              Download template
+            </button>
             <input
               ref={csvInputRef}
               type="file"
