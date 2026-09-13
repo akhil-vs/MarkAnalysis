@@ -46,14 +46,16 @@ export function PaginationBar({
   setPageSize,
   pageSizeOptions = [10, 25, 50],
   empty = "No rows yet.",
+  itemLabel,
 }) {
   const start = total === 0 ? 0 : (page - 1) * pageSize + 1;
   const end = Math.min(total, page * pageSize);
+  const ofLabel = itemLabel ? ` of ${total} ${itemLabel}` : ` of ${total}`;
 
   return (
     <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center sm:justify-between gap-3 px-3 py-3 border-t border-ink-900/10 text-sm text-ink-700/70">
       <div className="flex flex-wrap items-center gap-3">
-        <span>{total === 0 ? empty : `Showing ${start}–${end} of ${total}`}</span>
+        <span>{total === 0 ? empty : `Showing ${start} to ${end}${ofLabel}`}</span>
         <label className="flex items-center gap-2 text-xs uppercase tracking-wide text-ink-700/55">
           Rows
           <select
@@ -100,6 +102,7 @@ export function PaginatedTable({
   pageSizeOptions = [10, 25, 50],
   resetKey,
   empty = "No rows yet.",
+  itemLabel,
   className = "",
   busy = false,
   busyLabel = "Updating…",
@@ -141,7 +144,7 @@ export function PaginatedTable({
           </div>
         </div>
       )}
-      <PaginationBar {...pagination} pageSizeOptions={pageSizeOptions} empty={empty} />
+      <PaginationBar {...pagination} pageSizeOptions={pageSizeOptions} empty={empty} itemLabel={itemLabel} />
     </div>
   );
 }

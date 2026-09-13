@@ -94,7 +94,7 @@ export const PAGE_HELP = {
   },
   staff: {
     title: "What's on this page",
-    about: "Staff accounts: add users, activate pending sign-ups, assign classes and subjects, and open a teacher’s timetable.",
+    about: "Staff accounts: add or bulk-import users, activate pending sign-ups, manage role permissions, assign classes and subjects, and open a teacher’s timetable.",
     useful: "Teachers cannot enter marks until they are active and assigned to a paper. Keep assignments in step with the timetable.",
   },
   records: {
