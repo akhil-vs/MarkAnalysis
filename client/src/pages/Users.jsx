@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { api } from "../api.js";
+import { api, download } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
@@ -12,7 +12,6 @@ import { canAddCoordinator, isLeadership } from "../lib/roles.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
-import { downloadStaffImportTemplate, parseStaffCsv } from "../lib/staffCsv.js";
 
 function userSearchText(u) {
   return searchHaystack(
@@ -164,7 +163,7 @@ export default function Users() {
   const toast = useToast();
   const canCreateCoordinator = canAddCoordinator(user.role);
   const leadership = isLeadership(user.role);
-  const csvInputRef = useRef(null);
+  const importInputRef = useRef(null);
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -193,9 +192,9 @@ export default function Users() {
   const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
   const tableBusy = Boolean(busyId) || creating || importing;
 
-  async function load() {
-    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-    if (table.q) params.set("q", table.q);
+  async function load({ q = table.q, page: pageArg = page } = {}) {
+    const params = new URLSearchParams({ page: String(pageArg), pageSize: String(pageSize) });
+    if (q) params.set("q", q);
     if (table.filters.status) params.set("status", table.filters.status);
     if (table.filters.role) params.set("role", table.filters.role);
     if (sort) params.set("sort", sort);
@@ -292,51 +291,32 @@ export default function Users() {
     }
   }
 
-  async function importCsv(file) {
+  async function importStaffFile(file) {
     if (!file) return;
     setImporting(true);
     try {
-      const text = await file.text();
-      const parsed = parseStaffCsv(text, { generatePassword: generateTempPassword });
-      if (parsed.error) {
-        toast.error(parsed.error);
-        return;
-      }
-      let ok = 0;
-      const errors = [];
-      for (const row of parsed.rows) {
-        const role =
-          row.role === "EXAM_COORDINATOR" && canCreateCoordinator
-            ? "EXAM_COORDINATOR"
-            : "TEACHER";
-        try {
-          await api("/api/users", {
-            method: "POST",
-            body: {
-              name: row.name,
-              email: row.email,
-              schoolId: row.schoolId,
-              password: row.password,
-              role,
-            },
-          });
-          ok += 1;
-        } catch (err) {
-          errors.push(`${row.name || row.email || row.schoolId || "Row"}: ${err.message}`);
-        }
-      }
-      await load();
+      const body = new FormData();
+      body.append("file", file);
+      const result = await api("/api/users/upload", { method: "POST", body });
+      // Clear search so newly imported rows are visible in the refreshed list.
+      table.setQ("");
+      if (page !== 1) setPage(1);
+      await load({ q: "", page: 1 });
+      const ok = result.created || 0;
+      const errors = result.errors || [];
       if (ok) toast.success(`Imported ${ok} staff account${ok === 1 ? "" : "s"}.`);
       if (errors.length) {
-        toast.error(errors.slice(0, 3).join(" · ") + (errors.length > 3 ? ` (+${errors.length - 3} more)` : ""));
+        toast.error(
+          errors.slice(0, 3).join(" · ") + (errors.length > 3 ? ` (+${errors.length - 3} more)` : "")
+        );
       } else if (!ok) {
         toast.error("No staff accounts were imported.");
       }
     } catch (err) {
-      toast.error(err.message || "Could not import CSV");
+      toast.error(err.message || "Could not import staff file");
     } finally {
       setImporting(false);
-      if (csvInputRef.current) csvInputRef.current.value = "";
+      if (importInputRef.current) importInputRef.current.value = "";
     }
   }
 
@@ -370,7 +350,11 @@ export default function Users() {
               type="button"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-800 hover:text-ink-950"
               disabled={tableBusy}
-              onClick={() => downloadStaffImportTemplate()}
+              onClick={() =>
+                download("/api/users/template", "staff-import-template.xlsx").catch((err) =>
+                  toast.error(err.message || "Could not download template")
+                )
+              }
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <path d="M12 8v9" strokeLinecap="round" />
@@ -380,24 +364,24 @@ export default function Users() {
               Download template
             </button>
             <input
-              ref={csvInputRef}
+              ref={importInputRef}
               type="file"
-              accept=".csv,text/csv"
+              accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
               className="sr-only"
-              onChange={(e) => importCsv(e.target.files?.[0])}
+              onChange={(e) => importStaffFile(e.target.files?.[0])}
             />
             <button
               type="button"
               className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-800 hover:text-ink-950"
               disabled={tableBusy}
-              onClick={() => csvInputRef.current?.click()}
+              onClick={() => importInputRef.current?.click()}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
                 <path d="M12 16V7" strokeLinecap="round" />
                 <path d="M8.5 10.5 12 7l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
                 <path d="M5 19h14" strokeLinecap="round" />
               </svg>
-              <BusyLabel busy={importing} idle="Bulk CSV Import" busyText="Importing…" />
+              <BusyLabel busy={importing} idle="Bulk Import" busyText="Importing…" />
             </button>
           </div>
         </div>

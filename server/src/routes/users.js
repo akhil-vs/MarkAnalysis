@@ -1,15 +1,27 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import ExcelJS from "exceljs";
+import multer from "multer";
 import { prisma } from "../lib/prisma.js";
 import { auth, publicUser, requireRole } from "../middleware/auth.js";
 import { parseEmail } from "../lib/numbers.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
 import { requireSchoolTenant, runWithoutTenant } from "../lib/tenant.js";
+import { getSchoolLetterhead } from "../lib/school.js";
+import { writeExcelLetterhead } from "../lib/letterhead.js";
+import { parseSpreadsheet } from "../lib/upload.js";
+import {
+  STAFF_IMPORT_HEADERS,
+  generateStaffTempPassword,
+  mapStaffImportRows,
+} from "../lib/staffImport.js";
 
 export const usersRouter = Router();
 usersRouter.use(auth);
 usersRouter.use(requireSchoolTenant);
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 function usersOrderBy(sort) {
   switch (String(sort || "")) {
@@ -85,6 +97,111 @@ usersRouter.get("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, r
   });
 });
 
+
+usersRouter.get("/template", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const workbook = new ExcelJS.Workbook();
+  const letterhead = await getSchoolLetterhead();
+  workbook.creator = letterhead.name;
+  const sheet = workbook.addWorksheet("Staff");
+  writeExcelLetterhead(workbook, sheet, letterhead, STAFF_IMPORT_HEADERS.length);
+  const headerRow = sheet.addRow(STAFF_IMPORT_HEADERS);
+  headerRow.font = { bold: true };
+  sheet.pageSetup.printTitlesRow = `1:${headerRow.number}`;
+  sheet.addRow(["Ramesh Chandra", "ramesh@school.edu", "SCH-T06", "password123", "TEACHER"]);
+  sheet.columns.forEach((col) => {
+    col.width = 18;
+  });
+
+  const buffer = await workbook.xlsx.writeBuffer();
+  res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+  res.setHeader("Content-Disposition", 'attachment; filename="staff-import-template.xlsx"');
+  res.send(Buffer.from(buffer));
+});
+
+usersRouter.post(
+  "/upload",
+  requireRole("PRINCIPAL", "EXAM_COORDINATOR"),
+  upload.single("file"),
+  async (req, res) => {
+    if (!req.file) return res.status(400).json({ error: "File is required" });
+
+    let spreadsheetRows;
+    try {
+      spreadsheetRows = await parseSpreadsheet(req.file.buffer, req.file.originalname);
+    } catch (err) {
+      return res.status(err.status || 400).json({ error: err.message || "Could not parse file" });
+    }
+
+    const mapped = mapStaffImportRows(spreadsheetRows, {
+      generatePassword: generateStaffTempPassword,
+    });
+    if (mapped.error) return res.status(400).json({ error: mapped.error });
+
+    const errors = [...mapped.errors];
+    let created = 0;
+    const canCreateCoordinator = req.user.role === "PRINCIPAL";
+
+    for (const item of mapped.rows) {
+      let chosenRole = item.role;
+      if (chosenRole === "EXAM_COORDINATOR" && !canCreateCoordinator) {
+        chosenRole = "TEACHER";
+      }
+
+      if (item.email) {
+        const exists = await runWithoutTenant(() =>
+          prisma.user.findUnique({ where: { email: item.email } })
+        );
+        if (exists) {
+          errors.push({ row: item.row, error: "Email already registered" });
+          continue;
+        }
+      }
+      if (item.schoolId) {
+        const exists = await prisma.user.findFirst({ where: { schoolId: item.schoolId } });
+        if (exists) {
+          errors.push({ row: item.row, error: "School ID already registered" });
+          continue;
+        }
+      }
+
+      try {
+        const user = await prisma.user.create({
+          data: {
+            name: item.name,
+            email: item.email,
+            schoolId: item.schoolId,
+            passwordHash: await bcrypt.hash(item.password, 10),
+            role: chosenRole,
+            status: "ACTIVE",
+            mustChangePassword: true,
+          },
+        });
+        created += 1;
+        await logActivity({
+          actorId: req.user.userId,
+          action: "USER_CREATED",
+          summary: `Created ${chosenRole === "EXAM_COORDINATOR" ? "exam coordinator" : "teacher"} account for ${user.name}`,
+          meta: {
+            userId: user.id,
+            userName: user.name,
+            role: user.role,
+            status: user.status,
+            source: "bulk_import",
+          },
+        });
+      } catch (err) {
+        errors.push({ row: item.row, error: err.message || "Could not create account" });
+      }
+    }
+
+    res.json({
+      created,
+      errors: errors.map((e) =>
+        e.row != null ? `Row ${e.row}: ${e.error}` : e.error || String(e)
+      ),
+    });
+  }
+);
 
 usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { name, email, schoolId, password, role, status, assignments } = req.body || {};
