@@ -192,9 +192,9 @@ export default function Users() {
   const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
   const tableBusy = Boolean(busyId) || creating || importing;
 
-  async function load() {
-    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
-    if (table.q) params.set("q", table.q);
+  async function load({ q = table.q, page: pageArg = page } = {}) {
+    const params = new URLSearchParams({ page: String(pageArg), pageSize: String(pageSize) });
+    if (q) params.set("q", q);
     if (table.filters.status) params.set("status", table.filters.status);
     if (table.filters.role) params.set("role", table.filters.role);
     if (sort) params.set("sort", sort);
@@ -298,7 +298,10 @@ export default function Users() {
       const body = new FormData();
       body.append("file", file);
       const result = await api("/api/users/upload", { method: "POST", body });
-      await load();
+      // Clear search so newly imported rows are visible in the refreshed list.
+      table.setQ("");
+      if (page !== 1) setPage(1);
+      await load({ q: "", page: 1 });
       const ok = result.created || 0;
       const errors = result.errors || [];
       if (ok) toast.success(`Imported ${ok} staff account${ok === 1 ? "" : "s"}.`);
