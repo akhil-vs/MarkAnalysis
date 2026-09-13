@@ -5,13 +5,17 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
-    "start": "node src/index.js",
+    "build": "node scripts/build.mjs",
+    "start": "node dist/src/index.js",
     "seed": "node prisma/seed.js",
     "test": "node --test src/**/*.test.js",
     "contract:emit": "prisma contract emit",
     "db:migrate": "prisma db migrate --advance-ref db",
     "db:verify": "prisma db verify"
   },
+  "files": [
+    "dist"
+  ],
   "engines": {
     "node": ">=22.18.0"
   },
@@ -29,12 +33,12 @@
     "multer": "^2.0.1",
     "pdfkit": "^0.17.1",
     "pg": "^8.16.3",
+    "prisma": "^8.0.0-rc.14",
     "temporal-polyfill": "^1.0.5"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
     "@types/pg": "^8.15.5",
-    "prisma": "^8.0.0-rc.14",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3"
   }
