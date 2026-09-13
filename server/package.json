@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "node --watch src/index.js",
+    "build": "prisma contract emit",
     "start": "node src/index.js",
     "seed": "node prisma/seed.js",
     "test": "node --test src/**/*.test.js",
@@ -29,12 +30,12 @@
     "multer": "^2.0.1",
     "pdfkit": "^0.17.1",
     "pg": "^8.16.3",
+    "prisma": "^8.0.0-rc.14",
     "temporal-polyfill": "^1.0.5"
   },
   "devDependencies": {
     "@types/node": "^26.5.1",
     "@types/pg": "^8.15.5",
-    "prisma": "^8.0.0-rc.14",
     "tsx": "^4.23.13",
     "typescript": "^5.9.3"
   }
