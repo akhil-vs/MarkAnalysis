@@ -2,6 +2,7 @@ import { prisma } from "./prisma.js";
 import { ensurePendingSchema } from "./ensureSchema.js";
 import { newJoinCode, slugifySchoolName } from "./schoolIdentity.js";
 import { parseSlug, requireTenantId, runWithoutTenant } from "./tenant.js";
+import { CacheKeys, cachedTenantLoad, invalidateCurrentTenantCache } from "./tenantCache.js";
 
 const OPTIONAL_TEXT_FIELDS = [
   "shortName",
@@ -26,9 +27,7 @@ const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const PNG_MAGIC = Buffer.from([0x89, 0x50, 0x4e, 0x47]);
 export const LOGO_MAX_BYTES = 1024 * 1024;
 
-export async function getSchoolProfile({ includeLogo = false } = {}) {
-  await ensurePendingSchema();
-  const tenantId = requireTenantId();
+async function loadSchoolRow(tenantId, { includeLogo }) {
   const existing = await prisma.school.findUnique({
     where: { id: tenantId },
     ...(includeLogo ? {} : { omit: { logoBytes: true } }),
@@ -37,6 +36,30 @@ export async function getSchoolProfile({ includeLogo = false } = {}) {
   const err = new Error("School not found");
   err.status = 404;
   throw err;
+}
+
+/**
+ * School profile is read on nearly every analytics/export/timetable path.
+ * Cache the metadata row (no logo bytes) for 60s; logo fetches stay request-memoized only.
+ */
+export async function getSchoolProfile({ includeLogo = false } = {}) {
+  await ensurePendingSchema();
+  const tenantId = requireTenantId();
+  if (includeLogo) {
+    return cachedTenantLoad(
+      "school:profile:logo",
+      () => loadSchoolRow(tenantId, { includeLogo: true }),
+      { skipProcessCache: true }
+    );
+  }
+  return cachedTenantLoad(CacheKeys.SCHOOL_PROFILE, () =>
+    loadSchoolRow(tenantId, { includeLogo: false })
+  );
+}
+
+/** Call after school identity, grading, logo, or join-code mutations. */
+export function invalidateSchoolProfileCache() {
+  invalidateCurrentTenantCache("school:profile");
 }
 
 export async function getSchoolLetterhead() {

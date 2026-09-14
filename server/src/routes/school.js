@@ -4,6 +4,7 @@ import { auth, isLeadership, requireRole } from "../middleware/auth.js";
 import {
   allocateJoinCode,
   getSchoolProfile,
+  invalidateSchoolProfileCache,
   parseLogoFile,
   parseSchoolIdentityPatch,
   publicSchool as serializeSchool,
@@ -89,6 +90,7 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
       ...gradingPatch.data,
     },
   });
+  invalidateSchoolProfileCache();
   res.json(schoolJson(req, updated));
 });
 
@@ -100,6 +102,7 @@ schoolRouter.post("/join-code", requireRole("PRINCIPAL"), async (req, res) => {
     omit: { logoBytes: true },
     data: { joinCode },
   });
+  invalidateSchoolProfileCache();
   res.json(schoolJson(req, updated));
 });
 
@@ -113,6 +116,7 @@ schoolRouter.post("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), receive
     omit: { logoBytes: true },
     data: { logoBytes: parsed.bytes, logoMimeType: parsed.mime },
   });
+  invalidateSchoolProfileCache();
   res.json(schoolJson(req, updated));
 });
 
@@ -123,6 +127,7 @@ schoolRouter.delete("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
     omit: { logoBytes: true },
     data: { logoBytes: null, logoMimeType: null },
   });
+  invalidateSchoolProfileCache();
   res.json(schoolJson(req, updated));
 });
 
@@ -138,5 +143,6 @@ schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR")
       examWeights: DEFAULT_EXAM_WEIGHTS,
     },
   });
+  invalidateSchoolProfileCache();
   res.json(schoolJson(req, updated));
 });

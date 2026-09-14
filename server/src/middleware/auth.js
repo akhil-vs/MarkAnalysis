@@ -57,6 +57,14 @@ function continueWithTenant(req, res, next, cont) {
 /** Block API use until a required password change is completed. */
 export async function rejectIfMustChangePassword(req, res, next) {
   if (!req.user?.userId || req.allowMustChangePassword) return next();
+  // Prefer the claim embedded at login/refresh to avoid a DB round-trip on every request.
+  if (req.user.mustChangePassword === false) return next();
+  if (req.user.mustChangePassword === true) {
+    return res.status(403).json({
+      error: "Password change required",
+      code: "MUST_CHANGE_PASSWORD",
+    });
+  }
   try {
     await ensureAuthSchema();
     const user = await prisma.user.findUnique({
@@ -69,6 +77,7 @@ export async function rejectIfMustChangePassword(req, res, next) {
         code: "MUST_CHANGE_PASSWORD",
       });
     }
+    req.user.mustChangePassword = false;
     return next();
   } catch (err) {
     return next(err);
@@ -102,7 +111,13 @@ export function requireRole(...roles) {
 
 export function signToken(user) {
   return jwt.sign(
-    { userId: user.id, role: user.role, name: user.name, tenantId: user.tenantId || null },
+    {
+      userId: user.id,
+      role: user.role,
+      name: user.name,
+      tenantId: user.tenantId || null,
+      mustChangePassword: Boolean(user.mustChangePassword),
+    },
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_ACCESS_EXPIRES || "15m" }
   );

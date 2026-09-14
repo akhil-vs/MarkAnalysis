@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   ensureDefaultPeriods,
+  invalidatePeriodsCache,
   isValidPeriodTime,
   listPeriodsWithCounts,
   parseTimeToMinutes,
@@ -191,6 +192,7 @@ timetableRouter.put("/periods", requireLeadership(), async (req, res) => {
     }
   });
 
+  invalidatePeriodsCache();
   const periods = await listPeriodsWithCounts();
   res.json(periods);
 });
@@ -488,6 +490,7 @@ timetableRouter.post("/entries", requireLeadership(), async (req, res) => {
       data: { teacherId, classSectionId, subjectId, periodId, dayOfWeek, room },
       include: ENTRY_INCLUDE,
     });
+    invalidatePeriodsCache();
     res.status(201).json(serializeEntry(entry));
   } catch (err) {
     if (err.code === "P2002") {
@@ -539,6 +542,7 @@ timetableRouter.patch("/entries/:id", requireLeadership(), async (req, res) => {
       data,
       include: ENTRY_INCLUDE,
     });
+    invalidatePeriodsCache();
     res.json(serializeEntry(entry));
   } catch (err) {
     if (err.code === "P2002") {
@@ -554,5 +558,6 @@ timetableRouter.delete("/entries/:id", requireLeadership(), async (req, res) => 
   const existing = await prisma.timetableEntry.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Entry not found" });
   await prisma.timetableEntry.delete({ where: { id: existing.id } });
+  invalidatePeriodsCache();
   res.json({ ok: true });
 });

@@ -7,7 +7,6 @@ import {
   gradeDistFromStudents,
   groupBy,
   percentsOf,
-  pickExam,
   sectionLabel,
   studentTotals,
   summarize,
@@ -25,11 +24,7 @@ import {
 } from "../lib/analyticsExtras.js";
 import { mean, round1 } from "../lib/grades.js";
 import { enrichMarksInsights } from "./analyticsInsights.js";
-
-async function loadExams(examId) {
-  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
-  return { exams, exam: pickExam(exams, examId) };
-}
+import { loadExams } from "../lib/examCatalog.js";
 
 function forbidIfTeacher(req, res) {
   if (!isLeadership(req.user.role)) {

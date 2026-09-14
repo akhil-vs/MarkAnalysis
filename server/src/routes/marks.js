@@ -44,21 +44,21 @@ marksRouter.use(requireSchoolTenant);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-async function assignedSubjects(user, classSection) {
-  const assignments = await getAssignments(user.userId);
-  return assignments
+async function assignedSubjects(user, classSection, assignments = null) {
+  const list = assignments || (await getAssignments(user.userId));
+  return list
     .filter((a) => a.classSectionId === classSection.id)
     .map((a) => a.subject);
 }
 
-async function scopedSubjects(user, classSection, { write = false } = {}) {
+async function scopedSubjects(user, classSection, { write = false, assignments = null } = {}) {
   if (user.role !== "TEACHER") {
     return prisma.subject.findMany({
       where: { className: classSection.className },
       orderBy: { name: "asc" },
     });
   }
-  const assigned = await assignedSubjects(user, classSection);
+  const assigned = await assignedSubjects(user, classSection, assignments);
   if (write) return assigned;
   if (classSection.classTeacherId === user.userId) {
     return prisma.subject.findMany({
@@ -85,7 +85,10 @@ marksRouter.get("/", async (req, res) => {
     if (!ok) return res.status(403).json({ error: "Not assigned to this class" });
   }
 
-  let subjects = await scopedSubjects(req.user, classSection);
+  const teacherAssignments =
+    req.user.role === "TEACHER" ? await getAssignments(req.user.userId) : null;
+
+  let subjects = await scopedSubjects(req.user, classSection, { assignments: teacherAssignments });
   if (subjectId && subjects.some((s) => s.id === subjectId)) {
     subjects = subjects.filter((s) => s.id === subjectId);
   }
@@ -123,7 +126,7 @@ marksRouter.get("/", async (req, res) => {
 
   const writable =
     req.user.role === "TEACHER"
-      ? (await assignedSubjects(req.user, classSection)).map((s) => s.id)
+      ? (await assignedSubjects(req.user, classSection, teacherAssignments)).map((s) => s.id)
       : subjects.map((s) => s.id);
 
   const entryAccess = await getMarkEntryAccessMap(
@@ -131,7 +134,7 @@ marksRouter.get("/", async (req, res) => {
     examId,
     classSectionId,
     subjects.map((s) => s.id),
-    { writableSubjectIds: writable }
+    { writableSubjectIds: writable, exam }
   );
 
   res.json({

@@ -24,18 +24,13 @@ import {
   compareClassNames,
   examLabel,
   groupBy,
-  pickExam,
   sameTypeExams,
   sectionLabel,
   studentTotals,
 } from "../lib/stats.js";
 import { mean, round1 } from "../lib/grades.js";
 import { isScoredMark } from "../lib/markCodes.js";
-
-async function loadExams(examId) {
-  const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
-  return { exams, exam: pickExam(exams, examId) };
-}
+import { loadExams, listExamsBasic } from "../lib/examCatalog.js";
 
 function forbidIfTeacher(req, res) {
   if (!isLeadership(req.user.role)) {
@@ -267,7 +262,7 @@ export function registerAnalyticsInsights(router) {
   /** Promotion carry-forward averages (promotedFromId). */
   router.get("/insights/promotion", async (req, res) => {
     if (forbidIfTeacher(req, res)) return;
-    const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
+    const exams = await listExamsBasic();
     const suggested = suggestPromotionYears(exams);
     const fromYear = req.query.fromYear ? String(req.query.fromYear) : suggested.fromYear;
     const toYear = req.query.toYear ? String(req.query.toYear) : suggested.toYear;
@@ -380,7 +375,7 @@ export function registerAnalyticsInsights(router) {
   router.get("/insights/weighted-annual", async (req, res) => {
     if (forbidIfTeacher(req, res)) return;
     const grading = gradingHelpers(await getGradingConfig());
-    const exams = await prisma.exam.findMany({ orderBy: { date: "asc" } });
+    const exams = await listExamsBasic();
     const years = [...new Set(exams.map((e) => e.academicYear).filter(Boolean))].sort();
     const academicYear =
       (req.query.academicYear && String(req.query.academicYear)) ||
@@ -466,7 +461,7 @@ export function registerAnalyticsInsights(router) {
       prisma.classSection.findMany({
         select: { className: true },
       }),
-      prisma.exam.findMany({ orderBy: { date: "asc" } }),
+      listExamsBasic(),
       getGradingConfig(),
     ]);
     res.json({
