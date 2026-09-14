@@ -44,6 +44,8 @@ describe("ensureSchema bootstrap", () => {
     assert.equal(__test.ACTIVITY_FK_STATEMENTS.length, 1);
     assert.ok(__test.ACTIVITY_ACTIONS.includes("MARK_APPROVED"));
     assert.ok(__test.ACTIVITY_ACTIONS.includes("USER_STATUS_CHANGED"));
+    assert.ok(__test.ACTIVITY_ACTIONS.includes("USER_UPDATED"));
+    assert.ok(__test.ACTIVITY_ACTIONS.includes("USER_DELETED"));
   });
 
   it("embeds consolidation settings migration checksum", () => {
