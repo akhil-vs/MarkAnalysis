@@ -16,6 +16,7 @@ import {
   generateStaffTempPassword,
   mapStaffImportRows,
 } from "../lib/staffImport.js";
+import { invalidatePeriodsCache } from "../lib/periods.js";
 
 export const usersRouter = Router();
 usersRouter.use(auth);
@@ -507,6 +508,211 @@ usersRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (
     },
   });
   res.json({ ok: true });
+});
+
+usersRouter.post("/:id/transfer", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const fromId = req.params.id;
+  const toUserId = String(req.body?.toUserId || "").trim();
+  const includeTimetable = req.body?.includeTimetable !== false;
+  const includeClassTeacher = req.body?.includeClassTeacher !== false;
+
+  if (!toUserId) return res.status(400).json({ error: "Choose a teacher to transfer to" });
+  if (toUserId === fromId) {
+    return res.status(400).json({ error: "Choose a different teacher as the replacement" });
+  }
+
+  const [fromUser, toUser] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: fromId },
+      include: { assignments: true },
+    }),
+    prisma.user.findUnique({ where: { id: toUserId } }),
+  ]);
+  if (!fromUser) return res.status(404).json({ error: "Source teacher not found" });
+  if (!toUser) return res.status(404).json({ error: "Replacement teacher not found" });
+  if (fromUser.role !== "TEACHER" || toUser.role !== "TEACHER") {
+    return res.status(400).json({ error: "Class transfers are only supported between teachers" });
+  }
+  if (toUser.status !== "ACTIVE") {
+    return res.status(400).json({ error: "Replacement teacher must be an active account" });
+  }
+
+  const sourceAssignments = fromUser.assignments || [];
+  const [timetableCount, classTeacherCount] = await Promise.all([
+    includeTimetable
+      ? prisma.timetableEntry.count({ where: { teacherId: fromId } })
+      : Promise.resolve(0),
+    includeClassTeacher
+      ? prisma.classSection.count({ where: { classTeacherId: fromId } })
+      : Promise.resolve(0),
+  ]);
+
+  if (!sourceAssignments.length && !timetableCount && !classTeacherCount) {
+    return res.status(400).json({
+      error: "This teacher has no classroom papers, timetable slots, or class-teacher roles to transfer",
+    });
+  }
+
+  let assignmentsMoved = 0;
+  let assignmentsSkipped = 0;
+  let timetableMoved = 0;
+  let timetableSkipped = 0;
+  let classTeacherMoved = 0;
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const tenantId = fromUser.tenantId || toUser.tenantId || req.user.tenantId;
+      if (!tenantId) {
+        throw Object.assign(new Error("Missing school tenant for transfer"), { status: 400 });
+      }
+
+      const targetExisting = await tx.teacherAssignment.findMany({
+        where: { userId: toUserId },
+        select: { classSectionId: true, subjectId: true },
+      });
+      const targetKeys = new Set(targetExisting.map((a) => `${a.classSectionId}:${a.subjectId}`));
+
+      const toCreate = [];
+      for (const row of sourceAssignments) {
+        const key = `${row.classSectionId}:${row.subjectId}`;
+        if (targetKeys.has(key)) {
+          assignmentsSkipped += 1;
+        } else {
+          toCreate.push({
+            tenantId,
+            userId: toUserId,
+            classSectionId: row.classSectionId,
+            subjectId: row.subjectId,
+          });
+          targetKeys.add(key);
+        }
+      }
+      if (toCreate.length) {
+        await tx.teacherAssignment.createMany({ data: toCreate, skipDuplicates: true });
+        assignmentsMoved = toCreate.length;
+      }
+      if (sourceAssignments.length) {
+        await tx.teacherAssignment.deleteMany({ where: { userId: fromId } });
+      }
+
+      if (includeTimetable) {
+        const entries = await tx.timetableEntry.findMany({ where: { teacherId: fromId } });
+        for (const entry of entries) {
+          const clash = await tx.timetableEntry.findFirst({
+            where: {
+              teacherId: toUserId,
+              dayOfWeek: entry.dayOfWeek,
+              periodId: entry.periodId,
+              classSectionId: entry.classSectionId,
+            },
+          });
+          if (clash) {
+            await tx.timetableEntry.delete({ where: { id: entry.id } });
+            timetableSkipped += 1;
+            continue;
+          }
+          try {
+            await tx.timetableEntry.update({
+              where: { id: entry.id },
+              data: { teacherId: toUserId },
+            });
+            timetableMoved += 1;
+          } catch (err) {
+            if (err.code === "P2002") {
+              await tx.timetableEntry.delete({ where: { id: entry.id } });
+              timetableSkipped += 1;
+            } else {
+              throw err;
+            }
+          }
+        }
+      }
+
+      if (includeClassTeacher) {
+        const updated = await tx.classSection.updateMany({
+          where: { classTeacherId: fromId },
+          data: { classTeacherId: toUserId },
+        });
+        classTeacherMoved = updated.count || 0;
+      }
+
+      // Pending late-entry / edit requests for papers that moved should follow the replacement.
+      const pending = await tx.markEntryAccessRequest.findMany({
+        where: { teacherId: fromId, status: "PENDING" },
+      });
+      for (const reqRow of pending) {
+        const clash = await tx.markEntryAccessRequest.findFirst({
+          where: {
+            examId: reqRow.examId,
+            teacherId: toUserId,
+            classSectionId: reqRow.classSectionId,
+            subjectId: reqRow.subjectId,
+          },
+        });
+        if (clash) {
+          await tx.markEntryAccessRequest.delete({ where: { id: reqRow.id } });
+          continue;
+        }
+        await tx.markEntryAccessRequest.update({
+          where: { id: reqRow.id },
+          data: { teacherId: toUserId },
+        });
+      }
+    });
+  } catch (err) {
+    console.error("Failed to transfer teacher assignments", err);
+    if (err.code === "P2002") {
+      return res.status(409).json({
+        error: "Could not transfer because the replacement already has conflicting timetable slots",
+      });
+    }
+    return res.status(409).json({ error: "Could not transfer classroom assignments" });
+  }
+
+  if (includeTimetable && (timetableMoved || timetableSkipped)) {
+    invalidatePeriodsCache();
+  }
+
+  await logActivity({
+    actorId: req.user.userId,
+    action: "USER_ASSIGNMENTS_TRANSFERRED",
+    summary: `Transferred classes from ${fromUser.name} to ${toUser.name}`,
+    meta: {
+      fromUserId: fromUser.id,
+      fromUserName: fromUser.name,
+      toUserId: toUser.id,
+      toUserName: toUser.name,
+      assignmentsMoved,
+      assignmentsSkipped,
+      timetableMoved,
+      timetableSkipped,
+      classTeacherMoved,
+      includeTimetable,
+      includeClassTeacher,
+    },
+  });
+
+  const [fromFresh, toFresh] = await Promise.all([
+    prisma.user.findUnique({
+      where: { id: fromId },
+      include: { assignments: { include: { classSection: true, subject: true } } },
+    }),
+    prisma.user.findUnique({
+      where: { id: toUserId },
+      include: { assignments: { include: { classSection: true, subject: true } } },
+    }),
+  ]);
+
+  res.json({
+    ok: true,
+    assignmentsMoved,
+    assignmentsSkipped,
+    timetableMoved,
+    timetableSkipped,
+    classTeacherMoved,
+    from: { ...publicUser(fromFresh), assignments: fromFresh.assignments },
+    to: { ...publicUser(toFresh), assignments: toFresh.assignments },
+  });
 });
 
 usersRouter.post("/:id/reset-password", requireRole("PRINCIPAL"), async (req, res) => {

@@ -20,6 +20,7 @@ export const ACTION_LABELS = {
   USER_ROLE_CHANGED: "Staff role",
   USER_PASSWORD_RESET: "Password reset",
   USER_DELETED: "Staff deleted",
+  USER_ASSIGNMENTS_TRANSFERRED: "Staff classes transferred",
   EXAM_CREATED: "Exam created",
   EXAM_UPDATED: "Exam updated",
   EXAM_DELETED: "Exam deleted",
