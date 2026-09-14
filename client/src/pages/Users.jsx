@@ -327,6 +327,8 @@ export default function Users() {
   const [subjects, setSubjects] = useState([]);
   const [assigning, setAssigning] = useState(null);
   const [transferring, setTransferring] = useState(null);
+  const [deleting, setDeleting] = useState(null);
+  const [deleteAfterTransferId, setDeleteAfterTransferId] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [resetting, setResetting] = useState(null);
   const [permissionsUser, setPermissionsUser] = useState(null);
@@ -466,6 +468,25 @@ export default function Users() {
         if (result.timetableSkipped) skipped.push(`${result.timetableSkipped} conflicting slot(s)`);
         toast.info(`Skipped ${skipped.join(" · ")}.`);
       }
+
+      const pendingDelete = deleteAfterTransferId === fromUser.id;
+      setDeleteAfterTransferId(null);
+      if (pendingDelete) {
+        const remaining = (result.from?.assignments || []).length;
+        if (remaining > 0) {
+          setDeleting({ ...fromUser, assignments: result.from?.assignments || [] });
+          toast.error("Some papers remain. Transfer or remove them before deleting.");
+        } else if (
+          await confirm({
+            title: "Delete staff account?",
+            message: `Classes for ${fromUser.name} were transferred. Delete the account now?`,
+            confirmLabel: "Delete",
+            tone: "danger",
+          })
+        ) {
+          await performDelete({ ...fromUser, assignments: [] });
+        }
+      }
     } catch (err) {
       toast.error(err.message || "Could not transfer classes");
     } finally {
@@ -543,25 +564,65 @@ export default function Users() {
 
   async function removeStaff(row) {
     if (!canManageStaffRow(row)) return;
+    const paperCount = (row.assignments || []).length;
+    if (row.role === "TEACHER" && paperCount > 0) {
+      setDeleting(row);
+      return;
+    }
     if (
       !(await confirm({
         title: "Delete staff account?",
-        message: `Delete ${row.name}? Classroom assignments and timetable slots for this person will be removed. Marks they entered stay, attributed to you.`,
+        message: `Delete ${row.name}? This cannot be undone. Marks they entered stay on record, attributed to you.`,
         confirmLabel: "Delete",
         tone: "danger",
       }))
     ) {
       return;
     }
+    await performDelete(row);
+  }
+
+  async function performDelete(row) {
     setBusyId(row.id);
     try {
       await api(`/api/users/${row.id}`, { method: "DELETE" });
       toast.success("Staff account deleted.");
+      setDeleting(null);
       if (editingId === row.id) cancelEdit();
       await load();
     } catch (err) {
-      toast.error(err.message || "Could not delete staff account");
+      if (err?.data?.code === "HAS_ASSIGNMENTS") {
+        setDeleting(row);
+        toast.error(err.message || "Transfer or remove classroom assignments first.");
+      } else {
+        toast.error(err.message || "Could not delete staff account");
+      }
     } finally {
+      setBusyId("");
+    }
+  }
+
+  async function clearClassesThenDelete(row) {
+    setBusyId(row.id);
+    try {
+      await api(`/api/users/${row.id}/clear-classes`, { method: "POST" });
+      toast.success("Classroom assignments removed.");
+      await load();
+      setBusyId("");
+      if (
+        !(await confirm({
+          title: "Delete staff account?",
+          message: `Assignments for ${row.name} are cleared. Delete the account now?`,
+          confirmLabel: "Delete",
+          tone: "danger",
+        }))
+      ) {
+        setDeleting(null);
+        return;
+      }
+      await performDelete(row);
+    } catch (err) {
+      toast.error(err.message || "Could not remove classroom assignments");
       setBusyId("");
     }
   }
@@ -1058,8 +1119,31 @@ export default function Users() {
       {transferring && (
         <TransferModal
           user={transferring}
-          onClose={() => setTransferring(null)}
+          onClose={() => {
+            setTransferring(null);
+            if (deleteAfterTransferId === transferring.id) {
+              setDeleting(transferring);
+              setDeleteAfterTransferId(null);
+            }
+          }}
           onTransfer={transferClasses}
+        />
+      )}
+      {deleting && (
+        <DeleteBlockedModal
+          user={deleting}
+          busy={busyId === deleting.id}
+          onClose={() => {
+            setDeleting(null);
+            setDeleteAfterTransferId(null);
+          }}
+          onTransfer={() => {
+            const row = deleting;
+            setDeleteAfterTransferId(row.id);
+            setDeleting(null);
+            setTransferring(row);
+          }}
+          onClear={() => clearClassesThenDelete(deleting)}
         />
       )}
       {resetting && (
@@ -1123,6 +1207,33 @@ function PermissionsModal({ user, onClose }) {
         <div className="mt-4 flex justify-end">
           <button type="button" className="btn-primary" onClick={onClose}>
             Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DeleteBlockedModal({ user, busy, onClose, onTransfer, onClear }) {
+  const paperCount = (user.assignments || []).length;
+  return (
+    <div className="fixed inset-0 bg-ink-950/40 flex items-end sm:items-center justify-center p-0 sm:p-4 z-20">
+      <div className="card w-full max-w-md rounded-b-none sm:rounded-xl p-5 safe-pb" role="dialog" aria-modal="true">
+        <h3 className="font-serif text-xl mb-1">Cannot delete yet</h3>
+        <p className="text-sm text-ink-700/65 mb-4">
+          <span className="font-medium text-ink-900">{user.name}</span> still has{" "}
+          {paperCount} classroom paper{paperCount === 1 ? "" : "s"} assigned. Transfer those classes to a
+          replacement, or remove the assignments, before deleting this staff account.
+        </p>
+        <div className="flex flex-col gap-2">
+          <button type="button" className="btn-primary w-full" disabled={busy} onClick={onTransfer}>
+            Transfer classes…
+          </button>
+          <button type="button" className="btn-danger w-full" disabled={busy} onClick={onClear}>
+            <BusyLabel busy={busy} idle="Remove assignments" busyText="Removing…" />
+          </button>
+          <button type="button" className="btn-ghost w-full" disabled={busy} onClick={onClose}>
+            Cancel
           </button>
         </div>
       </div>

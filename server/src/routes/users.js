@@ -460,6 +460,17 @@ usersRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (
     }
   }
 
+  if (existing.role === "TEACHER") {
+    const assignmentCount = await prisma.teacherAssignment.count({ where: { userId: existing.id } });
+    if (assignmentCount > 0) {
+      return res.status(409).json({
+        error: "Transfer or remove classroom assignments before deleting this teacher",
+        code: "HAS_ASSIGNMENTS",
+        assignmentCount,
+      });
+    }
+  }
+
   const actorId = req.user.userId;
   try {
     await prisma.$transaction(async (tx) => {
@@ -508,6 +519,56 @@ usersRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (
     },
   });
   res.json({ ok: true });
+});
+
+usersRouter.post("/:id/clear-classes", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Not found" });
+  if (existing.role !== "TEACHER") {
+    return res.status(400).json({ error: "Only teachers have classroom assignments to clear" });
+  }
+
+  const [assignmentCount, timetableCount, classTeacherCount] = await Promise.all([
+    prisma.teacherAssignment.count({ where: { userId: existing.id } }),
+    prisma.timetableEntry.count({ where: { teacherId: existing.id } }),
+    prisma.classSection.count({ where: { classTeacherId: existing.id } }),
+  ]);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.teacherAssignment.deleteMany({ where: { userId: existing.id } });
+    await tx.timetableEntry.deleteMany({ where: { teacherId: existing.id } });
+    await tx.classSection.updateMany({
+      where: { classTeacherId: existing.id },
+      data: { classTeacherId: null },
+    });
+  });
+
+  if (timetableCount) invalidatePeriodsCache();
+
+  await logActivity({
+    actorId: req.user.userId,
+    action: "USER_UPDATED",
+    summary: `Cleared classroom load for ${existing.name}`,
+    meta: {
+      userId: existing.id,
+      userName: existing.name,
+      assignmentsCleared: assignmentCount,
+      timetableCleared: timetableCount,
+      classTeacherCleared: classTeacherCount,
+    },
+  });
+
+  const fresh = await prisma.user.findUnique({
+    where: { id: existing.id },
+    include: { assignments: { include: { classSection: true, subject: true } } },
+  });
+  res.json({
+    ok: true,
+    assignmentsCleared: assignmentCount,
+    timetableCleared: timetableCount,
+    classTeacherCleared: classTeacherCount,
+    user: { ...publicUser(fresh), assignments: fresh.assignments },
+  });
 });
 
 usersRouter.post("/:id/transfer", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {

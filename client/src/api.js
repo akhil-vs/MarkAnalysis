@@ -56,7 +56,7 @@ function invalidateForMutation(path) {
   if (path.startsWith("/api/subjects")) invalidateApiCache("/api/subjects");
   if (path.startsWith("/api/users")) {
     invalidateApiCache("/api/users");
-    if (path.includes("/transfer")) {
+    if (path.includes("/transfer") || path.includes("/clear-classes")) {
       invalidateApiCache("/api/classes");
       invalidateApiCache("/api/timetable/periods");
     }
