@@ -52,7 +52,7 @@ body {
 }
 
 .btn-icon-danger {
-  @apply btn-icon border-clay-500/30 bg-clay-500/10 text-clay-700 hover:bg-clay-500/20;
+  @apply btn-icon border-clay-500/30 bg-clay-500/10 text-clay-600 hover:bg-clay-500/20;
 }
 
 .field {
