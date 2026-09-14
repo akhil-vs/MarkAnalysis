@@ -54,7 +54,13 @@ function invalidateForMutation(path) {
   }
   if (path.startsWith("/api/exams")) invalidateApiCache("/api/exams");
   if (path.startsWith("/api/subjects")) invalidateApiCache("/api/subjects");
-  if (path.startsWith("/api/users")) invalidateApiCache("/api/users");
+  if (path.startsWith("/api/users")) {
+    invalidateApiCache("/api/users");
+    if (path.includes("/transfer")) {
+      invalidateApiCache("/api/classes");
+      invalidateApiCache("/api/timetable/periods");
+    }
+  }
   if (path.startsWith("/api/school")) invalidateApiCache("/api/school");
   if (path.startsWith("/api/timetable/periods") || path.startsWith("/api/timetable/entries")) {
     invalidateApiCache("/api/timetable/periods");

@@ -186,6 +186,7 @@ export default function Users() {
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [assigning, setAssigning] = useState(null);
+  const [transferring, setTransferring] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [resetting, setResetting] = useState(null);
   const [permissionsUser, setPermissionsUser] = useState(null);
@@ -284,6 +285,49 @@ export default function Users() {
       toast.success("Assignments saved.");
     } catch (err) {
       toast.error(err.message || "Could not save assignments");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function transferClasses(fromUser, { toUserId, includeTimetable, includeClassTeacher }) {
+    setBusyId(fromUser.id);
+    try {
+      const result = await api(`/api/users/${fromUser.id}/transfer`, {
+        method: "POST",
+        body: { toUserId, includeTimetable, includeClassTeacher },
+      });
+      setTransferring(null);
+      await load();
+      const parts = [];
+      if (result.assignmentsMoved) {
+        parts.push(
+          `${result.assignmentsMoved} paper${result.assignmentsMoved === 1 ? "" : "s"}`
+        );
+      }
+      if (result.timetableMoved) {
+        parts.push(
+          `${result.timetableMoved} timetable slot${result.timetableMoved === 1 ? "" : "s"}`
+        );
+      }
+      if (result.classTeacherMoved) {
+        parts.push(
+          `${result.classTeacherMoved} class-teacher role${result.classTeacherMoved === 1 ? "" : "s"}`
+        );
+      }
+      toast.success(
+        parts.length
+          ? `Transferred ${parts.join(", ")} to ${result.to?.name || "replacement"}.`
+          : "Transfer completed."
+      );
+      if (result.assignmentsSkipped || result.timetableSkipped) {
+        const skipped = [];
+        if (result.assignmentsSkipped) skipped.push(`${result.assignmentsSkipped} paper(s) already held`);
+        if (result.timetableSkipped) skipped.push(`${result.timetableSkipped} conflicting slot(s)`);
+        toast.info(`Skipped ${skipped.join(" · ")}.`);
+      }
+    } catch (err) {
+      toast.error(err.message || "Could not transfer classes");
     } finally {
       setBusyId("");
     }
@@ -415,7 +459,7 @@ export default function Users() {
     <div>
       <PageHeader
         title={NAV_TITLES.staff}
-        subtitle="Add staff, edit profiles, activate pending sign-ups, and manage role permissions & classroom assignments."
+        subtitle="Add staff, edit profiles, transfer classes to a replacement, activate pending sign-ups, and manage role permissions & classroom assignments."
         actions={<StaffStats summary={summary} />}
       />
 
@@ -806,6 +850,16 @@ export default function Users() {
                               Assign
                             </button>
                           )}
+                          {canAssign && (
+                            <button
+                              type="button"
+                              className="btn-ghost"
+                              disabled={tableBusy}
+                              onClick={() => setTransferring(u)}
+                            >
+                              Transfer
+                            </button>
+                          )}
                           {canAssign && u.status === "ACTIVE" && (
                             <Link to={`/timetables/teachers/${u.id}`} className="btn-ghost">
                               Timetable
@@ -887,6 +941,13 @@ export default function Users() {
           onSave={saveAssignments}
         />
       )}
+      {transferring && (
+        <TransferModal
+          user={transferring}
+          onClose={() => setTransferring(null)}
+          onTransfer={transferClasses}
+        />
+      )}
       {resetting && (
         <ResetPasswordModal
           user={resetting}
@@ -951,6 +1012,134 @@ function PermissionsModal({ user, onClose }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function TransferModal({ user, currentUserId, onClose, onTransfer }) {
+  const [teachers, setTeachers] = useState([]);
+  const [toUserId, setToUserId] = useState("");
+  const [includeTimetable, setIncludeTimetable] = useState(true);
+  const [includeClassTeacher, setIncludeClassTeacher] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const paperCount = (user.assignments || []).length;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const res = await api("/api/users?role=TEACHER&status=ACTIVE&page=1&pageSize=200&sort=name");
+        const items = Array.isArray(res) ? res : res.items || [];
+        const options = items.filter((t) => t.id !== user.id);
+        if (!cancelled) {
+          setTeachers(options);
+          setToUserId(options[0]?.id || "");
+        }
+      } catch (err) {
+        if (!cancelled) setLoadError(err.message || "Could not load teachers");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id, currentUserId]);
+
+  async function save(e) {
+    e.preventDefault();
+    if (!toUserId) return;
+    setSaving(true);
+    try {
+      await onTransfer(user, { toUserId, includeTimetable, includeClassTeacher });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const target = teachers.find((t) => t.id === toUserId);
+
+  return (
+    <div className="fixed inset-0 bg-ink-950/40 flex items-end sm:items-center justify-center p-0 sm:p-4 z-20">
+      <form
+        className="card w-full max-w-md rounded-b-none sm:rounded-xl p-5 safe-pb"
+        onSubmit={save}
+      >
+        <h3 className="font-serif text-xl mb-1">Transfer classes</h3>
+        <p className="text-sm text-ink-700/65 mb-4">
+          Move classroom papers from <span className="font-medium text-ink-900">{user.name}</span>
+          {paperCount ? ` (${paperCount} assigned)` : ""} to a replacement teacher. Useful when someone
+          resigns and a successor is ready.
+        </p>
+
+        {loading ? (
+          <p className="text-sm text-ink-700/60 mb-4">Loading teachers…</p>
+        ) : loadError ? (
+          <p className="text-sm text-clay-600 mb-4">{loadError}</p>
+        ) : teachers.length === 0 ? (
+          <p className="text-sm text-ink-700/60 mb-4">
+            No other active teachers available. Create the replacement account first, then transfer.
+          </p>
+        ) : (
+          <div className="space-y-3 mb-4">
+            <div>
+              <label className="label">Replacement teacher</label>
+              <select
+                className="field"
+                value={toUserId}
+                onChange={(e) => setToUserId(e.target.value)}
+                required
+              >
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                    {t.schoolId ? ` · ${t.schoolId}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-start gap-2 text-sm text-ink-800">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={includeTimetable}
+                onChange={(e) => setIncludeTimetable(e.target.checked)}
+              />
+              <span>Also move timetable slots</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm text-ink-800">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={includeClassTeacher}
+                onChange={(e) => setIncludeClassTeacher(e.target.checked)}
+              />
+              <span>Also move class-teacher (homeroom) roles</span>
+            </label>
+            <p className="text-xs text-ink-700/55">
+              Papers already held by {target?.name || "the replacement"} are kept once. Conflicting
+              timetable slots for the same class and period are skipped.
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={saving || loading || !toUserId || Boolean(loadError)}
+          >
+            <BusyLabel busy={saving} idle="Transfer classes" busyText="Transferring…" />
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
