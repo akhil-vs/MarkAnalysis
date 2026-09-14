@@ -988,19 +988,28 @@ const MFA_USER_STATEMENTS = [
 ];
 
 async function ensureMfaUserColumns() {
-  try {
-    const hasEnabled = await columnExists("User", "mfaEnabled");
-    const hasSecret = await columnExists("User", "mfaSecret");
-    const hasRecovery = await columnExists("User", "mfaRecoveryHashes");
-    if (hasEnabled && hasSecret && hasRecovery) {
-      await recordMigration(MFA_USER_MIGRATION, MFA_USER_CHECKSUM);
-      return;
-    }
-    await applyStatements(MFA_USER_STATEMENTS);
+  // Do not swallow errors — a cached successful auth ensure with missing MFA
+  // columns leaves every login on this isolate stuck on SCHEMA_DRIFT.
+  const hasEnabled = await columnExists("User", "mfaEnabled");
+  const hasSecret = await columnExists("User", "mfaSecret");
+  const hasRecovery = await columnExists("User", "mfaRecoveryHashes");
+  if (hasEnabled && hasSecret && hasRecovery) {
     await recordMigration(MFA_USER_MIGRATION, MFA_USER_CHECKSUM);
-  } catch (err) {
-    console.warn("ensureMfaUserColumns skipped:", err?.message || err);
+    return;
   }
+  await applyStatements(MFA_USER_STATEMENTS);
+  await recordMigration(MFA_USER_MIGRATION, MFA_USER_CHECKSUM);
+}
+
+/**
+ * School digest columns are selected on full School reads during login.
+ * Keep them on the auth hot path (not only background live-ops catch-up).
+ */
+async function ensureSchoolDigestColumns() {
+  const hasEnabled = await columnExists("School", "emailDigestsEnabled");
+  const hasEmail = await columnExists("School", "digestEmail");
+  if (hasEnabled && hasEmail) return;
+  await applyStatements(LIVE_OPS_SCHOOL_STATEMENTS);
 }
 
 const LIVE_OPS_MIGRATION = "20260914191500_board_cpd_live_ops";
@@ -1313,13 +1322,20 @@ let authEnsurePromise = null;
  * Avoids logo, timetable, analytics, and other catch-ups that blow the Vercel
  * cold-start budget and turn sign-in into a 504.
  */
+/** Clear the auth ensure memo so the next request can retry after SCHEMA_DRIFT. */
+export function resetAuthSchemaEnsure() {
+  authEnsurePromise = null;
+}
+
 export async function ensureAuthSchema() {
   if (!authEnsurePromise) {
     authEnsurePromise = (async () => {
-      // Always ensure rate-limit + MFA columns — they may land after older catchups were recorded.
-      // Login selects mfaEnabled; missing columns surface as SCHEMA_DRIFT on Vercel ensure-only boots.
+      // Always ensure rate-limit + MFA + school digest columns — they may land after
+      // older catchups were recorded. Login selects mfaEnabled and full School rows;
+      // missing columns surface as SCHEMA_DRIFT on Vercel ensure-only boots.
       await ensureRateLimitBucketTable();
       await ensureMfaUserColumns();
+      await ensureSchoolDigestColumns();
       if (await catchupsAlreadyApplied(AUTH_CATCHUP_MIGRATION_NAMES)) return;
       await Promise.all([ensureMustChangePasswordColumn(), ensureRefreshTokenTable()]);
       await ensureMultiTenantSchools();
@@ -1450,4 +1466,8 @@ export const __test = {
   MFA_USER_STATEMENTS,
   LIVE_OPS_MIGRATION,
   LIVE_OPS_CHECKSUM,
+  LIVE_OPS_SCHOOL_STATEMENTS,
+  ensureMfaUserColumns,
+  ensureSchoolDigestColumns,
+  resetAuthSchemaEnsure,
 };

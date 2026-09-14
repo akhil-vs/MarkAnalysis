@@ -34,12 +34,24 @@ let schemaReady = null;
 let authSchemaReady = null;
 function awaitSchema(_req, _res, next) {
   if (!schemaReady) schemaReady = bootstrapSchema();
-  schemaReady.then(() => next()).catch((err) => next(err));
+  schemaReady
+    .then(() => next())
+    .catch((err) => {
+      // Allow the next request to retry bootstrap after a transient failure.
+      schemaReady = null;
+      next(err);
+    });
 }
 /** Login/refresh/me only need auth tables — full catch-up runs in the background. */
 function awaitAuthSchema(_req, _res, next) {
   if (!authSchemaReady) authSchemaReady = bootstrapAuthSchema();
-  authSchemaReady.then(() => next()).catch((err) => next(err));
+  authSchemaReady
+    .then(() => next())
+    .catch((err) => {
+      // A rejected promise must not stick forever — otherwise every login stays 503.
+      authSchemaReady = null;
+      next(err);
+    });
 }
 
 // Dynamic, auth-scoped JSON should not use Express ETags. Hashing large

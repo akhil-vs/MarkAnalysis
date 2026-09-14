@@ -256,7 +256,12 @@ export async function allocateJoinCode() {
 
 export async function findSchoolByJoinCode(joinCode) {
   if (!joinCode) return null;
-  return runWithoutTenant(() => prisma.school.findUnique({ where: { joinCode } }));
+  return runWithoutTenant(() =>
+    prisma.school.findUnique({
+      where: { joinCode },
+      select: { id: true, name: true, slug: true, status: true, joinCode: true },
+    })
+  );
 }
 
 export async function findActiveSchoolBySlug(slug) {
