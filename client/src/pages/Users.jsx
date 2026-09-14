@@ -406,26 +406,7 @@ export default function Users() {
     setCanAddRoles(Boolean(data.canAddRoles));
   }
 
-  function dbgLog(hypothesisId, location, message, data = {}) {
-    // #region agent log
-    fetch("http://127.0.0.1:7242/ingest/e6b27cbb-5a9b-4c8e-9f0a-2d8c1b7a4e31", {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2710" },
-      body: JSON.stringify({ sessionId: "2710", hypothesisId, location, message, data, timestamp: Date.now() }),
-    }).catch(() => {});
-    // #endregion
-  }
-
   function applyRoleSelection(value) {
-    // #region agent log
-    dbgLog("D", "Users.jsx:applyRoleSelection", "applyRoleSelection called", {
-      value,
-      addingRole,
-      selectWouldBe: addingRole ? ADD_ROLE_VALUE : roleSelectValue(form),
-      formRole: form.role,
-      formCustomRoleId: form.customRoleId,
-    });
-    // #endregion
     if (value === ADD_ROLE_VALUE) {
       setAddingRole(true);
       setNewRoleName("");
@@ -449,55 +430,14 @@ export default function Users() {
   async function createCustomRole(e) {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-    const formEl = e?.currentTarget instanceof HTMLFormElement
-      ? e.currentTarget
-      : e?.target?.closest?.("form") || null;
-    const fromForm = formEl ? new FormData(formEl) : null;
-    const nameFromForm = String(fromForm?.get("newRoleName") || "").trim();
-    const baseFromForm = String(fromForm?.get("newRoleBase") || "").trim();
-    const name = nameFromForm || newRoleName.trim();
-    const baseRole = baseFromForm === "EXAM_COORDINATOR" || baseFromForm === "TEACHER"
-      ? baseFromForm
-      : newRoleBase;
-    // #region agent log
-    dbgLog("B,C", "Users.jsx:createCustomRole:entry", "createCustomRole entered", {
-      runId: "post-fix",
-      newRoleName,
-      nameFromForm,
-      name,
-      newRoleNameLen: (newRoleName || "").length,
-      newRoleNameTrim: newRoleName.trim(),
-      newRoleBase,
-      baseRole,
-      formSnapshot: { role: form.role, customRoleId: form.customRoleId, name: form.name },
-      eventType: e?.type,
-      defaultPrevented: e?.defaultPrevented,
-      savingRole,
-      addingRole,
-    });
-    // #endregion
+    const name = newRoleName.trim();
+    const baseRole = newRoleBase === "EXAM_COORDINATOR" ? "EXAM_COORDINATOR" : "TEACHER";
     if (!name) {
-      // #region agent log
-      dbgLog("B", "Users.jsx:createCustomRole:empty", "early return empty name", {
-        runId: "post-fix",
-        newRoleName,
-        nameFromForm,
-        rawLen: (newRoleName || "").length,
-      });
-      // #endregion
       toast.error("Enter a role name");
       return;
     }
     setSavingRole(true);
     try {
-      // #region agent log
-      dbgLog("C", "Users.jsx:createCustomRole:beforeApi", "POST staff-roles about to fire", {
-        runId: "post-fix",
-        name,
-        baseRole,
-        formBefore: { role: form.role, customRoleId: form.customRoleId },
-      });
-      // #endregion
       const data = await api("/api/users/staff-roles", {
         method: "POST",
         body: { name, baseRole },
@@ -506,16 +446,6 @@ export default function Users() {
       setStaffRoles(roles);
       setCanAddRoles(true);
       const created = data.role;
-      // #region agent log
-      dbgLog("C", "Users.jsx:createCustomRole:success", "role created OK", {
-        runId: "post-fix",
-        createdId: created?.id,
-        createdName: created?.name,
-        createdBase: created?.baseRole,
-        rolesCount: roles.length,
-        staleFormStill: { role: form.role, customRoleId: form.customRoleId },
-      });
-      // #endregion
       setForm((prev) => ({
         ...prev,
         role: created.baseRole,
@@ -526,14 +456,6 @@ export default function Users() {
       setNewRoleBase("TEACHER");
       toast.success(`Role “${created.name}” added.`);
     } catch (err) {
-      // #region agent log
-      dbgLog("E", "Users.jsx:createCustomRole:error", "API or post-process failed", {
-        runId: "post-fix",
-        errMsg: err?.message,
-        errStatus: err?.status,
-        errData: err?.data,
-      });
-      // #endregion
       toast.error(err.message || "Could not add role");
     } finally {
       setSavingRole(false);
@@ -669,31 +591,8 @@ export default function Users() {
 
   async function saveStaff(e) {
     e.preventDefault();
-    // #region agent log
-    dbgLog("A", "Users.jsx:saveStaff:entry", "parent form submit fired", {
-      runId: "post-fix",
-      addingRole,
-      newRoleName,
-      savingRole,
-      editingId,
-      formName: form.name,
-      formEmail: form.email,
-      formRole: form.role,
-      formCustomRoleId: form.customRoleId,
-      submitter: e?.nativeEvent?.submitter?.tagName,
-      submitterText: e?.nativeEvent?.submitter?.textContent?.slice?.(0, 40),
-    });
-    // #endregion
-    // Nested add-role form should own Enter; ignore accidental parent submits while adding.
-    if (addingRole) {
-      // #region agent log
-      dbgLog("A", "Users.jsx:saveStaff:blocked", "blocked parent submit while adding role", {
-        runId: "post-fix",
-        newRoleName,
-      });
-      // #endregion
-      return;
-    }
+    // Ignore accidental parent submits while the add-role panel is open.
+    if (addingRole) return;
     const name = requiredText(form.name, "Full name");
     const email = parseEmail(form.email);
     if (!form.email.trim() && !form.schoolId.trim()) {
@@ -1042,25 +941,18 @@ export default function Users() {
               {canAddRoles && <option value={ADD_ROLE_VALUE}>+ Add role…</option>}
             </select>
             {addingRole && canAddRoles && (
-              <form
+              <div
                 className="mt-2 rounded-lg border border-ink-900/10 bg-ink-900/[0.02] p-3 space-y-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  e.stopPropagation();
-                  // #region agent log
-                  dbgLog("A", "Users.jsx:addRoleForm:submit", "nested add-role form submitted", {
-                    runId: "post-fix",
-                    newRoleName,
-                    newRoleBase,
-                  });
-                  // #endregion
-                  void createCustomRole(e);
-                }}
-                onClick={(e) => e.stopPropagation()}
+                role="group"
+                aria-label="Add staff role"
                 onKeyDown={(e) => {
+                  // Nested <form> is invalid HTML inside the staff form; stop Enter here instead.
                   if (e.key === "Enter") {
-                    // Keep Enter inside this panel from activating the parent staff form.
+                    e.preventDefault();
                     e.stopPropagation();
+                    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
+                      void createCustomRole(e);
+                    }
                   }
                 }}
               >
@@ -1069,35 +961,12 @@ export default function Users() {
                 </label>
                 <input
                   id="new-staff-role-name"
-                  name="newRoleName"
                   className="field"
                   value={newRoleName}
-                  onChange={(e) => {
-                    // #region agent log
-                    dbgLog("B", "Users.jsx:newRoleName:onChange", "role name input changed", {
-                      runId: "post-fix",
-                      value: e.target.value,
-                      valueLen: e.target.value.length,
-                    });
-                    // #endregion
-                    setNewRoleName(e.target.value);
-                  }}
-                  onKeyDown={(e) => {
-                    // #region agent log
-                    if (e.key === "Enter") {
-                      dbgLog("A", "Users.jsx:newRoleName:Enter", "Enter pressed in role name input", {
-                        runId: "post-fix",
-                        newRoleName,
-                        willBubbleToForm: false,
-                        nestedForm: true,
-                      });
-                    }
-                    // #endregion
-                  }}
+                  onChange={(e) => setNewRoleName(e.target.value)}
                   placeholder="e.g. Vice Principal, HOD Science"
                   maxLength={60}
                   autoFocus
-                  required
                   disabled={savingRole}
                 />
                 <label className="label" htmlFor="new-staff-role-base">
@@ -1105,7 +974,6 @@ export default function Users() {
                 </label>
                 <select
                   id="new-staff-role-base"
-                  name="newRoleBase"
                   className="field"
                   value={newRoleBase}
                   onChange={(e) => setNewRoleBase(e.target.value)}
@@ -1116,9 +984,14 @@ export default function Users() {
                 </select>
                 <div className="flex flex-wrap gap-2 pt-1">
                   <button
-                    type="submit"
+                    type="button"
                     className="btn-primary"
                     disabled={savingRole || !newRoleName.trim()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      void createCustomRole(e);
+                    }}
                   >
                     <BusyLabel busy={savingRole} idle="Add role" busyText="Adding…" />
                   </button>
@@ -1135,7 +1008,7 @@ export default function Users() {
                     Cancel
                   </button>
                 </div>
-              </form>
+              </div>
             )}
           </div>
           <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-1 lg:justify-end">
