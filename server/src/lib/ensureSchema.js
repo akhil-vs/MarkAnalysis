@@ -941,6 +941,33 @@ async function ensurePlatformAdminRole() {
 }
 
 /** Migrations this catch-up owns — used to skip work when history is complete. */
+
+const RATE_LIMIT_BUCKET_MIGRATION = "20260915120000_rate_limit_bucket";
+const RATE_LIMIT_BUCKET_CHECKSUM = "rate-limit-bucket-v1";
+const RATE_LIMIT_BUCKET_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "RateLimitBucket" (
+    "key" TEXT NOT NULL,
+    "count" INTEGER NOT NULL DEFAULT 0,
+    "resetAt" TIMESTAMP(3) NOT NULL,
+    CONSTRAINT "RateLimitBucket_pkey" PRIMARY KEY ("key")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "RateLimitBucket_resetAt_idx" ON "RateLimitBucket"("resetAt")`,
+];
+
+async function ensureRateLimitBucketTable() {
+  try {
+    if (await tableExists("RateLimitBucket")) {
+      await recordMigration(RATE_LIMIT_BUCKET_MIGRATION, RATE_LIMIT_BUCKET_CHECKSUM);
+      return;
+    }
+    await applyStatements(RATE_LIMIT_BUCKET_STATEMENTS);
+    await recordMigration(RATE_LIMIT_BUCKET_MIGRATION, RATE_LIMIT_BUCKET_CHECKSUM);
+  } catch (err) {
+    // Without a DB pool (unit tests / misconfigured boot) auth can still use the memory limiter.
+    console.warn("ensureRateLimitBucketTable skipped:", err?.message || err);
+  }
+}
+
 export const CATCHUP_MIGRATION_NAMES = [
   TIMETABLE_MIGRATION,
   MULTI_CLASS_PERIOD_MIGRATION,
@@ -955,6 +982,7 @@ export const CATCHUP_MIGRATION_NAMES = [
   MARK_MODERATION_MIGRATION,
   ELECTIVE_MIGRATION,
   REFRESH_TOKEN_MIGRATION,
+  RATE_LIMIT_BUCKET_MIGRATION,
   THEORY_PRACTICAL_MIGRATION,
   PORTAL_LINK_MIGRATION,
   TENANT_MIGRATION,
@@ -963,7 +991,9 @@ export const CATCHUP_MIGRATION_NAMES = [
 ];
 
 /** Subset required before login / refresh / me can safely query User + RefreshToken. */
-export const AUTH_CATCHUP_MIGRATION_NAMES = [
+export 
+const AUTH_CATCHUP_MIGRATION_NAMES = [
+  RATE_LIMIT_BUCKET_MIGRATION,
   MUST_CHANGE_PASSWORD_MIGRATION,
   REFRESH_TOKEN_MIGRATION,
   TENANT_MIGRATION,
@@ -993,6 +1023,8 @@ let authEnsurePromise = null;
 export async function ensureAuthSchema() {
   if (!authEnsurePromise) {
     authEnsurePromise = (async () => {
+      // Always ensure the rate-limit table — it may land after older catchups were recorded.
+      await ensureRateLimitBucketTable();
       if (await catchupsAlreadyApplied(AUTH_CATCHUP_MIGRATION_NAMES)) return;
       await Promise.all([ensureMustChangePasswordColumn(), ensureRefreshTokenTable()]);
       await ensureMultiTenantSchools();
@@ -1096,6 +1128,9 @@ export const __test = {
   REFRESH_TOKEN_MIGRATION,
   REFRESH_TOKEN_CHECKSUM,
   REFRESH_TOKEN_STATEMENTS,
+  RATE_LIMIT_BUCKET_MIGRATION,
+  RATE_LIMIT_BUCKET_CHECKSUM,
+  RATE_LIMIT_BUCKET_STATEMENTS,
   THEORY_PRACTICAL_MIGRATION,
   THEORY_PRACTICAL_CHECKSUM,
   THEORY_PRACTICAL_STATEMENTS,
