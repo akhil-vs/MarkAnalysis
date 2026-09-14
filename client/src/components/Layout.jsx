@@ -395,7 +395,7 @@ export default function Layout() {
             <Link to="/profile" onClick={closeNav} className="text-sm font-medium truncate block hover:text-white">
               {user.name}
             </Link>
-            <div className="text-xs text-cream/50">{ROLE_LABEL[user.role]}</div>
+            <div className="text-xs text-cream/50">{user.roleTitle || ROLE_LABEL[user.role]}</div>
           </div>
           <div className="hidden lg:block">{!platform && <NotificationBell />}</div>
         </div>

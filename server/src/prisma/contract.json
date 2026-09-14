@@ -3538,6 +3538,13 @@
                   "kind": "scalar"
                 }
               },
+              "customStaffRoles": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
               "digestEmail": {
                 "nullable": true,
                 "type": {
@@ -4112,6 +4119,9 @@
                 },
                 "createdAt": {
                   "column": "createdAt"
+                },
+                "customStaffRoles": {
+                  "column": "customStaffRoles"
                 },
                 "digestEmail": {
                   "column": "digestEmail"
@@ -5128,6 +5138,13 @@
                   }
                 }
               },
+              "roleTitle": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "schoolId": {
                 "nullable": true,
                 "type": {
@@ -5562,6 +5579,9 @@
                 },
                 "role": {
                   "column": "role"
+                },
+                "roleTitle": {
+                  "column": "roleTitle"
                 },
                 "schoolId": {
                   "column": "schoolId"
@@ -8957,6 +8977,11 @@
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
+                "customStaffRoles": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
                 "digestEmail": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -9965,6 +9990,11 @@
                     "plane": "storage"
                   }
                 },
+                "roleTitle": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "schoolId": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -10224,7 +10254,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "20f06f9724b706887c0fc4d91949fa5cf396472c8a7e0aba736d5f6f6b921d18"
+    "storageHash": "96765e72b623daa7218fd9ebdd9fa6a404a7c14b5e3da12c10e0f6a771f70551"
   },
   "execution": {
     "executionHash": "47b32973b482e3482f74eb4934530e25e38250f4c47a6f8943a2e003354c3f18",

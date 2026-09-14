@@ -17,12 +17,27 @@ import {
   mapStaffImportRows,
 } from "../lib/staffImport.js";
 import { invalidatePeriodsCache } from "../lib/periods.js";
+import {
+  addCustomStaffRole,
+  listStaffRoles,
+  parseNewStaffRole,
+  resolveAssignedRole,
+} from "../lib/staffRoles.js";
 
 export const usersRouter = Router();
 usersRouter.use(auth);
 usersRouter.use(requireSchoolTenant);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+
+async function getSchoolCustomStaffRoles(tenantId) {
+  if (!tenantId) return [];
+  const school = await prisma.school.findUnique({
+    where: { id: tenantId },
+    select: { customStaffRoles: true },
+  });
+  return school?.customStaffRoles || [];
+}
 
 function usersOrderBy(sort) {
   switch (String(sort || "")) {
@@ -95,6 +110,51 @@ usersRouter.get("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, r
   res.json({
     ...pageResult({ items, total, page: paging.page, pageSize: paging.pageSize }),
     summary,
+  });
+});
+
+usersRouter.get("/staff-roles", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const custom = await getSchoolCustomStaffRoles(req.user.tenantId);
+  const roles = listStaffRoles(custom, {
+    includeCoordinator: req.user.role === "PRINCIPAL",
+  });
+  res.json({ roles, canAddRoles: req.user.role === "PRINCIPAL" });
+});
+
+usersRouter.post("/staff-roles", requireRole("PRINCIPAL"), async (req, res) => {
+  const parsed = parseNewStaffRole(req.body || {});
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+
+  const school = await prisma.school.findUnique({
+    where: { id: req.user.tenantId },
+    select: { id: true, customStaffRoles: true },
+  });
+  if (!school) return res.status(404).json({ error: "School not found" });
+
+  // Coordinators creating roles is blocked by requireRole; still clamp baseRole for safety.
+  const roleToAdd =
+    parsed.role.baseRole === "EXAM_COORDINATOR"
+      ? parsed.role
+      : { ...parsed.role, baseRole: "TEACHER" };
+
+  const next = addCustomStaffRole(school.customStaffRoles, roleToAdd);
+  if (next.error) return res.status(409).json({ error: next.error });
+
+  await prisma.school.update({
+    where: { id: school.id },
+    data: { customStaffRoles: next.roles },
+  });
+
+  await logActivity({
+    actorId: req.user.userId,
+    action: "SCHOOL_UPDATED",
+    summary: `Added staff role “${roleToAdd.name}”`,
+    meta: { staffRoleId: roleToAdd.id, staffRoleName: roleToAdd.name, baseRole: roleToAdd.baseRole },
+  });
+
+  res.status(201).json({
+    role: { ...roleToAdd, system: false },
+    roles: listStaffRoles(next.roles, { includeCoordinator: true }),
   });
 });
 
@@ -205,7 +265,7 @@ usersRouter.post(
 );
 
 usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, email, schoolId, password, role, status, assignments } = req.body || {};
+  const { name, email, schoolId, password, status, assignments } = req.body || {};
   if (!name || !String(name).trim()) {
     return res.status(400).json({ error: "Name is required" });
   }
@@ -223,13 +283,25 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
     if (parsedEmail.error) return res.status(400).json({ error: parsedEmail.error });
   }
 
-  let chosenRole = ["TEACHER", "EXAM_COORDINATOR", "PRINCIPAL"].includes(role) ? role : "TEACHER";
-  if (req.user.role === "EXAM_COORDINATOR" && chosenRole !== "TEACHER") {
-    return res.status(403).json({ error: "Only the principal can add an exam coordinator" });
+  const customRoles = await getSchoolCustomStaffRoles(req.user.tenantId);
+  const canAssignCoordinator = req.user.role === "PRINCIPAL";
+  const body = req.body || {};
+  const resolved = resolveAssignedRole(
+    body.customRoleId
+      ? { customRoleId: body.customRoleId }
+      : { role: body.role || "TEACHER", roleTitle: body.roleTitle ?? null },
+    customRoles,
+    { canAssignCoordinator }
+  );
+  if (resolved.error) {
+    const statusCode = /only the principal/i.test(resolved.error) ? 403 : 400;
+    return res.status(statusCode).json({ error: resolved.error });
   }
-  if (chosenRole === "PRINCIPAL") {
+  if (resolved.role === "PRINCIPAL") {
     return res.status(403).json({ error: "Principal accounts cannot be created here" });
   }
+  const chosenRole = resolved.role;
+  const roleTitle = resolved.roleTitle;
 
   if (email) {
     const exists = await runWithoutTenant(() => prisma.user.findUnique({ where: { email } }));
@@ -249,6 +321,7 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
       schoolId: schoolId || null,
       passwordHash: await bcrypt.hash(password, 10),
       role: chosenRole,
+      roleTitle,
       status: chosenStatus,
       mustChangePassword: true,
     },
@@ -272,11 +345,12 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
   await logActivity({
     actorId: req.user.userId,
     action: "USER_CREATED",
-    summary: `Created ${chosenRole === "EXAM_COORDINATOR" ? "exam coordinator" : "teacher"} account for ${fresh.name}`,
+    summary: `Created ${roleTitle || (chosenRole === "EXAM_COORDINATOR" ? "exam coordinator" : "teacher")} account for ${fresh.name}`,
     meta: {
       userId: fresh.id,
       userName: fresh.name,
       role: fresh.role,
+      roleTitle: fresh.roleTitle || null,
       status: fresh.status,
     },
   });
@@ -284,7 +358,7 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
 });
 
 usersRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { status, role, assignments, name, email, schoolId } = req.body || {};
+  const { status, role, customRoleId, roleTitle, assignments, name, email, schoolId } = req.body || {};
   const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Not found" });
   if (existing.role === "PLATFORM_ADMIN") {
@@ -295,13 +369,41 @@ usersRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
     return res.status(403).json({ error: "Only the principal can edit leadership accounts" });
   }
 
-  if (role === "PRINCIPAL" && req.user.role !== "PRINCIPAL") {
+  const roleTouched = role !== undefined || customRoleId !== undefined || roleTitle !== undefined;
+  let resolvedRole = null;
+  if (roleTouched) {
+    const customRoles = await getSchoolCustomStaffRoles(req.user.tenantId);
+    const canAssignCoordinator = req.user.role === "PRINCIPAL";
+    const payload = {};
+    if (customRoleId) {
+      payload.customRoleId = customRoleId;
+    } else if (role !== undefined) {
+      payload.role = role;
+      // Switching via system role clears a previous custom title unless explicitly set.
+      payload.roleTitle = roleTitle !== undefined ? roleTitle : null;
+    } else {
+      payload.role = existing.role;
+      payload.roleTitle = roleTitle;
+    }
+    const resolved = resolveAssignedRole(payload, customRoles, { canAssignCoordinator });
+    if (resolved.error) {
+      const statusCode = /only the principal/i.test(resolved.error) ? 403 : 400;
+      return res.status(statusCode).json({ error: resolved.error });
+    }
+    resolvedRole = resolved;
+  }
+
+  if (resolvedRole?.role === "PRINCIPAL" && req.user.role !== "PRINCIPAL") {
     return res.status(403).json({ error: "Only a principal can assign the principal role" });
   }
-  if (req.user.role === "EXAM_COORDINATOR" && (role === "EXAM_COORDINATOR" || role === "PRINCIPAL")) {
+  if (
+    req.user.role === "EXAM_COORDINATOR" &&
+    resolvedRole &&
+    (resolvedRole.role === "EXAM_COORDINATOR" || resolvedRole.role === "PRINCIPAL")
+  ) {
     return res.status(403).json({ error: "Only the principal can change leadership roles" });
   }
-  if (existing.role === "PRINCIPAL" && role && role !== "PRINCIPAL") {
+  if (existing.role === "PRINCIPAL" && resolvedRole && resolvedRole.role !== "PRINCIPAL") {
     const otherPrincipals = await prisma.user.count({
       where: { role: "PRINCIPAL", status: "ACTIVE", id: { not: existing.id } },
     });
@@ -312,7 +414,10 @@ usersRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
 
   const data = {};
   if (status && ["PENDING", "ACTIVE", "REJECTED"].includes(status)) data.status = status;
-  if (role && ["PRINCIPAL", "EXAM_COORDINATOR", "TEACHER"].includes(role)) data.role = role;
+  if (resolvedRole) {
+    data.role = resolvedRole.role;
+    data.roleTitle = resolvedRole.roleTitle;
+  }
 
   const profileTouched =
     name !== undefined || email !== undefined || schoolId !== undefined;

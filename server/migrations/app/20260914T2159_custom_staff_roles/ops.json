@@ -1,0 +1,86 @@
+[
+  {
+    "id": "column.public.School.customStaffRoles",
+    "label": "Add column \"customStaffRoles\" to \"School\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "customStaffRoles",
+        "table": "School"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"customStaffRoles\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "customStaffRoles"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"customStaffRoles\"",
+        "sql": "ALTER TABLE \"public\".\"School\" ADD COLUMN \"customStaffRoles\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"customStaffRoles\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "customStaffRoles"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.roleTitle",
+    "label": "Add column \"roleTitle\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "roleTitle",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"roleTitle\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "roleTitle"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"roleTitle\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"roleTitle\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"roleTitle\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "roleTitle"
+        ]
+      }
+    ]
+  }
+]

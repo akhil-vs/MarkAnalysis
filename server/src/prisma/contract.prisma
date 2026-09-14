@@ -100,6 +100,8 @@ model School {
   emailDigestsEnabled Boolean @default(false)
   /// Optional override recipient for school digests (defaults to school.email / principal).
   digestEmail         String?
+  /// Principal-defined staff role titles: [{ id, name, baseRole }, ...] (baseRole TEACHER|EXAM_COORDINATOR).
+  customStaffRoles    Jsonb?
 
   users                 User[]
   classSections         ClassSection[]
@@ -145,6 +147,8 @@ model User {
   /// Hashed one-time recovery codes (JSON string array of hashes).
   mfaRecoveryHashes  Jsonb?
   role               pg.enum(Role)
+  /// Optional school-defined title shown instead of the system role label (e.g. "HOD Science").
+  roleTitle          String?
   status             pg.enum(UserStatus) @default("PENDING")
   createdAt          TimestamptzString   @default(now())
 
