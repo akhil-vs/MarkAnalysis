@@ -1,0 +1,4630 @@
+[
+  {
+    "id": "addNativeEnumValue.AuditAction.USER_UPDATED",
+    "label": "Add value \"USER_UPDATED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"USER_UPDATED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"USER_UPDATED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "USER_UPDATED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"USER_UPDATED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'USER_UPDATED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"USER_UPDATED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "USER_UPDATED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.USER_DELETED",
+    "label": "Add value \"USER_DELETED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"USER_DELETED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"USER_DELETED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "USER_DELETED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"USER_DELETED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'USER_DELETED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"USER_DELETED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "USER_DELETED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.USER_ASSIGNMENTS_TRANSFERRED",
+    "label": "Add value \"USER_ASSIGNMENTS_TRANSFERRED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"USER_ASSIGNMENTS_TRANSFERRED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"USER_ASSIGNMENTS_TRANSFERRED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "USER_ASSIGNMENTS_TRANSFERRED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"USER_ASSIGNMENTS_TRANSFERRED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'USER_ASSIGNMENTS_TRANSFERRED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"USER_ASSIGNMENTS_TRANSFERRED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "USER_ASSIGNMENTS_TRANSFERRED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.MFA_ENABLED",
+    "label": "Add value \"MFA_ENABLED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"MFA_ENABLED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"MFA_ENABLED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "MFA_ENABLED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"MFA_ENABLED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'MFA_ENABLED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"MFA_ENABLED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "MFA_ENABLED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.MFA_DISABLED",
+    "label": "Add value \"MFA_DISABLED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"MFA_DISABLED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"MFA_DISABLED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "MFA_DISABLED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"MFA_DISABLED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'MFA_DISABLED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"MFA_DISABLED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "MFA_DISABLED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.REPORT_CARD_PUBLISHED",
+    "label": "Add value \"REPORT_CARD_PUBLISHED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"REPORT_CARD_PUBLISHED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"REPORT_CARD_PUBLISHED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "REPORT_CARD_PUBLISHED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"REPORT_CARD_PUBLISHED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'REPORT_CARD_PUBLISHED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"REPORT_CARD_PUBLISHED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "REPORT_CARD_PUBLISHED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.REPORT_CARD_SIGNED_OFF",
+    "label": "Add value \"REPORT_CARD_SIGNED_OFF\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"REPORT_CARD_SIGNED_OFF\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"REPORT_CARD_SIGNED_OFF\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "REPORT_CARD_SIGNED_OFF"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"REPORT_CARD_SIGNED_OFF\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'REPORT_CARD_SIGNED_OFF'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"REPORT_CARD_SIGNED_OFF\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "REPORT_CARD_SIGNED_OFF"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.REVALUATION_REQUESTED",
+    "label": "Add value \"REVALUATION_REQUESTED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"REVALUATION_REQUESTED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"REVALUATION_REQUESTED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "REVALUATION_REQUESTED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"REVALUATION_REQUESTED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'REVALUATION_REQUESTED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"REVALUATION_REQUESTED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "REVALUATION_REQUESTED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.REVALUATION_REVIEWED",
+    "label": "Add value \"REVALUATION_REVIEWED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"REVALUATION_REVIEWED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"REVALUATION_REVIEWED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "REVALUATION_REVIEWED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"REVALUATION_REVIEWED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'REVALUATION_REVIEWED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"REVALUATION_REVIEWED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "REVALUATION_REVIEWED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.BOARD_PACK_CREATED",
+    "label": "Add value \"BOARD_PACK_CREATED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"BOARD_PACK_CREATED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"BOARD_PACK_CREATED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "BOARD_PACK_CREATED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"BOARD_PACK_CREATED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'BOARD_PACK_CREATED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"BOARD_PACK_CREATED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "BOARD_PACK_CREATED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.PARENT_NOTIFIED",
+    "label": "Add value \"PARENT_NOTIFIED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"PARENT_NOTIFIED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"PARENT_NOTIFIED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "PARENT_NOTIFIED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"PARENT_NOTIFIED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'PARENT_NOTIFIED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"PARENT_NOTIFIED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "PARENT_NOTIFIED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.BACKUP_CREATED",
+    "label": "Add value \"BACKUP_CREATED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"BACKUP_CREATED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"BACKUP_CREATED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "BACKUP_CREATED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"BACKUP_CREATED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'BACKUP_CREATED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"BACKUP_CREATED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "BACKUP_CREATED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.BACKUP_RESTORED",
+    "label": "Add value \"BACKUP_RESTORED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"BACKUP_RESTORED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"BACKUP_RESTORED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "BACKUP_RESTORED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"BACKUP_RESTORED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'BACKUP_RESTORED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"BACKUP_RESTORED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "BACKUP_RESTORED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.CPD_UPDATED",
+    "label": "Add value \"CPD_UPDATED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"CPD_UPDATED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"CPD_UPDATED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "CPD_UPDATED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"CPD_UPDATED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'CPD_UPDATED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"CPD_UPDATED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "CPD_UPDATED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "createNativeEnumType.BoardPackStatus",
+    "label": "Create enum type \"BoardPackStatus\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "BoardPackStatus"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create enum type \"BoardPackStatus\"",
+        "sql": "CREATE TYPE \"public\".\"BoardPackStatus\" AS ENUM ('PENDING', 'READY', 'FAILED')",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "createNativeEnumType.CpdPlanStatus",
+    "label": "Create enum type \"CpdPlanStatus\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "CpdPlanStatus"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create enum type \"CpdPlanStatus\"",
+        "sql": "CREATE TYPE \"public\".\"CpdPlanStatus\" AS ENUM ('PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED')",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "createNativeEnumType.EmailOutboxStatus",
+    "label": "Create enum type \"EmailOutboxStatus\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "EmailOutboxStatus"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create enum type \"EmailOutboxStatus\"",
+        "sql": "CREATE TYPE \"public\".\"EmailOutboxStatus\" AS ENUM ('PENDING', 'SENT', 'FAILED', 'SKIPPED')",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "addNativeEnumValue.NotificationType.DIGEST",
+    "label": "Add value \"DIGEST\" to enum type \"NotificationType\"",
+    "summary": "Adds value \"DIGEST\" to enum type \"NotificationType\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "NotificationType"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"NotificationType\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"DIGEST\" is absent from enum type \"NotificationType\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "DIGEST"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"DIGEST\" to enum type \"NotificationType\"",
+        "sql": "ALTER TYPE \"public\".\"NotificationType\" ADD VALUE 'DIGEST'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"DIGEST\" exists on enum type \"NotificationType\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "DIGEST"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.NotificationType.REPORT_CARD_READY",
+    "label": "Add value \"REPORT_CARD_READY\" to enum type \"NotificationType\"",
+    "summary": "Adds value \"REPORT_CARD_READY\" to enum type \"NotificationType\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "NotificationType"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"NotificationType\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"REPORT_CARD_READY\" is absent from enum type \"NotificationType\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "REPORT_CARD_READY"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"REPORT_CARD_READY\" to enum type \"NotificationType\"",
+        "sql": "ALTER TYPE \"public\".\"NotificationType\" ADD VALUE 'REPORT_CARD_READY'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"REPORT_CARD_READY\" exists on enum type \"NotificationType\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "REPORT_CARD_READY"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.NotificationType.REVALUATION_UPDATE",
+    "label": "Add value \"REVALUATION_UPDATE\" to enum type \"NotificationType\"",
+    "summary": "Adds value \"REVALUATION_UPDATE\" to enum type \"NotificationType\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "NotificationType"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"NotificationType\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"REVALUATION_UPDATE\" is absent from enum type \"NotificationType\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "REVALUATION_UPDATE"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"REVALUATION_UPDATE\" to enum type \"NotificationType\"",
+        "sql": "ALTER TYPE \"public\".\"NotificationType\" ADD VALUE 'REVALUATION_UPDATE'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"REVALUATION_UPDATE\" exists on enum type \"NotificationType\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "REVALUATION_UPDATE"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.NotificationType.PARENT_PORTAL",
+    "label": "Add value \"PARENT_PORTAL\" to enum type \"NotificationType\"",
+    "summary": "Adds value \"PARENT_PORTAL\" to enum type \"NotificationType\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "NotificationType"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"NotificationType\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"PARENT_PORTAL\" is absent from enum type \"NotificationType\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "PARENT_PORTAL"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"PARENT_PORTAL\" to enum type \"NotificationType\"",
+        "sql": "ALTER TYPE \"public\".\"NotificationType\" ADD VALUE 'PARENT_PORTAL'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"PARENT_PORTAL\" exists on enum type \"NotificationType\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "PARENT_PORTAL"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.NotificationType.CPD_NOTICE",
+    "label": "Add value \"CPD_NOTICE\" to enum type \"NotificationType\"",
+    "summary": "Adds value \"CPD_NOTICE\" to enum type \"NotificationType\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "NotificationType"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"NotificationType\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"CPD_NOTICE\" is absent from enum type \"NotificationType\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "CPD_NOTICE"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"CPD_NOTICE\" to enum type \"NotificationType\"",
+        "sql": "ALTER TYPE \"public\".\"NotificationType\" ADD VALUE 'CPD_NOTICE'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"CPD_NOTICE\" exists on enum type \"NotificationType\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "NotificationType",
+          "CPD_NOTICE"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "createNativeEnumType.ReportCardStatus",
+    "label": "Create enum type \"ReportCardStatus\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "ReportCardStatus"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create enum type \"ReportCardStatus\"",
+        "sql": "CREATE TYPE \"public\".\"ReportCardStatus\" AS ENUM ('DRAFT', 'PUBLISHED', 'SIGNED_OFF')",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "createNativeEnumType.RevaluationStatus",
+    "label": "Create enum type \"RevaluationStatus\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "RevaluationStatus"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create enum type \"RevaluationStatus\"",
+        "sql": "CREATE TYPE \"public\".\"RevaluationStatus\" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'COMPLETED')",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.BoardPack",
+    "label": "Create table \"BoardPack\"",
+    "summary": "Creates table \"BoardPack\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "BoardPack"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"BoardPack\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BoardPack\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"BoardPack\"",
+        "sql": "CREATE TABLE \"public\".\"BoardPack\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"createdById\" text NOT NULL,\n  \"error\" text,\n  \"examId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"label\" text,\n  \"manifest\" jsonb,\n  \"readyAt\" timestamptz,\n  \"status\" \"BoardPackStatus\" DEFAULT 'PENDING'::\"BoardPackStatus\" NOT NULL,\n  \"tenantId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"BoardPack\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BoardPack\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.CpdAppraisal",
+    "label": "Create table \"CpdAppraisal\"",
+    "summary": "Creates table \"CpdAppraisal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "CpdAppraisal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"CpdAppraisal\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdAppraisal\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"CpdAppraisal\"",
+        "sql": "CREATE TABLE \"public\".\"CpdAppraisal\" (\n  \"academicYear\" text NOT NULL,\n  \"appraiserId\" text NOT NULL,\n  \"comments\" text,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"goalsMet\" text,\n  \"id\" text NOT NULL,\n  \"nextGoals\" text,\n  \"overallRating\" int4,\n  \"periodLabel\" text,\n  \"signedAt\" timestamptz,\n  \"teacherId\" text NOT NULL,\n  \"tenantId\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"CpdAppraisal\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdAppraisal\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.CpdCertificate",
+    "label": "Create table \"CpdCertificate\"",
+    "summary": "Creates table \"CpdCertificate\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "CpdCertificate"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"CpdCertificate\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdCertificate\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"CpdCertificate\"",
+        "sql": "CREATE TABLE \"public\".\"CpdCertificate\" (\n  \"certificateNo\" text,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"earnedAt\" timestamptz NOT NULL,\n  \"expiresAt\" timestamptz,\n  \"hours\" float8,\n  \"id\" text NOT NULL,\n  \"issuedById\" text,\n  \"notes\" text,\n  \"provider\" text,\n  \"teacherId\" text NOT NULL,\n  \"tenantId\" text NOT NULL,\n  \"title\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"CpdCertificate\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdCertificate\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.CpdObservation",
+    "label": "Create table \"CpdObservation\"",
+    "summary": "Creates table \"CpdObservation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "CpdObservation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"CpdObservation\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdObservation\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"CpdObservation\"",
+        "sql": "CREATE TABLE \"public\".\"CpdObservation\" (\n  \"classLabel\" text,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"developmentAreas\" text,\n  \"id\" text NOT NULL,\n  \"notes\" text,\n  \"observedAt\" timestamptz NOT NULL,\n  \"observerId\" text NOT NULL,\n  \"rating\" int4,\n  \"strengths\" text,\n  \"subjectLabel\" text,\n  \"teacherId\" text NOT NULL,\n  \"tenantId\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"CpdObservation\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdObservation\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.CpdTrainingPlan",
+    "label": "Create table \"CpdTrainingPlan\"",
+    "summary": "Creates table \"CpdTrainingPlan\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "CpdTrainingPlan"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"CpdTrainingPlan\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"CpdTrainingPlan\"",
+        "sql": "CREATE TABLE \"public\".\"CpdTrainingPlan\" (\n  \"academicYear\" text NOT NULL,\n  \"completedHours\" float8 DEFAULT 0 NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"createdById\" text NOT NULL,\n  \"description\" text,\n  \"id\" text NOT NULL,\n  \"status\" \"CpdPlanStatus\" DEFAULT 'PLANNED'::\"CpdPlanStatus\" NOT NULL,\n  \"targetHours\" float8,\n  \"teacherId\" text NOT NULL,\n  \"tenantId\" text NOT NULL,\n  \"title\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"CpdTrainingPlan\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.EmailOutbox",
+    "label": "Create table \"EmailOutbox\"",
+    "summary": "Creates table \"EmailOutbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "EmailOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"EmailOutbox\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EmailOutbox\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"EmailOutbox\"",
+        "sql": "CREATE TABLE \"public\".\"EmailOutbox\" (\n  \"bodyHtml\" text,\n  \"bodyText\" text NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"error\" text,\n  \"id\" text NOT NULL,\n  \"kind\" text NOT NULL,\n  \"meta\" jsonb,\n  \"sentAt\" timestamptz,\n  \"status\" \"EmailOutboxStatus\" DEFAULT 'PENDING'::\"EmailOutboxStatus\" NOT NULL,\n  \"subject\" text NOT NULL,\n  \"tenantId\" text,\n  \"toEmail\" text NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"EmailOutbox\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EmailOutbox\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.ExamPaperSchedule",
+    "label": "Create table \"ExamPaperSchedule\"",
+    "summary": "Creates table \"ExamPaperSchedule\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ExamPaperSchedule"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ExamPaperSchedule\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExamPaperSchedule\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ExamPaperSchedule\"",
+        "sql": "CREATE TABLE \"public\".\"ExamPaperSchedule\" (\n  \"className\" text,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"endTime\" text,\n  \"examId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"maxMarks\" int4,\n  \"notes\" text,\n  \"paperDate\" timestamptz NOT NULL,\n  \"startTime\" text,\n  \"subjectId\" text NOT NULL,\n  \"tenantId\" text NOT NULL,\n  \"venue\" text,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ExamPaperSchedule\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExamPaperSchedule\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.ReportCardRelease",
+    "label": "Create table \"ReportCardRelease\"",
+    "summary": "Creates table \"ReportCardRelease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"ReportCardRelease\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"ReportCardRelease\"",
+        "sql": "CREATE TABLE \"public\".\"ReportCardRelease\" (\n  \"classSectionId\" text NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"examId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"notes\" text,\n  \"parentsNotifiedAt\" timestamptz,\n  \"publishedAt\" timestamptz,\n  \"signedOffAt\" timestamptz,\n  \"signedOffById\" text,\n  \"status\" \"ReportCardStatus\" DEFAULT 'DRAFT'::\"ReportCardStatus\" NOT NULL,\n  \"tenantId\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"ReportCardRelease\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.RevaluationRequest",
+    "label": "Create table \"RevaluationRequest\"",
+    "summary": "Creates table \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"RevaluationRequest\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"RevaluationRequest\"",
+        "sql": "CREATE TABLE \"public\".\"RevaluationRequest\" (\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"examId\" text NOT NULL,\n  \"feePaid\" bool DEFAULT false NOT NULL,\n  \"id\" text NOT NULL,\n  \"originalMarks\" float8,\n  \"reason\" text,\n  \"requestedById\" text NOT NULL,\n  \"reviewNotes\" text,\n  \"reviewedAt\" timestamptz,\n  \"reviewedById\" text,\n  \"revisedMarks\" float8,\n  \"status\" \"RevaluationStatus\" DEFAULT 'PENDING'::\"RevaluationStatus\" NOT NULL,\n  \"studentId\" text NOT NULL,\n  \"subjectId\" text NOT NULL,\n  \"tenantId\" text NOT NULL,\n  \"updatedAt\" timestamptz NOT NULL,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"RevaluationRequest\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.School.digestEmail",
+    "label": "Add column \"digestEmail\" to \"School\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "digestEmail",
+        "table": "School"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"digestEmail\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "digestEmail"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"digestEmail\"",
+        "sql": "ALTER TABLE \"public\".\"School\" ADD COLUMN \"digestEmail\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"digestEmail\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "digestEmail"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.School.emailDigestsEnabled",
+    "label": "Add column \"emailDigestsEnabled\" to \"School\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "emailDigestsEnabled",
+        "table": "School"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"emailDigestsEnabled\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "emailDigestsEnabled"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"emailDigestsEnabled\"",
+        "sql": "ALTER TABLE \"public\".\"School\" ADD COLUMN \"emailDigestsEnabled\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"emailDigestsEnabled\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "emailDigestsEnabled"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Student.guardianEmail",
+    "label": "Add column \"guardianEmail\" to \"Student\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "guardianEmail",
+        "table": "Student"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"guardianEmail\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Student",
+          "guardianEmail"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"guardianEmail\"",
+        "sql": "ALTER TABLE \"public\".\"Student\" ADD COLUMN \"guardianEmail\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"guardianEmail\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Student",
+          "guardianEmail"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.mfaEnabled",
+    "label": "Add column \"mfaEnabled\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mfaEnabled",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mfaEnabled\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "mfaEnabled"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mfaEnabled\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"mfaEnabled\" bool DEFAULT false NOT NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mfaEnabled\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "mfaEnabled"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.mfaRecoveryHashes",
+    "label": "Add column \"mfaRecoveryHashes\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mfaRecoveryHashes",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mfaRecoveryHashes\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "mfaRecoveryHashes"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mfaRecoveryHashes\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"mfaRecoveryHashes\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mfaRecoveryHashes\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "mfaRecoveryHashes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.mfaSecret",
+    "label": "Add column \"mfaSecret\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "mfaSecret",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"mfaSecret\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "mfaSecret"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"mfaSecret\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"mfaSecret\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"mfaSecret\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "mfaSecret"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.CpdAppraisal.CpdAppraisal_teacherId_academicYear_periodLabel_key",
+    "label": "Add unique constraint on \"CpdAppraisal\" (teacherId, academicYear, periodLabel)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "CpdAppraisal_teacherId_academicYear_periodLabel_key",
+        "table": "CpdAppraisal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"CpdAppraisal_teacherId_academicYear_periodLabel_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdAppraisal_teacherId_academicYear_periodLabel_key",
+          "public",
+          "\"public\".\"CpdAppraisal\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"CpdAppraisal_teacherId_academicYear_periodLabel_key\"",
+        "sql": "ALTER TABLE \"public\".\"CpdAppraisal\" ADD CONSTRAINT \"CpdAppraisal_teacherId_academicYear_periodLabel_key\" UNIQUE (\"teacherId\", \"academicYear\", \"periodLabel\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"CpdAppraisal_teacherId_academicYear_periodLabel_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdAppraisal_teacherId_academicYear_periodLabel_key",
+          "public",
+          "\"public\".\"CpdAppraisal\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ExamPaperSchedule.ExamPaperSchedule_examId_subjectId_className_key",
+    "label": "Add unique constraint on \"ExamPaperSchedule\" (examId, subjectId, className)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ExamPaperSchedule_examId_subjectId_className_key",
+        "table": "ExamPaperSchedule"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ExamPaperSchedule_examId_subjectId_className_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ExamPaperSchedule_examId_subjectId_className_key",
+          "public",
+          "\"public\".\"ExamPaperSchedule\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ExamPaperSchedule_examId_subjectId_className_key\"",
+        "sql": "ALTER TABLE \"public\".\"ExamPaperSchedule\" ADD CONSTRAINT \"ExamPaperSchedule_examId_subjectId_className_key\" UNIQUE (\"examId\", \"subjectId\", \"className\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"ExamPaperSchedule_examId_subjectId_className_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ExamPaperSchedule_examId_subjectId_className_key",
+          "public",
+          "\"public\".\"ExamPaperSchedule\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.ReportCardRelease.ReportCardRelease_examId_classSectionId_key",
+    "label": "Add unique constraint on \"ReportCardRelease\" (examId, classSectionId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "ReportCardRelease_examId_classSectionId_key",
+        "table": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"ReportCardRelease_examId_classSectionId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReportCardRelease_examId_classSectionId_key",
+          "public",
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"ReportCardRelease_examId_classSectionId_key\"",
+        "sql": "ALTER TABLE \"public\".\"ReportCardRelease\" ADD CONSTRAINT \"ReportCardRelease_examId_classSectionId_key\" UNIQUE (\"examId\", \"classSectionId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"ReportCardRelease_examId_classSectionId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReportCardRelease_examId_classSectionId_key",
+          "public",
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.RevaluationRequest.RevaluationRequest_examId_studentId_subjectId_key",
+    "label": "Add unique constraint on \"RevaluationRequest\" (examId, studentId, subjectId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "RevaluationRequest_examId_studentId_subjectId_key",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"RevaluationRequest_examId_studentId_subjectId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_examId_studentId_subjectId_key",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"RevaluationRequest_examId_studentId_subjectId_key\"",
+        "sql": "ALTER TABLE \"public\".\"RevaluationRequest\" ADD CONSTRAINT \"RevaluationRequest_examId_studentId_subjectId_key\" UNIQUE (\"examId\", \"studentId\", \"subjectId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"RevaluationRequest_examId_studentId_subjectId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_examId_studentId_subjectId_key",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.BoardPack.BoardPack_createdById_idx_8bf640ed",
+    "label": "Create index \"BoardPack_createdById_idx_8bf640ed\" on \"BoardPack\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "BoardPack_createdById_idx_8bf640ed",
+        "table": "BoardPack"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"BoardPack_createdById_idx_8bf640ed\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BoardPack_createdById_idx_8bf640ed\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"BoardPack_createdById_idx_8bf640ed\"",
+        "sql": "CREATE INDEX \"BoardPack_createdById_idx_8bf640ed\" ON \"public\".\"BoardPack\" (\"createdById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"BoardPack_createdById_idx_8bf640ed\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BoardPack_createdById_idx_8bf640ed\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.BoardPack.BoardPack_examId_idx_a57bdadd",
+    "label": "Create index \"BoardPack_examId_idx_a57bdadd\" on \"BoardPack\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "BoardPack_examId_idx_a57bdadd",
+        "table": "BoardPack"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"BoardPack_examId_idx_a57bdadd\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BoardPack_examId_idx_a57bdadd\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"BoardPack_examId_idx_a57bdadd\"",
+        "sql": "CREATE INDEX \"BoardPack_examId_idx_a57bdadd\" ON \"public\".\"BoardPack\" (\"examId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"BoardPack_examId_idx_a57bdadd\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BoardPack_examId_idx_a57bdadd\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.BoardPack.BoardPack_tenantId_examId_idx_b62d70cd",
+    "label": "Create index \"BoardPack_tenantId_examId_idx_b62d70cd\" on \"BoardPack\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "BoardPack_tenantId_examId_idx_b62d70cd",
+        "table": "BoardPack"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"BoardPack_tenantId_examId_idx_b62d70cd\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BoardPack_tenantId_examId_idx_b62d70cd\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"BoardPack_tenantId_examId_idx_b62d70cd\"",
+        "sql": "CREATE INDEX \"BoardPack_tenantId_examId_idx_b62d70cd\" ON \"public\".\"BoardPack\" (\"tenantId\", \"examId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"BoardPack_tenantId_examId_idx_b62d70cd\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BoardPack_tenantId_examId_idx_b62d70cd\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.BoardPack.BoardPack_tenantId_idx_c93ed4f1",
+    "label": "Create index \"BoardPack_tenantId_idx_c93ed4f1\" on \"BoardPack\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "BoardPack_tenantId_idx_c93ed4f1",
+        "table": "BoardPack"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"BoardPack_tenantId_idx_c93ed4f1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BoardPack_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"BoardPack_tenantId_idx_c93ed4f1\"",
+        "sql": "CREATE INDEX \"BoardPack_tenantId_idx_c93ed4f1\" ON \"public\".\"BoardPack\" (\"tenantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"BoardPack_tenantId_idx_c93ed4f1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"BoardPack_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdAppraisal.CpdAppraisal_appraiserId_idx_e03e7363",
+    "label": "Create index \"CpdAppraisal_appraiserId_idx_e03e7363\" on \"CpdAppraisal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdAppraisal_appraiserId_idx_e03e7363",
+        "table": "CpdAppraisal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdAppraisal_appraiserId_idx_e03e7363\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdAppraisal_appraiserId_idx_e03e7363\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdAppraisal_appraiserId_idx_e03e7363\"",
+        "sql": "CREATE INDEX \"CpdAppraisal_appraiserId_idx_e03e7363\" ON \"public\".\"CpdAppraisal\" (\"appraiserId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdAppraisal_appraiserId_idx_e03e7363\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdAppraisal_appraiserId_idx_e03e7363\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdAppraisal.CpdAppraisal_teacherId_idx_bc266660",
+    "label": "Create index \"CpdAppraisal_teacherId_idx_bc266660\" on \"CpdAppraisal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdAppraisal_teacherId_idx_bc266660",
+        "table": "CpdAppraisal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdAppraisal_teacherId_idx_bc266660\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdAppraisal_teacherId_idx_bc266660\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdAppraisal_teacherId_idx_bc266660\"",
+        "sql": "CREATE INDEX \"CpdAppraisal_teacherId_idx_bc266660\" ON \"public\".\"CpdAppraisal\" (\"teacherId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdAppraisal_teacherId_idx_bc266660\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdAppraisal_teacherId_idx_bc266660\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdAppraisal.CpdAppraisal_tenantId_academicYear_idx_353ef48d",
+    "label": "Create index \"CpdAppraisal_tenantId_academicYear_idx_353ef48d\" on \"CpdAppraisal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdAppraisal_tenantId_academicYear_idx_353ef48d",
+        "table": "CpdAppraisal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdAppraisal_tenantId_academicYear_idx_353ef48d\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdAppraisal_tenantId_academicYear_idx_353ef48d\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdAppraisal_tenantId_academicYear_idx_353ef48d\"",
+        "sql": "CREATE INDEX \"CpdAppraisal_tenantId_academicYear_idx_353ef48d\" ON \"public\".\"CpdAppraisal\" (\"tenantId\", \"academicYear\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdAppraisal_tenantId_academicYear_idx_353ef48d\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdAppraisal_tenantId_academicYear_idx_353ef48d\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdAppraisal.CpdAppraisal_tenantId_idx_c93ed4f1",
+    "label": "Create index \"CpdAppraisal_tenantId_idx_c93ed4f1\" on \"CpdAppraisal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdAppraisal_tenantId_idx_c93ed4f1",
+        "table": "CpdAppraisal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdAppraisal_tenantId_idx_c93ed4f1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdAppraisal_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdAppraisal_tenantId_idx_c93ed4f1\"",
+        "sql": "CREATE INDEX \"CpdAppraisal_tenantId_idx_c93ed4f1\" ON \"public\".\"CpdAppraisal\" (\"tenantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdAppraisal_tenantId_idx_c93ed4f1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdAppraisal_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdCertificate.CpdCertificate_issuedById_idx_c14f1329",
+    "label": "Create index \"CpdCertificate_issuedById_idx_c14f1329\" on \"CpdCertificate\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdCertificate_issuedById_idx_c14f1329",
+        "table": "CpdCertificate"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdCertificate_issuedById_idx_c14f1329\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdCertificate_issuedById_idx_c14f1329\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdCertificate_issuedById_idx_c14f1329\"",
+        "sql": "CREATE INDEX \"CpdCertificate_issuedById_idx_c14f1329\" ON \"public\".\"CpdCertificate\" (\"issuedById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdCertificate_issuedById_idx_c14f1329\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdCertificate_issuedById_idx_c14f1329\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdCertificate.CpdCertificate_teacherId_idx_bc266660",
+    "label": "Create index \"CpdCertificate_teacherId_idx_bc266660\" on \"CpdCertificate\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdCertificate_teacherId_idx_bc266660",
+        "table": "CpdCertificate"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdCertificate_teacherId_idx_bc266660\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdCertificate_teacherId_idx_bc266660\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdCertificate_teacherId_idx_bc266660\"",
+        "sql": "CREATE INDEX \"CpdCertificate_teacherId_idx_bc266660\" ON \"public\".\"CpdCertificate\" (\"teacherId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdCertificate_teacherId_idx_bc266660\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdCertificate_teacherId_idx_bc266660\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdCertificate.CpdCertificate_tenantId_idx_c93ed4f1",
+    "label": "Create index \"CpdCertificate_tenantId_idx_c93ed4f1\" on \"CpdCertificate\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdCertificate_tenantId_idx_c93ed4f1",
+        "table": "CpdCertificate"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdCertificate_tenantId_idx_c93ed4f1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdCertificate_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdCertificate_tenantId_idx_c93ed4f1\"",
+        "sql": "CREATE INDEX \"CpdCertificate_tenantId_idx_c93ed4f1\" ON \"public\".\"CpdCertificate\" (\"tenantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdCertificate_tenantId_idx_c93ed4f1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdCertificate_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdCertificate.CpdCertificate_tenantId_teacherId_idx_c6ea84aa",
+    "label": "Create index \"CpdCertificate_tenantId_teacherId_idx_c6ea84aa\" on \"CpdCertificate\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdCertificate_tenantId_teacherId_idx_c6ea84aa",
+        "table": "CpdCertificate"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdCertificate_tenantId_teacherId_idx_c6ea84aa\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdCertificate_tenantId_teacherId_idx_c6ea84aa\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdCertificate_tenantId_teacherId_idx_c6ea84aa\"",
+        "sql": "CREATE INDEX \"CpdCertificate_tenantId_teacherId_idx_c6ea84aa\" ON \"public\".\"CpdCertificate\" (\"tenantId\", \"teacherId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdCertificate_tenantId_teacherId_idx_c6ea84aa\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdCertificate_tenantId_teacherId_idx_c6ea84aa\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdObservation.CpdObservation_observerId_idx_102debed",
+    "label": "Create index \"CpdObservation_observerId_idx_102debed\" on \"CpdObservation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdObservation_observerId_idx_102debed",
+        "table": "CpdObservation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdObservation_observerId_idx_102debed\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdObservation_observerId_idx_102debed\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdObservation_observerId_idx_102debed\"",
+        "sql": "CREATE INDEX \"CpdObservation_observerId_idx_102debed\" ON \"public\".\"CpdObservation\" (\"observerId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdObservation_observerId_idx_102debed\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdObservation_observerId_idx_102debed\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdObservation.CpdObservation_teacherId_idx_bc266660",
+    "label": "Create index \"CpdObservation_teacherId_idx_bc266660\" on \"CpdObservation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdObservation_teacherId_idx_bc266660",
+        "table": "CpdObservation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdObservation_teacherId_idx_bc266660\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdObservation_teacherId_idx_bc266660\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdObservation_teacherId_idx_bc266660\"",
+        "sql": "CREATE INDEX \"CpdObservation_teacherId_idx_bc266660\" ON \"public\".\"CpdObservation\" (\"teacherId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdObservation_teacherId_idx_bc266660\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdObservation_teacherId_idx_bc266660\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdObservation.CpdObservation_tenantId_idx_c93ed4f1",
+    "label": "Create index \"CpdObservation_tenantId_idx_c93ed4f1\" on \"CpdObservation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdObservation_tenantId_idx_c93ed4f1",
+        "table": "CpdObservation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdObservation_tenantId_idx_c93ed4f1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdObservation_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdObservation_tenantId_idx_c93ed4f1\"",
+        "sql": "CREATE INDEX \"CpdObservation_tenantId_idx_c93ed4f1\" ON \"public\".\"CpdObservation\" (\"tenantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdObservation_tenantId_idx_c93ed4f1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdObservation_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdObservation.CpdObservation_tenantId_teacherId_idx_c6ea84aa",
+    "label": "Create index \"CpdObservation_tenantId_teacherId_idx_c6ea84aa\" on \"CpdObservation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdObservation_tenantId_teacherId_idx_c6ea84aa",
+        "table": "CpdObservation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdObservation_tenantId_teacherId_idx_c6ea84aa\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdObservation_tenantId_teacherId_idx_c6ea84aa\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdObservation_tenantId_teacherId_idx_c6ea84aa\"",
+        "sql": "CREATE INDEX \"CpdObservation_tenantId_teacherId_idx_c6ea84aa\" ON \"public\".\"CpdObservation\" (\"tenantId\", \"teacherId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdObservation_tenantId_teacherId_idx_c6ea84aa\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdObservation_tenantId_teacherId_idx_c6ea84aa\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdTrainingPlan.CpdTrainingPlan_createdById_idx_8bf640ed",
+    "label": "Create index \"CpdTrainingPlan_createdById_idx_8bf640ed\" on \"CpdTrainingPlan\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdTrainingPlan_createdById_idx_8bf640ed",
+        "table": "CpdTrainingPlan"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdTrainingPlan_createdById_idx_8bf640ed\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan_createdById_idx_8bf640ed\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdTrainingPlan_createdById_idx_8bf640ed\"",
+        "sql": "CREATE INDEX \"CpdTrainingPlan_createdById_idx_8bf640ed\" ON \"public\".\"CpdTrainingPlan\" (\"createdById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdTrainingPlan_createdById_idx_8bf640ed\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan_createdById_idx_8bf640ed\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdTrainingPlan.CpdTrainingPlan_teacherId_idx_bc266660",
+    "label": "Create index \"CpdTrainingPlan_teacherId_idx_bc266660\" on \"CpdTrainingPlan\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdTrainingPlan_teacherId_idx_bc266660",
+        "table": "CpdTrainingPlan"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdTrainingPlan_teacherId_idx_bc266660\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan_teacherId_idx_bc266660\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdTrainingPlan_teacherId_idx_bc266660\"",
+        "sql": "CREATE INDEX \"CpdTrainingPlan_teacherId_idx_bc266660\" ON \"public\".\"CpdTrainingPlan\" (\"teacherId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdTrainingPlan_teacherId_idx_bc266660\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan_teacherId_idx_bc266660\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdTrainingPlan.CpdTrainingPlan_tenantId_academicYear_idx_353ef48d",
+    "label": "Create index \"CpdTrainingPlan_tenantId_academicYear_idx_353ef48d\" on \"CpdTrainingPlan\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdTrainingPlan_tenantId_academicYear_idx_353ef48d",
+        "table": "CpdTrainingPlan"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdTrainingPlan_tenantId_academicYear_idx_353ef48d\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan_tenantId_academicYear_idx_353ef48d\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdTrainingPlan_tenantId_academicYear_idx_353ef48d\"",
+        "sql": "CREATE INDEX \"CpdTrainingPlan_tenantId_academicYear_idx_353ef48d\" ON \"public\".\"CpdTrainingPlan\" (\"tenantId\", \"academicYear\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdTrainingPlan_tenantId_academicYear_idx_353ef48d\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan_tenantId_academicYear_idx_353ef48d\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdTrainingPlan.CpdTrainingPlan_tenantId_idx_c93ed4f1",
+    "label": "Create index \"CpdTrainingPlan_tenantId_idx_c93ed4f1\" on \"CpdTrainingPlan\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdTrainingPlan_tenantId_idx_c93ed4f1",
+        "table": "CpdTrainingPlan"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdTrainingPlan_tenantId_idx_c93ed4f1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdTrainingPlan_tenantId_idx_c93ed4f1\"",
+        "sql": "CREATE INDEX \"CpdTrainingPlan_tenantId_idx_c93ed4f1\" ON \"public\".\"CpdTrainingPlan\" (\"tenantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdTrainingPlan_tenantId_idx_c93ed4f1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.CpdTrainingPlan.CpdTrainingPlan_tenantId_teacherId_idx_c6ea84aa",
+    "label": "Create index \"CpdTrainingPlan_tenantId_teacherId_idx_c6ea84aa\" on \"CpdTrainingPlan\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "CpdTrainingPlan_tenantId_teacherId_idx_c6ea84aa",
+        "table": "CpdTrainingPlan"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"CpdTrainingPlan_tenantId_teacherId_idx_c6ea84aa\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan_tenantId_teacherId_idx_c6ea84aa\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"CpdTrainingPlan_tenantId_teacherId_idx_c6ea84aa\"",
+        "sql": "CREATE INDEX \"CpdTrainingPlan_tenantId_teacherId_idx_c6ea84aa\" ON \"public\".\"CpdTrainingPlan\" (\"tenantId\", \"teacherId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"CpdTrainingPlan_tenantId_teacherId_idx_c6ea84aa\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"CpdTrainingPlan_tenantId_teacherId_idx_c6ea84aa\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.EmailOutbox.EmailOutbox_status_createdAt_idx_58610442",
+    "label": "Create index \"EmailOutbox_status_createdAt_idx_58610442\" on \"EmailOutbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "EmailOutbox_status_createdAt_idx_58610442",
+        "table": "EmailOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"EmailOutbox_status_createdAt_idx_58610442\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EmailOutbox_status_createdAt_idx_58610442\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"EmailOutbox_status_createdAt_idx_58610442\"",
+        "sql": "CREATE INDEX \"EmailOutbox_status_createdAt_idx_58610442\" ON \"public\".\"EmailOutbox\" (\"status\", \"createdAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"EmailOutbox_status_createdAt_idx_58610442\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EmailOutbox_status_createdAt_idx_58610442\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.EmailOutbox.EmailOutbox_tenantId_createdAt_idx_88162366",
+    "label": "Create index \"EmailOutbox_tenantId_createdAt_idx_88162366\" on \"EmailOutbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "EmailOutbox_tenantId_createdAt_idx_88162366",
+        "table": "EmailOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"EmailOutbox_tenantId_createdAt_idx_88162366\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EmailOutbox_tenantId_createdAt_idx_88162366\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"EmailOutbox_tenantId_createdAt_idx_88162366\"",
+        "sql": "CREATE INDEX \"EmailOutbox_tenantId_createdAt_idx_88162366\" ON \"public\".\"EmailOutbox\" (\"tenantId\", \"createdAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"EmailOutbox_tenantId_createdAt_idx_88162366\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EmailOutbox_tenantId_createdAt_idx_88162366\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.EmailOutbox.EmailOutbox_tenantId_idx_c93ed4f1",
+    "label": "Create index \"EmailOutbox_tenantId_idx_c93ed4f1\" on \"EmailOutbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "EmailOutbox_tenantId_idx_c93ed4f1",
+        "table": "EmailOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"EmailOutbox_tenantId_idx_c93ed4f1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EmailOutbox_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"EmailOutbox_tenantId_idx_c93ed4f1\"",
+        "sql": "CREATE INDEX \"EmailOutbox_tenantId_idx_c93ed4f1\" ON \"public\".\"EmailOutbox\" (\"tenantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"EmailOutbox_tenantId_idx_c93ed4f1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"EmailOutbox_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ExamPaperSchedule.ExamPaperSchedule_examId_idx_a57bdadd",
+    "label": "Create index \"ExamPaperSchedule_examId_idx_a57bdadd\" on \"ExamPaperSchedule\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ExamPaperSchedule_examId_idx_a57bdadd",
+        "table": "ExamPaperSchedule"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ExamPaperSchedule_examId_idx_a57bdadd\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExamPaperSchedule_examId_idx_a57bdadd\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ExamPaperSchedule_examId_idx_a57bdadd\"",
+        "sql": "CREATE INDEX \"ExamPaperSchedule_examId_idx_a57bdadd\" ON \"public\".\"ExamPaperSchedule\" (\"examId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ExamPaperSchedule_examId_idx_a57bdadd\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExamPaperSchedule_examId_idx_a57bdadd\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ExamPaperSchedule.ExamPaperSchedule_subjectId_idx_84df2a1d",
+    "label": "Create index \"ExamPaperSchedule_subjectId_idx_84df2a1d\" on \"ExamPaperSchedule\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ExamPaperSchedule_subjectId_idx_84df2a1d",
+        "table": "ExamPaperSchedule"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ExamPaperSchedule_subjectId_idx_84df2a1d\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExamPaperSchedule_subjectId_idx_84df2a1d\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ExamPaperSchedule_subjectId_idx_84df2a1d\"",
+        "sql": "CREATE INDEX \"ExamPaperSchedule_subjectId_idx_84df2a1d\" ON \"public\".\"ExamPaperSchedule\" (\"subjectId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ExamPaperSchedule_subjectId_idx_84df2a1d\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExamPaperSchedule_subjectId_idx_84df2a1d\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ExamPaperSchedule.ExamPaperSchedule_tenantId_examId_paperDate_idx_6999b94c",
+    "label": "Create index \"ExamPaperSchedule_tenantId_examId_paperDate_idx_6999b94c\" on \"ExamPaperSchedule\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ExamPaperSchedule_tenantId_examId_paperDate_idx_6999b94c",
+        "table": "ExamPaperSchedule"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ExamPaperSchedule_tenantId_examId_paperDate_idx_6999b94c\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExamPaperSchedule_tenantId_examId_paperDate_idx_6999b94c\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ExamPaperSchedule_tenantId_examId_paperDate_idx_6999b94c\"",
+        "sql": "CREATE INDEX \"ExamPaperSchedule_tenantId_examId_paperDate_idx_6999b94c\" ON \"public\".\"ExamPaperSchedule\" (\"tenantId\", \"examId\", \"paperDate\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ExamPaperSchedule_tenantId_examId_paperDate_idx_6999b94c\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExamPaperSchedule_tenantId_examId_paperDate_idx_6999b94c\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ExamPaperSchedule.ExamPaperSchedule_tenantId_idx_c93ed4f1",
+    "label": "Create index \"ExamPaperSchedule_tenantId_idx_c93ed4f1\" on \"ExamPaperSchedule\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ExamPaperSchedule_tenantId_idx_c93ed4f1",
+        "table": "ExamPaperSchedule"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ExamPaperSchedule_tenantId_idx_c93ed4f1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExamPaperSchedule_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ExamPaperSchedule_tenantId_idx_c93ed4f1\"",
+        "sql": "CREATE INDEX \"ExamPaperSchedule_tenantId_idx_c93ed4f1\" ON \"public\".\"ExamPaperSchedule\" (\"tenantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ExamPaperSchedule_tenantId_idx_c93ed4f1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ExamPaperSchedule_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ReportCardRelease.ReportCardRelease_classSectionId_idx_095a6e92",
+    "label": "Create index \"ReportCardRelease_classSectionId_idx_095a6e92\" on \"ReportCardRelease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ReportCardRelease_classSectionId_idx_095a6e92",
+        "table": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ReportCardRelease_classSectionId_idx_095a6e92\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease_classSectionId_idx_095a6e92\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ReportCardRelease_classSectionId_idx_095a6e92\"",
+        "sql": "CREATE INDEX \"ReportCardRelease_classSectionId_idx_095a6e92\" ON \"public\".\"ReportCardRelease\" (\"classSectionId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ReportCardRelease_classSectionId_idx_095a6e92\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease_classSectionId_idx_095a6e92\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ReportCardRelease.ReportCardRelease_examId_idx_a57bdadd",
+    "label": "Create index \"ReportCardRelease_examId_idx_a57bdadd\" on \"ReportCardRelease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ReportCardRelease_examId_idx_a57bdadd",
+        "table": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ReportCardRelease_examId_idx_a57bdadd\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease_examId_idx_a57bdadd\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ReportCardRelease_examId_idx_a57bdadd\"",
+        "sql": "CREATE INDEX \"ReportCardRelease_examId_idx_a57bdadd\" ON \"public\".\"ReportCardRelease\" (\"examId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ReportCardRelease_examId_idx_a57bdadd\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease_examId_idx_a57bdadd\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ReportCardRelease.ReportCardRelease_signedOffById_idx_9b472f90",
+    "label": "Create index \"ReportCardRelease_signedOffById_idx_9b472f90\" on \"ReportCardRelease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ReportCardRelease_signedOffById_idx_9b472f90",
+        "table": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ReportCardRelease_signedOffById_idx_9b472f90\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease_signedOffById_idx_9b472f90\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ReportCardRelease_signedOffById_idx_9b472f90\"",
+        "sql": "CREATE INDEX \"ReportCardRelease_signedOffById_idx_9b472f90\" ON \"public\".\"ReportCardRelease\" (\"signedOffById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ReportCardRelease_signedOffById_idx_9b472f90\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease_signedOffById_idx_9b472f90\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ReportCardRelease.ReportCardRelease_tenantId_idx_c93ed4f1",
+    "label": "Create index \"ReportCardRelease_tenantId_idx_c93ed4f1\" on \"ReportCardRelease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ReportCardRelease_tenantId_idx_c93ed4f1",
+        "table": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ReportCardRelease_tenantId_idx_c93ed4f1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ReportCardRelease_tenantId_idx_c93ed4f1\"",
+        "sql": "CREATE INDEX \"ReportCardRelease_tenantId_idx_c93ed4f1\" ON \"public\".\"ReportCardRelease\" (\"tenantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ReportCardRelease_tenantId_idx_c93ed4f1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ReportCardRelease.ReportCardRelease_tenantId_status_idx_d3d04256",
+    "label": "Create index \"ReportCardRelease_tenantId_status_idx_d3d04256\" on \"ReportCardRelease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ReportCardRelease_tenantId_status_idx_d3d04256",
+        "table": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ReportCardRelease_tenantId_status_idx_d3d04256\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease_tenantId_status_idx_d3d04256\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ReportCardRelease_tenantId_status_idx_d3d04256\"",
+        "sql": "CREATE INDEX \"ReportCardRelease_tenantId_status_idx_d3d04256\" ON \"public\".\"ReportCardRelease\" (\"tenantId\", \"status\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ReportCardRelease_tenantId_status_idx_d3d04256\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ReportCardRelease_tenantId_status_idx_d3d04256\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.RevaluationRequest.RevaluationRequest_examId_idx_a57bdadd",
+    "label": "Create index \"RevaluationRequest_examId_idx_a57bdadd\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "RevaluationRequest_examId_idx_a57bdadd",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"RevaluationRequest_examId_idx_a57bdadd\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_examId_idx_a57bdadd\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"RevaluationRequest_examId_idx_a57bdadd\"",
+        "sql": "CREATE INDEX \"RevaluationRequest_examId_idx_a57bdadd\" ON \"public\".\"RevaluationRequest\" (\"examId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"RevaluationRequest_examId_idx_a57bdadd\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_examId_idx_a57bdadd\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.RevaluationRequest.RevaluationRequest_requestedById_idx_f9a56c66",
+    "label": "Create index \"RevaluationRequest_requestedById_idx_f9a56c66\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "RevaluationRequest_requestedById_idx_f9a56c66",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"RevaluationRequest_requestedById_idx_f9a56c66\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_requestedById_idx_f9a56c66\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"RevaluationRequest_requestedById_idx_f9a56c66\"",
+        "sql": "CREATE INDEX \"RevaluationRequest_requestedById_idx_f9a56c66\" ON \"public\".\"RevaluationRequest\" (\"requestedById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"RevaluationRequest_requestedById_idx_f9a56c66\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_requestedById_idx_f9a56c66\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.RevaluationRequest.RevaluationRequest_reviewedById_idx_e2835478",
+    "label": "Create index \"RevaluationRequest_reviewedById_idx_e2835478\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "RevaluationRequest_reviewedById_idx_e2835478",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"RevaluationRequest_reviewedById_idx_e2835478\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_reviewedById_idx_e2835478\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"RevaluationRequest_reviewedById_idx_e2835478\"",
+        "sql": "CREATE INDEX \"RevaluationRequest_reviewedById_idx_e2835478\" ON \"public\".\"RevaluationRequest\" (\"reviewedById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"RevaluationRequest_reviewedById_idx_e2835478\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_reviewedById_idx_e2835478\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.RevaluationRequest.RevaluationRequest_studentId_idx_bf255322",
+    "label": "Create index \"RevaluationRequest_studentId_idx_bf255322\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "RevaluationRequest_studentId_idx_bf255322",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"RevaluationRequest_studentId_idx_bf255322\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_studentId_idx_bf255322\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"RevaluationRequest_studentId_idx_bf255322\"",
+        "sql": "CREATE INDEX \"RevaluationRequest_studentId_idx_bf255322\" ON \"public\".\"RevaluationRequest\" (\"studentId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"RevaluationRequest_studentId_idx_bf255322\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_studentId_idx_bf255322\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.RevaluationRequest.RevaluationRequest_subjectId_idx_84df2a1d",
+    "label": "Create index \"RevaluationRequest_subjectId_idx_84df2a1d\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "RevaluationRequest_subjectId_idx_84df2a1d",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"RevaluationRequest_subjectId_idx_84df2a1d\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_subjectId_idx_84df2a1d\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"RevaluationRequest_subjectId_idx_84df2a1d\"",
+        "sql": "CREATE INDEX \"RevaluationRequest_subjectId_idx_84df2a1d\" ON \"public\".\"RevaluationRequest\" (\"subjectId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"RevaluationRequest_subjectId_idx_84df2a1d\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_subjectId_idx_84df2a1d\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.RevaluationRequest.RevaluationRequest_tenantId_idx_c93ed4f1",
+    "label": "Create index \"RevaluationRequest_tenantId_idx_c93ed4f1\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "RevaluationRequest_tenantId_idx_c93ed4f1",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"RevaluationRequest_tenantId_idx_c93ed4f1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"RevaluationRequest_tenantId_idx_c93ed4f1\"",
+        "sql": "CREATE INDEX \"RevaluationRequest_tenantId_idx_c93ed4f1\" ON \"public\".\"RevaluationRequest\" (\"tenantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"RevaluationRequest_tenantId_idx_c93ed4f1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.RevaluationRequest.RevaluationRequest_tenantId_status_idx_d3d04256",
+    "label": "Create index \"RevaluationRequest_tenantId_status_idx_d3d04256\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "RevaluationRequest_tenantId_status_idx_d3d04256",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"RevaluationRequest_tenantId_status_idx_d3d04256\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_tenantId_status_idx_d3d04256\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"RevaluationRequest_tenantId_status_idx_d3d04256\"",
+        "sql": "CREATE INDEX \"RevaluationRequest_tenantId_status_idx_d3d04256\" ON \"public\".\"RevaluationRequest\" (\"tenantId\", \"status\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"RevaluationRequest_tenantId_status_idx_d3d04256\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"RevaluationRequest_tenantId_status_idx_d3d04256\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.BoardPack.BoardPack_tenantId_fkey",
+    "label": "Add foreign key \"BoardPack_tenantId_fkey\" on \"BoardPack\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "BoardPack_tenantId_fkey",
+        "table": "BoardPack"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"BoardPack_tenantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BoardPack_tenantId_fkey",
+          "public",
+          "\"public\".\"BoardPack\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"BoardPack_tenantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"BoardPack\"\nADD CONSTRAINT \"BoardPack_tenantId_fkey\"\nFOREIGN KEY (\"tenantId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"BoardPack_tenantId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BoardPack_tenantId_fkey",
+          "public",
+          "\"public\".\"BoardPack\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.BoardPack.BoardPack_examId_fkey",
+    "label": "Add foreign key \"BoardPack_examId_fkey\" on \"BoardPack\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "BoardPack_examId_fkey",
+        "table": "BoardPack"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"BoardPack_examId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BoardPack_examId_fkey",
+          "public",
+          "\"public\".\"BoardPack\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"BoardPack_examId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"BoardPack\"\nADD CONSTRAINT \"BoardPack_examId_fkey\"\nFOREIGN KEY (\"examId\")\nREFERENCES \"public\".\"Exam\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"BoardPack_examId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BoardPack_examId_fkey",
+          "public",
+          "\"public\".\"BoardPack\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.BoardPack.BoardPack_createdById_fkey",
+    "label": "Add foreign key \"BoardPack_createdById_fkey\" on \"BoardPack\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "BoardPack_createdById_fkey",
+        "table": "BoardPack"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"BoardPack_createdById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BoardPack_createdById_fkey",
+          "public",
+          "\"public\".\"BoardPack\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"BoardPack_createdById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"BoardPack\"\nADD CONSTRAINT \"BoardPack_createdById_fkey\"\nFOREIGN KEY (\"createdById\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"BoardPack_createdById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "BoardPack_createdById_fkey",
+          "public",
+          "\"public\".\"BoardPack\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdAppraisal.CpdAppraisal_tenantId_fkey",
+    "label": "Add foreign key \"CpdAppraisal_tenantId_fkey\" on \"CpdAppraisal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdAppraisal_tenantId_fkey",
+        "table": "CpdAppraisal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdAppraisal_tenantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdAppraisal_tenantId_fkey",
+          "public",
+          "\"public\".\"CpdAppraisal\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdAppraisal_tenantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdAppraisal\"\nADD CONSTRAINT \"CpdAppraisal_tenantId_fkey\"\nFOREIGN KEY (\"tenantId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdAppraisal_tenantId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdAppraisal_tenantId_fkey",
+          "public",
+          "\"public\".\"CpdAppraisal\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdAppraisal.CpdAppraisal_teacherId_fkey",
+    "label": "Add foreign key \"CpdAppraisal_teacherId_fkey\" on \"CpdAppraisal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdAppraisal_teacherId_fkey",
+        "table": "CpdAppraisal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdAppraisal_teacherId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdAppraisal_teacherId_fkey",
+          "public",
+          "\"public\".\"CpdAppraisal\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdAppraisal_teacherId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdAppraisal\"\nADD CONSTRAINT \"CpdAppraisal_teacherId_fkey\"\nFOREIGN KEY (\"teacherId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdAppraisal_teacherId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdAppraisal_teacherId_fkey",
+          "public",
+          "\"public\".\"CpdAppraisal\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdAppraisal.CpdAppraisal_appraiserId_fkey",
+    "label": "Add foreign key \"CpdAppraisal_appraiserId_fkey\" on \"CpdAppraisal\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdAppraisal_appraiserId_fkey",
+        "table": "CpdAppraisal"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdAppraisal_appraiserId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdAppraisal_appraiserId_fkey",
+          "public",
+          "\"public\".\"CpdAppraisal\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdAppraisal_appraiserId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdAppraisal\"\nADD CONSTRAINT \"CpdAppraisal_appraiserId_fkey\"\nFOREIGN KEY (\"appraiserId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdAppraisal_appraiserId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdAppraisal_appraiserId_fkey",
+          "public",
+          "\"public\".\"CpdAppraisal\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdCertificate.CpdCertificate_tenantId_fkey",
+    "label": "Add foreign key \"CpdCertificate_tenantId_fkey\" on \"CpdCertificate\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdCertificate_tenantId_fkey",
+        "table": "CpdCertificate"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdCertificate_tenantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdCertificate_tenantId_fkey",
+          "public",
+          "\"public\".\"CpdCertificate\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdCertificate_tenantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdCertificate\"\nADD CONSTRAINT \"CpdCertificate_tenantId_fkey\"\nFOREIGN KEY (\"tenantId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdCertificate_tenantId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdCertificate_tenantId_fkey",
+          "public",
+          "\"public\".\"CpdCertificate\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdCertificate.CpdCertificate_teacherId_fkey",
+    "label": "Add foreign key \"CpdCertificate_teacherId_fkey\" on \"CpdCertificate\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdCertificate_teacherId_fkey",
+        "table": "CpdCertificate"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdCertificate_teacherId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdCertificate_teacherId_fkey",
+          "public",
+          "\"public\".\"CpdCertificate\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdCertificate_teacherId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdCertificate\"\nADD CONSTRAINT \"CpdCertificate_teacherId_fkey\"\nFOREIGN KEY (\"teacherId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdCertificate_teacherId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdCertificate_teacherId_fkey",
+          "public",
+          "\"public\".\"CpdCertificate\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdCertificate.CpdCertificate_issuedById_fkey",
+    "label": "Add foreign key \"CpdCertificate_issuedById_fkey\" on \"CpdCertificate\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdCertificate_issuedById_fkey",
+        "table": "CpdCertificate"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdCertificate_issuedById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdCertificate_issuedById_fkey",
+          "public",
+          "\"public\".\"CpdCertificate\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdCertificate_issuedById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdCertificate\"\nADD CONSTRAINT \"CpdCertificate_issuedById_fkey\"\nFOREIGN KEY (\"issuedById\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdCertificate_issuedById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdCertificate_issuedById_fkey",
+          "public",
+          "\"public\".\"CpdCertificate\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdObservation.CpdObservation_tenantId_fkey",
+    "label": "Add foreign key \"CpdObservation_tenantId_fkey\" on \"CpdObservation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdObservation_tenantId_fkey",
+        "table": "CpdObservation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdObservation_tenantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdObservation_tenantId_fkey",
+          "public",
+          "\"public\".\"CpdObservation\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdObservation_tenantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdObservation\"\nADD CONSTRAINT \"CpdObservation_tenantId_fkey\"\nFOREIGN KEY (\"tenantId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdObservation_tenantId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdObservation_tenantId_fkey",
+          "public",
+          "\"public\".\"CpdObservation\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdObservation.CpdObservation_teacherId_fkey",
+    "label": "Add foreign key \"CpdObservation_teacherId_fkey\" on \"CpdObservation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdObservation_teacherId_fkey",
+        "table": "CpdObservation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdObservation_teacherId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdObservation_teacherId_fkey",
+          "public",
+          "\"public\".\"CpdObservation\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdObservation_teacherId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdObservation\"\nADD CONSTRAINT \"CpdObservation_teacherId_fkey\"\nFOREIGN KEY (\"teacherId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdObservation_teacherId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdObservation_teacherId_fkey",
+          "public",
+          "\"public\".\"CpdObservation\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdObservation.CpdObservation_observerId_fkey",
+    "label": "Add foreign key \"CpdObservation_observerId_fkey\" on \"CpdObservation\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdObservation_observerId_fkey",
+        "table": "CpdObservation"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdObservation_observerId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdObservation_observerId_fkey",
+          "public",
+          "\"public\".\"CpdObservation\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdObservation_observerId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdObservation\"\nADD CONSTRAINT \"CpdObservation_observerId_fkey\"\nFOREIGN KEY (\"observerId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdObservation_observerId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdObservation_observerId_fkey",
+          "public",
+          "\"public\".\"CpdObservation\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdTrainingPlan.CpdTrainingPlan_tenantId_fkey",
+    "label": "Add foreign key \"CpdTrainingPlan_tenantId_fkey\" on \"CpdTrainingPlan\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdTrainingPlan_tenantId_fkey",
+        "table": "CpdTrainingPlan"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdTrainingPlan_tenantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdTrainingPlan_tenantId_fkey",
+          "public",
+          "\"public\".\"CpdTrainingPlan\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdTrainingPlan_tenantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdTrainingPlan\"\nADD CONSTRAINT \"CpdTrainingPlan_tenantId_fkey\"\nFOREIGN KEY (\"tenantId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdTrainingPlan_tenantId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdTrainingPlan_tenantId_fkey",
+          "public",
+          "\"public\".\"CpdTrainingPlan\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdTrainingPlan.CpdTrainingPlan_teacherId_fkey",
+    "label": "Add foreign key \"CpdTrainingPlan_teacherId_fkey\" on \"CpdTrainingPlan\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdTrainingPlan_teacherId_fkey",
+        "table": "CpdTrainingPlan"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdTrainingPlan_teacherId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdTrainingPlan_teacherId_fkey",
+          "public",
+          "\"public\".\"CpdTrainingPlan\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdTrainingPlan_teacherId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdTrainingPlan\"\nADD CONSTRAINT \"CpdTrainingPlan_teacherId_fkey\"\nFOREIGN KEY (\"teacherId\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdTrainingPlan_teacherId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdTrainingPlan_teacherId_fkey",
+          "public",
+          "\"public\".\"CpdTrainingPlan\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.CpdTrainingPlan.CpdTrainingPlan_createdById_fkey",
+    "label": "Add foreign key \"CpdTrainingPlan_createdById_fkey\" on \"CpdTrainingPlan\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "CpdTrainingPlan_createdById_fkey",
+        "table": "CpdTrainingPlan"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"CpdTrainingPlan_createdById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdTrainingPlan_createdById_fkey",
+          "public",
+          "\"public\".\"CpdTrainingPlan\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"CpdTrainingPlan_createdById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"CpdTrainingPlan\"\nADD CONSTRAINT \"CpdTrainingPlan_createdById_fkey\"\nFOREIGN KEY (\"createdById\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"CpdTrainingPlan_createdById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "CpdTrainingPlan_createdById_fkey",
+          "public",
+          "\"public\".\"CpdTrainingPlan\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.EmailOutbox.EmailOutbox_tenantId_fkey",
+    "label": "Add foreign key \"EmailOutbox_tenantId_fkey\" on \"EmailOutbox\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "EmailOutbox_tenantId_fkey",
+        "table": "EmailOutbox"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"EmailOutbox_tenantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "EmailOutbox_tenantId_fkey",
+          "public",
+          "\"public\".\"EmailOutbox\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"EmailOutbox_tenantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"EmailOutbox\"\nADD CONSTRAINT \"EmailOutbox_tenantId_fkey\"\nFOREIGN KEY (\"tenantId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"EmailOutbox_tenantId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "EmailOutbox_tenantId_fkey",
+          "public",
+          "\"public\".\"EmailOutbox\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ExamPaperSchedule.ExamPaperSchedule_tenantId_fkey",
+    "label": "Add foreign key \"ExamPaperSchedule_tenantId_fkey\" on \"ExamPaperSchedule\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ExamPaperSchedule_tenantId_fkey",
+        "table": "ExamPaperSchedule"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ExamPaperSchedule_tenantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ExamPaperSchedule_tenantId_fkey",
+          "public",
+          "\"public\".\"ExamPaperSchedule\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ExamPaperSchedule_tenantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ExamPaperSchedule\"\nADD CONSTRAINT \"ExamPaperSchedule_tenantId_fkey\"\nFOREIGN KEY (\"tenantId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ExamPaperSchedule_tenantId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ExamPaperSchedule_tenantId_fkey",
+          "public",
+          "\"public\".\"ExamPaperSchedule\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ExamPaperSchedule.ExamPaperSchedule_examId_fkey",
+    "label": "Add foreign key \"ExamPaperSchedule_examId_fkey\" on \"ExamPaperSchedule\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ExamPaperSchedule_examId_fkey",
+        "table": "ExamPaperSchedule"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ExamPaperSchedule_examId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ExamPaperSchedule_examId_fkey",
+          "public",
+          "\"public\".\"ExamPaperSchedule\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ExamPaperSchedule_examId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ExamPaperSchedule\"\nADD CONSTRAINT \"ExamPaperSchedule_examId_fkey\"\nFOREIGN KEY (\"examId\")\nREFERENCES \"public\".\"Exam\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ExamPaperSchedule_examId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ExamPaperSchedule_examId_fkey",
+          "public",
+          "\"public\".\"ExamPaperSchedule\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ExamPaperSchedule.ExamPaperSchedule_subjectId_fkey",
+    "label": "Add foreign key \"ExamPaperSchedule_subjectId_fkey\" on \"ExamPaperSchedule\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ExamPaperSchedule_subjectId_fkey",
+        "table": "ExamPaperSchedule"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ExamPaperSchedule_subjectId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ExamPaperSchedule_subjectId_fkey",
+          "public",
+          "\"public\".\"ExamPaperSchedule\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ExamPaperSchedule_subjectId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ExamPaperSchedule\"\nADD CONSTRAINT \"ExamPaperSchedule_subjectId_fkey\"\nFOREIGN KEY (\"subjectId\")\nREFERENCES \"public\".\"Subject\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ExamPaperSchedule_subjectId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ExamPaperSchedule_subjectId_fkey",
+          "public",
+          "\"public\".\"ExamPaperSchedule\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ReportCardRelease.ReportCardRelease_tenantId_fkey",
+    "label": "Add foreign key \"ReportCardRelease_tenantId_fkey\" on \"ReportCardRelease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ReportCardRelease_tenantId_fkey",
+        "table": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ReportCardRelease_tenantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReportCardRelease_tenantId_fkey",
+          "public",
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ReportCardRelease_tenantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ReportCardRelease\"\nADD CONSTRAINT \"ReportCardRelease_tenantId_fkey\"\nFOREIGN KEY (\"tenantId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ReportCardRelease_tenantId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReportCardRelease_tenantId_fkey",
+          "public",
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ReportCardRelease.ReportCardRelease_examId_fkey",
+    "label": "Add foreign key \"ReportCardRelease_examId_fkey\" on \"ReportCardRelease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ReportCardRelease_examId_fkey",
+        "table": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ReportCardRelease_examId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReportCardRelease_examId_fkey",
+          "public",
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ReportCardRelease_examId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ReportCardRelease\"\nADD CONSTRAINT \"ReportCardRelease_examId_fkey\"\nFOREIGN KEY (\"examId\")\nREFERENCES \"public\".\"Exam\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ReportCardRelease_examId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReportCardRelease_examId_fkey",
+          "public",
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ReportCardRelease.ReportCardRelease_classSectionId_fkey",
+    "label": "Add foreign key \"ReportCardRelease_classSectionId_fkey\" on \"ReportCardRelease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ReportCardRelease_classSectionId_fkey",
+        "table": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ReportCardRelease_classSectionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReportCardRelease_classSectionId_fkey",
+          "public",
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ReportCardRelease_classSectionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ReportCardRelease\"\nADD CONSTRAINT \"ReportCardRelease_classSectionId_fkey\"\nFOREIGN KEY (\"classSectionId\")\nREFERENCES \"public\".\"ClassSection\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ReportCardRelease_classSectionId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReportCardRelease_classSectionId_fkey",
+          "public",
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.ReportCardRelease.ReportCardRelease_signedOffById_fkey",
+    "label": "Add foreign key \"ReportCardRelease_signedOffById_fkey\" on \"ReportCardRelease\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "ReportCardRelease_signedOffById_fkey",
+        "table": "ReportCardRelease"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"ReportCardRelease_signedOffById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReportCardRelease_signedOffById_fkey",
+          "public",
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"ReportCardRelease_signedOffById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"ReportCardRelease\"\nADD CONSTRAINT \"ReportCardRelease_signedOffById_fkey\"\nFOREIGN KEY (\"signedOffById\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"ReportCardRelease_signedOffById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "ReportCardRelease_signedOffById_fkey",
+          "public",
+          "\"public\".\"ReportCardRelease\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.RevaluationRequest.RevaluationRequest_tenantId_fkey",
+    "label": "Add foreign key \"RevaluationRequest_tenantId_fkey\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "RevaluationRequest_tenantId_fkey",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"RevaluationRequest_tenantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_tenantId_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"RevaluationRequest_tenantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"RevaluationRequest\"\nADD CONSTRAINT \"RevaluationRequest_tenantId_fkey\"\nFOREIGN KEY (\"tenantId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"RevaluationRequest_tenantId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_tenantId_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.RevaluationRequest.RevaluationRequest_examId_fkey",
+    "label": "Add foreign key \"RevaluationRequest_examId_fkey\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "RevaluationRequest_examId_fkey",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"RevaluationRequest_examId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_examId_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"RevaluationRequest_examId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"RevaluationRequest\"\nADD CONSTRAINT \"RevaluationRequest_examId_fkey\"\nFOREIGN KEY (\"examId\")\nREFERENCES \"public\".\"Exam\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"RevaluationRequest_examId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_examId_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.RevaluationRequest.RevaluationRequest_studentId_fkey",
+    "label": "Add foreign key \"RevaluationRequest_studentId_fkey\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "RevaluationRequest_studentId_fkey",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"RevaluationRequest_studentId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_studentId_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"RevaluationRequest_studentId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"RevaluationRequest\"\nADD CONSTRAINT \"RevaluationRequest_studentId_fkey\"\nFOREIGN KEY (\"studentId\")\nREFERENCES \"public\".\"Student\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"RevaluationRequest_studentId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_studentId_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.RevaluationRequest.RevaluationRequest_subjectId_fkey",
+    "label": "Add foreign key \"RevaluationRequest_subjectId_fkey\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "RevaluationRequest_subjectId_fkey",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"RevaluationRequest_subjectId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_subjectId_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"RevaluationRequest_subjectId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"RevaluationRequest\"\nADD CONSTRAINT \"RevaluationRequest_subjectId_fkey\"\nFOREIGN KEY (\"subjectId\")\nREFERENCES \"public\".\"Subject\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"RevaluationRequest_subjectId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_subjectId_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.RevaluationRequest.RevaluationRequest_requestedById_fkey",
+    "label": "Add foreign key \"RevaluationRequest_requestedById_fkey\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "RevaluationRequest_requestedById_fkey",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"RevaluationRequest_requestedById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_requestedById_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"RevaluationRequest_requestedById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"RevaluationRequest\"\nADD CONSTRAINT \"RevaluationRequest_requestedById_fkey\"\nFOREIGN KEY (\"requestedById\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"RevaluationRequest_requestedById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_requestedById_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.RevaluationRequest.RevaluationRequest_reviewedById_fkey",
+    "label": "Add foreign key \"RevaluationRequest_reviewedById_fkey\" on \"RevaluationRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "RevaluationRequest_reviewedById_fkey",
+        "table": "RevaluationRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"RevaluationRequest_reviewedById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_reviewedById_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"RevaluationRequest_reviewedById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"RevaluationRequest\"\nADD CONSTRAINT \"RevaluationRequest_reviewedById_fkey\"\nFOREIGN KEY (\"reviewedById\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"RevaluationRequest_reviewedById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "RevaluationRequest_reviewedById_fkey",
+          "public",
+          "\"public\".\"RevaluationRequest\""
+        ]
+      }
+    ]
+  }
+]

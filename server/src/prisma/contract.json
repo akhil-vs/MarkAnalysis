@@ -8,12 +8,40 @@
       "model": "ActivityAudit",
       "namespace": "public"
     },
+    "BoardPack": {
+      "model": "BoardPack",
+      "namespace": "public"
+    },
     "ClassSection": {
       "model": "ClassSection",
       "namespace": "public"
     },
+    "CpdAppraisal": {
+      "model": "CpdAppraisal",
+      "namespace": "public"
+    },
+    "CpdCertificate": {
+      "model": "CpdCertificate",
+      "namespace": "public"
+    },
+    "CpdObservation": {
+      "model": "CpdObservation",
+      "namespace": "public"
+    },
+    "CpdTrainingPlan": {
+      "model": "CpdTrainingPlan",
+      "namespace": "public"
+    },
+    "EmailOutbox": {
+      "model": "EmailOutbox",
+      "namespace": "public"
+    },
     "Exam": {
       "model": "Exam",
+      "namespace": "public"
+    },
+    "ExamPaperSchedule": {
+      "model": "ExamPaperSchedule",
       "namespace": "public"
     },
     "Mark": {
@@ -42,6 +70,14 @@
     },
     "RefreshToken": {
       "model": "RefreshToken",
+      "namespace": "public"
+    },
+    "ReportCardRelease": {
+      "model": "ReportCardRelease",
+      "namespace": "public"
+    },
+    "RevaluationRequest": {
+      "model": "RevaluationRequest",
       "namespace": "public"
     },
     "School": {
@@ -204,6 +240,169 @@
               "table": "ActivityAudit"
             }
           },
+          "BoardPack": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdById": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "error": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "examId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "label": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "manifest": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "readyAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "BoardPackStatus"
+                  }
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "createdBy": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "createdById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "exam": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "examId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Exam",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "createdById": {
+                  "column": "createdById"
+                },
+                "error": {
+                  "column": "error"
+                },
+                "examId": {
+                  "column": "examId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "label": {
+                  "column": "label"
+                },
+                "manifest": {
+                  "column": "manifest"
+                },
+                "readyAt": {
+                  "column": "readyAt"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "BoardPack"
+            }
+          },
           "ClassSection": {
             "fields": {
               "className": {
@@ -289,6 +488,21 @@
                   "namespace": "public"
                 }
               },
+              "reportCardReleases": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "classSectionId"
+                  ]
+                },
+                "to": {
+                  "model": "ReportCardRelease",
+                  "namespace": "public"
+                }
+              },
               "students": {
                 "cardinality": "1:N",
                 "on": {
@@ -356,6 +570,890 @@
               },
               "namespaceId": "public",
               "table": "ClassSection"
+            }
+          },
+          "CpdAppraisal": {
+            "fields": {
+              "academicYear": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "appraiserId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "comments": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "goalsMet": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "nextGoals": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "overallRating": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "periodLabel": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "signedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "teacherId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "appraiser": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "appraiserId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "teacher": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "teacherId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "academicYear": {
+                  "column": "academicYear"
+                },
+                "appraiserId": {
+                  "column": "appraiserId"
+                },
+                "comments": {
+                  "column": "comments"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "goalsMet": {
+                  "column": "goalsMet"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "nextGoals": {
+                  "column": "nextGoals"
+                },
+                "overallRating": {
+                  "column": "overallRating"
+                },
+                "periodLabel": {
+                  "column": "periodLabel"
+                },
+                "signedAt": {
+                  "column": "signedAt"
+                },
+                "teacherId": {
+                  "column": "teacherId"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "CpdAppraisal"
+            }
+          },
+          "CpdCertificate": {
+            "fields": {
+              "certificateNo": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "earnedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "expiresAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "hours": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "issuedById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "provider": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "teacherId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "issuedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "issuedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "teacher": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "teacherId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "certificateNo": {
+                  "column": "certificateNo"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "earnedAt": {
+                  "column": "earnedAt"
+                },
+                "expiresAt": {
+                  "column": "expiresAt"
+                },
+                "hours": {
+                  "column": "hours"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "issuedById": {
+                  "column": "issuedById"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "provider": {
+                  "column": "provider"
+                },
+                "teacherId": {
+                  "column": "teacherId"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "title": {
+                  "column": "title"
+                }
+              },
+              "namespaceId": "public",
+              "table": "CpdCertificate"
+            }
+          },
+          "CpdObservation": {
+            "fields": {
+              "classLabel": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "developmentAreas": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "observedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "observerId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "rating": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "strengths": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "subjectLabel": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "teacherId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "observer": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "observerId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "teacher": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "teacherId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "classLabel": {
+                  "column": "classLabel"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "developmentAreas": {
+                  "column": "developmentAreas"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "observedAt": {
+                  "column": "observedAt"
+                },
+                "observerId": {
+                  "column": "observerId"
+                },
+                "rating": {
+                  "column": "rating"
+                },
+                "strengths": {
+                  "column": "strengths"
+                },
+                "subjectLabel": {
+                  "column": "subjectLabel"
+                },
+                "teacherId": {
+                  "column": "teacherId"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "CpdObservation"
+            }
+          },
+          "CpdTrainingPlan": {
+            "fields": {
+              "academicYear": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "completedHours": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdById": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "description": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "CpdPlanStatus"
+                  }
+                }
+              },
+              "targetHours": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "teacherId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "createdBy": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "createdById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "teacher": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "teacherId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "academicYear": {
+                  "column": "academicYear"
+                },
+                "completedHours": {
+                  "column": "completedHours"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "createdById": {
+                  "column": "createdById"
+                },
+                "description": {
+                  "column": "description"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "targetHours": {
+                  "column": "targetHours"
+                },
+                "teacherId": {
+                  "column": "teacherId"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "CpdTrainingPlan"
+            }
+          },
+          "EmailOutbox": {
+            "fields": {
+              "bodyHtml": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "bodyText": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "error": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "kind": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "meta": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "sentAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "EmailOutboxStatus"
+                  }
+                }
+              },
+              "subject": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "toEmail": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "bodyHtml": {
+                  "column": "bodyHtml"
+                },
+                "bodyText": {
+                  "column": "bodyText"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "error": {
+                  "column": "error"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "kind": {
+                  "column": "kind"
+                },
+                "meta": {
+                  "column": "meta"
+                },
+                "sentAt": {
+                  "column": "sentAt"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "subject": {
+                  "column": "subject"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "toEmail": {
+                  "column": "toEmail"
+                }
+              },
+              "namespaceId": "public",
+              "table": "EmailOutbox"
             }
           },
           "Exam": {
@@ -449,6 +1547,21 @@
               }
             },
             "relations": {
+              "boardPacks": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "examId"
+                  ]
+                },
+                "to": {
+                  "model": "BoardPack",
+                  "namespace": "public"
+                }
+              },
               "consolidationLockedBy": {
                 "cardinality": "N:1",
                 "nullable": true,
@@ -495,6 +1608,21 @@
                   "namespace": "public"
                 }
               },
+              "paperSchedules": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "examId"
+                  ]
+                },
+                "to": {
+                  "model": "ExamPaperSchedule",
+                  "namespace": "public"
+                }
+              },
               "portalLinks": {
                 "cardinality": "1:N",
                 "on": {
@@ -507,6 +1635,36 @@
                 },
                 "to": {
                   "model": "PortalAccessLink",
+                  "namespace": "public"
+                }
+              },
+              "reportCardReleases": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "examId"
+                  ]
+                },
+                "to": {
+                  "model": "ReportCardRelease",
+                  "namespace": "public"
+                }
+              },
+              "revaluationRequests": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "examId"
+                  ]
+                },
+                "to": {
+                  "model": "RevaluationRequest",
                   "namespace": "public"
                 }
               },
@@ -568,6 +1726,186 @@
               },
               "namespaceId": "public",
               "table": "Exam"
+            }
+          },
+          "ExamPaperSchedule": {
+            "fields": {
+              "className": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "endTime": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "examId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "maxMarks": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "paperDate": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "startTime": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "subjectId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "venue": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "exam": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "examId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Exam",
+                  "namespace": "public"
+                }
+              },
+              "subject": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "subjectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Subject",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "className": {
+                  "column": "className"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "endTime": {
+                  "column": "endTime"
+                },
+                "examId": {
+                  "column": "examId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "maxMarks": {
+                  "column": "maxMarks"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "paperDate": {
+                  "column": "paperDate"
+                },
+                "startTime": {
+                  "column": "startTime"
+                },
+                "subjectId": {
+                  "column": "subjectId"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "venue": {
+                  "column": "venue"
+                }
+              },
+              "namespaceId": "public",
+              "table": "ExamPaperSchedule"
             }
           },
           "Mark": {
@@ -1686,6 +3024,476 @@
               "table": "RefreshToken"
             }
           },
+          "ReportCardRelease": {
+            "fields": {
+              "classSectionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "examId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "parentsNotifiedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "publishedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "signedOffAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "signedOffById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "ReportCardStatus"
+                  }
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "classSection": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "classSectionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ClassSection",
+                  "namespace": "public"
+                }
+              },
+              "exam": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "examId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Exam",
+                  "namespace": "public"
+                }
+              },
+              "signedOffBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "signedOffById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "classSectionId": {
+                  "column": "classSectionId"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "examId": {
+                  "column": "examId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "parentsNotifiedAt": {
+                  "column": "parentsNotifiedAt"
+                },
+                "publishedAt": {
+                  "column": "publishedAt"
+                },
+                "signedOffAt": {
+                  "column": "signedOffAt"
+                },
+                "signedOffById": {
+                  "column": "signedOffById"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "ReportCardRelease"
+            }
+          },
+          "RevaluationRequest": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "examId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "feePaid": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "originalMarks": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "reason": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "requestedById": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewNotes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewedById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "revisedMarks": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/float8@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "RevaluationStatus"
+                  }
+                }
+              },
+              "studentId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "subjectId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "exam": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "examId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Exam",
+                  "namespace": "public"
+                }
+              },
+              "requestedBy": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "requestedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "reviewedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "reviewedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "student": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "studentId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Student",
+                  "namespace": "public"
+                }
+              },
+              "subject": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "subjectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Subject",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "examId": {
+                  "column": "examId"
+                },
+                "feePaid": {
+                  "column": "feePaid"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "originalMarks": {
+                  "column": "originalMarks"
+                },
+                "reason": {
+                  "column": "reason"
+                },
+                "requestedById": {
+                  "column": "requestedById"
+                },
+                "reviewNotes": {
+                  "column": "reviewNotes"
+                },
+                "reviewedAt": {
+                  "column": "reviewedAt"
+                },
+                "reviewedById": {
+                  "column": "reviewedById"
+                },
+                "revisedMarks": {
+                  "column": "revisedMarks"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "studentId": {
+                  "column": "studentId"
+                },
+                "subjectId": {
+                  "column": "subjectId"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "RevaluationRequest"
+            }
+          },
           "School": {
             "fields": {
               "address": {
@@ -1730,6 +3538,13 @@
                   "kind": "scalar"
                 }
               },
+              "digestEmail": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "distinctionMin": {
                 "nullable": false,
                 "type": {
@@ -1748,6 +3563,13 @@
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "emailDigestsEnabled": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
                   "kind": "scalar"
                 }
               },
@@ -1940,6 +3762,21 @@
                   "namespace": "public"
                 }
               },
+              "boardPacks": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "BoardPack",
+                  "namespace": "public"
+                }
+              },
               "classSections": {
                 "cardinality": "1:N",
                 "on": {
@@ -1952,6 +3789,96 @@
                 },
                 "to": {
                   "model": "ClassSection",
+                  "namespace": "public"
+                }
+              },
+              "cpdAppraisals": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "CpdAppraisal",
+                  "namespace": "public"
+                }
+              },
+              "cpdCertificates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "CpdCertificate",
+                  "namespace": "public"
+                }
+              },
+              "cpdObservations": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "CpdObservation",
+                  "namespace": "public"
+                }
+              },
+              "cpdTrainingPlans": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "CpdTrainingPlan",
+                  "namespace": "public"
+                }
+              },
+              "emailOutbox": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "EmailOutbox",
+                  "namespace": "public"
+                }
+              },
+              "examPaperSchedules": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "ExamPaperSchedule",
                   "namespace": "public"
                 }
               },
@@ -2060,6 +3987,36 @@
                   "namespace": "public"
                 }
               },
+              "reportCardReleases": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "ReportCardRelease",
+                  "namespace": "public"
+                }
+              },
+              "revaluationRequests": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "RevaluationRequest",
+                  "namespace": "public"
+                }
+              },
               "students": {
                 "cardinality": "1:N",
                 "on": {
@@ -2156,6 +4113,9 @@
                 "createdAt": {
                   "column": "createdAt"
                 },
+                "digestEmail": {
+                  "column": "digestEmail"
+                },
                 "distinctionMin": {
                   "column": "distinctionMin"
                 },
@@ -2164,6 +4124,9 @@
                 },
                 "email": {
                   "column": "email"
+                },
+                "emailDigestsEnabled": {
+                  "column": "emailDigestsEnabled"
                 },
                 "establishedYear": {
                   "column": "establishedYear"
@@ -2256,6 +4219,13 @@
                 "nullable": true,
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "guardianEmail": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -2382,6 +4352,21 @@
                   "namespace": "public"
                 }
               },
+              "revaluationRequests": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "studentId"
+                  ]
+                },
+                "to": {
+                  "model": "RevaluationRequest",
+                  "namespace": "public"
+                }
+              },
               "subjectEnrollments": {
                 "cardinality": "1:N",
                 "on": {
@@ -2424,6 +4409,9 @@
                 },
                 "dob": {
                   "column": "dob"
+                },
+                "guardianEmail": {
+                  "column": "guardianEmail"
                 },
                 "guardianName": {
                   "column": "guardianName"
@@ -2674,6 +4662,36 @@
                 },
                 "to": {
                   "model": "Mark",
+                  "namespace": "public"
+                }
+              },
+              "paperSchedules": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "subjectId"
+                  ]
+                },
+                "to": {
+                  "model": "ExamPaperSchedule",
+                  "namespace": "public"
+                }
+              },
+              "revaluationRequests": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "subjectId"
+                  ]
+                },
+                "to": {
+                  "model": "RevaluationRequest",
                   "namespace": "public"
                 }
               },
@@ -3058,6 +5076,27 @@
                   "kind": "scalar"
                 }
               },
+              "mfaEnabled": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "mfaRecoveryHashes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "mfaSecret": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "mustChangePassword": {
                 "nullable": false,
                 "type": {
@@ -3160,6 +5199,21 @@
                   "namespace": "public"
                 }
               },
+              "boardPacksCreated": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "createdById"
+                  ]
+                },
+                "to": {
+                  "model": "BoardPack",
+                  "namespace": "public"
+                }
+              },
               "classTeacherOf": {
                 "cardinality": "1:N",
                 "on": {
@@ -3187,6 +5241,126 @@
                 },
                 "to": {
                   "model": "Exam",
+                  "namespace": "public"
+                }
+              },
+              "cpdAppraisalsAsAppraiser": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "appraiserId"
+                  ]
+                },
+                "to": {
+                  "model": "CpdAppraisal",
+                  "namespace": "public"
+                }
+              },
+              "cpdAppraisalsAsTeacher": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "teacherId"
+                  ]
+                },
+                "to": {
+                  "model": "CpdAppraisal",
+                  "namespace": "public"
+                }
+              },
+              "cpdCertificates": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "teacherId"
+                  ]
+                },
+                "to": {
+                  "model": "CpdCertificate",
+                  "namespace": "public"
+                }
+              },
+              "cpdCertificatesIssued": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "issuedById"
+                  ]
+                },
+                "to": {
+                  "model": "CpdCertificate",
+                  "namespace": "public"
+                }
+              },
+              "cpdObservationsAsObserver": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "observerId"
+                  ]
+                },
+                "to": {
+                  "model": "CpdObservation",
+                  "namespace": "public"
+                }
+              },
+              "cpdObservationsAsTeacher": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "teacherId"
+                  ]
+                },
+                "to": {
+                  "model": "CpdObservation",
+                  "namespace": "public"
+                }
+              },
+              "cpdPlansCreated": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "createdById"
+                  ]
+                },
+                "to": {
+                  "model": "CpdTrainingPlan",
+                  "namespace": "public"
+                }
+              },
+              "cpdPlansOwned": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "teacherId"
+                  ]
+                },
+                "to": {
+                  "model": "CpdTrainingPlan",
                   "namespace": "public"
                 }
               },
@@ -3265,6 +5439,51 @@
                   "namespace": "public"
                 }
               },
+              "reportCardSigned": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "signedOffById"
+                  ]
+                },
+                "to": {
+                  "model": "ReportCardRelease",
+                  "namespace": "public"
+                }
+              },
+              "revaluationsRequested": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "requestedById"
+                  ]
+                },
+                "to": {
+                  "model": "RevaluationRequest",
+                  "namespace": "public"
+                }
+              },
+              "revaluationsReviewed": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "reviewedById"
+                  ]
+                },
+                "to": {
+                  "model": "RevaluationRequest",
+                  "namespace": "public"
+                }
+              },
               "reviewedMarkEntryRequests": {
                 "cardinality": "1:N",
                 "on": {
@@ -3323,6 +5542,15 @@
                 "id": {
                   "column": "id"
                 },
+                "mfaEnabled": {
+                  "column": "mfaEnabled"
+                },
+                "mfaRecoveryHashes": {
+                  "column": "mfaRecoveryHashes"
+                },
+                "mfaSecret": {
+                  "column": "mfaSecret"
+                },
                 "mustChangePassword": {
                   "column": "mustChangePassword"
                 },
@@ -3371,20 +5599,60 @@
                 "ACCESS_APPROVED",
                 "ACCESS_REJECTED",
                 "USER_CREATED",
-                "USER_UPDATED",
                 "USER_STATUS_CHANGED",
                 "USER_ROLE_CHANGED",
                 "USER_PASSWORD_RESET",
-                "USER_DELETED",
-                "USER_ASSIGNMENTS_TRANSFERRED",
                 "EXAM_CREATED",
                 "EXAM_UPDATED",
                 "EXAM_DELETED",
                 "SCHOOL_CREATED",
                 "SCHOOL_UPDATED",
-                "SCHOOL_STATUS_CHANGED"
+                "SCHOOL_STATUS_CHANGED",
+                "USER_UPDATED",
+                "USER_DELETED",
+                "USER_ASSIGNMENTS_TRANSFERRED",
+                "MFA_ENABLED",
+                "MFA_DISABLED",
+                "REPORT_CARD_PUBLISHED",
+                "REPORT_CARD_SIGNED_OFF",
+                "REVALUATION_REQUESTED",
+                "REVALUATION_REVIEWED",
+                "BOARD_PACK_CREATED",
+                "PARENT_NOTIFIED",
+                "BACKUP_CREATED",
+                "BACKUP_RESTORED",
+                "CPD_UPDATED"
               ],
               "typeName": "AuditAction"
+            },
+            "BoardPackStatus": {
+              "kind": "postgres-enum",
+              "members": [
+                "PENDING",
+                "READY",
+                "FAILED"
+              ],
+              "typeName": "BoardPackStatus"
+            },
+            "CpdPlanStatus": {
+              "kind": "postgres-enum",
+              "members": [
+                "PLANNED",
+                "IN_PROGRESS",
+                "COMPLETED",
+                "CANCELLED"
+              ],
+              "typeName": "CpdPlanStatus"
+            },
+            "EmailOutboxStatus": {
+              "kind": "postgres-enum",
+              "members": [
+                "PENDING",
+                "SENT",
+                "FAILED",
+                "SKIPPED"
+              ],
+              "typeName": "EmailOutboxStatus"
             },
             "ExamType": {
               "kind": "postgres-enum",
@@ -3443,9 +5711,33 @@
                 "MARKS_SUBMITTED",
                 "DEADLINE_REMINDER",
                 "INCOMPLETE_MARKLIST",
-                "STAFF_NOTICE"
+                "STAFF_NOTICE",
+                "DIGEST",
+                "REPORT_CARD_READY",
+                "REVALUATION_UPDATE",
+                "PARENT_PORTAL",
+                "CPD_NOTICE"
               ],
               "typeName": "NotificationType"
+            },
+            "ReportCardStatus": {
+              "kind": "postgres-enum",
+              "members": [
+                "DRAFT",
+                "PUBLISHED",
+                "SIGNED_OFF"
+              ],
+              "typeName": "ReportCardStatus"
+            },
+            "RevaluationStatus": {
+              "kind": "postgres-enum",
+              "members": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED",
+                "COMPLETED"
+              ],
+              "typeName": "RevaluationStatus"
             },
             "Role": {
               "kind": "postgres-enum",
@@ -3628,6 +5920,171 @@
               },
               "uniques": []
             },
+            "BoardPack": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "createdById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "error": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "examId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "label": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "manifest": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "readyAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "status": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PENDING"
+                  },
+                  "nativeType": "BoardPackStatus",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "BoardPackStatus"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "BoardPackStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "BoardPack"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "examId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "BoardPack"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Exam"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "createdById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "BoardPack"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "createdById"
+                  ],
+                  "name": "BoardPack_createdById_idx_8bf640ed",
+                  "prefix": "BoardPack_createdById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "examId"
+                  ],
+                  "name": "BoardPack_examId_idx_a57bdadd",
+                  "prefix": "BoardPack_examId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "examId"
+                  ],
+                  "name": "BoardPack_tenantId_examId_idx_b62d70cd",
+                  "prefix": "BoardPack_tenantId_examId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "BoardPack_tenantId_idx_c93ed4f1",
+                  "prefix": "BoardPack_tenantId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
             "ClassSection": {
               "columns": {
                 "className": {
@@ -3723,6 +6180,827 @@
                   ]
                 }
               ]
+            },
+            "CpdAppraisal": {
+              "columns": {
+                "academicYear": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "appraiserId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "comments": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "goalsMet": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "nextGoals": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "overallRating": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
+                },
+                "periodLabel": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "signedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "teacherId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdAppraisal"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "teacherId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdAppraisal"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "appraiserId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdAppraisal"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "appraiserId"
+                  ],
+                  "name": "CpdAppraisal_appraiserId_idx_e03e7363",
+                  "prefix": "CpdAppraisal_appraiserId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "teacherId"
+                  ],
+                  "name": "CpdAppraisal_teacherId_idx_bc266660",
+                  "prefix": "CpdAppraisal_teacherId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "academicYear"
+                  ],
+                  "name": "CpdAppraisal_tenantId_academicYear_idx_353ef48d",
+                  "prefix": "CpdAppraisal_tenantId_academicYear_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "CpdAppraisal_tenantId_idx_c93ed4f1",
+                  "prefix": "CpdAppraisal_tenantId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "teacherId",
+                    "academicYear",
+                    "periodLabel"
+                  ]
+                }
+              ]
+            },
+            "CpdCertificate": {
+              "columns": {
+                "certificateNo": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "earnedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "expiresAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "hours": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "issuedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "provider": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "teacherId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdCertificate"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "teacherId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdCertificate"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "issuedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdCertificate"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "issuedById"
+                  ],
+                  "name": "CpdCertificate_issuedById_idx_c14f1329",
+                  "prefix": "CpdCertificate_issuedById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "teacherId"
+                  ],
+                  "name": "CpdCertificate_teacherId_idx_bc266660",
+                  "prefix": "CpdCertificate_teacherId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "CpdCertificate_tenantId_idx_c93ed4f1",
+                  "prefix": "CpdCertificate_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "teacherId"
+                  ],
+                  "name": "CpdCertificate_tenantId_teacherId_idx_c6ea84aa",
+                  "prefix": "CpdCertificate_tenantId_teacherId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "CpdObservation": {
+              "columns": {
+                "classLabel": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "developmentAreas": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "observedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "observerId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "rating": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
+                },
+                "strengths": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "subjectLabel": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "teacherId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdObservation"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "teacherId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdObservation"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "observerId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdObservation"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "observerId"
+                  ],
+                  "name": "CpdObservation_observerId_idx_102debed",
+                  "prefix": "CpdObservation_observerId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "teacherId"
+                  ],
+                  "name": "CpdObservation_teacherId_idx_bc266660",
+                  "prefix": "CpdObservation_teacherId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "CpdObservation_tenantId_idx_c93ed4f1",
+                  "prefix": "CpdObservation_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "teacherId"
+                  ],
+                  "name": "CpdObservation_tenantId_teacherId_idx_c6ea84aa",
+                  "prefix": "CpdObservation_tenantId_teacherId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "CpdTrainingPlan": {
+              "columns": {
+                "academicYear": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "completedHours": {
+                  "codecId": "pg/float8@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": 0
+                  },
+                  "nativeType": "float8",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "createdById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "description": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "status": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PLANNED"
+                  },
+                  "nativeType": "CpdPlanStatus",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "CpdPlanStatus"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "CpdPlanStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "targetHours": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": true
+                },
+                "teacherId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdTrainingPlan"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "teacherId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdTrainingPlan"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "createdById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "CpdTrainingPlan"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "createdById"
+                  ],
+                  "name": "CpdTrainingPlan_createdById_idx_8bf640ed",
+                  "prefix": "CpdTrainingPlan_createdById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "teacherId"
+                  ],
+                  "name": "CpdTrainingPlan_teacherId_idx_bc266660",
+                  "prefix": "CpdTrainingPlan_teacherId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "academicYear"
+                  ],
+                  "name": "CpdTrainingPlan_tenantId_academicYear_idx_353ef48d",
+                  "prefix": "CpdTrainingPlan_tenantId_academicYear_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "CpdTrainingPlan_tenantId_idx_c93ed4f1",
+                  "prefix": "CpdTrainingPlan_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "teacherId"
+                  ],
+                  "name": "CpdTrainingPlan_tenantId_teacherId_idx_c6ea84aa",
+                  "prefix": "CpdTrainingPlan_tenantId_teacherId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
+            "EmailOutbox": {
+              "columns": {
+                "bodyHtml": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "bodyText": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "error": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "kind": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "meta": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "sentAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "status": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PENDING"
+                  },
+                  "nativeType": "EmailOutboxStatus",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "EmailOutboxStatus"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "EmailOutboxStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "subject": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "toEmail": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "EmailOutbox"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "status",
+                    "createdAt"
+                  ],
+                  "name": "EmailOutbox_status_createdAt_idx_58610442",
+                  "prefix": "EmailOutbox_status_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "createdAt"
+                  ],
+                  "name": "EmailOutbox_tenantId_createdAt_idx_88162366",
+                  "prefix": "EmailOutbox_tenantId_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "EmailOutbox_tenantId_idx_c93ed4f1",
+                  "prefix": "EmailOutbox_tenantId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
             },
             "Exam": {
               "columns": {
@@ -3864,6 +7142,177 @@
                 ]
               },
               "uniques": []
+            },
+            "ExamPaperSchedule": {
+              "columns": {
+                "className": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "endTime": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "examId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "maxMarks": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "paperDate": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "startTime": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "subjectId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "venue": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ExamPaperSchedule"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "examId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ExamPaperSchedule"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Exam"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "subjectId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ExamPaperSchedule"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Subject"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "examId"
+                  ],
+                  "name": "ExamPaperSchedule_examId_idx_a57bdadd",
+                  "prefix": "ExamPaperSchedule_examId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "subjectId"
+                  ],
+                  "name": "ExamPaperSchedule_subjectId_idx_84df2a1d",
+                  "prefix": "ExamPaperSchedule_subjectId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "examId",
+                    "paperDate"
+                  ],
+                  "name": "ExamPaperSchedule_tenantId_examId_paperDate_idx_6999b94c",
+                  "prefix": "ExamPaperSchedule_tenantId_examId_paperDate_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "ExamPaperSchedule_tenantId_idx_c93ed4f1",
+                  "prefix": "ExamPaperSchedule_tenantId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "examId",
+                    "subjectId",
+                    "className"
+                  ]
+                }
+              ]
             },
             "Mark": {
               "columns": {
@@ -4983,6 +8432,495 @@
                 }
               ]
             },
+            "ReportCardRelease": {
+              "columns": {
+                "classSectionId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "examId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "parentsNotifiedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "publishedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "signedOffAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "signedOffById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "status": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "DRAFT"
+                  },
+                  "nativeType": "ReportCardStatus",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "ReportCardStatus"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "ReportCardStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ReportCardRelease"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "examId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ReportCardRelease"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Exam"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "classSectionId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ReportCardRelease"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ClassSection"
+                  }
+                },
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "signedOffById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ReportCardRelease"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "classSectionId"
+                  ],
+                  "name": "ReportCardRelease_classSectionId_idx_095a6e92",
+                  "prefix": "ReportCardRelease_classSectionId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "examId"
+                  ],
+                  "name": "ReportCardRelease_examId_idx_a57bdadd",
+                  "prefix": "ReportCardRelease_examId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "signedOffById"
+                  ],
+                  "name": "ReportCardRelease_signedOffById_idx_9b472f90",
+                  "prefix": "ReportCardRelease_signedOffById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "ReportCardRelease_tenantId_idx_c93ed4f1",
+                  "prefix": "ReportCardRelease_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "status"
+                  ],
+                  "name": "ReportCardRelease_tenantId_status_idx_d3d04256",
+                  "prefix": "ReportCardRelease_tenantId_status_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "examId",
+                    "classSectionId"
+                  ]
+                }
+              ]
+            },
+            "RevaluationRequest": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "examId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "feePaid": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "originalMarks": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": true
+                },
+                "reason": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "requestedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "reviewNotes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "reviewedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "reviewedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "revisedMarks": {
+                  "codecId": "pg/float8@1",
+                  "nativeType": "float8",
+                  "nullable": true
+                },
+                "status": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PENDING"
+                  },
+                  "nativeType": "RevaluationStatus",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "RevaluationStatus"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "RevaluationStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "studentId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "subjectId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "RevaluationRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "examId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "RevaluationRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Exam"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "studentId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "RevaluationRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Student"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "subjectId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "RevaluationRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Subject"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "requestedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "RevaluationRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "reviewedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "RevaluationRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "examId"
+                  ],
+                  "name": "RevaluationRequest_examId_idx_a57bdadd",
+                  "prefix": "RevaluationRequest_examId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "requestedById"
+                  ],
+                  "name": "RevaluationRequest_requestedById_idx_f9a56c66",
+                  "prefix": "RevaluationRequest_requestedById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "reviewedById"
+                  ],
+                  "name": "RevaluationRequest_reviewedById_idx_e2835478",
+                  "prefix": "RevaluationRequest_reviewedById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "studentId"
+                  ],
+                  "name": "RevaluationRequest_studentId_idx_bf255322",
+                  "prefix": "RevaluationRequest_studentId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "subjectId"
+                  ],
+                  "name": "RevaluationRequest_subjectId_idx_84df2a1d",
+                  "prefix": "RevaluationRequest_subjectId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "RevaluationRequest_tenantId_idx_c93ed4f1",
+                  "prefix": "RevaluationRequest_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "status"
+                  ],
+                  "name": "RevaluationRequest_tenantId_status_idx_d3d04256",
+                  "prefix": "RevaluationRequest_tenantId_status_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "examId",
+                    "studentId",
+                    "subjectId"
+                  ]
+                }
+              ]
+            },
             "School": {
               "columns": {
                 "address": {
@@ -5019,6 +8957,11 @@
                   "nativeType": "timestamptz",
                   "nullable": false
                 },
+                "digestEmail": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "distinctionMin": {
                   "codecId": "pg/float8@1",
                   "default": {
@@ -5037,6 +8980,15 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": true
+                },
+                "emailDigestsEnabled": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
                 },
                 "establishedYear": {
                   "codecId": "pg/int4@1",
@@ -5205,6 +9157,11 @@
                 "dob": {
                   "codecId": "pg/timestamptz-string@1",
                   "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "guardianEmail": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
                   "nullable": true
                 },
                 "guardianName": {
@@ -5956,6 +9913,25 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "mfaEnabled": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "mfaRecoveryHashes": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "mfaSecret": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "mustChangePassword": {
                   "codecId": "pg/bool@1",
                   "default": {
@@ -6081,18 +10057,55 @@
                 "ACCESS_APPROVED",
                 "ACCESS_REJECTED",
                 "USER_CREATED",
-                "USER_UPDATED",
                 "USER_STATUS_CHANGED",
                 "USER_ROLE_CHANGED",
                 "USER_PASSWORD_RESET",
-                "USER_DELETED",
-                "USER_ASSIGNMENTS_TRANSFERRED",
                 "EXAM_CREATED",
                 "EXAM_UPDATED",
                 "EXAM_DELETED",
                 "SCHOOL_CREATED",
                 "SCHOOL_UPDATED",
-                "SCHOOL_STATUS_CHANGED"
+                "SCHOOL_STATUS_CHANGED",
+                "USER_UPDATED",
+                "USER_DELETED",
+                "USER_ASSIGNMENTS_TRANSFERRED",
+                "MFA_ENABLED",
+                "MFA_DISABLED",
+                "REPORT_CARD_PUBLISHED",
+                "REPORT_CARD_SIGNED_OFF",
+                "REVALUATION_REQUESTED",
+                "REVALUATION_REVIEWED",
+                "BOARD_PACK_CREATED",
+                "PARENT_NOTIFIED",
+                "BACKUP_CREATED",
+                "BACKUP_RESTORED",
+                "CPD_UPDATED"
+              ]
+            },
+            "BoardPackStatus": {
+              "kind": "valueSet",
+              "values": [
+                "PENDING",
+                "READY",
+                "FAILED"
+              ]
+            },
+            "CpdPlanStatus": {
+              "kind": "valueSet",
+              "values": [
+                "PLANNED",
+                "IN_PROGRESS",
+                "COMPLETED",
+                "CANCELLED"
+              ]
+            },
+            "EmailOutboxStatus": {
+              "kind": "valueSet",
+              "values": [
+                "PENDING",
+                "SENT",
+                "FAILED",
+                "SKIPPED"
               ]
             },
             "ExamType": {
@@ -6147,7 +10160,29 @@
                 "MARKS_SUBMITTED",
                 "DEADLINE_REMINDER",
                 "INCOMPLETE_MARKLIST",
-                "STAFF_NOTICE"
+                "STAFF_NOTICE",
+                "DIGEST",
+                "REPORT_CARD_READY",
+                "REVALUATION_UPDATE",
+                "PARENT_PORTAL",
+                "CPD_NOTICE"
+              ]
+            },
+            "ReportCardStatus": {
+              "kind": "valueSet",
+              "values": [
+                "DRAFT",
+                "PUBLISHED",
+                "SIGNED_OFF"
+              ]
+            },
+            "RevaluationStatus": {
+              "kind": "valueSet",
+              "values": [
+                "PENDING",
+                "APPROVED",
+                "REJECTED",
+                "COMPLETED"
               ]
             },
             "Role": {
@@ -6189,10 +10224,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "13b4e265bf69407b7147449c42e5778ea381c9f4d1875ef450f1ea2da79e7387"
+    "storageHash": "20f06f9724b706887c0fc4d91949fa5cf396472c8a7e0aba736d5f6f6b921d18"
   },
   "execution": {
-    "executionHash": "7056dac11e9455d9814ab3ba09caf5357b61dc4e7e8b551d4e099e31c9cb174a",
+    "executionHash": "47b32973b482e3482f74eb4934530e25e38250f4c47a6f8943a2e003354c3f18",
     "mutations": {
       "defaults": [
         {
@@ -6214,6 +10249,17 @@
           "ref": {
             "column": "id",
             "namespace": "public",
+            "table": "BoardPack"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
             "table": "ClassSection"
           }
         },
@@ -6225,7 +10271,103 @@
           "ref": {
             "column": "id",
             "namespace": "public",
+            "table": "CpdAppraisal"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updatedAt",
+            "namespace": "public",
+            "table": "CpdAppraisal"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "CpdCertificate"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "CpdObservation"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "CpdTrainingPlan"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updatedAt",
+            "namespace": "public",
+            "table": "CpdTrainingPlan"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "EmailOutbox"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
             "table": "Exam"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "ExamPaperSchedule"
           }
         },
         {
@@ -6318,6 +10460,58 @@
             "column": "id",
             "namespace": "public",
             "table": "RefreshToken"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "ReportCardRelease"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updatedAt",
+            "namespace": "public",
+            "table": "ReportCardRelease"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "RevaluationRequest"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updatedAt",
+            "namespace": "public",
+            "table": "RevaluationRequest"
           }
         },
         {
