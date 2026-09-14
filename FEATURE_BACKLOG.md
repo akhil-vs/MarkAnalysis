@@ -21,13 +21,31 @@ Remaining work that would make this suitable for a live school:
 
 ## Product / access
 
-- ~~Mobile-friendly sidebar and mark entry~~ (app shell with hamburger drawer, responsive mark register)
-- ~~Parent / student read-only portal~~ (principal-issued `/portal` link; approved marks for one exam)
-- ~~Multi-tenant schools~~ (shared DB, `School` tenant + join code; staff signup scoped per school)
-- Email digests for pending sign-ups, late entry, deadlines, approvals
+- ~~**Mobile-friendly sidebar and mark entry**~~ (app shell with hamburger drawer, responsive mark register)
+- ~~**Parent / student read-only portal~~ (principal-issued `/portal` link; approved marks for one exam)
+- ~~**Multi-tenant schools~~ (shared DB, `School` tenant + join code; staff signup scoped per school)
+- ~~Email digests for pending sign-ups, late entry, deadlines, approvals~~ (`EmailOutbox` + SMTP flush; School profile toggle; platform Run digests)
 - ~~Force password change after admin reset; gate demo one-click accounts~~ (`mustChangePassword`, `VITE_ENABLE_DEMO_LOGIN`)
 - ~~Server-side search/pagination for students, staff, and audit log~~
 - ~~Incomplete consolidated PDF watermark / hard block for official download~~ (`official=1` → 409 when incomplete; preview PDF watermark)
+
+## Live school / ops
+
+- ~~Real monitoring/health~~ (`GET /api/health` + `?deep=1` DB ping; platform deep health)
+- ~~Helmet/CSP + stronger auth (MFA)~~ (Helmet middleware, CSP report-only unless `CSP_ENFORCE`; TOTP MFA on Profile / login challenge)
+- ~~Backup/restore~~ (platform JSON backup download; merge restore of school profile + paper schedules)
+
+## Board-school product
+
+- ~~Per-paper exam calendar~~ (`ExamPaperSchedule` + Board ops)
+- ~~Report-card publish / sign-off~~ (`ReportCardRelease` publish → sign-off)
+- ~~Parent notify~~ (email queue on report-card notify)
+- ~~Revaluation~~ (`RevaluationRequest` workflow)
+- ~~Board upload packs~~ (`BoardPack` manifest of official artefacts)
+
+## Teacher CPD
+
+- ~~Training plans, observations, appraisal, certificates~~ (`/api/cpd` + CPD nav module)
 
 ## Engineering
 

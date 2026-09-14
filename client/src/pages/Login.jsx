@@ -26,7 +26,7 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default function Login() {
-  const { user, login } = useAuth();
+  const { user, login, verifyMfa } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState("email");
   const [email, setEmail] = useState("");
@@ -35,18 +35,31 @@ export default function Login() {
   const [password, setPassword] = useState(DEMO_LOGIN_ENABLED ? DEMO_PASSWORD : "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
+  const [mfaChallenge, setMfaChallenge] = useState(null);
+  const [mfaCode, setMfaCode] = useState("");
+  const [recoveryCode, setRecoveryCode] = useState("");
 
   if (user) {
     const home = user.role === "PLATFORM_ADMIN" ? "/platform" : "/";
     return <Navigate to={user.mustChangePassword ? "/profile" : home} replace />;
   }
 
+  function goHome(data) {
+    const home = data?.user?.role === "PLATFORM_ADMIN" ? "/platform" : "/";
+    navigate(data?.user?.mustChangePassword ? "/profile" : home);
+  }
+
   async function signIn(payload) {
     setError("");
     try {
       const data = await login(payload);
-      const home = data?.user?.role === "PLATFORM_ADMIN" ? "/platform" : "/";
-      navigate(data?.user?.mustChangePassword ? "/profile" : home);
+      if (data?.mfaRequired) {
+        setMfaChallenge(data);
+        setMfaCode("");
+        setRecoveryCode("");
+        return;
+      }
+      goHome(data);
     } catch (err) {
       if (err.status === 403 && err.data?.user?.status === "PENDING") {
         navigate("/pending");
@@ -79,6 +92,30 @@ export default function Login() {
     );
   }
 
+  async function onMfaSubmit(e) {
+    e.preventDefault();
+    if (!mfaChallenge?.mfaToken) return;
+    if (!mfaCode.trim() && !recoveryCode.trim()) {
+      setError("Enter your authenticator code or a recovery code");
+      return;
+    }
+    setBusy("mfa");
+    setError("");
+    try {
+      const data = await verifyMfa({
+        mfaToken: mfaChallenge.mfaToken,
+        code: mfaCode.trim() || undefined,
+        recoveryCode: recoveryCode.trim() || undefined,
+      });
+      setMfaChallenge(null);
+      goHome(data);
+    } catch (err) {
+      setError(err.message || "Invalid authentication code");
+    } finally {
+      setBusy("");
+    }
+  }
+
   async function quickLogin(account) {
     setBusy(account.email);
     setMode("email");
@@ -93,6 +130,55 @@ export default function Login() {
   const subtitle = DEMO_LOGIN_ENABLED
     ? "Use any staff account. Seed password is password123."
     : "Sign in with your school email or staff ID.";
+
+  if (mfaChallenge) {
+    return (
+      <AuthShell
+        title="Two-factor authentication"
+        subtitle={`Enter the code from your authenticator app${mfaChallenge.user?.name ? ` for ${mfaChallenge.user.name}` : ""}.`}
+      >
+        <form onSubmit={onMfaSubmit} className="space-y-4">
+          <div>
+            <label className="label">Authenticator code</label>
+            <input
+              className="field"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              autoFocus
+              value={mfaCode}
+              onChange={(e) => setMfaCode(e.target.value)}
+              placeholder="6-digit code"
+            />
+          </div>
+          <div>
+            <label className="label">Or recovery code</label>
+            <input
+              className="field"
+              value={recoveryCode}
+              onChange={(e) => setRecoveryCode(e.target.value)}
+              placeholder="Optional"
+            />
+          </div>
+          {error && <FieldError message={error} />}
+          <button className="btn-primary w-full" disabled={Boolean(busy)}>
+            {busy === "mfa" ? "Verifying…" : "Verify and sign in"}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost w-full"
+            onClick={() => {
+              setMfaChallenge(null);
+              setMfaCode("");
+              setRecoveryCode("");
+              setError("");
+            }}
+          >
+            Back to sign in
+          </button>
+        </form>
+      </AuthShell>
+    );
+  }
 
   return (
     <AuthShell title="Sign in" subtitle={subtitle}>

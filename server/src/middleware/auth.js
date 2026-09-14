@@ -133,6 +133,7 @@ export function publicUser(user, school) {
     role: user.role,
     status: user.status,
     mustChangePassword: Boolean(user.mustChangePassword),
+    mfaEnabled: Boolean(user.mfaEnabled),
     school: school
       ? { id: school.id, name: school.name, slug: school.slug, status: school.status }
       : user.tenant

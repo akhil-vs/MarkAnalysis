@@ -22,14 +22,17 @@ test("API responses skip ETag and refuse caching", async () => {
     assert.equal(first.status, 200);
     assert.equal(first.headers.get("etag"), null);
     assert.match(first.headers.get("cache-control") || "", /no-store/i);
-    assert.deepEqual(await first.json(), { ok: true });
+    const firstBody = await first.json();
+    assert.equal(firstBody.ok, true);
+    assert.equal(firstBody.service, "school-marks-api");
 
     const conditional = await fetch(`${base}/api/health`, {
       headers: { "If-None-Match": '"stale-etag"' },
     });
     assert.equal(conditional.status, 200);
     assert.equal(conditional.headers.get("etag"), null);
-    assert.deepEqual(await conditional.json(), { ok: true });
+    const conditionalBody = await conditional.json();
+    assert.equal(conditionalBody.ok, true);
   });
 });
 

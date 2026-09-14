@@ -153,6 +153,19 @@ const NAV_ICON_PATHS = {
       <path d="M10 14l-3 3 3 3" strokeLinecap="round" strokeLinejoin="round" />
     </>
   ),
+  board: (
+    <>
+      <rect x="4" y="4" width="16" height="16" rx="1.5" />
+      <path d="M8 8h8M8 12h8M8 16h5" strokeLinecap="round" />
+    </>
+  ),
+  cpd: (
+    <>
+      <path d="M12 3v4" strokeLinecap="round" />
+      <path d="M8 7h8l-1.5 12h-5L8 7z" strokeLinejoin="round" />
+      <path d="M10 11h4M10 14h4" strokeLinecap="round" />
+    </>
+  ),
 };
 
 function NavIcon({ name, size = 16 }) {

@@ -39,6 +39,8 @@ const Profile = lazy(() => import("./pages/Profile.jsx"));
 const SchoolSettings = lazy(() => import("./pages/SchoolSettings.jsx"));
 const Timetables = lazy(() => import("./pages/Timetables.jsx"));
 const TeacherTimetable = lazy(() => import("./pages/TeacherTimetable.jsx"));
+const BoardOps = lazy(() => import("./pages/BoardOps.jsx"));
+const Cpd = lazy(() => import("./pages/Cpd.jsx"));
 const PlatformHome = lazy(() => import("./pages/PlatformHome.jsx"));
 const PlatformSchools = lazy(() => import("./pages/PlatformSchools.jsx"));
 const PlatformSchoolNew = lazy(() => import("./pages/PlatformSchoolNew.jsx"));
@@ -191,6 +193,8 @@ export default function App() {
           />
           <Route path="profile" element={<Profile />} />
           <Route path="school" element={<Guarded route="school"><SchoolSettings /></Guarded>} />
+          <Route path="board" element={<Guarded route="board"><BoardOps /></Guarded>} />
+          <Route path="cpd" element={<Guarded route="cpd"><Cpd /></Guarded>} />
           <Route path="platform" element={<Guarded route="platform"><PlatformHome /></Guarded>} />
           <Route path="platform/schools" element={<Guarded route="platform/schools"><PlatformSchools /></Guarded>} />
           <Route path="platform/schools/new" element={<Guarded route="platform/schools/new"><PlatformSchoolNew /></Guarded>} />

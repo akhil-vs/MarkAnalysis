@@ -21,6 +21,7 @@ const OPTIONAL_TEXT_FIELDS = [
   "alternatePhone",
   "email",
   "website",
+  "digestEmail",
 ];
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -165,6 +166,12 @@ export function parseSchoolIdentityPatch(body = {}) {
   }
   if (data.email && !EMAIL_RE.test(data.email)) {
     return { error: "Enter a valid email" };
+  }
+  if (data.digestEmail && !EMAIL_RE.test(data.digestEmail)) {
+    return { error: "Enter a valid digest email" };
+  }
+  if (body.emailDigestsEnabled !== undefined) {
+    data.emailDigestsEnabled = Boolean(body.emailDigestsEnabled);
   }
   if (data.website) {
     const website = normalizeWebsite(data.website);
