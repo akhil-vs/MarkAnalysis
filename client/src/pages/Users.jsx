@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { api, download } from "../api.js";
 import { useAuth } from "../auth.jsx";
@@ -178,34 +179,75 @@ const ACTION_ICONS = {
 };
 
 function IconAction({ tip, icon, onClick, disabled, tone = "ghost", to, busy }) {
+  const [tipPos, setTipPos] = useState(null);
   const className =
-    tone === "primary" ? "btn-icon-primary tip" : tone === "danger" ? "btn-icon-danger tip" : "btn-icon tip";
+    tone === "primary" ? "btn-icon-primary" : tone === "danger" ? "btn-icon-danger" : "btn-icon";
   const content = busy ? (
-    <span className="h-3.5 w-3.5 animate-pulse rounded-full bg-current/70" aria-hidden="true" />
+    <span className="h-3.5 w-3.5 animate-pulse rounded-full bg-current opacity-70" aria-hidden="true" />
   ) : (
     ACTION_ICONS[icon] || icon
   );
 
+  function showTip(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTipPos({ x: rect.left + rect.width / 2, y: rect.top });
+  }
+
+  function hideTip() {
+    setTipPos(null);
+  }
+
+  const tipNode =
+    tipPos &&
+    createPortal(
+      <div
+        role="tooltip"
+        className="pointer-events-none fixed z-[400] -translate-x-1/2 -translate-y-full rounded-md bg-ink-900 px-2 py-1 text-[11px] font-medium text-cream shadow-sm"
+        style={{ left: tipPos.x, top: tipPos.y - 6 }}
+      >
+        {tip}
+      </div>,
+      document.body
+    );
+
   if (to) {
     return (
-      <Link to={to} className={className} data-tip={tip} aria-label={tip} title={tip}>
-        {content}
-      </Link>
+      <>
+        <Link
+          to={to}
+          className={className}
+          aria-label={tip}
+          title={tip}
+          onMouseEnter={showTip}
+          onMouseLeave={hideTip}
+          onFocus={showTip}
+          onBlur={hideTip}
+        >
+          {content}
+        </Link>
+        {tipNode}
+      </>
     );
   }
 
   return (
-    <button
-      type="button"
-      className={className}
-      data-tip={tip}
-      aria-label={tip}
-      title={tip}
-      disabled={disabled || busy}
-      onClick={onClick}
-    >
-      {content}
-    </button>
+    <>
+      <button
+        type="button"
+        className={className}
+        aria-label={tip}
+        title={tip}
+        disabled={disabled || busy}
+        onClick={onClick}
+        onMouseEnter={showTip}
+        onMouseLeave={hideTip}
+        onFocus={showTip}
+        onBlur={hideTip}
+      >
+        {content}
+      </button>
+      {tipNode}
+    </>
   );
 }
 

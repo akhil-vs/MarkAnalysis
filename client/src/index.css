@@ -55,20 +55,6 @@ body {
   @apply btn-icon border-clay-500/30 bg-clay-500/10 text-clay-700 hover:bg-clay-500/20;
 }
 
-.tip {
-  @apply relative;
-}
-
-.tip::after {
-  content: attr(data-tip);
-  @apply pointer-events-none absolute bottom-[calc(100%+0.35rem)] left-1/2 z-30 -translate-x-1/2 whitespace-nowrap rounded-md bg-ink-900 px-2 py-1 text-[11px] font-medium text-cream opacity-0 shadow-sm transition;
-}
-
-.tip:hover::after,
-.tip:focus-visible::after {
-  @apply opacity-100;
-}
-
 .field {
   @apply w-full rounded-lg border border-ink-900/15 bg-white px-3 py-2.5 sm:py-2 text-sm outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-500/20 min-h-[2.75rem] sm:min-h-0;
 }
