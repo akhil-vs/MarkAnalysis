@@ -43,6 +43,18 @@ body {
   @apply btn border border-ink-900/15 bg-white/60 hover:bg-white;
 }
 
+.btn-icon {
+  @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-ink-900/15 bg-white/60 text-ink-800 transition hover:bg-white hover:text-ink-950 disabled:cursor-not-allowed disabled:opacity-40;
+}
+
+.btn-icon-primary {
+  @apply btn-icon border-ink-900/20 bg-ink-900 text-cream hover:bg-ink-800 hover:text-cream;
+}
+
+.btn-icon-danger {
+  @apply btn-icon border-clay-500/30 bg-clay-500/10 text-clay-600 hover:bg-clay-500/20;
+}
+
 .field {
   @apply w-full rounded-lg border border-ink-900/15 bg-white px-3 py-2.5 sm:py-2 text-sm outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-500/20 min-h-[2.75rem] sm:min-h-0;
 }

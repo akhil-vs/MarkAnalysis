@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { api, download } from "../api.js";
 import { useAuth } from "../auth.jsx";
@@ -111,6 +112,145 @@ function statusLabel(status) {
   return status || "—";
 }
 
+const ACTION_ICONS = {
+  approve: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  reject: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
+    </svg>
+  ),
+  edit: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z" strokeLinejoin="round" />
+      <path d="M13 6l3 3" strokeLinecap="round" />
+    </svg>
+  ),
+  assign: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <rect x="4" y="3.5" width="12" height="16" rx="1.5" />
+      <path d="M8 8h4M8 12h4M8 16h2" strokeLinecap="round" />
+      <path d="M16 14h4M18 12v4" strokeLinecap="round" />
+    </svg>
+  ),
+  transfer: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M7 8h11M15 5l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 16H6M9 13l-3 3 3 3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  timetable: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <rect x="3.5" y="5" width="17" height="15" rx="2" />
+      <path d="M8 3.5v3M16 3.5v3M3.5 10h17" strokeLinecap="round" />
+    </svg>
+  ),
+  notify: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M6 16V10a6 6 0 1 1 12 0v6" strokeLinecap="round" />
+      <path d="M5 16h14" strokeLinecap="round" />
+      <path d="M10 19a2 2 0 0 0 4 0" strokeLinecap="round" />
+    </svg>
+  ),
+  reset: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M7 11V8.5a5 5 0 0 1 9.8-1.2" strokeLinecap="round" />
+      <path d="M17 8.5V11" strokeLinecap="round" />
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <circle cx="12" cy="15.5" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  permissions: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M12 3.5 5.5 6.5v5.2c0 4.1 2.7 7.3 6.5 8.8 3.8-1.5 6.5-4.7 6.5-8.8V6.5L12 3.5z" strokeLinejoin="round" />
+      <path d="M9.5 12.2 11.2 14l3.5-3.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  delete: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M5 7h14" strokeLinecap="round" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" strokeLinecap="round" />
+      <path d="M8 7l.8 11.2A1.5 1.5 0 0 0 10.3 19.5h3.4a1.5 1.5 0 0 0 1.5-1.3L16 7" strokeLinecap="round" />
+    </svg>
+  ),
+};
+
+function IconAction({ tip, icon, onClick, disabled, tone = "ghost", to, busy }) {
+  const [tipPos, setTipPos] = useState(null);
+  const className =
+    tone === "primary" ? "btn-icon-primary" : tone === "danger" ? "btn-icon-danger" : "btn-icon";
+  const content = busy ? (
+    <span className="h-3.5 w-3.5 animate-pulse rounded-full bg-current opacity-70" aria-hidden="true" />
+  ) : (
+    ACTION_ICONS[icon] || icon
+  );
+
+  function showTip(e) {
+    const rect = e.currentTarget.getBoundingClientRect();
+    setTipPos({ x: rect.left + rect.width / 2, y: rect.top });
+  }
+
+  function hideTip() {
+    setTipPos(null);
+  }
+
+  const tipNode =
+    tipPos &&
+    createPortal(
+      <div
+        role="tooltip"
+        className="pointer-events-none fixed z-[400] -translate-x-1/2 -translate-y-full rounded-md bg-ink-900 px-2 py-1 text-[11px] font-medium text-cream shadow-sm"
+        style={{ left: tipPos.x, top: tipPos.y - 6 }}
+      >
+        {tip}
+      </div>,
+      document.body
+    );
+
+  if (to) {
+    return (
+      <>
+        <Link
+          to={to}
+          className={className}
+          aria-label={tip}
+          title={tip}
+          onMouseEnter={showTip}
+          onMouseLeave={hideTip}
+          onFocus={showTip}
+          onBlur={hideTip}
+        >
+          {content}
+        </Link>
+        {tipNode}
+      </>
+    );
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        className={className}
+        aria-label={tip}
+        title={tip}
+        disabled={disabled || busy}
+        onClick={onClick}
+        onMouseEnter={showTip}
+        onMouseLeave={hideTip}
+        onFocus={showTip}
+        onBlur={hideTip}
+      >
+        {content}
+      </button>
+      {tipNode}
+    </>
+  );
+}
+
 function assignmentTags(assignments) {
   const tags = [];
   for (const a of assignments || []) {
@@ -186,6 +326,7 @@ export default function Users() {
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [assigning, setAssigning] = useState(null);
+  const [transferring, setTransferring] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [resetting, setResetting] = useState(null);
   const [permissionsUser, setPermissionsUser] = useState(null);
@@ -284,6 +425,49 @@ export default function Users() {
       toast.success("Assignments saved.");
     } catch (err) {
       toast.error(err.message || "Could not save assignments");
+    } finally {
+      setBusyId("");
+    }
+  }
+
+  async function transferClasses(fromUser, { toUserId, includeTimetable, includeClassTeacher }) {
+    setBusyId(fromUser.id);
+    try {
+      const result = await api(`/api/users/${fromUser.id}/transfer`, {
+        method: "POST",
+        body: { toUserId, includeTimetable, includeClassTeacher },
+      });
+      setTransferring(null);
+      await load();
+      const parts = [];
+      if (result.assignmentsMoved) {
+        parts.push(
+          `${result.assignmentsMoved} paper${result.assignmentsMoved === 1 ? "" : "s"}`
+        );
+      }
+      if (result.timetableMoved) {
+        parts.push(
+          `${result.timetableMoved} timetable slot${result.timetableMoved === 1 ? "" : "s"}`
+        );
+      }
+      if (result.classTeacherMoved) {
+        parts.push(
+          `${result.classTeacherMoved} class-teacher role${result.classTeacherMoved === 1 ? "" : "s"}`
+        );
+      }
+      toast.success(
+        parts.length
+          ? `Transferred ${parts.join(", ")} to ${result.to?.name || "replacement"}.`
+          : "Transfer completed."
+      );
+      if (result.assignmentsSkipped || result.timetableSkipped) {
+        const skipped = [];
+        if (result.assignmentsSkipped) skipped.push(`${result.assignmentsSkipped} paper(s) already held`);
+        if (result.timetableSkipped) skipped.push(`${result.timetableSkipped} conflicting slot(s)`);
+        toast.info(`Skipped ${skipped.join(" · ")}.`);
+      }
+    } catch (err) {
+      toast.error(err.message || "Could not transfer classes");
     } finally {
       setBusyId("");
     }
@@ -415,7 +599,7 @@ export default function Users() {
     <div>
       <PageHeader
         title={NAV_TITLES.staff}
-        subtitle="Add staff, edit profiles, activate pending sign-ups, and manage role permissions & classroom assignments."
+        subtitle="Add staff, edit profiles, transfer classes to a replacement, activate pending sign-ups, and manage role permissions & classroom assignments."
         actions={<StaffStats summary={summary} />}
       />
 
@@ -765,56 +949,57 @@ export default function Users() {
                         )}
                       </td>
                       <td>
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
                           {canApprove && (
-                            <button
-                              type="button"
-                              className="btn-primary"
+                            <IconAction
+                              tip={busy ? "Saving…" : "Approve"}
+                              icon="approve"
+                              tone="primary"
+                              busy={busy}
                               disabled={tableBusy}
                               onClick={() => setStatus(u.id, "ACTIVE")}
-                            >
-                              <BusyLabel busy={busy} idle="Approve" busyText="Saving…" />
-                            </button>
+                            />
                           )}
                           {canReject && (
-                            <button
-                              type="button"
-                              className="btn-danger"
+                            <IconAction
+                              tip="Reject"
+                              icon="reject"
+                              tone="danger"
                               disabled={tableBusy}
                               onClick={() => setStatus(u.id, "REJECTED")}
-                            >
-                              Reject
-                            </button>
+                            />
                           )}
                           {canEditRow && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Edit"
+                              icon="edit"
                               disabled={tableBusy}
                               onClick={() => startEdit(u)}
-                            >
-                              Edit
-                            </button>
+                            />
                           )}
                           {canAssign && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Assign"
+                              icon="assign"
                               disabled={tableBusy}
                               onClick={() => setAssigning(u)}
-                            >
-                              Assign
-                            </button>
+                            />
+                          )}
+                          {canAssign && (
+                            <IconAction
+                              tip="Transfer classes"
+                              icon="transfer"
+                              disabled={tableBusy}
+                              onClick={() => setTransferring(u)}
+                            />
                           )}
                           {canAssign && u.status === "ACTIVE" && (
-                            <Link to={`/timetables/teachers/${u.id}`} className="btn-ghost">
-                              Timetable
-                            </Link>
+                            <IconAction tip="Timetable" icon="timetable" to={`/timetables/teachers/${u.id}`} />
                           )}
                           {canAssign && u.status === "ACTIVE" && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Notify"
+                              icon="notify"
                               disabled={tableBusy}
                               onClick={() =>
                                 setNotify({
@@ -824,49 +1009,32 @@ export default function Users() {
                                   teacherName: u.name,
                                 })
                               }
-                            >
-                              Notify
-                            </button>
+                            />
                           )}
-                          {canReset && canAssign && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                          {canReset && (
+                            <IconAction
+                              tip="Reset password"
+                              icon="reset"
                               disabled={tableBusy}
                               onClick={() => setResetting(u)}
-                            >
-                              Reset
-                            </button>
+                            />
                           )}
                           {isLeadershipRole && u.status === "ACTIVE" && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Manage permissions"
+                              icon="permissions"
                               disabled={tableBusy}
                               onClick={() => setPermissionsUser(u)}
-                            >
-                              Manage Permissions
-                            </button>
-                          )}
-                          {canReset && !canAssign && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
-                              disabled={tableBusy}
-                              onClick={() => setResetting(u)}
-                            >
-                              Reset
-                            </button>
+                            />
                           )}
                           {canDeleteRow && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Delete"
+                              icon="delete"
+                              tone="danger"
                               disabled={tableBusy}
                               onClick={() => removeStaff(u)}
-                            >
-                              Delete
-                            </button>
+                            />
                           )}
                         </div>
                       </td>
@@ -885,6 +1053,13 @@ export default function Users() {
           subjects={subjects}
           onClose={() => setAssigning(null)}
           onSave={saveAssignments}
+        />
+      )}
+      {transferring && (
+        <TransferModal
+          user={transferring}
+          onClose={() => setTransferring(null)}
+          onTransfer={transferClasses}
         />
       )}
       {resetting && (
@@ -951,6 +1126,134 @@ function PermissionsModal({ user, onClose }) {
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function TransferModal({ user, onClose, onTransfer }) {
+  const [teachers, setTeachers] = useState([]);
+  const [toUserId, setToUserId] = useState("");
+  const [includeTimetable, setIncludeTimetable] = useState(true);
+  const [includeClassTeacher, setIncludeClassTeacher] = useState(true);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [loadError, setLoadError] = useState("");
+  const paperCount = (user.assignments || []).length;
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      setLoading(true);
+      setLoadError("");
+      try {
+        const res = await api("/api/users?role=TEACHER&status=ACTIVE&page=1&pageSize=200&sort=name");
+        const items = Array.isArray(res) ? res : res.items || [];
+        const options = items.filter((t) => t.id !== user.id);
+        if (!cancelled) {
+          setTeachers(options);
+          setToUserId(options[0]?.id || "");
+        }
+      } catch (err) {
+        if (!cancelled) setLoadError(err.message || "Could not load teachers");
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user.id]);
+
+  async function save(e) {
+    e.preventDefault();
+    if (!toUserId) return;
+    setSaving(true);
+    try {
+      await onTransfer(user, { toUserId, includeTimetable, includeClassTeacher });
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const target = teachers.find((t) => t.id === toUserId);
+
+  return (
+    <div className="fixed inset-0 bg-ink-950/40 flex items-end sm:items-center justify-center p-0 sm:p-4 z-20">
+      <form
+        className="card w-full max-w-md rounded-b-none sm:rounded-xl p-5 safe-pb"
+        onSubmit={save}
+      >
+        <h3 className="font-serif text-xl mb-1">Transfer classes</h3>
+        <p className="text-sm text-ink-700/65 mb-4">
+          Move classroom papers from <span className="font-medium text-ink-900">{user.name}</span>
+          {paperCount ? ` (${paperCount} assigned)` : ""} to a replacement teacher. Useful when someone
+          resigns and a successor is ready.
+        </p>
+
+        {loading ? (
+          <p className="text-sm text-ink-700/60 mb-4">Loading teachers…</p>
+        ) : loadError ? (
+          <p className="text-sm text-clay-600 mb-4">{loadError}</p>
+        ) : teachers.length === 0 ? (
+          <p className="text-sm text-ink-700/60 mb-4">
+            No other active teachers available. Create the replacement account first, then transfer.
+          </p>
+        ) : (
+          <div className="space-y-3 mb-4">
+            <div>
+              <label className="label">Replacement teacher</label>
+              <select
+                className="field"
+                value={toUserId}
+                onChange={(e) => setToUserId(e.target.value)}
+                required
+              >
+                {teachers.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.name}
+                    {t.schoolId ? ` · ${t.schoolId}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="flex items-start gap-2 text-sm text-ink-800">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={includeTimetable}
+                onChange={(e) => setIncludeTimetable(e.target.checked)}
+              />
+              <span>Also move timetable slots</span>
+            </label>
+            <label className="flex items-start gap-2 text-sm text-ink-800">
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={includeClassTeacher}
+                onChange={(e) => setIncludeClassTeacher(e.target.checked)}
+              />
+              <span>Also move class-teacher (homeroom) roles</span>
+            </label>
+            <p className="text-xs text-ink-700/55">
+              Papers already held by {target?.name || "the replacement"} are kept once. Conflicting
+              timetable slots for the same class and period are skipped.
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <button type="button" className="btn-ghost" onClick={onClose} disabled={saving}>
+            Cancel
+          </button>
+          <button
+            type="submit"
+            className="btn-primary"
+            disabled={saving || loading || !toUserId || Boolean(loadError)}
+          >
+            <BusyLabel busy={saving} idle="Transfer classes" busyText="Transferring…" />
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
