@@ -5,6 +5,7 @@ import Layout from "./components/Layout.jsx";
 import { Spinner } from "./components/Spinner.jsx";
 import { guardRolesForRoute, paths } from "./lib/nav.js";
 
+const Landing = lazy(() => import("./pages/Landing.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
 const Portal = lazy(() => import("./pages/Portal.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
@@ -104,6 +105,22 @@ function RedirectStudents() {
   return <Navigate to={paths.student(id)} replace />;
 }
 
+function AppHome() {
+  const { user, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return <PageFallback />;
+  if (!user) {
+    // Entry marketing page only at `/`. Other app paths still require sign-in.
+    if (location.pathname === "/") return <Landing />;
+    return <Navigate to="/login" replace />;
+  }
+  return (
+    <Guard>
+      <Layout />
+    </Guard>
+  );
+}
+
 export default function App() {
   return (
     <Suspense fallback={<PageFallback />}>
@@ -113,14 +130,7 @@ export default function App() {
         <Route path="/signup" element={<Signup />} />
         <Route path="/register-school" element={<RegisterSchool />} />
         <Route path="/pending" element={<Pending />} />
-        <Route
-          path="/"
-          element={
-            <Guard>
-              <Layout />
-            </Guard>
-          }
-        >
+        <Route path="/" element={<AppHome />}>
           <Route index element={<Home />} />
           <Route path="users" element={<Guarded route="users"><Users /></Guarded>} />
           <Route path="manage" element={<Guarded route="manage"><Manage /></Guarded>} />
