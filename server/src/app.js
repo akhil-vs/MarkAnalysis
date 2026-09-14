@@ -17,6 +17,8 @@ import { schoolRouter } from "./routes/school.js";
 import { schoolsRouter } from "./routes/schools.js";
 import { timetableRouter } from "./routes/timetable.js";
 import { platformRouter } from "./routes/platform.js";
+import { boardRouter } from "./routes/board.js";
+import { cpdRouter } from "./routes/cpd.js";
 import { bootstrapAuthSchema, bootstrapSchema } from "./lib/migrateOnStart.js";
 import { toErrorPayload } from "./lib/httpErrors.js";
 
@@ -86,6 +88,8 @@ app.use("/api/school", schoolRouter);
 app.use("/api/schools", schoolsRouter);
 app.use("/api/timetable", timetableRouter);
 app.use("/api/platform", platformRouter);
+app.use("/api/board", boardRouter);
+app.use("/api/cpd", cpdRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/exports", exportsRouter);
 app.use("/api/portal", portalRouter);
