@@ -40,19 +40,22 @@ export async function buildHealthPayload({ deep = false } = {}) {
     await prisma.$queryRaw`SELECT 1 AS ok`;
     payload.db = { ok: true, latencyMs: Date.now() - started };
 
-    const [mfaEnabled, mfaSecret, emailDigestsEnabled, digestEmail] = await Promise.all([
-      columnExists("User", "mfaEnabled"),
-      columnExists("User", "mfaSecret"),
-      columnExists("School", "emailDigestsEnabled"),
-      columnExists("School", "digestEmail"),
-    ]);
+    const [mfaEnabled, mfaSecret, emailDigestsEnabled, digestEmail, guardianEmail] =
+      await Promise.all([
+        columnExists("User", "mfaEnabled"),
+        columnExists("User", "mfaSecret"),
+        columnExists("School", "emailDigestsEnabled"),
+        columnExists("School", "digestEmail"),
+        columnExists("Student", "guardianEmail"),
+      ]);
     payload.schema = {
       mfaEnabled,
       mfaSecret,
       emailDigestsEnabled,
       digestEmail,
+      guardianEmail,
     };
-    if (!mfaEnabled || !mfaSecret || !emailDigestsEnabled) {
+    if (!mfaEnabled || !mfaSecret || !emailDigestsEnabled || !guardianEmail) {
       payload.ok = false;
       payload.schema.ok = false;
     } else {
