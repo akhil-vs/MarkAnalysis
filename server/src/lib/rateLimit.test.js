@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
-import { describe, it } from "node:test";
-import { authAttemptKey, rateLimit } from "./rateLimit.js";
+import { describe, it, beforeEach } from "node:test";
+import {
+  authAttemptKey,
+  rateLimit,
+  _resetRateLimitMemoryForTests,
+} from "./rateLimit.js";
 
 function mockReq(overrides = {}) {
   return {
@@ -32,12 +36,17 @@ function mockRes() {
 }
 
 describe("rateLimit", () => {
-  it("allows requests under the max", () => {
+  beforeEach(() => {
+    process.env.RATE_LIMIT_STORE = "memory";
+    _resetRateLimitMemoryForTests();
+  });
+
+  it("allows requests under the max", async () => {
     const limit = rateLimit({ windowMs: 60_000, max: 3, keyFn: () => "a" });
     for (let i = 0; i < 3; i++) {
       const res = mockRes();
       let nextCalled = false;
-      limit(mockReq(), res, () => {
+      await limit(mockReq(), res, () => {
         nextCalled = true;
       });
       assert.equal(nextCalled, true);
@@ -45,13 +54,13 @@ describe("rateLimit", () => {
     }
   });
 
-  it("blocks after max attempts", () => {
+  it("blocks after max attempts", async () => {
     const limit = rateLimit({ windowMs: 60_000, max: 2, keyFn: () => "b" });
-    limit(mockReq(), mockRes(), () => {});
-    limit(mockReq(), mockRes(), () => {});
+    await limit(mockReq(), mockRes(), () => {});
+    await limit(mockReq(), mockRes(), () => {});
     const res = mockRes();
     let nextCalled = false;
-    limit(mockReq(), res, () => {
+    await limit(mockReq(), res, () => {
       nextCalled = true;
     });
     assert.equal(nextCalled, false);

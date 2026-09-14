@@ -69,7 +69,7 @@ export function deployAuthEnvDocs() {
     {
       name: "CLIENT_ORIGIN",
       required: false,
-      note: "Comma-separated SPA origins for CORS. Not required when app+API share a Vercel deployment (VERCEL is set).",
+      note: "Comma-separated SPA origins for CORS. Also allowlists VERCEL_URL / VERCEL_PROJECT_PRODUCTION_URL; set CLIENT_ORIGIN for custom domains.",
     },
     {
       name: "DATABASE_URL",

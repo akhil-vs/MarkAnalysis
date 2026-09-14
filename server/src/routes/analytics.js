@@ -8,7 +8,7 @@ import {
   round1,
 } from "../lib/grades.js";
 import { auth, getAssignments, isLeadership, teacherCanAccess } from "../middleware/auth.js";
-import { requireSchoolTenant } from "../lib/tenant.js";
+import { getTenantId, requireSchoolTenant } from "../lib/tenant.js";
 import {
   classLabel,
   compareClassNames,
@@ -879,6 +879,10 @@ analyticsRouter.get("/awaiting-approvals", async (req, res) => {
     req.query.countOnly === "1" || req.query.countOnly === "true" || req.query.count === "1";
 
   if (countOnly) {
+    const tenantId = getTenantId();
+    if (!tenantId) {
+      return res.status(500).json({ error: "Missing tenant context" });
+    }
     const rows = await prisma.$queryRaw`
       SELECT COUNT(*)::int AS "count"
       FROM (
@@ -886,6 +890,7 @@ analyticsRouter.get("/awaiting-approvals", async (req, res) => {
         FROM "Mark" m
         INNER JOIN "Student" s ON s.id = m."studentId"
         WHERE m.status = 'SUBMITTED'::"MarkStatus"
+          AND m."tenantId" = ${tenantId}
         GROUP BY m."examId", s."classSectionId", m."subjectId", m."enteredById"
       ) t
     `;
