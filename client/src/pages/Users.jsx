@@ -5,6 +5,7 @@ import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
+import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError } from "../components/FieldError.jsx";
 import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
@@ -73,6 +74,16 @@ function generateTempPassword(length = 10) {
     for (let i = 0; i < length; i += 1) values[i] = Math.floor(Math.random() * alphabet.length);
   }
   return Array.from(values, (n) => alphabet[n % alphabet.length]).join("");
+}
+
+function emptyStaffForm(role = "TEACHER") {
+  return {
+    name: "",
+    email: "",
+    schoolId: "",
+    password: generateTempPassword(),
+    role,
+  };
 }
 
 function roleChipClass(role) {
@@ -161,6 +172,7 @@ function StaffStats({ summary }) {
 export default function Users() {
   const { user } = useAuth();
   const toast = useToast();
+  const confirm = useConfirm();
   const canCreateCoordinator = canAddCoordinator(user.role);
   const leadership = isLeadership(user.role);
   const importInputRef = useRef(null);
@@ -173,7 +185,8 @@ export default function Users() {
   const [sort, setSort] = useState("name");
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
-  const [editing, setEditing] = useState(null);
+  const [assigning, setAssigning] = useState(null);
+  const [editingId, setEditingId] = useState(null);
   const [resetting, setResetting] = useState(null);
   const [permissionsUser, setPermissionsUser] = useState(null);
   const [notify, setNotify] = useState(null);
@@ -181,16 +194,39 @@ export default function Users() {
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [form, setForm] = useState({
-    name: "",
-    email: "",
-    schoolId: "",
-    password: "password123",
-    role: "TEACHER",
-  });
+  const [form, setForm] = useState(() => emptyStaffForm());
   const [formError, setFormError] = useState("");
   const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
   const tableBusy = Boolean(busyId) || creating || importing;
+
+  function canManageStaffRow(target) {
+    if (!leadership) return false;
+    if (target.role === "PLATFORM_ADMIN") return false;
+    if (user.role === "EXAM_COORDINATOR" && target.role !== "TEACHER") return false;
+    return true;
+  }
+
+  function startEdit(row) {
+    if (!canManageStaffRow(row)) return;
+    setEditingId(row.id);
+    setForm({
+      name: row.name || "",
+      email: row.email || "",
+      schoolId: row.schoolId || "",
+      password: "",
+      role: ["TEACHER", "EXAM_COORDINATOR", "PRINCIPAL"].includes(row.role) ? row.role : "TEACHER",
+    });
+    setShowPassword(false);
+    setFormError("");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(emptyStaffForm());
+    setShowPassword(false);
+    setFormError("");
+  }
 
   async function load({ q = table.q, page: pageArg = page } = {}) {
     const params = new URLSearchParams({ page: String(pageArg), pageSize: String(pageSize) });
@@ -243,7 +279,7 @@ export default function Users() {
     setBusyId(userId);
     try {
       await api(`/api/users/${userId}`, { method: "PATCH", body: { assignments } });
-      setEditing(null);
+      setAssigning(null);
       await load();
       toast.success("Assignments saved.");
     } catch (err) {
@@ -253,10 +289,9 @@ export default function Users() {
     }
   }
 
-  async function addStaff(e) {
+  async function saveStaff(e) {
     e.preventDefault();
     const name = requiredText(form.name, "Full name");
-    const password = parsePassword(form.password, { label: "Temporary password" });
     const email = parseEmail(form.email);
     if (!form.email.trim() && !form.schoolId.trim()) {
       const msg = "Provide an email or school ID";
@@ -264,6 +299,35 @@ export default function Users() {
       toast.error(msg);
       return;
     }
+    if (editingId) {
+      const err = firstError(name, email);
+      if (err) {
+        setFormError(err);
+        toast.error(err);
+        return;
+      }
+      setFormError("");
+      setCreating(true);
+      try {
+        const body = {
+          name: name.value,
+          email: form.email.trim() || null,
+          schoolId: form.schoolId.trim() || null,
+          role: form.role,
+        };
+        await api(`/api/users/${editingId}`, { method: "PATCH", body });
+        cancelEdit();
+        toast.success("Staff account updated.");
+        await load();
+      } catch (err) {
+        toast.error(err.message || "Could not update staff account");
+      } finally {
+        setCreating(false);
+      }
+      return;
+    }
+
+    const password = parsePassword(form.password, { label: "Temporary password" });
     const err = firstError(name, password, email);
     if (err) {
       setFormError(err);
@@ -273,14 +337,16 @@ export default function Users() {
     setFormError("");
     setCreating(true);
     try {
-      await api("/api/users", { method: "POST", body: form });
-      setForm({
-        name: "",
-        email: "",
-        schoolId: "",
-        password: generateTempPassword(),
-        role: "TEACHER",
+      await api("/api/users", {
+        method: "POST",
+        body: {
+          ...form,
+          name: name.value,
+          email: form.email.trim() || null,
+          schoolId: form.schoolId.trim() || null,
+        },
       });
+      setForm(emptyStaffForm());
       setShowPassword(false);
       toast.success("Staff account created and active. They can sign in now.");
       await load();
@@ -288,6 +354,31 @@ export default function Users() {
       toast.error(err.message || "Could not create staff account");
     } finally {
       setCreating(false);
+    }
+  }
+
+  async function removeStaff(row) {
+    if (!canManageStaffRow(row)) return;
+    if (
+      !(await confirm({
+        title: "Delete staff account?",
+        message: `Delete ${row.name}? Classroom assignments and timetable slots for this person will be removed. Marks they entered stay, attributed to you.`,
+        confirmLabel: "Delete",
+        tone: "danger",
+      }))
+    ) {
+      return;
+    }
+    setBusyId(row.id);
+    try {
+      await api(`/api/users/${row.id}`, { method: "DELETE" });
+      toast.success("Staff account deleted.");
+      if (editingId === row.id) cancelEdit();
+      await load();
+    } catch (err) {
+      toast.error(err.message || "Could not delete staff account");
+    } finally {
+      setBusyId("");
     }
   }
 
@@ -324,11 +415,11 @@ export default function Users() {
     <div>
       <PageHeader
         title={NAV_TITLES.staff}
-        subtitle="Add staff, activate pending sign-ups, and manage role permissions & classroom assignments."
+        subtitle="Add staff, edit profiles, activate pending sign-ups, and manage role permissions & classroom assignments."
         actions={<StaffStats summary={summary} />}
       />
 
-      <form className="card p-5 mb-5" onSubmit={addStaff}>
+      <form className="card p-5 mb-5" onSubmit={saveStaff}>
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
           <div className="min-w-0">
             <h3 className="font-serif text-xl flex items-center gap-2">
@@ -339,51 +430,61 @@ export default function Users() {
                   <path d="M16 8h5M18.5 5.5v5" strokeLinecap="round" />
                 </svg>
               </span>
-              <span>{canCreateCoordinator ? "Add staff" : "Add teacher"}</span>
+              <span>
+                {editingId
+                  ? "Edit staff"
+                  : canCreateCoordinator
+                    ? "Add staff"
+                    : "Add teacher"}
+              </span>
             </h3>
             <p className="text-sm text-ink-700/60 mt-1">
-              Creates an active account — they do not wait for approval.
+              {editingId
+                ? "Update name, contact details, or role. Use Reset password for credentials."
+                : "Creates an active account — they do not wait for approval."}
             </p>
           </div>
-          <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-800 hover:text-ink-950"
-              disabled={tableBusy}
-              onClick={() =>
-                download("/api/users/template", "staff-import-template.xlsx").catch((err) =>
-                  toast.error(err.message || "Could not download template")
-                )
-              }
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <path d="M12 8v9" strokeLinecap="round" />
-                <path d="M8.5 13.5 12 17l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M5 5h14" strokeLinecap="round" />
-              </svg>
-              Download template
-            </button>
-            <input
-              ref={importInputRef}
-              type="file"
-              accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-              className="sr-only"
-              onChange={(e) => importStaffFile(e.target.files?.[0])}
-            />
-            <button
-              type="button"
-              className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-800 hover:text-ink-950"
-              disabled={tableBusy}
-              onClick={() => importInputRef.current?.click()}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <path d="M12 16V7" strokeLinecap="round" />
-                <path d="M8.5 10.5 12 7l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M5 19h14" strokeLinecap="round" />
-              </svg>
-              <BusyLabel busy={importing} idle="Bulk Import" busyText="Importing…" />
-            </button>
-          </div>
+          {!editingId && (
+            <div className="shrink-0 flex flex-wrap items-center gap-x-3 gap-y-1.5">
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-800 hover:text-ink-950"
+                disabled={tableBusy}
+                onClick={() =>
+                  download("/api/users/template", "staff-import-template.xlsx").catch((err) =>
+                    toast.error(err.message || "Could not download template")
+                  )
+                }
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M12 8v9" strokeLinecap="round" />
+                  <path d="M8.5 13.5 12 17l3.5-3.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M5 5h14" strokeLinecap="round" />
+                </svg>
+                Download template
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept=".csv,.xlsx,text/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                className="sr-only"
+                onChange={(e) => importStaffFile(e.target.files?.[0])}
+              />
+              <button
+                type="button"
+                className="inline-flex items-center gap-1.5 text-sm font-medium text-ink-800 hover:text-ink-950"
+                disabled={tableBusy}
+                onClick={() => importInputRef.current?.click()}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                  <path d="M12 16V7" strokeLinecap="round" />
+                  <path d="M8.5 10.5 12 7l3.5 3.5" strokeLinecap="round" strokeLinejoin="round" />
+                  <path d="M5 19h14" strokeLinecap="round" />
+                </svg>
+                <BusyLabel busy={importing} idle="Bulk Import" busyText="Importing…" />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -419,66 +520,81 @@ export default function Users() {
               placeholder="SCH-T06"
             />
           </div>
-          <div>
-            <div className="mb-1 flex items-center justify-between gap-2">
-              <label className="label !mb-0">Temporary Password</label>
-              <button
-                type="button"
-                className="text-xs font-medium text-moss-600 hover:text-moss-600/80"
-                onClick={() => {
-                  setForm({ ...form, password: generateTempPassword() });
-                  setShowPassword(true);
-                }}
-              >
-                Auto-generate
-              </button>
+          {!editingId && (
+            <div>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <label className="label !mb-0">Temporary Password</label>
+                <button
+                  type="button"
+                  className="text-xs font-medium text-moss-600 hover:text-moss-600/80"
+                  onClick={() => {
+                    setForm({ ...form, password: generateTempPassword() });
+                    setShowPassword(true);
+                  }}
+                >
+                  Auto-generate
+                </button>
+              </div>
+              <div className="relative">
+                <input
+                  className="field pr-10"
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={8}
+                  autoComplete="new-password"
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                />
+                <button
+                  type="button"
+                  className="absolute inset-y-0 right-0 px-3 text-ink-700/55 hover:text-ink-900"
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  onClick={() => setShowPassword((v) => !v)}
+                >
+                  {showPassword ? (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M3 3l18 18" strokeLinecap="round" />
+                      <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" strokeLinecap="round" />
+                      <path d="M9.9 5.1A10.4 10.4 0 0 1 12 5c5 0 8.5 4.2 9.7 6-.5.8-1.4 2-2.7 3.2M6.1 6.1C4.4 7.4 3.3 8.9 2.3 11c1.2 1.8 4.7 6 9.7 6 1.2 0 2.3-.2 3.3-.6" strokeLinecap="round" />
+                    </svg>
+                  ) : (
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                      <path d="M2.3 12C3.5 10.2 7 6 12 6s8.5 4.2 9.7 6c-1.2 1.8-4.7 6-9.7 6s-8.5-4.2-9.7-6z" />
+                      <circle cx="12" cy="12" r="2.5" />
+                    </svg>
+                  )}
+                </button>
+              </div>
             </div>
-            <div className="relative">
-              <input
-                className="field pr-10"
-                type={showPassword ? "text" : "password"}
-                required
-                minLength={8}
-                autoComplete="new-password"
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-              <button
-                type="button"
-                className="absolute inset-y-0 right-0 px-3 text-ink-700/55 hover:text-ink-900"
-                aria-label={showPassword ? "Hide password" : "Show password"}
-                onClick={() => setShowPassword((v) => !v)}
-              >
-                {showPassword ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path d="M3 3l18 18" strokeLinecap="round" />
-                    <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" strokeLinecap="round" />
-                    <path d="M9.9 5.1A10.4 10.4 0 0 1 12 5c5 0 8.5 4.2 9.7 6-.5.8-1.4 2-2.7 3.2M6.1 6.1C4.4 7.4 3.3 8.9 2.3 11c1.2 1.8 4.7 6 9.7 6 1.2 0 2.3-.2 3.3-.6" strokeLinecap="round" />
-                  </svg>
-                ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                    <path d="M2.3 12C3.5 10.2 7 6 12 6s8.5 4.2 9.7 6c-1.2 1.8-4.7 6-9.7 6s-8.5-4.2-9.7-6z" />
-                    <circle cx="12" cy="12" r="2.5" />
-                  </svg>
-                )}
-              </button>
-            </div>
-          </div>
+          )}
           <div>
             <label className="label">Assigned Role</label>
             <select
               className="field"
               value={form.role}
               onChange={(e) => setForm({ ...form, role: e.target.value })}
+              disabled={editingId && users.find((u) => u.id === editingId)?.role === "PRINCIPAL"}
             >
               <option value="TEACHER">Teacher</option>
               {canCreateCoordinator && <option value="EXAM_COORDINATOR">Exam Coordinator</option>}
+              {editingId && users.find((u) => u.id === editingId)?.role === "PRINCIPAL" && (
+                <option value="PRINCIPAL">Principal</option>
+              )}
             </select>
           </div>
-          <div className="flex items-end sm:col-span-2 lg:col-span-1 lg:justify-end">
+          <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-1 lg:justify-end">
             <button className="btn-primary w-full sm:w-auto" disabled={tableBusy}>
-              <BusyLabel busy={creating} idle="+ Create account" busyText="Creating…" />
+              <BusyLabel
+                busy={creating}
+                idle={editingId ? "Save changes" : "+ Create account"}
+                busyText={editingId ? "Saving…" : "Creating…"}
+              />
             </button>
+            {editingId && (
+              <button type="button" className="btn-ghost w-full sm:w-auto" onClick={cancelEdit} disabled={tableBusy}>
+                Cancel
+              </button>
+            )}
           </div>
           {formError && (
             <div className="sm:col-span-2 lg:col-span-3">
@@ -592,6 +708,8 @@ export default function Users() {
                   const canAssign = u.role === "TEACHER";
                   const canReset = user.role === "PRINCIPAL" && u.id !== user.id;
                   const isLeadershipRole = u.role === "PRINCIPAL" || u.role === "EXAM_COORDINATOR";
+                  const canEditRow = canManageStaffRow(u);
+                  const canDeleteRow = canEditRow && u.id !== user.id;
 
                   return (
                     <tr key={u.id}>
@@ -668,12 +786,22 @@ export default function Users() {
                               Reject
                             </button>
                           )}
+                          {canEditRow && (
+                            <button
+                              type="button"
+                              className="btn-ghost"
+                              disabled={tableBusy}
+                              onClick={() => startEdit(u)}
+                            >
+                              Edit
+                            </button>
+                          )}
                           {canAssign && (
                             <button
                               type="button"
                               className="btn-ghost"
                               disabled={tableBusy}
-                              onClick={() => setEditing(u)}
+                              onClick={() => setAssigning(u)}
                             >
                               Assign
                             </button>
@@ -730,6 +858,16 @@ export default function Users() {
                               Reset
                             </button>
                           )}
+                          {canDeleteRow && (
+                            <button
+                              type="button"
+                              className="btn-ghost"
+                              disabled={tableBusy}
+                              onClick={() => removeStaff(u)}
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -740,12 +878,12 @@ export default function Users() {
           )}
         </PaginatedTable>
       </div>
-      {editing && (
+      {assigning && (
         <AssignModal
-          user={editing}
+          user={assigning}
           classes={classes}
           subjects={subjects}
-          onClose={() => setEditing(null)}
+          onClose={() => setAssigning(null)}
           onSave={saveAssignments}
         />
       )}

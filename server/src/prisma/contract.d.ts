@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'6e579bb2b50fa9bdc83337bb4f5407245542472fbc742930d29d773dacd75560'>;
+  StorageHashBase<'0243f29bf9bfd69c332eb85987e364afe7656c7af831c619f4a5b214e6187af0'>;
 export type ExecutionHash =
   ExecutionHashBase<'7056dac11e9455d9814ab3ba09caf5357b61dc4e7e8b551d4e099e31c9cb174a'>;
 export type ProfileHash =
@@ -257,9 +257,11 @@ export type FieldOutputTypes = {
         | 'ACCESS_APPROVED'
         | 'ACCESS_REJECTED'
         | 'USER_CREATED'
+        | 'USER_UPDATED'
         | 'USER_STATUS_CHANGED'
         | 'USER_ROLE_CHANGED'
         | 'USER_PASSWORD_RESET'
+        | 'USER_DELETED'
         | 'EXAM_CREATED'
         | 'EXAM_UPDATED'
         | 'EXAM_DELETED'
@@ -491,9 +493,11 @@ export type FieldInputTypes = {
         | 'ACCESS_APPROVED'
         | 'ACCESS_REJECTED'
         | 'USER_CREATED'
+        | 'USER_UPDATED'
         | 'USER_STATUS_CHANGED'
         | 'USER_ROLE_CHANGED'
         | 'USER_PASSWORD_RESET'
+        | 'USER_DELETED'
         | 'EXAM_CREATED'
         | 'EXAM_UPDATED'
         | 'EXAM_DELETED'
@@ -722,9 +726,11 @@ export type StorageColumnTypes = {
         | 'ACCESS_APPROVED'
         | 'ACCESS_REJECTED'
         | 'USER_CREATED'
+        | 'USER_UPDATED'
         | 'USER_STATUS_CHANGED'
         | 'USER_ROLE_CHANGED'
         | 'USER_PASSWORD_RESET'
+        | 'USER_DELETED'
         | 'EXAM_CREATED'
         | 'EXAM_UPDATED'
         | 'EXAM_DELETED'
@@ -956,9 +962,11 @@ export type StorageColumnInputTypes = {
         | 'ACCESS_APPROVED'
         | 'ACCESS_REJECTED'
         | 'USER_CREATED'
+        | 'USER_UPDATED'
         | 'USER_STATUS_CHANGED'
         | 'USER_ROLE_CHANGED'
         | 'USER_PASSWORD_RESET'
+        | 'USER_DELETED'
         | 'EXAM_CREATED'
         | 'EXAM_UPDATED'
         | 'EXAM_DELETED'
@@ -1481,9 +1489,11 @@ export namespace Models {
       | 'ACCESS_APPROVED'
       | 'ACCESS_REJECTED'
       | 'USER_CREATED'
+      | 'USER_UPDATED'
       | 'USER_STATUS_CHANGED'
       | 'USER_ROLE_CHANGED'
       | 'USER_PASSWORD_RESET'
+      | 'USER_DELETED'
       | 'EXAM_CREATED'
       | 'EXAM_UPDATED'
       | 'EXAM_DELETED'
@@ -3575,9 +3585,11 @@ type ContractBase = Omit<
                 'ACCESS_APPROVED',
                 'ACCESS_REJECTED',
                 'USER_CREATED',
+                'USER_UPDATED',
                 'USER_STATUS_CHANGED',
                 'USER_ROLE_CHANGED',
                 'USER_PASSWORD_RESET',
+                'USER_DELETED',
                 'EXAM_CREATED',
                 'EXAM_UPDATED',
                 'EXAM_DELETED',
