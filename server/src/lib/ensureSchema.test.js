@@ -204,6 +204,14 @@ describe("ensureSchema bootstrap", () => {
     assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.MFA_USER_MIGRATION));
     assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.LIVE_OPS_MIGRATION));
     assert.ok(__test.AUTH_CATCHUP_MIGRATION_NAMES.includes(__test.MFA_USER_MIGRATION));
+    assert.ok(
+      __test.LIVE_OPS_SCHOOL_STATEMENTS.some((s) => s.includes("emailDigestsEnabled")),
+      "auth path must be able to ensure school digest columns used on login School reads"
+    );
+    assert.ok(__test.MFA_USER_STATEMENTS.some((s) => s.includes("mfaEnabled")));
+    assert.equal(typeof __test.ensureMfaUserColumns, "function");
+    assert.equal(typeof __test.ensureSchoolDigestColumns, "function");
+    assert.equal(typeof __test.resetAuthSchemaEnsure, "function");
     assert.equal(new Set(__test.CATCHUP_MIGRATION_NAMES).size, __test.CATCHUP_MIGRATION_NAMES.length);
     for (const name of __test.AUTH_CATCHUP_MIGRATION_NAMES) {
       assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(name));

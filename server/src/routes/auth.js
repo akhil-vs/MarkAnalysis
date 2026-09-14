@@ -31,6 +31,8 @@ import {
   totpAuthUrl,
   verifyTotp,
 } from "../lib/totp.js";
+import { ensureAuthSchema, resetAuthSchemaEnsure } from "../lib/ensureSchema.js";
+import { isSchemaDriftError } from "../lib/httpErrors.js";
 
 export const authRouter = Router();
 
@@ -40,6 +42,9 @@ const authWriteLimit = rateLimit({
   keyFn: authAttemptKey,
   message: "Too many sign-in attempts. Try again in a few minutes.",
 });
+
+/** Fields needed for login / session — avoid selecting live-ops columns on the auth hot path. */
+const SCHOOL_AUTH_SELECT = { id: true, name: true, slug: true, status: true };
 
 async function establishSession(req, res, user) {
   const access = signToken(user);
@@ -52,7 +57,7 @@ async function establishSession(req, res, user) {
       ? await runWithoutTenant(() =>
           prisma.school.findUnique({
             where: { id: user.tenantId },
-            select: { id: true, name: true, slug: true, status: true },
+            select: SCHOOL_AUTH_SELECT,
           })
         )
       : null);
@@ -156,9 +161,8 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     normalizedEmail = parsedEmail.value;
   }
 
-  let user;
-  try {
-    user = await runWithoutTenant(async () => {
+  async function lookupUser() {
+    return runWithoutTenant(async () => {
       if (normalizedEmail) return prisma.user.findUnique({ where: { email: normalizedEmail } });
       const matches = await prisma.user.findMany({ where: { schoolId } });
       if (!matches.length) return null;
@@ -170,13 +174,35 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
         err.code = "JOIN_CODE_REQUIRED";
         throw err;
       }
-      const school = await prisma.school.findUnique({ where: { joinCode: code } });
+      const school = await prisma.school.findUnique({
+        where: { joinCode: code },
+        select: SCHOOL_AUTH_SELECT,
+      });
       if (!school) return null;
       return matches.find((row) => row.tenantId === school.id) || null;
     });
+  }
+
+  let user;
+  try {
+    user = await lookupUser();
   } catch (err) {
     if (err.status) return res.status(err.status).json({ error: err.message, code: err.code });
-    throw err;
+    if (isSchemaDriftError(err)) {
+      // Auth ensure may have been memoized after a swallowed/partial catch-up; retry once.
+      resetAuthSchemaEnsure();
+      await ensureAuthSchema();
+      try {
+        user = await lookupUser();
+      } catch (retryErr) {
+        if (retryErr.status) {
+          return res.status(retryErr.status).json({ error: retryErr.message, code: retryErr.code });
+        }
+        throw retryErr;
+      }
+    } else {
+      throw err;
+    }
   }
 
   if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
@@ -194,7 +220,7 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
   }
 
   const school = await runWithoutTenant(() =>
-    prisma.school.findUnique({ where: { id: user.tenantId } })
+    prisma.school.findUnique({ where: { id: user.tenantId }, select: SCHOOL_AUTH_SELECT })
   );
   try {
     await assertSchoolActive(school);
@@ -373,7 +399,9 @@ authRouter.post("/refresh", authWriteLimit, async (req, res) => {
     setRefreshCookie(res, rotated.raw);
     return res.json({ user: publicUser(user, null) });
   }
-  const school = await runWithoutTenant(() => prisma.school.findUnique({ where: { id: user.tenantId } }));
+  const school = await runWithoutTenant(() =>
+    prisma.school.findUnique({ where: { id: user.tenantId }, select: SCHOOL_AUTH_SELECT })
+  );
   if (!school || school.status === "SUSPENDED") {
     clearAuthCookies(res);
     return res.status(403).json({ error: "This school is suspended" });

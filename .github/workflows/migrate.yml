@@ -5,7 +5,7 @@ on:
   push:
     branches: [main]
     paths:
-      - "migrations/**"
+      - "server/migrations/**"
       - "server/src/prisma/contract.prisma"
       - "server/prisma.config.ts"
 

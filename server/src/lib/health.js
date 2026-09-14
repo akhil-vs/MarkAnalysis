@@ -6,9 +6,22 @@ export function markBootTime(when = Date.now()) {
   bootStartedAt = when;
 }
 
+async function columnExists(tableName, columnName) {
+  const rows = await prisma.$queryRaw`
+    SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.columns
+      WHERE table_schema = 'public'
+        AND table_name = ${tableName}
+        AND column_name = ${columnName}
+    ) AS "present"
+  `;
+  return Boolean(rows?.[0]?.present);
+}
+
 /**
  * Liveness/readiness probe.
- * Always returns quickly. With ?deep=1, pings the database.
+ * Always returns quickly. With ?deep=1, pings the database and checks auth-critical columns.
  */
 export async function buildHealthPayload({ deep = false } = {}) {
   const payload = {
@@ -26,6 +39,25 @@ export async function buildHealthPayload({ deep = false } = {}) {
   try {
     await prisma.$queryRaw`SELECT 1 AS ok`;
     payload.db = { ok: true, latencyMs: Date.now() - started };
+
+    const [mfaEnabled, mfaSecret, emailDigestsEnabled, digestEmail] = await Promise.all([
+      columnExists("User", "mfaEnabled"),
+      columnExists("User", "mfaSecret"),
+      columnExists("School", "emailDigestsEnabled"),
+      columnExists("School", "digestEmail"),
+    ]);
+    payload.schema = {
+      mfaEnabled,
+      mfaSecret,
+      emailDigestsEnabled,
+      digestEmail,
+    };
+    if (!mfaEnabled || !mfaSecret || !emailDigestsEnabled) {
+      payload.ok = false;
+      payload.schema.ok = false;
+    } else {
+      payload.schema.ok = true;
+    }
   } catch (err) {
     payload.ok = false;
     payload.db = {
