@@ -6,7 +6,7 @@ import { gradeFromPercent, mean, percentOf, round1 } from "../lib/grades.js";
 import { formatMarkCell, isScoredMark } from "../lib/markCodes.js";
 import { getSchoolLetterhead } from "../lib/school.js";
 import { studentWhereForExam } from "../lib/studentScope.js";
-import { auth, isLeadership, requireRole, teacherIsClassTeacher } from "../middleware/auth.js";
+import { auth, isLeadership, requireRole, teacherIsClassTeacher, teacherCanAccess } from "../middleware/auth.js";
 import {
   buildClassConsolidated,
   buildConsolidatedStatus,
@@ -37,6 +37,10 @@ exportsRouter.get("/report-card/:studentId", async (req, res) => {
   });
   if (!student) return res.status(404).json({ error: "Not found" });
 
+  if (!isLeadership(req.user.role)) {
+    const allowed = await teacherCanAccess(req.user, { classSectionId: student.classSectionId });
+    if (!allowed) return res.status(403).json({ error: "Forbidden" });
+  }
   const examId = req.query.examId;
   const exam = examId
     ? await prisma.exam.findUnique({ where: { id: examId } })
@@ -92,6 +96,12 @@ exportsRouter.get("/report-card/:studentId", async (req, res) => {
 exportsRouter.get("/class-summary/:classId", async (req, res) => {
   const cls = await prisma.classSection.findUnique({ where: { id: req.params.classId } });
   if (!cls) return res.status(404).json({ error: "Not found" });
+
+  if (!isLeadership(req.user.role)) {
+    const allowed = await teacherCanAccess(req.user, { classSectionId: cls.id });
+    if (!allowed) return res.status(403).json({ error: "Forbidden" });
+  }
+
   const examId = req.query.examId;
   const exam = examId
     ? await prisma.exam.findUnique({ where: { id: examId } })

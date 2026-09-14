@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { rateLimit } from "../lib/rateLimit.js";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import { auth, requireRole } from "../middleware/auth.js";
@@ -151,7 +152,15 @@ portalRouter.post(
   }
 );
 
-portalRouter.post("/session", async (req, res) => {
+
+const portalSessionLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  keyFn: (req) => req.ip || req.headers["x-forwarded-for"] || "unknown",
+  message: "Too many portal session attempts. Try again later.",
+});
+
+portalRouter.post("/session", portalSessionLimit, async (req, res) => {
   await ensurePendingSchema();
   const token = req.body?.token || req.query?.token;
   const link = await loadActiveLink(token);

@@ -196,6 +196,7 @@ describe("ensureSchema bootstrap", () => {
 
   it("lists every catch-up migration for the cold-start fast path", () => {
     assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.REFRESH_TOKEN_MIGRATION));
+    assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.RATE_LIMIT_BUCKET_MIGRATION));
     assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.MUST_CHANGE_PASSWORD_MIGRATION));
     assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.TENANT_MIGRATION));
     assert.ok(__test.CATCHUP_MIGRATION_NAMES.includes(__test.SCHOOL_PROFILE_DETAILS_MIGRATION));

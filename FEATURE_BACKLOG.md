@@ -49,9 +49,15 @@ Remaining work that would make this suitable for a live school:
 
 ## Engineering
 
+- ~~Tenant-safe awaiting-approvals count~~ (`$queryRaw` filters `tenantId`)
+- ~~Credentialed CORS allowlist~~ (CLIENT_ORIGIN + Vercel URLs; no open `VERCEL` reflect)
+- ~~Export ACL for report-card / class-summary~~ (leadership or assigned/class teacher)
+- ~~DB integration coverage for CML / tenancy~~ (`api.critical.test.js`)
+
+
 - ~~Broader API/integration tests against a real database~~ (`npm run test:api` + CI `api-integration` job with Postgres)
 - ~~Production Docker Compose (`db` + `api` + `web`)~~
-- ~~Rate limiting on auth~~ (in-memory limiter on login/signup)
+- ~~Rate limiting on auth~~ (Postgres-backed limiter shared across serverless instances; memory fallback for tests)
 - ~~httpOnly access + refresh cookies~~ (`sma_access` / `sma_refresh`, rotate on `/api/auth/refresh`)
 - ~~Non-destructive seed path for demos~~ (skip wipe unless `SEED_MODE=wipe`)
 - ~~Migrate-on-deploy~~ (`prisma migrate deploy` on API boot + GitHub Action; `ensurePendingSchema` fallback)

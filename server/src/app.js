@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import { buildCorsAllowlist, isCorsOriginAllowed } from "./lib/corsAllowlist.js";
 import cookieParser from "cookie-parser";
 import { authRouter } from "./routes/auth.js";
 import { usersRouter } from "./routes/users.js";
@@ -48,20 +49,12 @@ app.set("etag", false);
 
 app.use(securityHeaders());
 
-const allowedOrigins = (process.env.CLIENT_ORIGIN || "http://localhost:5173")
-  .split(",")
-  .map((o) => o.trim())
-  .filter(Boolean);
+const allowedOrigins = buildCorsAllowlist();
 
 app.use(
   cors({
     origin(origin, callback) {
-      if (
-        !origin ||
-        process.env.VERCEL ||
-        allowedOrigins.includes("*") ||
-        allowedOrigins.includes(origin)
-      ) {
+      if (isCorsOriginAllowed(origin, allowedOrigins)) {
         // Reflect the request origin so credentialed browsers accept Set-Cookie.
         return callback(null, origin || true);
       }
