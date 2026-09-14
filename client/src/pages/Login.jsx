@@ -223,7 +223,9 @@ export function AuthShell({ title, subtitle, children }) {
   return (
     <div className="min-h-[100dvh] grid lg:grid-cols-2">
       <div className="hidden lg:flex flex-col justify-between bg-ink-950 text-cream p-12">
-        <div className="font-serif text-2xl">Marks Analytics</div>
+        <Link to="/" className="font-serif text-2xl hover:text-cream/90">
+          Marks Analytics
+        </Link>
         <div>
           <h2 className="font-serif text-4xl leading-tight">See the school, not just the scores.</h2>
           <p className="mt-4 text-cream/70 max-w-md">
@@ -241,7 +243,9 @@ export function AuthShell({ title, subtitle, children }) {
       <div className="flex items-center justify-center px-4 py-8 sm:p-8">
         <div className="w-full max-w-md">
           <div className="lg:hidden mb-6">
-            <div className="font-serif text-2xl text-ink-900">Marks Analytics</div>
+            <Link to="/" className="font-serif text-2xl text-ink-900">
+              Marks Analytics
+            </Link>
             <p className="mt-1 text-sm text-ink-700/65">School performance suite</p>
           </div>
           <h1 className="font-serif text-2xl sm:text-3xl">{title}</h1>
