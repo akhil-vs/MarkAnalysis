@@ -111,6 +111,104 @@ function statusLabel(status) {
   return status || "—";
 }
 
+const ACTION_ICONS = {
+  approve: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M5 13l4 4L19 7" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  reject: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M6 6l12 12M18 6 6 18" strokeLinecap="round" />
+    </svg>
+  ),
+  edit: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17v3z" strokeLinejoin="round" />
+      <path d="M13 6l3 3" strokeLinecap="round" />
+    </svg>
+  ),
+  assign: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <rect x="4" y="3.5" width="12" height="16" rx="1.5" />
+      <path d="M8 8h4M8 12h4M8 16h2" strokeLinecap="round" />
+      <path d="M16 14h4M18 12v4" strokeLinecap="round" />
+    </svg>
+  ),
+  transfer: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M7 8h11M15 5l3 3-3 3" strokeLinecap="round" strokeLinejoin="round" />
+      <path d="M17 16H6M9 13l-3 3 3 3" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  timetable: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <rect x="3.5" y="5" width="17" height="15" rx="2" />
+      <path d="M8 3.5v3M16 3.5v3M3.5 10h17" strokeLinecap="round" />
+    </svg>
+  ),
+  notify: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M6 16V10a6 6 0 1 1 12 0v6" strokeLinecap="round" />
+      <path d="M5 16h14" strokeLinecap="round" />
+      <path d="M10 19a2 2 0 0 0 4 0" strokeLinecap="round" />
+    </svg>
+  ),
+  reset: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M7 11V8.5a5 5 0 0 1 9.8-1.2" strokeLinecap="round" />
+      <path d="M17 8.5V11" strokeLinecap="round" />
+      <rect x="5" y="11" width="14" height="9" rx="2" />
+      <circle cx="12" cy="15.5" r="1.2" fill="currentColor" stroke="none" />
+    </svg>
+  ),
+  permissions: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M12 3.5 5.5 6.5v5.2c0 4.1 2.7 7.3 6.5 8.8 3.8-1.5 6.5-4.7 6.5-8.8V6.5L12 3.5z" strokeLinejoin="round" />
+      <path d="M9.5 12.2 11.2 14l3.5-3.8" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
+  delete: (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" aria-hidden="true">
+      <path d="M5 7h14" strokeLinecap="round" />
+      <path d="M9 7V5.5A1.5 1.5 0 0 1 10.5 4h3A1.5 1.5 0 0 1 15 5.5V7" strokeLinecap="round" />
+      <path d="M8 7l.8 11.2A1.5 1.5 0 0 0 10.3 19.5h3.4a1.5 1.5 0 0 0 1.5-1.3L16 7" strokeLinecap="round" />
+    </svg>
+  ),
+};
+
+function IconAction({ tip, icon, onClick, disabled, tone = "ghost", to, busy }) {
+  const className =
+    tone === "primary" ? "btn-icon-primary tip" : tone === "danger" ? "btn-icon-danger tip" : "btn-icon tip";
+  const content = busy ? (
+    <span className="h-3.5 w-3.5 animate-pulse rounded-full bg-current/70" aria-hidden="true" />
+  ) : (
+    ACTION_ICONS[icon] || icon
+  );
+
+  if (to) {
+    return (
+      <Link to={to} className={className} data-tip={tip} aria-label={tip} title={tip}>
+        {content}
+      </Link>
+    );
+  }
+
+  return (
+    <button
+      type="button"
+      className={className}
+      data-tip={tip}
+      aria-label={tip}
+      title={tip}
+      disabled={disabled || busy}
+      onClick={onClick}
+    >
+      {content}
+    </button>
+  );
+}
+
 function assignmentTags(assignments) {
   const tags = [];
   for (const a of assignments || []) {
@@ -809,66 +907,57 @@ export default function Users() {
                         )}
                       </td>
                       <td>
-                        <div className="flex flex-wrap items-center justify-end gap-1.5">
+                        <div className="flex flex-wrap items-center justify-end gap-1">
                           {canApprove && (
-                            <button
-                              type="button"
-                              className="btn-primary"
+                            <IconAction
+                              tip={busy ? "Saving…" : "Approve"}
+                              icon="approve"
+                              tone="primary"
+                              busy={busy}
                               disabled={tableBusy}
                               onClick={() => setStatus(u.id, "ACTIVE")}
-                            >
-                              <BusyLabel busy={busy} idle="Approve" busyText="Saving…" />
-                            </button>
+                            />
                           )}
                           {canReject && (
-                            <button
-                              type="button"
-                              className="btn-danger"
+                            <IconAction
+                              tip="Reject"
+                              icon="reject"
+                              tone="danger"
                               disabled={tableBusy}
                               onClick={() => setStatus(u.id, "REJECTED")}
-                            >
-                              Reject
-                            </button>
+                            />
                           )}
                           {canEditRow && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Edit"
+                              icon="edit"
                               disabled={tableBusy}
                               onClick={() => startEdit(u)}
-                            >
-                              Edit
-                            </button>
+                            />
                           )}
                           {canAssign && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Assign"
+                              icon="assign"
                               disabled={tableBusy}
                               onClick={() => setAssigning(u)}
-                            >
-                              Assign
-                            </button>
+                            />
                           )}
                           {canAssign && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Transfer classes"
+                              icon="transfer"
                               disabled={tableBusy}
                               onClick={() => setTransferring(u)}
-                            >
-                              Transfer
-                            </button>
+                            />
                           )}
                           {canAssign && u.status === "ACTIVE" && (
-                            <Link to={`/timetables/teachers/${u.id}`} className="btn-ghost">
-                              Timetable
-                            </Link>
+                            <IconAction tip="Timetable" icon="timetable" to={`/timetables/teachers/${u.id}`} />
                           )}
                           {canAssign && u.status === "ACTIVE" && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Notify"
+                              icon="notify"
                               disabled={tableBusy}
                               onClick={() =>
                                 setNotify({
@@ -878,49 +967,32 @@ export default function Users() {
                                   teacherName: u.name,
                                 })
                               }
-                            >
-                              Notify
-                            </button>
+                            />
                           )}
-                          {canReset && canAssign && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                          {canReset && (
+                            <IconAction
+                              tip="Reset password"
+                              icon="reset"
                               disabled={tableBusy}
                               onClick={() => setResetting(u)}
-                            >
-                              Reset
-                            </button>
+                            />
                           )}
                           {isLeadershipRole && u.status === "ACTIVE" && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Manage permissions"
+                              icon="permissions"
                               disabled={tableBusy}
                               onClick={() => setPermissionsUser(u)}
-                            >
-                              Manage Permissions
-                            </button>
-                          )}
-                          {canReset && !canAssign && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
-                              disabled={tableBusy}
-                              onClick={() => setResetting(u)}
-                            >
-                              Reset
-                            </button>
+                            />
                           )}
                           {canDeleteRow && (
-                            <button
-                              type="button"
-                              className="btn-ghost"
+                            <IconAction
+                              tip="Delete"
+                              icon="delete"
+                              tone="danger"
                               disabled={tableBusy}
                               onClick={() => removeStaff(u)}
-                            >
-                              Delete
-                            </button>
+                            />
                           )}
                         </div>
                       </td>
