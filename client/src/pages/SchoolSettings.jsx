@@ -40,6 +40,8 @@ const EMPTY = {
   alternatePhone: "",
   email: "",
   website: "",
+  digestEmail: "",
+  emailDigestsEnabled: false,
 };
 
 const DEFAULT_BANDS = [
@@ -72,6 +74,8 @@ function profileFromApi(s) {
     alternatePhone: s.alternatePhone || "",
     email: s.email || "",
     website: s.website || "",
+    digestEmail: s.digestEmail || "",
+    emailDigestsEnabled: Boolean(s.emailDigestsEnabled),
   };
 }
 
@@ -480,6 +484,26 @@ export default function SchoolSettings() {
                 onChange={(e) => set("website", e.target.value)}
                 placeholder="https://school.edu"
               />
+            </div>
+            <div className="sm:col-span-2 rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={Boolean(form.emailDigestsEnabled)}
+                  onChange={(e) => set("emailDigestsEnabled", e.target.checked)}
+                />
+                Email daily operations digests (pending sign-ups, late entry, deadlines)
+              </label>
+              <div>
+                <label className="label">Digest override email</label>
+                <input
+                  className="field"
+                  type="email"
+                  value={form.digestEmail}
+                  onChange={(e) => set("digestEmail", e.target.value)}
+                  placeholder="Falls back to school email / leadership accounts"
+                />
+              </div>
             </div>
           </div>
         </section>

@@ -27,6 +27,17 @@ export const ACTION_LABELS = {
   SCHOOL_CREATED: "School created",
   SCHOOL_UPDATED: "School updated",
   SCHOOL_STATUS_CHANGED: "School status",
+  MFA_ENABLED: "MFA enabled",
+  MFA_DISABLED: "MFA disabled",
+  REPORT_CARD_PUBLISHED: "Report cards published",
+  REPORT_CARD_SIGNED_OFF: "Report cards signed off",
+  REVALUATION_REQUESTED: "Revaluation requested",
+  REVALUATION_REVIEWED: "Revaluation reviewed",
+  BOARD_PACK_CREATED: "Board pack created",
+  PARENT_NOTIFIED: "Parents notified",
+  BACKUP_CREATED: "Backup created",
+  BACKUP_RESTORED: "Backup restored",
+  CPD_UPDATED: "CPD updated",
 };
 
 const ROLE_LABELS = {

@@ -1,8 +1,10 @@
 import { Router } from "express";
 import bcrypt from "bcryptjs";
+import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import { parseEmail } from "../lib/numbers.js";
 import {
+  auth,
   authAllowPasswordChange,
   publicUser,
   signToken,
@@ -20,6 +22,15 @@ import {
 import { findSchoolByJoinCode } from "../lib/school.js";
 import { normalizeJoinCode } from "../lib/schoolIdentity.js";
 import { runWithoutTenant, runWithTenant } from "../lib/tenant.js";
+import { logActivity } from "../lib/activityAudit.js";
+import {
+  consumeRecoveryCode,
+  generateRecoveryCodes,
+  generateTotpSecret,
+  hashRecoveryCode,
+  totpAuthUrl,
+  verifyTotp,
+} from "../lib/totp.js";
 
 export const authRouter = Router();
 
@@ -176,6 +187,9 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     if (user.status !== "ACTIVE") {
       return res.status(403).json({ error: "Account was rejected" });
     }
+    if (user.mfaEnabled && user.mfaSecret) {
+      return res.json(issueMfaChallenge(user));
+    }
     return res.json(await runWithoutTenant(() => establishSession(req, res, user)));
   }
 
@@ -198,7 +212,145 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     return res.status(403).json({ error: "Account was rejected" });
   }
 
+  if (user.mfaEnabled && user.mfaSecret) {
+    return res.json(issueMfaChallenge(user));
+  }
+
   return res.json(await runWithTenant(user.tenantId, () => establishSession(req, res, user)));
+});
+
+function issueMfaChallenge(user) {
+  const mfaToken = jwt.sign(
+    { purpose: "mfa", userId: user.id },
+    process.env.JWT_SECRET,
+    { expiresIn: "5m" }
+  );
+  return {
+    mfaRequired: true,
+    mfaToken,
+    user: { id: user.id, name: user.name, email: user.email, role: user.role },
+  };
+}
+
+async function completeLoginAfterMfa(req, res, user) {
+  if (user.role === "PLATFORM_ADMIN") {
+    return res.json(await runWithoutTenant(() => establishSession(req, res, user)));
+  }
+  return res.json(await runWithTenant(user.tenantId, () => establishSession(req, res, user)));
+}
+
+authRouter.post("/mfa/verify", authWriteLimit, async (req, res) => {
+  const { mfaToken, code, recoveryCode } = req.body || {};
+  if (!mfaToken) return res.status(400).json({ error: "mfaToken is required" });
+  let payload;
+  try {
+    payload = jwt.verify(mfaToken, process.env.JWT_SECRET);
+  } catch {
+    return res.status(401).json({ error: "MFA challenge expired" });
+  }
+  if (payload?.purpose !== "mfa" || !payload.userId) {
+    return res.status(401).json({ error: "Invalid MFA challenge" });
+  }
+
+  const user = await runWithoutTenant(() => prisma.user.findUnique({ where: { id: payload.userId } }));
+  if (!user?.mfaEnabled || !user.mfaSecret) {
+    return res.status(400).json({ error: "MFA is not enabled for this account" });
+  }
+
+  let ok = false;
+  if (code && verifyTotp(user.mfaSecret, code)) {
+    ok = true;
+  } else if (recoveryCode) {
+    const next = consumeRecoveryCode(user.mfaRecoveryHashes, recoveryCode);
+    if (next) {
+      await runWithoutTenant(() =>
+        prisma.user.update({ where: { id: user.id }, data: { mfaRecoveryHashes: next } })
+      );
+      ok = true;
+    }
+  }
+  if (!ok) return res.status(401).json({ error: "Invalid authentication code" });
+
+  return completeLoginAfterMfa(req, res, user);
+});
+
+authRouter.post("/mfa/setup", auth, async (req, res) => {
+  const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+  if (!user) return res.status(404).json({ error: "Not found" });
+  if (user.mfaEnabled) {
+    return res.status(400).json({ error: "MFA is already enabled" });
+  }
+  const secret = generateTotpSecret();
+  await prisma.user.update({
+    where: { id: user.id },
+    data: { mfaSecret: secret, mfaEnabled: false },
+  });
+  const accountName = user.email || user.schoolId || user.name;
+  res.json({
+    secret,
+    otpauthUrl: totpAuthUrl({ secret, accountName }),
+  });
+});
+
+authRouter.post("/mfa/enable", auth, async (req, res) => {
+  const { code } = req.body || {};
+  const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+  if (!user?.mfaSecret) {
+    return res.status(400).json({ error: "Call MFA setup first" });
+  }
+  if (!verifyTotp(user.mfaSecret, code)) {
+    return res.status(400).json({ error: "Invalid authentication code" });
+  }
+  const recoveryCodes = generateRecoveryCodes();
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      mfaEnabled: true,
+      mfaRecoveryHashes: recoveryCodes.map(hashRecoveryCode),
+    },
+  });
+  try {
+    await logActivity({
+      actorId: user.id,
+      action: "MFA_ENABLED",
+      summary: `${user.name} enabled MFA`,
+      tenantId: user.tenantId || undefined,
+    });
+  } catch {
+    // platform admin may lack tenant
+  }
+  res.json({
+    ok: true,
+    user: publicUser(updated),
+    recoveryCodes,
+  });
+});
+
+authRouter.post("/mfa/disable", auth, async (req, res) => {
+  const { password, code } = req.body || {};
+  const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
+  if (!user) return res.status(404).json({ error: "Not found" });
+  if (!password || !(await bcrypt.compare(password, user.passwordHash))) {
+    return res.status(401).json({ error: "Password is incorrect" });
+  }
+  if (user.mfaEnabled && user.mfaSecret && !verifyTotp(user.mfaSecret, code)) {
+    return res.status(401).json({ error: "Invalid authentication code" });
+  }
+  const updated = await prisma.user.update({
+    where: { id: user.id },
+    data: { mfaEnabled: false, mfaSecret: null, mfaRecoveryHashes: null },
+  });
+  try {
+    await logActivity({
+      actorId: user.id,
+      action: "MFA_DISABLED",
+      summary: `${user.name} disabled MFA`,
+      tenantId: user.tenantId || undefined,
+    });
+  } catch {
+    // ignore
+  }
+  res.json({ ok: true, user: publicUser(updated) });
 });
 
 authRouter.post("/refresh", authWriteLimit, async (req, res) => {

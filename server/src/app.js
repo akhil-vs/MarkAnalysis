@@ -18,8 +18,14 @@ import { schoolRouter } from "./routes/school.js";
 import { schoolsRouter } from "./routes/schools.js";
 import { timetableRouter } from "./routes/timetable.js";
 import { platformRouter } from "./routes/platform.js";
+import { boardRouter } from "./routes/board.js";
+import { cpdRouter } from "./routes/cpd.js";
 import { bootstrapAuthSchema, bootstrapSchema } from "./lib/migrateOnStart.js";
 import { toErrorPayload } from "./lib/httpErrors.js";
+import { securityHeaders } from "./lib/securityHeaders.js";
+import { buildHealthPayload, markBootTime } from "./lib/health.js";
+
+markBootTime();
 
 const app = express();
 
@@ -40,6 +46,8 @@ function awaitAuthSchema(_req, _res, next) {
 // analytics payloads slows every response, and matching If-None-Match
 // replies with 304 (empty body) which breaks the SPA fetch client.
 app.set("etag", false);
+
+app.use(securityHeaders());
 
 const allowedOrigins = buildCorsAllowlist();
 
@@ -64,7 +72,11 @@ app.use("/api", (_req, res, next) => {
   next();
 });
 
-app.get("/api/health", (_req, res) => res.json({ ok: true }));
+app.get("/api/health", async (req, res) => {
+  const deep = req.query.deep === "1" || req.query.deep === "true";
+  const payload = await buildHealthPayload({ deep });
+  res.status(payload.ok ? 200 : 503).json(payload);
+});
 app.use("/api/auth", awaitAuthSchema, authRouter);
 app.use("/api", awaitSchema);
 app.use("/api/users", usersRouter);
@@ -79,6 +91,8 @@ app.use("/api/school", schoolRouter);
 app.use("/api/schools", schoolsRouter);
 app.use("/api/timetable", timetableRouter);
 app.use("/api/platform", platformRouter);
+app.use("/api/board", boardRouter);
+app.use("/api/cpd", cpdRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/exports", exportsRouter);
 app.use("/api/portal", portalRouter);

@@ -17,7 +17,10 @@ import {
   slugifyName,
 } from "../lib/tenant.js";
 import { auth, publicUser } from "../middleware/auth.js";
-
+import { createBackup, restoreBackup } from "../lib/backup.js";
+import { runSchoolDigests } from "../lib/digests.js";
+import { flushEmailOutbox } from "../lib/mailer.js";
+import { buildHealthPayload } from "../lib/health.js";
 export const platformRouter = Router();
 platformRouter.use(auth);
 platformRouter.use(requirePlatformAdmin());
@@ -390,4 +393,46 @@ platformRouter.post("/schools/:id/users/:userId/reset-password", async (req, res
       ? "Password reset. Share the generated password once — it will not be shown again."
       : "Password reset. The user must change it on next sign-in.",
   });
+});
+
+platformRouter.get("/backup", async (req, res) => {
+  const schoolId = req.query.schoolId || null;
+  const backup = await createBackup({ schoolId: schoolId || null });
+  await logActivity({
+    actorId: req.user.userId,
+    action: "BACKUP_CREATED",
+    summary: schoolId ? `Exported backup for school ${schoolId}` : "Exported full platform backup",
+    tenantId: schoolId || undefined,
+    meta: { schoolCount: backup.schoolCount },
+  });
+  res.json(backup);
+});
+
+platformRouter.post("/backup/restore", async (req, res) => {
+  const { schoolId, document, mode } = req.body || {};
+  const result = await restoreBackup(document, { schoolId, mode: mode || "merge" });
+  await logActivity({
+    actorId: req.user.userId,
+    action: "BACKUP_RESTORED",
+    summary: `Restored backup into school ${schoolId}`,
+    tenantId: schoolId,
+    meta: result,
+  });
+  res.json(result);
+});
+
+platformRouter.post("/digests/run", async (req, res) => {
+  const flush = req.body?.flush !== false;
+  const result = await runSchoolDigests({ flush });
+  res.json(result);
+});
+
+platformRouter.post("/mail/flush", async (_req, res) => {
+  const result = await flushEmailOutbox();
+  res.json(result);
+});
+
+platformRouter.get("/health/deep", async (_req, res) => {
+  const payload = await buildHealthPayload({ deep: true });
+  res.status(payload.ok ? 200 : 503).json(payload);
 });

@@ -112,10 +112,20 @@ export const PAGE_HELP = {
     about: "School identity (name, crest, school code, affiliation, address, and contact), the join code for new staff, the 5- or 6-day working week and bell schedule, pass and distinction bands, and the unit / mid / final weights used for the annual composite.",
     useful: "Upload a PNG or JPEG logo so report cards and mark lists print with a proper letterhead. Share the join code with teachers so they can request access. Set the school week and periods here so timetables match your day. Grading settings drive grades, pass lists, and Deep insights — configure them before you publish results.",
   },
+  boardOps: {
+    title: "What's on this page",
+    about: "Board exam operations for a selected exam: paper calendar and venues, report-card publish and principal sign-off, parent notify, revaluation requests and reviews, and downloadable board packs with a results manifest.",
+    useful: "Schedule papers before the exam window, publish and sign off class report cards when marks are approved, process revaluations, then create a board pack when leadership needs a single snapshot for the board.",
+  },
+  cpd: {
+    title: "What's on this page",
+    about: "Continuing professional development: training plans with target hours, lesson observations, leadership appraisals, and certificates. Teachers see their own record; leadership can open any teacher.",
+    useful: "Keep plans and certificates current for reviews. Leadership records observations and appraisals here so evidence sits with the teacher’s CPD file instead of scattered notes.",
+  },
   profile: {
     title: "What's on this page",
-    about: "Your name, email, school ID, and password.",
-    useful: "Keep sign-in details up to date. A password change takes effect on the next login.",
+    about: "Your name, email, school ID, password, and two-factor authentication (MFA) status.",
+    useful: "Keep sign-in details up to date. Enable MFA for stronger account security; a password change takes effect on the next login.",
   },
   platformDashboard: {
     title: "What's on this page",

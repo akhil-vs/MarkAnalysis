@@ -96,6 +96,11 @@ model School {
   createdAt      TimestamptzString     @default(now())
   updatedAt temporal.updatedAtString()
 
+  /// When true, leadership digests are emailed (SMTP) in addition to in-app notices.
+  emailDigestsEnabled Boolean @default(false)
+  /// Optional override recipient for school digests (defaults to school.email / principal).
+  digestEmail         String?
+
   users                 User[]
   classSections         ClassSection[]
   subjects              Subject[]
@@ -111,6 +116,15 @@ model School {
   activityAudits        ActivityAudit[]
   portalLinks           PortalAccessLink[]
   subjectEnrollments    StudentSubjectEnrollment[]
+  examPaperSchedules    ExamPaperSchedule[]
+  reportCardReleases    ReportCardRelease[]
+  revaluationRequests   RevaluationRequest[]
+  boardPacks            BoardPack[]
+  cpdTrainingPlans      CpdTrainingPlan[]
+  cpdObservations       CpdObservation[]
+  cpdAppraisals         CpdAppraisal[]
+  cpdCertificates       CpdCertificate[]
+  emailOutbox           EmailOutbox[]
   @@map("School")
 }
 
@@ -124,6 +138,12 @@ model User {
   schoolId           String?
   passwordHash       String
   mustChangePassword Boolean    @default(false)
+  /// TOTP MFA enabled for this account.
+  mfaEnabled         Boolean    @default(false)
+  /// Base32 TOTP secret (only when MFA enrolled).
+  mfaSecret          String?
+  /// Hashed one-time recovery codes (JSON string array of hashes).
+  mfaRecoveryHashes  Jsonb?
   role               pg.enum(Role)
   status             pg.enum(UserStatus) @default("PENDING")
   createdAt          TimestamptzString   @default(now())
@@ -142,6 +162,18 @@ model User {
   consolidationLocks Exam[]                    @relation("ConsolidationLockedBy")
   portalLinks        PortalAccessLink[]        @relation("PortalLinkCreator")
   refreshTokens      RefreshToken[]
+  reportCardSigned   ReportCardRelease[]       @relation("ReportCardSigner")
+  revaluationsRequested RevaluationRequest[]   @relation("RevalRequester")
+  revaluationsReviewed  RevaluationRequest[]   @relation("RevalReviewer")
+  boardPacksCreated  BoardPack[]               @relation("BoardPackCreator")
+  cpdPlansOwned      CpdTrainingPlan[]         @relation("CpdPlanTeacher")
+  cpdPlansCreated    CpdTrainingPlan[]         @relation("CpdPlanCreator")
+  cpdObservationsAsTeacher CpdObservation[]    @relation("CpdObsTeacher")
+  cpdObservationsAsObserver CpdObservation[]   @relation("CpdObsObserver")
+  cpdAppraisalsAsTeacher CpdAppraisal[]        @relation("CpdAppraisalTeacher")
+  cpdAppraisalsAsAppraiser CpdAppraisal[]      @relation("CpdAppraisalAppraiser")
+  cpdCertificates    CpdCertificate[]          @relation("CpdCertTeacher")
+  cpdCertificatesIssued CpdCertificate[]       @relation("CpdCertIssuer")
 
   @@unique([tenantId, schoolId])
   @@index([tenantId])
@@ -178,6 +210,7 @@ model ClassSection {
   assignments       TeacherAssignment[]
   markEntryRequests MarkEntryAccessRequest[]
   timetableEntries  TimetableEntry[]
+  reportCardReleases ReportCardRelease[]
 
   @@unique([tenantId, className, section])
   @@index([tenantId])
@@ -202,6 +235,8 @@ model Subject {
   markEntryRequests MarkEntryAccessRequest[]
   timetableEntries  TimetableEntry[]
   enrollments       StudentSubjectEnrollment[]
+  paperSchedules    ExamPaperSchedule[]
+  revaluationRequests RevaluationRequest[]
 
   @@unique([tenantId, name, className])
   @@index([tenantId])
@@ -253,6 +288,8 @@ model Student {
   dob            TimestamptzString?
   guardianName   String?
   guardianPhone  String?
+  /// Optional parent/guardian email for report-card and portal notifications.
+  guardianEmail  String?
   promotedFromId String?
 
   tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -261,6 +298,7 @@ model Student {
   subjectEnrollments StudentSubjectEnrollment[]
   promotedFrom Student?  @relation("StudentPromotion", fields: [promotedFromId], references: [id], onDelete: SetNull)
   promotedTo   Student[] @relation("StudentPromotion")
+  revaluationRequests RevaluationRequest[]
 
   @@unique([rollNo, classSectionId])
   @@index([classSectionId, academicYear, status])
@@ -308,6 +346,10 @@ model Exam {
   marks                   Mark[]
   markEntryRequests       MarkEntryAccessRequest[]
   portalLinks             PortalAccessLink[]
+  paperSchedules          ExamPaperSchedule[]
+  reportCardReleases      ReportCardRelease[]
+  revaluationRequests     RevaluationRequest[]
+  boardPacks              BoardPack[]
 
   @@index([tenantId])
   @@map("Exam")
@@ -399,18 +441,30 @@ native_enum AuditAction {
   ACCESS_APPROVED = "ACCESS_APPROVED"
   ACCESS_REJECTED = "ACCESS_REJECTED"
   USER_CREATED = "USER_CREATED"
-  USER_UPDATED = "USER_UPDATED"
   USER_STATUS_CHANGED = "USER_STATUS_CHANGED"
   USER_ROLE_CHANGED = "USER_ROLE_CHANGED"
   USER_PASSWORD_RESET = "USER_PASSWORD_RESET"
-  USER_DELETED = "USER_DELETED"
-  USER_ASSIGNMENTS_TRANSFERRED = "USER_ASSIGNMENTS_TRANSFERRED"
   EXAM_CREATED = "EXAM_CREATED"
   EXAM_UPDATED = "EXAM_UPDATED"
   EXAM_DELETED = "EXAM_DELETED"
   SCHOOL_CREATED = "SCHOOL_CREATED"
   SCHOOL_UPDATED = "SCHOOL_UPDATED"
   SCHOOL_STATUS_CHANGED = "SCHOOL_STATUS_CHANGED"
+  /// Appended after baseline (ensureSchema / migrate ADD VALUE).
+  USER_UPDATED = "USER_UPDATED"
+  USER_DELETED = "USER_DELETED"
+  USER_ASSIGNMENTS_TRANSFERRED = "USER_ASSIGNMENTS_TRANSFERRED"
+  MFA_ENABLED = "MFA_ENABLED"
+  MFA_DISABLED = "MFA_DISABLED"
+  REPORT_CARD_PUBLISHED = "REPORT_CARD_PUBLISHED"
+  REPORT_CARD_SIGNED_OFF = "REPORT_CARD_SIGNED_OFF"
+  REVALUATION_REQUESTED = "REVALUATION_REQUESTED"
+  REVALUATION_REVIEWED = "REVALUATION_REVIEWED"
+  BOARD_PACK_CREATED = "BOARD_PACK_CREATED"
+  PARENT_NOTIFIED = "PARENT_NOTIFIED"
+  BACKUP_CREATED = "BACKUP_CREATED"
+  BACKUP_RESTORED = "BACKUP_RESTORED"
+  CPD_UPDATED = "CPD_UPDATED"
 }
 
 /// Operational audit trail (approvals, access reviews, staff/exam changes).
@@ -446,6 +500,11 @@ native_enum NotificationType {
   DEADLINE_REMINDER = "DEADLINE_REMINDER"
   INCOMPLETE_MARKLIST = "INCOMPLETE_MARKLIST"
   STAFF_NOTICE = "STAFF_NOTICE"
+  DIGEST = "DIGEST"
+  REPORT_CARD_READY = "REPORT_CARD_READY"
+  REVALUATION_UPDATE = "REVALUATION_UPDATE"
+  PARENT_PORTAL = "PARENT_PORTAL"
+  CPD_NOTICE = "CPD_NOTICE"
 }
 
 model Notification {
@@ -512,5 +571,252 @@ model TimetableEntry {
   @@index([dayOfWeek, periodId])
   @@index([tenantId])
   @@map("TimetableEntry")
+}
+
+native_enum ReportCardStatus {
+  DRAFT = "DRAFT"
+  PUBLISHED = "PUBLISHED"
+  SIGNED_OFF = "SIGNED_OFF"
+}
+
+native_enum RevaluationStatus {
+  PENDING = "PENDING"
+  APPROVED = "APPROVED"
+  REJECTED = "REJECTED"
+  COMPLETED = "COMPLETED"
+}
+
+native_enum BoardPackStatus {
+  PENDING = "PENDING"
+  READY = "READY"
+  FAILED = "FAILED"
+}
+
+native_enum CpdPlanStatus {
+  PLANNED = "PLANNED"
+  IN_PROGRESS = "IN_PROGRESS"
+  COMPLETED = "COMPLETED"
+  CANCELLED = "CANCELLED"
+}
+
+native_enum EmailOutboxStatus {
+  PENDING = "PENDING"
+  SENT = "SENT"
+  FAILED = "FAILED"
+  SKIPPED = "SKIPPED"
+}
+
+/// Per-paper exam calendar row (subject sitting date within an exam window).
+model ExamPaperSchedule {
+  id        String  @id @default(cuid(2))
+  tenantId  String
+  examId    String
+  subjectId String
+  /// Class name this paper applies to (e.g. "10"); null = all classes for the subject.
+  className String?
+  paperDate TimestamptzString
+  startTime String?
+  endTime   String?
+  venue     String?
+  maxMarks  Int?
+  notes     String?
+  createdAt TimestamptzString @default(now())
+
+  tenant  School  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  exam    Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  subject Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@unique([examId, subjectId, className])
+  @@index([tenantId, examId, paperDate])
+  @@map("ExamPaperSchedule")
+}
+
+/// Report-card publish / principal sign-off for a class section × exam.
+model ReportCardRelease {
+  id             String                 @id @default(cuid(2))
+  tenantId       String
+  examId         String
+  classSectionId String
+  status         pg.enum(ReportCardStatus) @default("DRAFT")
+  publishedAt    TimestamptzString?
+  signedOffAt    TimestamptzString?
+  signedOffById  String?
+  parentsNotifiedAt TimestamptzString?
+  notes          String?
+  createdAt      TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  exam         Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  signedOffBy  User?        @relation("ReportCardSigner", fields: [signedOffById], references: [id], onDelete: SetNull)
+
+  @@unique([examId, classSectionId])
+  @@index([tenantId, status])
+  @@map("ReportCardRelease")
+}
+
+model RevaluationRequest {
+  id           String                   @id @default(cuid(2))
+  tenantId     String
+  examId       String
+  studentId    String
+  subjectId    String
+  status       pg.enum(RevaluationStatus) @default("PENDING")
+  reason       String?
+  requestedById String
+  reviewedById String?
+  reviewedAt   TimestamptzString?
+  reviewNotes  String?
+  originalMarks Float?
+  revisedMarks  Float?
+  feePaid      Boolean @default(false)
+  createdAt    TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  tenant      School  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  exam        Exam    @relation(fields: [examId], references: [id], onDelete: Cascade)
+  student     Student @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject     Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  requestedBy User    @relation("RevalRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedBy  User?   @relation("RevalReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@unique([examId, studentId, subjectId])
+  @@index([tenantId, status])
+  @@map("RevaluationRequest")
+}
+
+/// Board upload pack metadata (manifest of official exports for an exam).
+model BoardPack {
+  id          String                 @id @default(cuid(2))
+  tenantId    String
+  examId      String
+  label       String?
+  status      pg.enum(BoardPackStatus) @default("PENDING")
+  manifest    Jsonb?
+  createdById String
+  createdAt   TimestamptzString @default(now())
+  readyAt     TimestamptzString?
+  error       String?
+
+  tenant    School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  exam      Exam   @relation(fields: [examId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("BoardPackCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, examId])
+  @@map("BoardPack")
+}
+
+model CpdTrainingPlan {
+  id          String               @id @default(cuid(2))
+  tenantId    String
+  teacherId   String
+  title       String
+  description String?
+  academicYear String
+  status      pg.enum(CpdPlanStatus) @default("PLANNED")
+  targetHours Float?
+  completedHours Float @default(0)
+  createdById String
+  createdAt   TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  tenant    School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher   User   @relation("CpdPlanTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  createdBy User   @relation("CpdPlanCreator", fields: [createdById], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, teacherId])
+  @@index([tenantId, academicYear])
+  @@map("CpdTrainingPlan")
+}
+
+model CpdObservation {
+  id            String  @id @default(cuid(2))
+  tenantId      String
+  teacherId     String
+  observerId    String
+  observedAt    TimestamptzString
+  classLabel    String?
+  subjectLabel  String?
+  rating        Int?
+  strengths     String?
+  developmentAreas String?
+  notes         String?
+  createdAt     TimestamptzString @default(now())
+
+  tenant   School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher  User   @relation("CpdObsTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  observer User   @relation("CpdObsObserver", fields: [observerId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, teacherId])
+  @@map("CpdObservation")
+}
+
+model CpdAppraisal {
+  id           String  @id @default(cuid(2))
+  tenantId     String
+  teacherId    String
+  appraiserId  String
+  academicYear String
+  periodLabel  String?
+  overallRating Int?
+  goalsMet     String?
+  nextGoals    String?
+  comments     String?
+  signedAt     TimestamptzString?
+  createdAt    TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  tenant    School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher   User   @relation("CpdAppraisalTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  appraiser User   @relation("CpdAppraisalAppraiser", fields: [appraiserId], references: [id], onDelete: Cascade)
+
+  @@unique([teacherId, academicYear, periodLabel])
+  @@index([tenantId, academicYear])
+  @@map("CpdAppraisal")
+}
+
+model CpdCertificate {
+  id          String  @id @default(cuid(2))
+  tenantId    String
+  teacherId   String
+  title       String
+  provider    String?
+  hours       Float?
+  earnedAt    TimestamptzString
+  expiresAt   TimestamptzString?
+  certificateNo String?
+  notes       String?
+  issuedById  String?
+  createdAt   TimestamptzString @default(now())
+
+  tenant   School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher  User   @relation("CpdCertTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
+  issuedBy User?  @relation("CpdCertIssuer", fields: [issuedById], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, teacherId])
+  @@map("CpdCertificate")
+}
+
+/// Outbound email queue / audit (digests, parent notify, staff digests).
+model EmailOutbox {
+  id        String                   @id @default(cuid(2))
+  tenantId  String?
+  toEmail   String
+  subject   String
+  bodyText  String
+  bodyHtml  String?
+  kind      String
+  status    pg.enum(EmailOutboxStatus) @default("PENDING")
+  meta      Jsonb?
+  error     String?
+  sentAt    TimestamptzString?
+  createdAt TimestamptzString @default(now())
+
+  tenant School? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([status, createdAt])
+  @@index([tenantId, createdAt])
+  @@map("EmailOutbox")
 }
 

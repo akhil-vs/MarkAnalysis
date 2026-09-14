@@ -72,8 +72,24 @@ export function AuthProvider({ children }) {
       assignments,
       classTeacherOf,
       loading,
+      refresh,
       async login(payload) {
         const data = await api("/api/auth/login", { method: "POST", body: payload });
+        if (data?.mfaRequired) {
+          // Challenge issued — do not establish a session yet.
+          return data;
+        }
+        setSessionHint(true);
+        setToken(null);
+        setUser(data.user);
+        await refresh();
+        return data;
+      },
+      async verifyMfa({ mfaToken, code, recoveryCode }) {
+        const data = await api("/api/auth/mfa/verify", {
+          method: "POST",
+          body: { mfaToken, code, recoveryCode },
+        });
         setSessionHint(true);
         setToken(null);
         setUser(data.user);

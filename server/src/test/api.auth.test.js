@@ -32,7 +32,16 @@ describe("API auth (real database)", () => {
     if (!server) return t.skip("DATABASE_URL not set");
     const res = await server.request("/api/health");
     assert.equal(res.status, 200);
-    assert.deepEqual(res.json, { ok: true });
+    assert.equal(res.json?.ok, true);
+    assert.equal(res.json?.service, "school-marks-api");
+  });
+
+  it("GET /api/health?deep=1 pings the database", async (t) => {
+    if (!server) return t.skip("DATABASE_URL not set");
+    const res = await server.request("/api/health?deep=1");
+    assert.equal(res.status, 200);
+    assert.equal(res.json?.ok, true);
+    assert.equal(res.json?.db?.ok, true);
   });
 
   it("rejects login with wrong password", async (t) => {
