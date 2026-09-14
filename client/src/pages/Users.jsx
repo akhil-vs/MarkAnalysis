@@ -406,7 +406,26 @@ export default function Users() {
     setCanAddRoles(Boolean(data.canAddRoles));
   }
 
+  function dbgLog(hypothesisId, location, message, data = {}) {
+    // #region agent log
+    fetch("http://127.0.0.1:7242/ingest/e6b27cbb-5a9b-4c8e-9f0a-2d8c1b7a4e31", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Debug-Session-Id": "2710" },
+      body: JSON.stringify({ sessionId: "2710", hypothesisId, location, message, data, timestamp: Date.now() }),
+    }).catch(() => {});
+    // #endregion
+  }
+
   function applyRoleSelection(value) {
+    // #region agent log
+    dbgLog("D", "Users.jsx:applyRoleSelection", "applyRoleSelection called", {
+      value,
+      addingRole,
+      selectWouldBe: addingRole ? ADD_ROLE_VALUE : roleSelectValue(form),
+      formRole: form.role,
+      formCustomRoleId: form.customRoleId,
+    });
+    // #endregion
     if (value === ADD_ROLE_VALUE) {
       setAddingRole(true);
       setNewRoleName("");
@@ -429,13 +448,39 @@ export default function Users() {
 
   async function createCustomRole(e) {
     e?.preventDefault?.();
+    // #region agent log
+    dbgLog("B,C", "Users.jsx:createCustomRole:entry", "createCustomRole entered", {
+      newRoleName,
+      newRoleNameLen: (newRoleName || "").length,
+      newRoleNameTrim: newRoleName.trim(),
+      newRoleBase,
+      formSnapshot: { role: form.role, customRoleId: form.customRoleId, name: form.name },
+      eventType: e?.type,
+      defaultPrevented: e?.defaultPrevented,
+      savingRole,
+      addingRole,
+    });
+    // #endregion
     const name = newRoleName.trim();
     if (!name) {
+      // #region agent log
+      dbgLog("B", "Users.jsx:createCustomRole:empty", "early return empty name", {
+        newRoleName,
+        rawLen: (newRoleName || "").length,
+      });
+      // #endregion
       toast.error("Enter a role name");
       return;
     }
     setSavingRole(true);
     try {
+      // #region agent log
+      dbgLog("C", "Users.jsx:createCustomRole:beforeApi", "POST staff-roles about to fire", {
+        name,
+        baseRole: newRoleBase,
+        formBefore: { role: form.role, customRoleId: form.customRoleId },
+      });
+      // #endregion
       const data = await api("/api/users/staff-roles", {
         method: "POST",
         body: { name, baseRole: newRoleBase },
@@ -444,6 +489,15 @@ export default function Users() {
       setStaffRoles(roles);
       setCanAddRoles(true);
       const created = data.role;
+      // #region agent log
+      dbgLog("C", "Users.jsx:createCustomRole:success", "role created OK", {
+        createdId: created?.id,
+        createdName: created?.name,
+        createdBase: created?.baseRole,
+        rolesCount: roles.length,
+        staleFormStill: { role: form.role, customRoleId: form.customRoleId },
+      });
+      // #endregion
       setForm({
         ...form,
         role: created.baseRole,
@@ -453,6 +507,13 @@ export default function Users() {
       setNewRoleName("");
       toast.success(`Role “${created.name}” added.`);
     } catch (err) {
+      // #region agent log
+      dbgLog("E", "Users.jsx:createCustomRole:error", "API or post-process failed", {
+        errMsg: err?.message,
+        errStatus: err?.status,
+        errData: err?.data,
+      });
+      // #endregion
       toast.error(err.message || "Could not add role");
     } finally {
       setSavingRole(false);
@@ -588,6 +649,20 @@ export default function Users() {
 
   async function saveStaff(e) {
     e.preventDefault();
+    // #region agent log
+    dbgLog("A", "Users.jsx:saveStaff:entry", "parent form submit fired", {
+      addingRole,
+      newRoleName,
+      savingRole,
+      editingId,
+      formName: form.name,
+      formEmail: form.email,
+      formRole: form.role,
+      formCustomRoleId: form.customRoleId,
+      submitter: e?.nativeEvent?.submitter?.tagName,
+      submitterText: e?.nativeEvent?.submitter?.textContent?.slice?.(0, 40),
+    });
+    // #endregion
     const name = requiredText(form.name, "Full name");
     const email = parseEmail(form.email);
     if (!form.email.trim() && !form.schoolId.trim()) {
@@ -941,7 +1016,25 @@ export default function Users() {
                 <input
                   className="field"
                   value={newRoleName}
-                  onChange={(e) => setNewRoleName(e.target.value)}
+                  onChange={(e) => {
+                    // #region agent log
+                    dbgLog("B", "Users.jsx:newRoleName:onChange", "role name input changed", {
+                      value: e.target.value,
+                      valueLen: e.target.value.length,
+                    });
+                    // #endregion
+                    setNewRoleName(e.target.value);
+                  }}
+                  onKeyDown={(e) => {
+                    // #region agent log
+                    if (e.key === "Enter") {
+                      dbgLog("A", "Users.jsx:newRoleName:Enter", "Enter pressed in role name input", {
+                        newRoleName,
+                        willBubbleToForm: true,
+                      });
+                    }
+                    // #endregion
+                  }}
                   placeholder="e.g. Vice Principal, HOD Science"
                   maxLength={60}
                   autoFocus

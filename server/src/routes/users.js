@@ -122,6 +122,23 @@ usersRouter.get("/staff-roles", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
 });
 
 usersRouter.post("/staff-roles", requireRole("PRINCIPAL"), async (req, res) => {
+  // #region agent log
+  try {
+    const fs = await import("node:fs");
+    fs.appendFileSync(
+      "/opt/cursor/logs/debug.log",
+      JSON.stringify({
+        sessionId: "2710",
+        hypothesisId: "E",
+        location: "users.js:POST /staff-roles",
+        message: "server received create role",
+        data: { name: req.body?.name, baseRole: req.body?.baseRole, userId: req.user?.userId },
+        timestamp: Date.now(),
+      }) + "\n"
+    );
+  } catch (_) {}
+  // #endregion
+
   const parsed = parseNewStaffRole(req.body || {});
   if (parsed.error) return res.status(400).json({ error: parsed.error });
 
