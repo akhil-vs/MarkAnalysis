@@ -1016,7 +1016,7 @@ function PermissionsModal({ user, onClose }) {
   );
 }
 
-function TransferModal({ user, currentUserId, onClose, onTransfer }) {
+function TransferModal({ user, onClose, onTransfer }) {
   const [teachers, setTeachers] = useState([]);
   const [toUserId, setToUserId] = useState("");
   const [includeTimetable, setIncludeTimetable] = useState(true);
@@ -1048,7 +1048,7 @@ function TransferModal({ user, currentUserId, onClose, onTransfer }) {
     return () => {
       cancelled = true;
     };
-  }, [user.id, currentUserId]);
+  }, [user.id]);
 
   async function save(e) {
     e.preventDefault();
