@@ -25,8 +25,11 @@ services:
         condition: service_healthy
     environment:
       DATABASE_URL: postgresql://marks:marks@db:5432/marks?schema=public
-      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      # Required: docker compose fails API boot if this stays at the placeholder.
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET to a strong random value}
+      JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
       CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:8080}
+      COOKIE_SECURE: ${COOKIE_SECURE:-false}
       PORT: "4000"
       NODE_ENV: production
     ports:
@@ -37,6 +40,7 @@ services:
       context: ./client
       args:
         VITE_API_BASE: ""
+        VITE_ENABLE_DEMO_LOGIN: ${VITE_ENABLE_DEMO_LOGIN:-false}
     restart: unless-stopped
     depends_on:
       - api
