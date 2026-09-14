@@ -9,7 +9,10 @@
     "start": "node dist/src/index.js",
     "seed": "node prisma/seed.js",
     "ensure:admin": "node scripts/ensurePlatformAdmin.mjs",
-    "test": "node --test src/**/*.test.js",
+    "test": "node --test 'src/lib/**/*.test.js'",
+    "test:api": "node --test 'src/test/**/*.test.js'",
+    "test:all": "npm test && npm run test:api",
+    "db:prepare": "node scripts/prepareTestDb.mjs",
     "contract:emit": "prisma contract emit",
     "db:migrate": "prisma db migrate --advance-ref db",
     "db:verify": "prisma db verify"

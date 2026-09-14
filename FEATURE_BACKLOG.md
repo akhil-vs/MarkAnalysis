@@ -31,10 +31,11 @@ Remaining work that would make this suitable for a live school:
 
 ## Engineering
 
-- Broader API/integration tests against a real database
+- ~~Broader API/integration tests against a real database~~ (`npm run test:api` + CI `api-integration` job with Postgres)
 - ~~Production Docker Compose (`db` + `api` + `web`)~~
 - ~~Rate limiting on auth~~ (in-memory limiter on login/signup)
 - ~~httpOnly access + refresh cookies~~ (`sma_access` / `sma_refresh`, rotate on `/api/auth/refresh`)
 - ~~Non-destructive seed path for demos~~ (skip wipe unless `SEED_MODE=wipe`)
 - ~~Migrate-on-deploy~~ (`prisma migrate deploy` on API boot + GitHub Action; `ensurePendingSchema` fallback)
 - ~~Replace `xlsx` parse path with ExcelJS-only~~ (uploads parse via ExcelJS; legacy `.xls` rejected)
+- ~~Deploy auth config guard~~ (`assertDeployAuthConfig` on Vercel/API boot; documented env vars)

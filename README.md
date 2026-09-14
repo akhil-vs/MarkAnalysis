@@ -45,7 +45,35 @@ export JWT_SECRET=a-long-random-string
 docker compose up --build
 ```
 
-API on [http://localhost:4000](http://localhost:4000), web on [http://localhost:8080](http://localhost:8080). The API container runs `prisma db migrate` before listening.
+`JWT_SECRET` is required (Compose refuses to start the API with the placeholder). API on [http://localhost:4000](http://localhost:4000), web on [http://localhost:8080](http://localhost:8080). The API container runs `prisma db migrate` before listening.
+
+### API integration tests
+
+Unit tests stay DB-free (`npm test`). Real HTTP + Postgres coverage lives in `server/src/test/`:
+
+```bash
+cd server
+# with Docker Postgres (or any DATABASE_URL):
+SEED=1 npm run db:prepare
+npm run test:api
+```
+
+CI runs the same flow in the `api-integration` job (Postgres 16 service).
+
+### Deploy auth config (Vercel / production)
+
+Set these on the Vercel project (or host env) before going live:
+
+| Variable | Required | Notes |
+|---|---|---|
+| `DATABASE_URL` | yes | Postgres URL used at runtime for migrate/ensure + queries |
+| `JWT_SECRET` | yes | ≥16 random chars; boot fails on Vercel/production if weak |
+| `JWT_ACCESS_EXPIRES` | no | Access cookie TTL (default `15m`) |
+| `CLIENT_ORIGIN` | no* | Comma-separated SPA origins. \*Not needed when the SPA and `/api` share one Vercel deployment |
+| `COOKIE_SECURE` | no | Force `Secure` cookies; auto-on when `VERCEL` or `NODE_ENV=production` |
+| `VITE_ENABLE_DEMO_LOGIN` | no | Build-time; leave unset/`false` so demo one-click logins stay hidden |
+
+Sessions use httpOnly cookies `sma_access` + `sma_refresh` (rotated on `POST /api/auth/refresh`). The SPA calls APIs with `credentials: "include"`.
 
 Seed is **non-destructive** when users already exist. To wipe and reseed locally: `SEED_MODE=wipe npm run seed`. In production also set `ALLOW_DESTRUCTIVE_SEED=true`.
 

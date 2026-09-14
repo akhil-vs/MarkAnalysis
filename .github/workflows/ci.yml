@@ -17,7 +17,7 @@ jobs:
           cache-dependency-path: |
             server/package-lock.json
             client/package-lock.json
-      - name: Server install and tests
+      - name: Server unit tests
         working-directory: server
         run: |
           npm ci
@@ -29,3 +29,40 @@ jobs:
           npm ci
           npm test
           npm run build
+
+  api-integration:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: marks
+          POSTGRES_PASSWORD: marks
+          POSTGRES_DB: marks
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U marks -d marks"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      DATABASE_URL: postgresql://marks:marks@localhost:5432/marks
+      JWT_SECRET: ci-api-integration-secret
+      JWT_ACCESS_EXPIRES: 15m
+      CLIENT_ORIGIN: http://127.0.0.1
+      COOKIE_SECURE: "false"
+      SEED_FORCE_PASSWORD_CHANGE: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - name: Prepare database and run API tests
+        working-directory: server
+        run: |
+          npm ci
+          SEED=1 npm run db:prepare
+          npm run test:api
