@@ -979,6 +979,286 @@ async function ensureRateLimitBucketTable() {
   }
 }
 
+const MFA_USER_MIGRATION = "20260914193000_user_mfa";
+const MFA_USER_CHECKSUM = "user-mfa-totp-v1";
+const MFA_USER_STATEMENTS = [
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "mfaEnabled" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "mfaSecret" TEXT`,
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "mfaRecoveryHashes" JSONB`,
+];
+
+async function ensureMfaUserColumns() {
+  try {
+    const hasEnabled = await columnExists("User", "mfaEnabled");
+    const hasSecret = await columnExists("User", "mfaSecret");
+    const hasRecovery = await columnExists("User", "mfaRecoveryHashes");
+    if (hasEnabled && hasSecret && hasRecovery) {
+      await recordMigration(MFA_USER_MIGRATION, MFA_USER_CHECKSUM);
+      return;
+    }
+    await applyStatements(MFA_USER_STATEMENTS);
+    await recordMigration(MFA_USER_MIGRATION, MFA_USER_CHECKSUM);
+  } catch (err) {
+    console.warn("ensureMfaUserColumns skipped:", err?.message || err);
+  }
+}
+
+const LIVE_OPS_MIGRATION = "20260914191500_board_cpd_live_ops";
+const LIVE_OPS_CHECKSUM = "board-cpd-live-ops-catchup-v1";
+
+const LIVE_OPS_ENUM_LABELS = {
+  ReportCardStatus: ["DRAFT", "PUBLISHED", "SIGNED_OFF"],
+  RevaluationStatus: ["PENDING", "APPROVED", "REJECTED", "COMPLETED"],
+  BoardPackStatus: ["PENDING", "READY", "FAILED"],
+  CpdPlanStatus: ["PLANNED", "IN_PROGRESS", "COMPLETED", "CANCELLED"],
+  EmailOutboxStatus: ["PENDING", "SENT", "FAILED", "SKIPPED"],
+};
+
+const LIVE_OPS_ENUM_CREATE = [
+  `DO $$ BEGIN CREATE TYPE "ReportCardStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'SIGNED_OFF'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN CREATE TYPE "RevaluationStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'COMPLETED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN CREATE TYPE "BoardPackStatus" AS ENUM ('PENDING', 'READY', 'FAILED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN CREATE TYPE "CpdPlanStatus" AS ENUM ('PLANNED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+  `DO $$ BEGIN CREATE TYPE "EmailOutboxStatus" AS ENUM ('PENDING', 'SENT', 'FAILED', 'SKIPPED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+];
+
+const LIVE_OPS_SCHOOL_STATEMENTS = [
+  `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "emailDigestsEnabled" BOOLEAN NOT NULL DEFAULT false`,
+  `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "digestEmail" TEXT`,
+];
+
+const LIVE_OPS_TABLE_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "ExamPaperSchedule" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "examId" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "className" TEXT,
+    "paperDate" TIMESTAMPTZ NOT NULL,
+    "startTime" TEXT,
+    "endTime" TEXT,
+    "venue" TEXT,
+    "maxMarks" INTEGER,
+    "notes" TEXT,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ExamPaperSchedule_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ExamPaperSchedule_examId_subjectId_className_key"
+    ON "ExamPaperSchedule" ("examId", "subjectId", "className")`,
+  `CREATE INDEX IF NOT EXISTS "ExamPaperSchedule_tenantId_examId_paperDate_idx"
+    ON "ExamPaperSchedule" ("tenantId", "examId", "paperDate")`,
+  `CREATE TABLE IF NOT EXISTS "ReportCardRelease" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "examId" TEXT NOT NULL,
+    "classSectionId" TEXT NOT NULL,
+    "status" "ReportCardStatus" NOT NULL DEFAULT 'DRAFT',
+    "publishedAt" TIMESTAMPTZ,
+    "signedOffAt" TIMESTAMPTZ,
+    "signedOffById" TEXT,
+    "parentsNotifiedAt" TIMESTAMPTZ,
+    "notes" TEXT,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "ReportCardRelease_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "ReportCardRelease_examId_classSectionId_key"
+    ON "ReportCardRelease" ("examId", "classSectionId")`,
+  `CREATE INDEX IF NOT EXISTS "ReportCardRelease_tenantId_status_idx"
+    ON "ReportCardRelease" ("tenantId", "status")`,
+  `CREATE TABLE IF NOT EXISTS "RevaluationRequest" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "examId" TEXT NOT NULL,
+    "studentId" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "status" "RevaluationStatus" NOT NULL DEFAULT 'PENDING',
+    "reason" TEXT,
+    "requestedById" TEXT NOT NULL,
+    "reviewedById" TEXT,
+    "reviewedAt" TIMESTAMPTZ,
+    "reviewNotes" TEXT,
+    "originalMarks" DOUBLE PRECISION,
+    "revisedMarks" DOUBLE PRECISION,
+    "feePaid" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "RevaluationRequest_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "RevaluationRequest_examId_studentId_subjectId_key"
+    ON "RevaluationRequest" ("examId", "studentId", "subjectId")`,
+  `CREATE INDEX IF NOT EXISTS "RevaluationRequest_tenantId_status_idx"
+    ON "RevaluationRequest" ("tenantId", "status")`,
+  `CREATE TABLE IF NOT EXISTS "BoardPack" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "examId" TEXT NOT NULL,
+    "label" TEXT,
+    "status" "BoardPackStatus" NOT NULL DEFAULT 'PENDING',
+    "manifest" JSONB,
+    "createdById" TEXT NOT NULL,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "readyAt" TIMESTAMPTZ,
+    "error" TEXT,
+    CONSTRAINT "BoardPack_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "BoardPack_tenantId_examId_idx" ON "BoardPack" ("tenantId", "examId")`,
+  `CREATE TABLE IF NOT EXISTS "CpdTrainingPlan" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "teacherId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "description" TEXT,
+    "academicYear" TEXT NOT NULL,
+    "status" "CpdPlanStatus" NOT NULL DEFAULT 'PLANNED',
+    "targetHours" DOUBLE PRECISION,
+    "completedHours" DOUBLE PRECISION NOT NULL DEFAULT 0,
+    "createdById" TEXT NOT NULL,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CpdTrainingPlan_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "CpdTrainingPlan_tenantId_teacherId_idx" ON "CpdTrainingPlan" ("tenantId", "teacherId")`,
+  `CREATE INDEX IF NOT EXISTS "CpdTrainingPlan_tenantId_academicYear_idx" ON "CpdTrainingPlan" ("tenantId", "academicYear")`,
+  `CREATE TABLE IF NOT EXISTS "CpdObservation" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "teacherId" TEXT NOT NULL,
+    "observerId" TEXT NOT NULL,
+    "observedAt" TIMESTAMPTZ NOT NULL,
+    "classLabel" TEXT,
+    "subjectLabel" TEXT,
+    "rating" INTEGER,
+    "strengths" TEXT,
+    "developmentAreas" TEXT,
+    "notes" TEXT,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CpdObservation_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "CpdObservation_tenantId_teacherId_idx" ON "CpdObservation" ("tenantId", "teacherId")`,
+  `CREATE TABLE IF NOT EXISTS "CpdAppraisal" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "teacherId" TEXT NOT NULL,
+    "appraiserId" TEXT NOT NULL,
+    "academicYear" TEXT NOT NULL,
+    "periodLabel" TEXT,
+    "overallRating" INTEGER,
+    "goalsMet" TEXT,
+    "nextGoals" TEXT,
+    "comments" TEXT,
+    "signedAt" TIMESTAMPTZ,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CpdAppraisal_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "CpdAppraisal_teacherId_academicYear_periodLabel_key"
+    ON "CpdAppraisal" ("teacherId", "academicYear", "periodLabel")`,
+  `CREATE INDEX IF NOT EXISTS "CpdAppraisal_tenantId_academicYear_idx" ON "CpdAppraisal" ("tenantId", "academicYear")`,
+  `CREATE TABLE IF NOT EXISTS "CpdCertificate" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "teacherId" TEXT NOT NULL,
+    "title" TEXT NOT NULL,
+    "provider" TEXT,
+    "hours" DOUBLE PRECISION,
+    "earnedAt" TIMESTAMPTZ NOT NULL,
+    "expiresAt" TIMESTAMPTZ,
+    "certificateNo" TEXT,
+    "notes" TEXT,
+    "issuedById" TEXT,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "CpdCertificate_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "CpdCertificate_tenantId_teacherId_idx" ON "CpdCertificate" ("tenantId", "teacherId")`,
+  `CREATE TABLE IF NOT EXISTS "EmailOutbox" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT,
+    "toEmail" TEXT NOT NULL,
+    "subject" TEXT NOT NULL,
+    "bodyText" TEXT NOT NULL,
+    "bodyHtml" TEXT,
+    "kind" TEXT NOT NULL,
+    "status" "EmailOutboxStatus" NOT NULL DEFAULT 'PENDING',
+    "meta" JSONB,
+    "error" TEXT,
+    "sentAt" TIMESTAMPTZ,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "EmailOutbox_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "EmailOutbox_status_createdAt_idx" ON "EmailOutbox" ("status", "createdAt")`,
+  `CREATE INDEX IF NOT EXISTS "EmailOutbox_tenantId_createdAt_idx" ON "EmailOutbox" ("tenantId", "createdAt")`,
+];
+
+const LIVE_OPS_FK_STATEMENTS = [
+  `ALTER TABLE "ExamPaperSchedule" ADD CONSTRAINT "ExamPaperSchedule_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "ExamPaperSchedule" ADD CONSTRAINT "ExamPaperSchedule_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "ExamPaperSchedule" ADD CONSTRAINT "ExamPaperSchedule_subjectId_fkey" FOREIGN KEY ("subjectId") REFERENCES "Subject"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "ReportCardRelease" ADD CONSTRAINT "ReportCardRelease_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "ReportCardRelease" ADD CONSTRAINT "ReportCardRelease_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "ReportCardRelease" ADD CONSTRAINT "ReportCardRelease_classSectionId_fkey" FOREIGN KEY ("classSectionId") REFERENCES "ClassSection"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "ReportCardRelease" ADD CONSTRAINT "ReportCardRelease_signedOffById_fkey" FOREIGN KEY ("signedOffById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+  `ALTER TABLE "RevaluationRequest" ADD CONSTRAINT "RevaluationRequest_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "RevaluationRequest" ADD CONSTRAINT "RevaluationRequest_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "RevaluationRequest" ADD CONSTRAINT "RevaluationRequest_studentId_fkey" FOREIGN KEY ("studentId") REFERENCES "Student"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "RevaluationRequest" ADD CONSTRAINT "RevaluationRequest_subjectId_fkey" FOREIGN KEY ("subjectId") REFERENCES "Subject"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "RevaluationRequest" ADD CONSTRAINT "RevaluationRequest_requestedById_fkey" FOREIGN KEY ("requestedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "RevaluationRequest" ADD CONSTRAINT "RevaluationRequest_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+  `ALTER TABLE "BoardPack" ADD CONSTRAINT "BoardPack_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "BoardPack" ADD CONSTRAINT "BoardPack_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "BoardPack" ADD CONSTRAINT "BoardPack_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdTrainingPlan" ADD CONSTRAINT "CpdTrainingPlan_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdTrainingPlan" ADD CONSTRAINT "CpdTrainingPlan_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdTrainingPlan" ADD CONSTRAINT "CpdTrainingPlan_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdObservation" ADD CONSTRAINT "CpdObservation_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdObservation" ADD CONSTRAINT "CpdObservation_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdObservation" ADD CONSTRAINT "CpdObservation_observerId_fkey" FOREIGN KEY ("observerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdAppraisal" ADD CONSTRAINT "CpdAppraisal_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdAppraisal" ADD CONSTRAINT "CpdAppraisal_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdAppraisal" ADD CONSTRAINT "CpdAppraisal_appraiserId_fkey" FOREIGN KEY ("appraiserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdCertificate" ADD CONSTRAINT "CpdCertificate_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdCertificate" ADD CONSTRAINT "CpdCertificate_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "CpdCertificate" ADD CONSTRAINT "CpdCertificate_issuedById_fkey" FOREIGN KEY ("issuedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+  `ALTER TABLE "EmailOutbox" ADD CONSTRAINT "EmailOutbox_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+];
+
+async function ensureLiveOpsBoardCpdSchema() {
+  try {
+    await applyStatements(LIVE_OPS_ENUM_CREATE);
+    for (const [typeName, labels] of Object.entries(LIVE_OPS_ENUM_LABELS)) {
+      const missing = await missingEnumLabels(typeName, labels);
+      for (const label of missing) {
+        try {
+          await prisma.$executeRawUnsafe(
+            `ALTER TYPE "${typeName}" ADD VALUE IF NOT EXISTS '${label}'`
+          );
+        } catch (err) {
+          if (isAlreadyAppliedError(err)) continue;
+          throw err;
+        }
+      }
+    }
+    // New audit actions for MFA / board / CPD / backup.
+    const missingActions = await missingEnumLabels("AuditAction", ACTIVITY_ACTIONS);
+    for (const label of missingActions) {
+      try {
+        await prisma.$executeRawUnsafe(
+          `ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS '${label}'`
+        );
+      } catch (err) {
+        if (isAlreadyAppliedError(err)) continue;
+        throw err;
+      }
+    }
+    await applyStatements(LIVE_OPS_SCHOOL_STATEMENTS);
+    await applyStatements(LIVE_OPS_TABLE_STATEMENTS);
+    await applyStatements(LIVE_OPS_FK_STATEMENTS);
+    await recordMigration(LIVE_OPS_MIGRATION, LIVE_OPS_CHECKSUM);
+  } catch (err) {
+    console.warn("ensureLiveOpsBoardCpdSchema skipped:", err?.message || err);
+  }
+}
+
 export const CATCHUP_MIGRATION_NAMES = [
   TIMETABLE_MIGRATION,
   MULTI_CLASS_PERIOD_MIGRATION,
@@ -997,18 +1277,20 @@ export const CATCHUP_MIGRATION_NAMES = [
   THEORY_PRACTICAL_MIGRATION,
   PORTAL_LINK_MIGRATION,
   TENANT_MIGRATION,
+  MFA_USER_MIGRATION,
+  LIVE_OPS_MIGRATION,
   SCHOOL_PROFILE_DETAILS_MIGRATION,
   PLATFORM_ADMIN_MIGRATION,
 ];
 
 /** Subset required before login / refresh / me can safely query User + RefreshToken. */
-export 
-const AUTH_CATCHUP_MIGRATION_NAMES = [
+export const AUTH_CATCHUP_MIGRATION_NAMES = [
   RATE_LIMIT_BUCKET_MIGRATION,
   MUST_CHANGE_PASSWORD_MIGRATION,
   REFRESH_TOKEN_MIGRATION,
   TENANT_MIGRATION,
   PLATFORM_ADMIN_MIGRATION,
+  MFA_USER_MIGRATION,
 ];
 
 async function catchupsAlreadyApplied(names = CATCHUP_MIGRATION_NAMES) {
@@ -1034,8 +1316,10 @@ let authEnsurePromise = null;
 export async function ensureAuthSchema() {
   if (!authEnsurePromise) {
     authEnsurePromise = (async () => {
-      // Always ensure the rate-limit table — it may land after older catchups were recorded.
+      // Always ensure rate-limit + MFA columns — they may land after older catchups were recorded.
+      // Login selects mfaEnabled; missing columns surface as SCHEMA_DRIFT on Vercel ensure-only boots.
       await ensureRateLimitBucketTable();
+      await ensureMfaUserColumns();
       if (await catchupsAlreadyApplied(AUTH_CATCHUP_MIGRATION_NAMES)) return;
       await Promise.all([ensureMustChangePasswordColumn(), ensureRefreshTokenTable()]);
       await ensureMultiTenantSchools();
@@ -1052,7 +1336,9 @@ export async function ensurePendingSchema() {
   if (!ensurePromise) {
     ensurePromise = (async () => {
       if (await catchupsAlreadyApplied()) {
-        if (!authEnsurePromise) authEnsurePromise = Promise.resolve();
+        // Still apply MFA / board / CPD catch-ups that shipped after the catchup list was frozen.
+        await ensureAuthSchema();
+        await ensureLiveOpsBoardCpdSchema();
         return { skipped: true, reason: "migrations-present" };
       }
       // Auth pieces first so concurrent login can finish while the rest runs.
@@ -1072,6 +1358,7 @@ export async function ensurePendingSchema() {
         ensureElectiveEnrollments(),
         ensureTheoryPracticalColumns(),
         ensurePortalAccessLinkTable(),
+        ensureLiveOpsBoardCpdSchema(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -1158,4 +1445,9 @@ export const __test = {
   PLATFORM_ADMIN_MIGRATION,
   PLATFORM_ADMIN_CHECKSUM,
   PLATFORM_ADMIN_STATEMENTS,
+  MFA_USER_MIGRATION,
+  MFA_USER_CHECKSUM,
+  MFA_USER_STATEMENTS,
+  LIVE_OPS_MIGRATION,
+  LIVE_OPS_CHECKSUM,
 };
