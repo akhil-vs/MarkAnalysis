@@ -1386,6 +1386,11 @@ export async function ensureAuthSchema() {
       await ensureRateLimitBucketTable();
       await ensureMfaUserColumns();
       await ensureSchoolDigestColumns();
+      // Session + staff edit load User.roleTitle and School.roleFeatureAccess. Keep these
+      // on the auth path so a failed/empty migrate (or lagging ensurePendingSchema) cannot
+      // turn login, /me, or PATCH /api/users into SCHEMA_DRIFT.
+      await ensureCustomStaffRolesColumns();
+      await ensureRoleFeatureAccessColumn();
       if (await catchupsAlreadyApplied(AUTH_CATCHUP_MIGRATION_NAMES)) return;
       await Promise.all([ensureMustChangePasswordColumn(), ensureRefreshTokenTable()]);
       await ensureMultiTenantSchools();
@@ -1528,6 +1533,9 @@ export const __test = {
   CUSTOM_STAFF_ROLES_MIGRATION,
   CUSTOM_STAFF_ROLES_CHECKSUM,
   CUSTOM_STAFF_ROLES_STATEMENTS,
+  ROLE_FEATURE_ACCESS_MIGRATION,
+  ROLE_FEATURE_ACCESS_CHECKSUM,
+  ROLE_FEATURE_ACCESS_STATEMENTS,
   ensureMfaUserColumns,
   ensureSchoolDigestColumns,
   ensureStudentGuardianEmail,
