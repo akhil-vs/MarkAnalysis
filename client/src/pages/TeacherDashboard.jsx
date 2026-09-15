@@ -23,35 +23,28 @@ import {
   RankRow,
   greeting,
 } from "../components/DashboardKit.jsx";
-import { dashboardApiPath, resolveDashboardPrefetch } from "../lib/dashboardPrefetch.js";
+import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
 import { paths } from "../lib/nav.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
 
 export default function TeacherDashboard() {
   const { user, assignments, classTeacherOf } = useAuth();
-  const [data, setData] = useState(null);
-  const [examId, setExamId] = useState("");
+  const homePath = dashboardApiPath("TEACHER");
+  const [data, setData] = useState(() => peekDashboardPrefetch(homePath, { userId: user?.id }));
+  const [examId, setExamId] = useState(() => data?.exam?.id || "");
   const [notices, setNotices] = useState([]);
   const [error, setError] = useState("");
 
   async function load(id) {
     setError("");
     const path = `/api/analytics/teacher${id ? `?examId=${id}` : ""}`;
-    let prefetched = null;
-    if (!id) {
-      prefetched = await resolveDashboardPrefetch(dashboardApiPath("TEACHER"));
-      if (prefetched) {
-        setData(prefetched);
-        if (prefetched.exam) setExamId(prefetched.exam.id);
-      }
-    }
     try {
       const res = await api(path);
       setData(res);
       if (res.exam) setExamId(res.exam.id);
     } catch (err) {
-      if (!prefetched) setError(err.message || "Could not load your classes");
+      if (!data) setError(err.message || "Could not load your classes");
     }
   }
 
@@ -65,9 +58,20 @@ export default function TeacherDashboard() {
   }
 
   useEffect(() => {
-    load("");
+    if (data) {
+      revalidateDashboard(homePath, {
+        userId: user?.id,
+        onData: (res) => {
+          setData(res);
+          if (res?.exam) setExamId(res.exam.id);
+        },
+      });
+    } else {
+      load("");
+    }
     const noticeTimer = window.setTimeout(loadNotices, 0);
     return () => window.clearTimeout(noticeTimer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount
   }, []);
 
   async function openNotice(notice) {

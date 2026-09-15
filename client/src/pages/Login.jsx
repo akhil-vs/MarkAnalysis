@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { FieldError } from "../components/FieldError.jsx";
 import { firstError, parseEmail, parseJoinCode, parsePassword, requiredText } from "../lib/formValidation.js";
+import { preloadDashboardModules } from "../lib/dashboardPrefetch.js";
 import PoweredBy from "../components/PoweredBy.jsx";
 
 const DEMO_PASSWORD = "password123";
@@ -38,6 +39,11 @@ export default function Login() {
   const [mfaChallenge, setMfaChallenge] = useState(null);
   const [mfaCode, setMfaCode] = useState("");
   const [recoveryCode, setRecoveryCode] = useState("");
+
+  useEffect(() => {
+    // Warm dashboard chunks while the user is looking at the form.
+    preloadDashboardModules();
+  }, []);
 
   if (user) {
     const home = user.role === "PLATFORM_ADMIN" ? "/platform" : "/";
@@ -121,6 +127,15 @@ export default function Login() {
     setMode("email");
     setEmail(account.email);
     setPassword(DEMO_PASSWORD);
+    const role =
+      account.role === "Platform admin"
+        ? "PLATFORM_ADMIN"
+        : account.role === "Principal" || account.role.startsWith("Principal")
+          ? "PRINCIPAL"
+          : account.role === "Exam Coordinator"
+            ? "EXAM_COORDINATOR"
+            : "TEACHER";
+    preloadDashboardModules(role);
     await signIn({ email: account.email, password: DEMO_PASSWORD });
   }
 

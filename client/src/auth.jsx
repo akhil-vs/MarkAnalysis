@@ -1,6 +1,12 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api, hasSessionHint, setSessionHint, setToken } from "./api.js";
-import { clearDashboardPrefetch, prefetchDashboard } from "./lib/dashboardPrefetch.js";
+import {
+  clearDashboardPrefetch,
+  dashboardApiPath,
+  prefetchDashboard,
+  preloadDashboardModules,
+  seedDashboardPrefetch,
+} from "./lib/dashboardPrefetch.js";
 
 const AuthContext = createContext(null);
 const AUTH_CACHE_KEY = "sma_auth_cache";
@@ -32,6 +38,17 @@ function writeAuthCache({ user, assignments, classTeacherOf }) {
   }
 }
 
+function seedDashboardFromSession(data) {
+  if (!data?.user) return;
+  preloadDashboardModules(data.user.role);
+  const path = data.dashboardPath || dashboardApiPath(data.user.role);
+  if (data.dashboard && path) {
+    seedDashboardPrefetch(path, data.dashboard, { userId: data.user.id });
+    return;
+  }
+  prefetchDashboard(data.user.role, { userId: data.user.id });
+}
+
 export function AuthProvider({ children }) {
   const cached = hasSessionHint() ? readAuthCache() : null;
   const [user, setUser] = useState(cached?.user || null);
@@ -52,7 +69,7 @@ export function AuthProvider({ children }) {
       classTeacherOf: data.classTeacherOf || [],
     });
     setLoading(false);
-    prefetchDashboard(data.user.role);
+    seedDashboardFromSession(data);
   }
 
   function clearSession() {

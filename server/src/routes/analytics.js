@@ -954,7 +954,7 @@ analyticsRouter.get("/awaiting-approvals", async (req, res) => {
   res.json({ count: items.length, items });
 });
 
-async function buildPendingUploads(exam, prefetched = null) {
+export async function buildPendingUploads(exam, prefetched = null) {
   const [assignments, students, marks] = prefetched
     ? [prefetched.assignments, prefetched.students, prefetched.marks]
     : await Promise.all([

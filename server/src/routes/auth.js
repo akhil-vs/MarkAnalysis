@@ -1,5 +1,4 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import { parseEmail } from "../lib/numbers.js";
@@ -33,6 +32,8 @@ import {
 } from "../lib/totp.js";
 import { ensureAuthSchema, resetAuthSchemaEnsure } from "../lib/ensureSchema.js";
 import { isSchemaDriftError } from "../lib/httpErrors.js";
+import { hashPassword, verifyPassword } from "../lib/password.js";
+import { buildHomeDashboard, homeDashboardPath } from "../lib/homeDashboard.js";
 
 export const authRouter = Router();
 
@@ -83,11 +84,26 @@ async function loadUserSession(userId) {
 
 async function establishSession(req, res, user) {
   const access = signToken(user);
-  const refresh = await createRefreshSession(user.id, { userAgent: req.get("user-agent") });
+  const dashPath = homeDashboardPath(user.role);
+  const [refresh, session, dashboard] = await Promise.all([
+    createRefreshSession(user.id, { userAgent: req.get("user-agent") }),
+    loadUserSession(user.id),
+    dashPath
+      ? buildHomeDashboard(user).catch(() => null)
+      : Promise.resolve(null),
+  ]);
   setAccessCookie(res, access);
   setRefreshCookie(res, refresh.raw);
-  const session = await loadUserSession(user.id);
-  if (session) return session;
+
+  if (session) {
+    return {
+      ...session,
+      ...(dashboard
+        ? { dashboard, dashboardPath: dashPath }
+        : {}),
+    };
+  }
+
   const school =
     user.tenant ||
     (user.tenantId
@@ -98,7 +114,12 @@ async function establishSession(req, res, user) {
           })
         )
       : null);
-  return { user: publicUser(user, school), assignments: [], classTeacherOf: [] };
+  return {
+    user: publicUser(user, school),
+    assignments: [],
+    classTeacherOf: [],
+    ...(dashboard ? { dashboard, dashboardPath: dashPath } : {}),
+  };
 }
 
 async function assertSchoolActive(school) {
@@ -164,7 +185,7 @@ authRouter.post("/signup", authWriteLimit, async (req, res) => {
     if (exists) return res.status(409).json({ error: "School ID already registered at this school" });
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await hashPassword(password);
   const user = await runWithTenant(school.id, () =>
     prisma.user.create({
       data: {
@@ -242,7 +263,7 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     }
   }
 
-  if (!user || !(await bcrypt.compare(password, user.passwordHash))) {
+  if (!user || !(await verifyPassword(password, user.passwordHash))) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
@@ -393,7 +414,7 @@ authRouter.post("/mfa/disable", auth, async (req, res) => {
   const { password, code } = req.body || {};
   const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
   if (!user) return res.status(404).json({ error: "Not found" });
-  if (!password || !(await bcrypt.compare(password, user.passwordHash))) {
+  if (!password || !(await verifyPassword(password, user.passwordHash))) {
     return res.status(401).json({ error: "Password is incorrect" });
   }
   if (user.mfaEnabled && user.mfaSecret && !verifyTotp(user.mfaSecret, code)) {
@@ -474,14 +495,14 @@ authRouter.post("/change-password", authAllowPasswordChange, async (req, res) =>
 
   const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
   if (!user) return res.status(404).json({ error: "Not found" });
-  if (!(await bcrypt.compare(currentPassword, user.passwordHash))) {
+  if (!(await verifyPassword(currentPassword, user.passwordHash))) {
     return res.status(401).json({ error: "Current password is incorrect" });
   }
 
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
-      passwordHash: await bcrypt.hash(newPassword, 10),
+      passwordHash: await hashPassword(newPassword),
       mustChangePassword: false,
     },
   });

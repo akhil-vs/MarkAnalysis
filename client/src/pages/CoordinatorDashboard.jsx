@@ -27,39 +27,43 @@ import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
-import { dashboardApiPath, resolveDashboardPrefetch } from "../lib/dashboardPrefetch.js";
+import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
 import { paths } from "../lib/nav.js";
 
 export default function CoordinatorDashboard() {
   const { user } = useAuth();
   const toast = useToast();
-  const [data, setData] = useState(null);
-  const [examId, setExamId] = useState("");
+  const homePath = dashboardApiPath("EXAM_COORDINATOR");
+  const [data, setData] = useState(() => peekDashboardPrefetch(homePath, { userId: user?.id }));
+  const [examId, setExamId] = useState(() => data?.exam?.id || "");
   const [notify, setNotify] = useState(null);
   const [error, setError] = useState("");
 
   async function load(id) {
     setError("");
     const path = `/api/analytics/coordinator${id ? `?examId=${id}` : ""}`;
-    let prefetched = null;
-    if (!id) {
-      prefetched = await resolveDashboardPrefetch(dashboardApiPath("EXAM_COORDINATOR"));
-      if (prefetched) {
-        setData(prefetched);
-        if (prefetched.exam) setExamId(prefetched.exam.id);
-      }
-    }
     try {
       const res = await api(path);
       setData(res);
       if (res.exam) setExamId(res.exam.id);
     } catch (err) {
-      if (!prefetched) setError(err.message || "Could not load coordinator view");
+      if (!data) setError(err.message || "Could not load coordinator view");
     }
   }
 
   useEffect(() => {
-    load("");
+    if (data) {
+      revalidateDashboard(homePath, {
+        userId: user?.id,
+        onData: (res) => {
+          setData(res);
+          if (res?.exam) setExamId(res.exam.id);
+        },
+      });
+    } else {
+      load("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount
   }, []);
 
   const strongestPair = useMemo(() => {
