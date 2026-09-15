@@ -99,6 +99,7 @@ function emptyStaffForm(role = "TEACHER") {
     schoolId: "",
     password: generateTempPassword(),
     role,
+    roleTitle: null,
     customRoleId: null,
   };
 }
@@ -387,6 +388,9 @@ export default function Users() {
       schoolId: row.schoolId || "",
       password: "",
       role: ["TEACHER", "EXAM_COORDINATOR", "PRINCIPAL"].includes(row.role) ? row.role : "TEACHER",
+      // Keep the display title even when staffRoles has not loaded yet (or the custom
+      // role was removed) so Save does not wipe roleTitle by sending null.
+      roleTitle: matchedCustom?.name || row.roleTitle || null,
       customRoleId: matchedCustom?.id || null,
     });
     setAddingRole(false);
@@ -435,11 +439,12 @@ export default function Users() {
       setForm((prev) => ({
         ...prev,
         role: custom?.baseRole || "TEACHER",
+        roleTitle: custom?.name || null,
         customRoleId: id,
       }));
       return;
     }
-    setForm((prev) => ({ ...prev, role: value, customRoleId: null }));
+    setForm((prev) => ({ ...prev, role: value, roleTitle: null, customRoleId: null }));
   }
 
   async function createCustomRole(e) {
@@ -464,6 +469,7 @@ export default function Users() {
       setForm((prev) => ({
         ...prev,
         role: created.baseRole,
+        roleTitle: created.name,
         customRoleId: created.id,
       }));
       setAddingRole(false);
@@ -514,6 +520,20 @@ export default function Users() {
   useEffect(() => {
     loadStaffRoles().catch(() => {});
   }, []);
+
+  // If Edit was opened before staffRoles finished loading, attach the custom role id once available.
+  useEffect(() => {
+    if (!editingId || form.customRoleId || !form.roleTitle) return;
+    const matched = (staffRoles || []).find(
+      (r) => !r.system && r.name === form.roleTitle && r.baseRole === form.role
+    );
+    if (!matched) return;
+    setForm((prev) => ({
+      ...prev,
+      customRoleId: matched.id,
+      roleTitle: matched.name,
+    }));
+  }, [staffRoles, editingId, form.customRoleId, form.roleTitle, form.role]);
 
   async function setStatus(id, status) {
     setBusyId(id);
@@ -632,7 +652,7 @@ export default function Users() {
           schoolId: form.schoolId.trim() || null,
           ...(form.customRoleId
             ? { customRoleId: form.customRoleId }
-            : { role: form.role, roleTitle: null }),
+            : { role: form.role, roleTitle: form.roleTitle || null }),
         };
         await api(`/api/users/${editingId}`, { method: "PATCH", body });
         cancelEdit();
@@ -665,7 +685,7 @@ export default function Users() {
           password: form.password,
           ...(form.customRoleId
             ? { customRoleId: form.customRoleId }
-            : { role: form.role, roleTitle: null }),
+            : { role: form.role, roleTitle: form.roleTitle || null }),
         },
       });
       setForm(emptyStaffForm());
@@ -966,6 +986,13 @@ export default function Users() {
                   {r.name}
                 </option>
               ))}
+              {form.roleTitle &&
+                !form.customRoleId &&
+                !(staffRoles || []).some((r) => !r.system && r.name === form.roleTitle) && (
+                  <option value={form.role} disabled>
+                    {form.roleTitle}
+                  </option>
+                )}
               {editingId && users.find((u) => u.id === editingId)?.role === "PRINCIPAL" && (
                 <option value="PRINCIPAL">Principal</option>
               )}
