@@ -131,6 +131,7 @@ export function publicUser(user, school) {
     schoolId: user.schoolId,
     tenantId: user.tenantId || null,
     role: user.role,
+    roleTitle: user.roleTitle || null,
     status: user.status,
     mustChangePassword: Boolean(user.mustChangePassword),
     mfaEnabled: Boolean(user.mfaEnabled),

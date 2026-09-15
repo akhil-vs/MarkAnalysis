@@ -1283,6 +1283,26 @@ async function ensureLiveOpsBoardCpdSchema() {
   }
 }
 
+const CUSTOM_STAFF_ROLES_MIGRATION = "20260914215900_custom_staff_roles";
+const CUSTOM_STAFF_ROLES_CHECKSUM = "custom-staff-roles-catchup-v1";
+
+const CUSTOM_STAFF_ROLES_STATEMENTS = [
+  `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "customStaffRoles" JSONB`,
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "roleTitle" TEXT`,
+];
+
+/**
+ * School-defined staff role titles (Assigned Role dropdown).
+ * Additive columns — safe to ensure even when migrations already recorded.
+ */
+async function ensureCustomStaffRolesColumns() {
+  const hasSchool = await columnExists("School", "customStaffRoles");
+  const hasUser = await columnExists("User", "roleTitle");
+  if (hasSchool && hasUser) return;
+  await applyStatements(CUSTOM_STAFF_ROLES_STATEMENTS);
+  await recordMigration(CUSTOM_STAFF_ROLES_MIGRATION, CUSTOM_STAFF_ROLES_CHECKSUM);
+}
+
 export const CATCHUP_MIGRATION_NAMES = [
   TIMETABLE_MIGRATION,
   MULTI_CLASS_PERIOD_MIGRATION,
@@ -1372,6 +1392,7 @@ export async function ensurePendingSchema() {
         // guardianEmail before swallowed live-ops — coordinator desk selects full Student rows.
         await ensureStudentGuardianEmail();
         await ensureLiveOpsBoardCpdSchema();
+        await ensureCustomStaffRolesColumns();
         return { skipped: true, reason: "migrations-present" };
       }
       // Auth pieces first so concurrent login can finish while the rest runs.
@@ -1393,6 +1414,7 @@ export async function ensurePendingSchema() {
         ensureTheoryPracticalColumns(),
         ensurePortalAccessLinkTable(),
         ensureLiveOpsBoardCpdSchema(),
+        ensureCustomStaffRolesColumns(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -1486,8 +1508,12 @@ export const __test = {
   LIVE_OPS_CHECKSUM,
   LIVE_OPS_SCHOOL_STATEMENTS,
   LIVE_OPS_STUDENT_STATEMENTS,
+  CUSTOM_STAFF_ROLES_MIGRATION,
+  CUSTOM_STAFF_ROLES_CHECKSUM,
+  CUSTOM_STAFF_ROLES_STATEMENTS,
   ensureMfaUserColumns,
   ensureSchoolDigestColumns,
   ensureStudentGuardianEmail,
+  ensureCustomStaffRolesColumns,
   resetAuthSchemaEnsure,
 };

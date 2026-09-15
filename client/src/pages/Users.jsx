@@ -21,6 +21,7 @@ function userSearchText(u) {
     u.email,
     u.schoolId,
     u.role,
+    u.roleTitle,
     u.status,
     (u.assignments || []).map((a) => [
       a.classSection?.className,
@@ -40,6 +41,19 @@ const ROLE_LABEL = {
   EXAM_COORDINATOR: "Exam coordinator",
   TEACHER: "Teacher",
 };
+
+const ADD_ROLE_VALUE = "__add_role__";
+
+function staffRoleLabel(u) {
+  if (!u) return "";
+  if (u.roleTitle) return u.roleTitle;
+  return ROLE_LABEL[u.role] || String(u.role || "").replaceAll("_", " ");
+}
+
+function roleSelectValue(form) {
+  if (form.customRoleId) return `custom:${form.customRoleId}`;
+  return form.role || "TEACHER";
+}
 
 const AVATAR_TONES = [
   "bg-[#d9e6f4] text-[#2f5680]",
@@ -84,6 +98,7 @@ function emptyStaffForm(role = "TEACHER") {
     schoolId: "",
     password: generateTempPassword(),
     role,
+    customRoleId: null,
   };
 }
 
@@ -339,8 +354,14 @@ export default function Users() {
   const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState(() => emptyStaffForm());
   const [formError, setFormError] = useState("");
+  const [staffRoles, setStaffRoles] = useState([]);
+  const [canAddRoles, setCanAddRoles] = useState(() => user.role === "PRINCIPAL");
+  const [addingRole, setAddingRole] = useState(false);
+  const [newRoleName, setNewRoleName] = useState("");
+  const [newRoleBase, setNewRoleBase] = useState("TEACHER");
+  const [savingRole, setSavingRole] = useState(false);
   const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
-  const tableBusy = Boolean(busyId) || creating || importing;
+  const tableBusy = Boolean(busyId) || creating || importing || savingRole;
 
   function canManageStaffRow(target) {
     if (!leadership) return false;
@@ -351,6 +372,9 @@ export default function Users() {
 
   function startEdit(row) {
     if (!canManageStaffRow(row)) return;
+    const matchedCustom = (staffRoles || []).find(
+      (r) => !r.system && r.name === row.roleTitle && r.baseRole === row.role
+    );
     setEditingId(row.id);
     setForm({
       name: row.name || "",
@@ -358,7 +382,10 @@ export default function Users() {
       schoolId: row.schoolId || "",
       password: "",
       role: ["TEACHER", "EXAM_COORDINATOR", "PRINCIPAL"].includes(row.role) ? row.role : "TEACHER",
+      customRoleId: matchedCustom?.id || null,
     });
+    setAddingRole(false);
+    setNewRoleName("");
     setShowPassword(false);
     setFormError("");
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -367,8 +394,72 @@ export default function Users() {
   function cancelEdit() {
     setEditingId(null);
     setForm(emptyStaffForm());
+    setAddingRole(false);
+    setNewRoleName("");
     setShowPassword(false);
     setFormError("");
+  }
+
+  async function loadStaffRoles() {
+    const data = await api("/api/users/staff-roles");
+    setStaffRoles(data.roles || []);
+    setCanAddRoles(Boolean(data.canAddRoles));
+  }
+
+  function applyRoleSelection(value) {
+    if (value === ADD_ROLE_VALUE) {
+      setAddingRole(true);
+      setNewRoleName("");
+      setNewRoleBase("TEACHER");
+      return;
+    }
+    setAddingRole(false);
+    if (value.startsWith("custom:")) {
+      const id = value.slice("custom:".length);
+      const custom = staffRoles.find((r) => r.id === id);
+      setForm((prev) => ({
+        ...prev,
+        role: custom?.baseRole || "TEACHER",
+        customRoleId: id,
+      }));
+      return;
+    }
+    setForm((prev) => ({ ...prev, role: value, customRoleId: null }));
+  }
+
+  async function createCustomRole(e) {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+    const name = newRoleName.trim();
+    const baseRole = newRoleBase === "EXAM_COORDINATOR" ? "EXAM_COORDINATOR" : "TEACHER";
+    if (!name) {
+      toast.error("Enter a role name");
+      return;
+    }
+    setSavingRole(true);
+    try {
+      const data = await api("/api/users/staff-roles", {
+        method: "POST",
+        body: { name, baseRole },
+      });
+      const roles = data.roles || [];
+      setStaffRoles(roles);
+      setCanAddRoles(true);
+      const created = data.role;
+      setForm((prev) => ({
+        ...prev,
+        role: created.baseRole,
+        customRoleId: created.id,
+      }));
+      setAddingRole(false);
+      setNewRoleName("");
+      setNewRoleBase("TEACHER");
+      toast.success(`Role “${created.name}” added.`);
+    } catch (err) {
+      toast.error(err.message || "Could not add role");
+    } finally {
+      setSavingRole(false);
+    }
   }
 
   async function load({ q = table.q, page: pageArg = page } = {}) {
@@ -404,6 +495,10 @@ export default function Users() {
   useEffect(() => {
     load().catch(() => {});
   }, [page, pageSize, table.q, table.filters.status, table.filters.role, sort]);
+
+  useEffect(() => {
+    loadStaffRoles().catch(() => {});
+  }, []);
 
   async function setStatus(id, status) {
     setBusyId(id);
@@ -496,6 +591,8 @@ export default function Users() {
 
   async function saveStaff(e) {
     e.preventDefault();
+    // Ignore accidental parent submits while the add-role panel is open.
+    if (addingRole) return;
     const name = requiredText(form.name, "Full name");
     const email = parseEmail(form.email);
     if (!form.email.trim() && !form.schoolId.trim()) {
@@ -518,7 +615,9 @@ export default function Users() {
           name: name.value,
           email: form.email.trim() || null,
           schoolId: form.schoolId.trim() || null,
-          role: form.role,
+          ...(form.customRoleId
+            ? { customRoleId: form.customRoleId }
+            : { role: form.role, roleTitle: null }),
         };
         await api(`/api/users/${editingId}`, { method: "PATCH", body });
         cancelEdit();
@@ -545,10 +644,13 @@ export default function Users() {
       await api("/api/users", {
         method: "POST",
         body: {
-          ...form,
           name: name.value,
           email: form.email.trim() || null,
           schoolId: form.schoolId.trim() || null,
+          password: form.password,
+          ...(form.customRoleId
+            ? { customRoleId: form.customRoleId }
+            : { role: form.role, roleTitle: null }),
         },
       });
       setForm(emptyStaffForm());
@@ -816,16 +918,98 @@ export default function Users() {
             <label className="label">Assigned Role</label>
             <select
               className="field"
-              value={form.role}
-              onChange={(e) => setForm({ ...form, role: e.target.value })}
+              value={addingRole ? ADD_ROLE_VALUE : roleSelectValue(form)}
+              onChange={(e) => applyRoleSelection(e.target.value)}
               disabled={editingId && users.find((u) => u.id === editingId)?.role === "PRINCIPAL"}
             >
-              <option value="TEACHER">Teacher</option>
-              {canCreateCoordinator && <option value="EXAM_COORDINATOR">Exam Coordinator</option>}
+              {(staffRoles.length
+                ? staffRoles
+                : [
+                    { id: "TEACHER", name: "Teacher", system: true },
+                    ...(canCreateCoordinator
+                      ? [{ id: "EXAM_COORDINATOR", name: "Exam Coordinator", system: true }]
+                      : []),
+                  ]
+              ).map((r) => (
+                <option key={r.id} value={r.system ? r.id : `custom:${r.id}`}>
+                  {r.name}
+                </option>
+              ))}
               {editingId && users.find((u) => u.id === editingId)?.role === "PRINCIPAL" && (
                 <option value="PRINCIPAL">Principal</option>
               )}
+              {canAddRoles && <option value={ADD_ROLE_VALUE}>+ Add role…</option>}
             </select>
+            {addingRole && canAddRoles && (
+              <div
+                className="mt-2 rounded-lg border border-ink-900/10 bg-ink-900/[0.02] p-3 space-y-2"
+                role="group"
+                aria-label="Add staff role"
+                onKeyDown={(e) => {
+                  // Nested <form> is invalid HTML inside the staff form; stop Enter here instead.
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (e.target instanceof HTMLInputElement || e.target instanceof HTMLSelectElement) {
+                      void createCustomRole(e);
+                    }
+                  }
+                }}
+              >
+                <label className="label" htmlFor="new-staff-role-name">
+                  New role name
+                </label>
+                <input
+                  id="new-staff-role-name"
+                  className="field"
+                  value={newRoleName}
+                  onChange={(e) => setNewRoleName(e.target.value)}
+                  placeholder="e.g. Vice Principal, HOD Science"
+                  maxLength={60}
+                  autoFocus
+                  disabled={savingRole}
+                />
+                <label className="label" htmlFor="new-staff-role-base">
+                  Access level
+                </label>
+                <select
+                  id="new-staff-role-base"
+                  className="field"
+                  value={newRoleBase}
+                  onChange={(e) => setNewRoleBase(e.target.value)}
+                  disabled={savingRole}
+                >
+                  <option value="TEACHER">Teacher access</option>
+                  <option value="EXAM_COORDINATOR">Exam coordinator access</option>
+                </select>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    disabled={savingRole || !newRoleName.trim()}
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      void createCustomRole(e);
+                    }}
+                  >
+                    <BusyLabel busy={savingRole} idle="Add role" busyText="Adding…" />
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost"
+                    disabled={savingRole}
+                    onClick={() => {
+                      setAddingRole(false);
+                      setNewRoleName("");
+                      setNewRoleBase("TEACHER");
+                    }}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap items-end gap-2 sm:col-span-2 lg:col-span-1 lg:justify-end">
             <button className="btn-primary w-full sm:w-auto" disabled={tableBusy}>
@@ -984,10 +1168,10 @@ export default function Users() {
                       <td>
                         <span
                           className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide ${
-                            u.role === "TEACHER" ? "uppercase" : ""
+                            u.role === "TEACHER" && !u.roleTitle ? "uppercase" : ""
                           } ${roleChipClass(u.role)}`}
                         >
-                          {ROLE_LABEL[u.role] || u.role.replaceAll("_", " ")}
+                          {staffRoleLabel(u)}
                         </span>
                       </td>
                       <td>
@@ -1193,7 +1377,8 @@ function PermissionsModal({ user, onClose }) {
       <div className="card w-full max-w-md rounded-b-none sm:rounded-xl p-5 safe-pb">
         <h3 className="font-serif text-xl mb-1">Permissions — {user.name}</h3>
         <p className="text-sm text-ink-700/65 mb-3">
-          Access follows the <span className="font-medium text-ink-900">{ROLE_LABEL[user.role] || user.role}</span> role.
+          Access follows the <span className="font-medium text-ink-900">{staffRoleLabel(user) || ROLE_LABEL[user.role] || user.role}</span> role
+          {user.roleTitle ? ` (${ROLE_LABEL[user.role] || user.role} access)` : ""}.
           Classroom paper assignments are managed per teacher.
         </p>
         <ul className="space-y-2 text-sm text-ink-800">
