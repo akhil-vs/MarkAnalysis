@@ -1,1 +1,44 @@
-[]
+[
+  {
+    "id": "column.public.School.roleFeatureAccess",
+    "label": "Add column \"roleFeatureAccess\" to \"School\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "roleFeatureAccess",
+        "table": "School"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"roleFeatureAccess\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "roleFeatureAccess"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"roleFeatureAccess\"",
+        "sql": "ALTER TABLE \"public\".\"School\" ADD COLUMN \"roleFeatureAccess\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"roleFeatureAccess\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "roleFeatureAccess"
+        ]
+      }
+    ]
+  }
+]
