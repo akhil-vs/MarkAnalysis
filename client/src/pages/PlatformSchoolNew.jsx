@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
+import { BusyLabel } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { firstError, parseEmail, parsePassword, parseSlug, requiredText, slugifyName } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -192,7 +193,7 @@ export default function PlatformSchoolNew() {
         {error && <FieldError message={error} />}
         <div className="flex flex-wrap gap-2 pt-2">
           <button className="btn-primary" disabled={busy}>
-            {busy ? "Creating…" : "Create school"}
+            <BusyLabel busy={busy} idle="Create school" busyText="Creating…" />
           </button>
           <Link to="/platform/schools" className="btn-ghost">
             Cancel

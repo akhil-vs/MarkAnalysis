@@ -16,6 +16,7 @@ import { HelpHint } from "../components/HelpHint.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { examLabel } from "../lib/exams.js";
@@ -91,7 +92,7 @@ export default function StudentAnalytics() {
   }, [id]);
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p>Loading student…</p>;
+  if (!data) return <LoadingState label="Loading student…" />;
   const s = data.student;
   const examNames = [...new Set(data.subjectSeries.flatMap((x) => x.points.map((p) => p.exam)))];
   const lineData = examNames.map((exam) => {

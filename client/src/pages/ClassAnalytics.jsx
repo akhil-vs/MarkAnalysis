@@ -23,6 +23,7 @@ import Breadcrumb from "../components/Breadcrumb.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { NAV_LABELS, paths } from "../lib/nav.js";
@@ -158,7 +159,7 @@ export default function ClassAnalytics() {
   }, [id]);
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p>Loading class…</p>;
+  if (!data) return <LoadingState label="Loading class…" />;
   if (data.empty) return <p>No data for this class yet.</p>;
   const grades = Object.entries(data.gradeDist || {}).map(([grade, count]) => ({ grade, count }));
 

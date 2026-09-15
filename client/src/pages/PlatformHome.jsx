@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { PageHeader, Kpi } from "../components/Layout.jsx";
+import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
 
@@ -73,6 +74,8 @@ export default function PlatformHome() {
     }
   }
 
+  if (!data) return <LoadingState label="Loading platform…" />;
+
   return (
     <div>
       <PageHeader
@@ -102,13 +105,13 @@ export default function PlatformHome() {
         </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-accent" disabled={Boolean(busy)} onClick={runBackup}>
-            {busy === "backup" ? "Exporting…" : "Download backup"}
+            <BusyLabel busy={busy === "backup"} idle="Download backup" busyText="Exporting…" />
           </button>
           <button type="button" className="btn" disabled={Boolean(busy)} onClick={runDigests}>
-            {busy === "digests" ? "Running…" : "Run email digests"}
+            <BusyLabel busy={busy === "digests"} idle="Run email digests" busyText="Running…" />
           </button>
           <button type="button" className="btn" disabled={Boolean(busy)} onClick={flushMail}>
-            {busy === "mail" ? "Flushing…" : "Flush mail queue"}
+            <BusyLabel busy={busy === "mail"} idle="Flush mail queue" busyText="Flushing…" />
           </button>
         </div>
       </section>

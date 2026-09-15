@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -14,14 +15,15 @@ function statusClass(status) {
 export default function PlatformSchools() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
-  const [schools, setSchools] = useState([]);
+  const [schools, setSchools] = useState(null);
   const status = params.get("status") || "";
-  const { q, setQ, filtered } = useTableSearch(schools, {
+  const { q, setQ, filtered } = useTableSearch(schools || [], {
     getSearchText: (s) => searchHaystack(s.name, s.slug, s.board, s.affiliationNo, s.email, s.status),
   });
 
   useEffect(() => {
     const query = status ? `?status=${encodeURIComponent(status)}` : "";
+    setSchools(null);
     api(`/api/platform/schools${query}`)
       .then((data) => setSchools(Array.isArray(data) ? data : data.items || []))
       .catch((err) => toast.error(err.message || "Could not load schools"));
@@ -33,6 +35,8 @@ export default function PlatformSchools() {
     else nextParams.delete("status");
     setParams(nextParams, { replace: true });
   }
+
+  if (!schools) return <LoadingState label="Loading schools…" />;
 
   return (
     <div>

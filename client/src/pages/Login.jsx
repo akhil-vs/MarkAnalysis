@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { FieldError } from "../components/FieldError.jsx";
+import { BusyLabel } from "../components/Spinner.jsx";
 import { firstError, parseEmail, parseJoinCode, parsePassword, requiredText } from "../lib/formValidation.js";
 import { preloadDashboardModules } from "../lib/dashboardPrefetch.js";
 import PoweredBy from "../components/PoweredBy.jsx";
@@ -193,7 +194,7 @@ export default function Login() {
           </div>
           {error && <FieldError message={error} />}
           <button className="btn-primary w-full" disabled={Boolean(busy)}>
-            {busy === "mfa" ? "Verifying…" : "Verify and sign in"}
+            <BusyLabel busy={busy === "mfa"} idle="Verify and sign in" busyText="Verifying…" />
           </button>
           <button
             type="button"
@@ -278,7 +279,7 @@ export default function Login() {
         </div>
         {error && <FieldError message={error} />}
         <button className="btn-primary w-full" disabled={Boolean(busy)}>
-          {busy === "form" ? "Signing in…" : "Sign in"}
+          <BusyLabel busy={busy === "form"} idle="Sign in" busyText="Signing in…" />
         </button>
         <p className="text-sm text-ink-700/70">
           New staff? <Link className="underline" to="/signup">Request an account</Link>
@@ -330,7 +331,7 @@ function QuickLogin({ account, busy, onClick }) {
           <div className="text-xs text-ink-700/60">{account.role} · {account.email}</div>
         </div>
         <span className="text-xs text-clay-600 shrink-0">
-          {busy === account.email ? "…" : "Sign in"}
+          <BusyLabel busy={busy === account.email} idle="Sign in" busyText="Signing in…" />
         </span>
       </div>
     </button>

@@ -2,7 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
 import { useAuth } from "./auth.jsx";
 import Layout from "./components/Layout.jsx";
-import { Spinner } from "./components/Spinner.jsx";
+import { LoadingState } from "./components/Spinner.jsx";
 import { guardFeatureForRoute, guardRolesForRoute, paths } from "./lib/nav.js";
 import { hasFeature } from "./lib/features.js";
 
@@ -48,12 +48,7 @@ const PlatformSchoolNew = lazy(() => import("./pages/PlatformSchoolNew.jsx"));
 const PlatformSchoolDetail = lazy(() => import("./pages/PlatformSchoolDetail.jsx"));
 
 function PageFallback() {
-  return (
-    <div className="flex items-center justify-center gap-2 p-10 text-ink-700/70">
-      <Spinner />
-      <span>Loading…</span>
-    </div>
-  );
+  return <LoadingState label="Loading…" />;
 }
 
 function Guard({ roles, feature, children }) {

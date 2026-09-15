@@ -3,7 +3,7 @@ import { api } from "../api.js";
 import { ExamSelect } from "../components/ExamSelect.jsx";
 import { EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { Spinner } from "../components/Spinner.jsx";
+import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError } from "../components/FieldError.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -349,12 +349,7 @@ export default function BoardOps() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center gap-2 p-10 text-ink-700/70">
-        <Spinner />
-        <span>Loading board ops…</span>
-      </div>
-    );
+    return <LoadingState label="Loading board ops…" />;
   }
 
   return (
@@ -509,7 +504,7 @@ export default function BoardOps() {
               />
             </div>
             <button className="btn-accent" disabled={busy === "paper"}>
-              {busy === "paper" ? "Saving…" : "Save schedule"}
+              <BusyLabel busy={busy === "paper"} idle="Save schedule" busyText="Saving…" />
             </button>
           </form>
         </div>
@@ -757,7 +752,7 @@ export default function BoardOps() {
               Fee paid
             </label>
             <button className="btn-accent" disabled={busy === "reval"}>
-              {busy === "reval" ? "Saving…" : "Create request"}
+              <BusyLabel busy={busy === "reval"} idle="Create request" busyText="Saving…" />
             </button>
           </form>
         </div>
@@ -773,7 +768,7 @@ export default function BoardOps() {
                 onChange={(e) => setPackLabel(e.target.value)}
               />
               <button type="button" className="btn-accent" disabled={busy === "pack"} onClick={createPack}>
-                {busy === "pack" ? "Creating…" : "Create pack"}
+                <BusyLabel busy={busy === "pack"} idle="Create pack" busyText="Creating…" />
               </button>
             </div>
           }

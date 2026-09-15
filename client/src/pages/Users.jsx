@@ -5,7 +5,7 @@ import { api, download } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
-import { BusyLabel } from "../components/Spinner.jsx";
+import { BusyLabel, InlineLoading } from "../components/Spinner.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError } from "../components/FieldError.jsx";
@@ -366,8 +366,9 @@ export default function Users() {
   const [newRoleName, setNewRoleName] = useState("");
   const [newRoleBase, setNewRoleBase] = useState("TEACHER");
   const [savingRole, setSavingRole] = useState(false);
+  const [listLoading, setListLoading] = useState(true);
   const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
-  const tableBusy = Boolean(busyId) || creating || importing || savingRole;
+  const tableBusy = Boolean(busyId) || creating || importing || savingRole || listLoading;
 
   function canManageStaffRow(target) {
     if (!leadership) return false;
@@ -489,28 +490,33 @@ export default function Users() {
     if (table.filters.status) params.set("status", table.filters.status);
     if (table.filters.role) params.set("role", table.filters.role);
     if (sort) params.set("sort", sort);
-    const [uRes, c, s] = await Promise.all([
-      api(`/api/users?${params}`),
-      api("/api/classes"),
-      api("/api/subjects"),
-    ]);
-    if (Array.isArray(uRes)) {
-      setUsers(uRes);
-      setTotal(uRes.length);
-      setPageCount(1);
-      setSummary({
-        total: uRes.length,
-        active: uRes.filter((u) => u.status === "ACTIVE").length,
-        pending: uRes.filter((u) => u.status === "PENDING").length,
-      });
-    } else {
-      setUsers(uRes.items || []);
-      setTotal(uRes.total || 0);
-      setPageCount(uRes.pageCount || 1);
-      if (uRes.summary) setSummary(uRes.summary);
+    setListLoading(true);
+    try {
+      const [uRes, c, s] = await Promise.all([
+        api(`/api/users?${params}`),
+        api("/api/classes"),
+        api("/api/subjects"),
+      ]);
+      if (Array.isArray(uRes)) {
+        setUsers(uRes);
+        setTotal(uRes.length);
+        setPageCount(1);
+        setSummary({
+          total: uRes.length,
+          active: uRes.filter((u) => u.status === "ACTIVE").length,
+          pending: uRes.filter((u) => u.status === "PENDING").length,
+        });
+      } else {
+        setUsers(uRes.items || []);
+        setTotal(uRes.total || 0);
+        setPageCount(uRes.pageCount || 1);
+        if (uRes.summary) setSummary(uRes.summary);
+      }
+      setClasses(c);
+      setSubjects(s);
+    } finally {
+      setListLoading(false);
     }
-    setClasses(c);
-    setSubjects(s);
   }
 
   useEffect(() => {
@@ -1174,7 +1180,7 @@ export default function Users() {
           empty="No staff accounts yet."
           itemLabel="staff members"
           busy={tableBusy}
-          busyLabel="Updating staff…"
+          busyLabel={listLoading ? "Loading staff…" : "Updating staff…"}
         >
           {(pageItems) => (
             <table className="table">
@@ -1728,7 +1734,7 @@ function TransferModal({ user, onClose, onTransfer }) {
         </p>
 
         {loading ? (
-          <p className="text-sm text-ink-700/60 mb-4">Loading teachers…</p>
+          <InlineLoading label="Loading teachers…" className="mb-4" />
         ) : loadError ? (
           <p className="text-sm text-clay-600 mb-4">{loadError}</p>
         ) : teachers.length === 0 ? (

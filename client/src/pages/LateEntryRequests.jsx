@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
-import { BusyLabel } from "../components/Spinner.jsx";
+import { BusyLabel, InlineLoading } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -191,7 +191,7 @@ export default function LateEntryRequests() {
 
       <div className="card overflow-hidden">
         {loading && !rows.length ? (
-          <p className="p-4 text-sm text-ink-700/60">Loading requests…</p>
+          <InlineLoading label="Loading requests…" className="p-4" />
         ) : (
           <>
             <div className="p-3 border-b border-ink-900/10">

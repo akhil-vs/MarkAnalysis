@@ -16,6 +16,7 @@ import { ChartTooltip, EmptyNote, Metric, Panel } from "../components/DashboardK
 import { HelpHint } from "../components/HelpHint.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { InlineLoading, LoadingState } from "../components/Spinner.jsx";
 import { NAV_LABELS, NAV_TITLES, paths } from "../lib/nav.js";
 import { DEEP_INSIGHT_HELP, DEEP_INSIGHT_PANEL_HELP as PANEL_HELP } from "../lib/pageHelp.js";
 
@@ -269,7 +270,7 @@ export default function AnalysisDeepInsights() {
   );
 
   if (error && !meta) return <p className="text-clay-600">{error}</p>;
-  if (!meta) return <p className="text-ink-700/60">Loading deep insights…</p>;
+  if (!meta) return <LoadingState label="Loading deep insights…" />;
 
   return (
     <div>
@@ -335,7 +336,7 @@ export default function AnalysisDeepInsights() {
 
       <TabBar tab={tab} setTab={setTab} />
       {error && <p className="text-clay-600 mb-3">{error}</p>}
-      {loading && !data && <p className="text-ink-700/60 mb-3">Loading…</p>}
+      {loading && !data && <InlineLoading label="Loading…" className="mb-3" />}
 
       {data && tab === "outcomes" && <OutcomesTab data={data} />}
       {data && tab === "readiness" && <ReadinessTab data={data} />}

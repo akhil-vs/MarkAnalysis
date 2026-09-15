@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { api } from "../api.js";
-import { BusyLabel } from "./Spinner.jsx";
+import { BusyLabel, InlineLoading } from "./Spinner.jsx";
 
 const KINDS = [
   { id: "DEADLINE", label: "Deadline reminder", hint: "Mark entry due date" },
@@ -281,7 +281,7 @@ export default function NotifyTeachersDialog({
 
         <div className="mt-4 rounded-xl border border-ink-900/10 bg-white/50 px-3 py-2.5 text-sm">
           {loading ? (
-            <span className="text-ink-700/55">Checking who would receive this…</span>
+            <InlineLoading label="Checking who would receive this…" />
           ) : count ? (
             <>
               <div className="font-medium">

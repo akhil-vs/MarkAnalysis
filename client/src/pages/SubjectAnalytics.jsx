@@ -15,6 +15,7 @@ import { TeacherCompareTable, YearComparison, comparableNote } from "../componen
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { LoadError } from "../components/LoadError.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { NAV_LABELS, paths } from "../lib/nav.js";
 
 export default function SubjectAnalytics() {
@@ -39,7 +40,7 @@ export default function SubjectAnalytics() {
   }, [id]);
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p>Loading subject…</p>;
+  if (!data) return <LoadingState label="Loading subject…" />;
   if (data.empty) return <p>No data for this subject yet.</p>;
 
   return (

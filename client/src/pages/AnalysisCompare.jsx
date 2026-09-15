@@ -16,6 +16,7 @@ import { TeacherCompareTable, YearComparison } from "../components/AnalysisPanel
 import { ChartTooltip, EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { FilterBar } from "../components/TableToolbar.jsx";
 import { NAV_TITLES, paths } from "../lib/nav.js";
 
@@ -108,7 +109,7 @@ export default function AnalysisCompare() {
   const palette = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
 
   if (error) return <LoadError message={error} />;
-  if (!years && !teachers) return <p>Loading comparisons…</p>;
+  if (!years && !teachers) return <LoadingState label="Loading comparisons…" />;
 
   return (
     <div>

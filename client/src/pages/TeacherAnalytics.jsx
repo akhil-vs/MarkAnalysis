@@ -7,6 +7,7 @@ import Breadcrumb from "../components/Breadcrumb.jsx";
 import { BarTrack, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { LoadError } from "../components/LoadError.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { useAuth } from "../auth.jsx";
 import { NAV_LABELS, paths } from "../lib/nav.js";
 import { isLeadership } from "../lib/roles.js";
@@ -42,7 +43,7 @@ export default function TeacherAnalytics() {
   }, [id]);
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p>Loading teacher…</p>;
+  if (!data) return <LoadingState label="Loading teacher…" />;
   if (data.empty) return <p>No data for this teacher yet.</p>;
 
   return (

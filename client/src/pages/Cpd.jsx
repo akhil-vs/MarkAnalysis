@@ -3,7 +3,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { Spinner } from "../components/Spinner.jsx";
+import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError } from "../components/FieldError.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -336,12 +336,7 @@ export default function Cpd() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center gap-2 p-10 text-ink-700/70">
-        <Spinner />
-        <span>Loading CPD…</span>
-      </div>
-    );
+    return <LoadingState label="Loading CPD…" />;
   }
 
   return (
@@ -494,7 +489,7 @@ export default function Cpd() {
               />
             </div>
             <button className="btn-accent" disabled={busy === "plan"}>
-              {busy === "plan" ? "Saving…" : "Create plan"}
+              <BusyLabel busy={busy === "plan"} idle="Create plan" busyText="Saving…" />
             </button>
           </form>
         </div>
@@ -614,7 +609,7 @@ export default function Cpd() {
               />
             </div>
             <button className="btn-accent" disabled={busy === "obs"}>
-              {busy === "obs" ? "Saving…" : "Save observation"}
+              <BusyLabel busy={busy === "obs"} idle="Save observation" busyText="Saving…" />
             </button>
           </form>
         </div>
@@ -740,7 +735,7 @@ export default function Cpd() {
                 />
               </div>
               <button className="btn-accent" disabled={busy === "appraisal"}>
-                {busy === "appraisal" ? "Saving…" : "Save appraisal"}
+                <BusyLabel busy={busy === "appraisal"} idle="Save appraisal" busyText="Saving…" />
               </button>
             </form>
           ) : (
@@ -867,7 +862,7 @@ export default function Cpd() {
               />
             </div>
             <button className="btn-accent" disabled={busy === "cert"}>
-              {busy === "cert" ? "Saving…" : "Add certificate"}
+              <BusyLabel busy={busy === "cert"} idle="Add certificate" busyText="Saving…" />
             </button>
           </form>
         </div>

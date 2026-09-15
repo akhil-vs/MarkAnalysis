@@ -3,6 +3,7 @@ import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { InlineLoading, LoadingState } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
@@ -205,7 +206,7 @@ function TeachersList() {
       </div>
     );
   }
-  if (!teachers) return <p>Loading teacher timetables…</p>;
+  if (!teachers) return <LoadingState label="Loading teacher timetables…" />;
 
   return (
     <div>
@@ -294,7 +295,7 @@ function DailyBoard({ date, onDateChange }) {
         <TableToolbar q={q} setQ={setQ} placeholder="Filter teachers…" />
       </div>
 
-      {!data && <p>Loading daily board…</p>}
+      {!data && <InlineLoading label="Loading daily board…" className="p-2" />}
 
       {data && !teachingPeriods.length && <EmptyNote>No school periods defined yet.</EmptyNote>}
 
@@ -443,7 +444,7 @@ function FreeFinder({ date, periodId, onDateChange, onPeriodChange }) {
       </div>
 
       {error && <p className="text-sm text-clay-600 mb-3">{error}</p>}
-      {loading && <p>Finding free teachers…</p>}
+      {loading && <InlineLoading label="Finding free teachers…" />}
 
       {result && !loading && (
         <div className="space-y-5">

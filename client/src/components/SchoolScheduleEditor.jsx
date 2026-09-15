@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api.js";
 import { useConfirm } from "./ConfirmDialog.jsx";
+import { BusyLabel, LoadingState } from "./Spinner.jsx";
 import { useToast } from "./Toast.jsx";
 
 const DAY_OPTIONS = [
@@ -283,7 +284,7 @@ export function SchoolScheduleEditor() {
   }
 
   if (error) return <p className="text-sm text-clay-600">{error}</p>;
-  if (!rows) return <p>Loading school schedule…</p>;
+  if (!rows) return <LoadingState label="Loading school schedule…" />;
 
   const dayLabels = workingDays
     .map((d) => DAY_OPTIONS.find((o) => o.id === d)?.label || d)
@@ -314,7 +315,7 @@ export function SchoolScheduleEditor() {
             Discard
           </button>
           <button type="button" className="btn-primary" onClick={save} disabled={busy || !dirty}>
-            {busy ? "Saving…" : "Save schedule"}
+            <BusyLabel busy={busy} idle="Save schedule" busyText="Saving…" />
           </button>
         </div>
       </div>

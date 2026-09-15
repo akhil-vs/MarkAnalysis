@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "react-router-dom";
+import { BusyLabel } from "../components/Spinner.jsx";
 
 const PORTAL_SESSION_KEY = "sma_portal_token";
 
@@ -110,7 +111,7 @@ export default function Portal() {
               autoComplete="off"
             />
             <button className="btn-primary" disabled={busy || !tokenInput.trim()}>
-              {busy ? "Opening…" : "View marks"}
+              <BusyLabel busy={busy} idle="View marks" busyText="Opening…" />
             </button>
           </form>
         )}

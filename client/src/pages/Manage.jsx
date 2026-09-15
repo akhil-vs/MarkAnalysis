@@ -4,7 +4,7 @@ import { api, download } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
-import { BusyLabel } from "../components/Spinner.jsx";
+import { BusyLabel, InlineLoading } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { useAuth } from "../auth.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
@@ -89,6 +89,7 @@ function ClassesTab() {
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const table = useTableSearch(rows, { getSearchText: classSearchText, filterDefs: CLASS_FILTERS });
   const classOptions = useMemo(
     () => [...new Set(rows.map((r) => r.className).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })),
@@ -96,10 +97,15 @@ function ClassesTab() {
   );
 
   async function load() {
-    const [c, u] = await Promise.all([api("/api/classes"), api("/api/users")]);
-    setRows(c);
-    const staff = Array.isArray(u) ? u : u.items || [];
-    setTeachers(staff.filter((x) => x.role === "TEACHER" && x.status === "ACTIVE"));
+    setLoading(true);
+    try {
+      const [c, u] = await Promise.all([api("/api/classes"), api("/api/users")]);
+      setRows(c);
+      const staff = Array.isArray(u) ? u : u.items || [];
+      setTeachers(staff.filter((x) => x.role === "TEACHER" && x.status === "ACTIVE"));
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
     load().catch((err) => toast.error(err.message || "Could not load classes"));
@@ -216,7 +222,7 @@ function ClassesTab() {
             </select>
           </TableToolbar>
         </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No classes yet." busy={busy} busyLabel="Updating classes…">
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No classes yet." busy={busy || loading} busyLabel={loading ? "Loading classes…" : "Updating classes…"}>
           {(page) => (
             <table className="table">
               <thead><tr><th>Class</th><th>Section</th><th>Teacher</th><th>Students</th><th></th></tr></thead>
@@ -268,6 +274,7 @@ function SubjectsTab() {
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const table = useTableSearch(rows, { getSearchText: subjectSearchText, filterDefs: SUBJECT_FILTERS });
   const classOptions = useMemo(() => uniqueClassNames(classSections), [classSections]);
   const formClassOptions = useMemo(() => {
@@ -286,17 +293,22 @@ function SubjectsTab() {
   }, [classStudents, form.className, form.isElective]);
 
   async function load() {
-    const [subjects, classes] = await Promise.all([
-      api("/api/subjects"),
-      api("/api/classes"),
-    ]);
-    setRows(subjects);
-    setClassSections(classes);
-    const options = uniqueClassNames(classes);
-    setForm((f) => {
-      if (f.className && options.includes(f.className)) return f;
-      return { ...f, className: options[0] || "" };
-    });
+    setLoading(true);
+    try {
+      const [subjects, classes] = await Promise.all([
+        api("/api/subjects"),
+        api("/api/classes"),
+      ]);
+      setRows(subjects);
+      setClassSections(classes);
+      const options = uniqueClassNames(classes);
+      setForm((f) => {
+        if (f.className && options.includes(f.className)) return f;
+        return { ...f, className: options[0] || "" };
+      });
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
     load().catch((err) => toast.error(err.message || "Could not load subjects"));
@@ -612,7 +624,7 @@ function SubjectsTab() {
             </select>
           </TableToolbar>
         </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subjects yet." busy={busy} busyLabel="Updating subjects…">
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subjects yet." busy={busy || loading} busyLabel={loading ? "Loading subjects…" : "Updating subjects…"}>
           {(page) => (
             <table className="table">
               <thead>
@@ -687,6 +699,7 @@ function StudentsTab() {
   const [preview, setPreview] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const table = useTableSearch(rows, { getSearchText: studentSearchText, filterDefs: STUDENT_FILTERS });
 
   async function load() {
@@ -694,21 +707,26 @@ function StudentsTab() {
     if (table.q) params.set("q", table.q);
     if (table.filters.classSectionId) params.set("classSectionId", table.filters.classSectionId);
     if (table.filters.academicYear) params.set("academicYear", table.filters.academicYear);
-    const [sRes, c] = await Promise.all([api(`/api/students?${params}`), api("/api/classes")]);
-    if (Array.isArray(sRes)) {
-      setRows(sRes);
-      setTotal(sRes.length);
-      setPageCount(1);
-      setYearOptions([...new Set(sRes.map((r) => r.academicYear).filter(Boolean))].sort().reverse());
-    } else {
-      setRows(sRes.items || []);
-      setTotal(sRes.total || 0);
-      setPageCount(sRes.pageCount || 1);
-      if (Array.isArray(sRes.years)) setYearOptions(sRes.years);
+    setLoading(true);
+    try {
+      const [sRes, c] = await Promise.all([api(`/api/students?${params}`), api("/api/classes")]);
+      if (Array.isArray(sRes)) {
+        setRows(sRes);
+        setTotal(sRes.length);
+        setPageCount(1);
+        setYearOptions([...new Set(sRes.map((r) => r.academicYear).filter(Boolean))].sort().reverse());
+      } else {
+        setRows(sRes.items || []);
+        setTotal(sRes.total || 0);
+        setPageCount(sRes.pageCount || 1);
+        if (Array.isArray(sRes.years)) setYearOptions(sRes.years);
+      }
+      setClasses(c);
+      if (!form.classSectionId && c[0]) setForm((f) => ({ ...f, classSectionId: c[0].id }));
+      if (!classSectionId && c[0]) setClassSectionId(c[0].id);
+    } finally {
+      setLoading(false);
     }
-    setClasses(c);
-    if (!form.classSectionId && c[0]) setForm((f) => ({ ...f, classSectionId: c[0].id }));
-    if (!classSectionId && c[0]) setClassSectionId(c[0].id);
   }
   useEffect(() => {
     load().catch((err) => toast.error(err.message || "Could not load students"));
@@ -903,9 +921,9 @@ function StudentsTab() {
           </button>
         </div>
         {uploadMode && (
-          <p className="text-sm text-ink-700/70" role="status">
-            {uploadMode === "commit" ? "Uploading students…" : "Checking spreadsheet…"}
-          </p>
+          <InlineLoading
+            label={uploadMode === "commit" ? "Uploading students…" : "Checking spreadsheet…"}
+          />
         )}
         {preview && !uploadMode && (
           <div className="text-sm space-y-2 rounded-xl border border-ink-900/10 bg-cream/60 p-3.5">
@@ -1025,8 +1043,8 @@ function StudentsTab() {
             }}
             resetKey={`${page}:${pageSize}:${table.q}:${table.filters.classSectionId || ""}:${table.filters.academicYear || ""}`}
             empty="No students yet."
-            busy={busy}
-            busyLabel="Updating students…"
+            busy={busy || loading}
+            busyLabel={loading ? "Loading students…" : "Updating students…"}
           >
             {(page) => (
               <table className="table">
@@ -1104,6 +1122,7 @@ function ExamsTab() {
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [notify, setNotify] = useState(null);
   const table = useTableSearch(rows, { getSearchText: examSearchText, filterDefs: EXAM_FILTERS });
   const yearOptions = useMemo(
@@ -1114,7 +1133,12 @@ function ExamsTab() {
   const consolidationLocked = examIsLocked(editingRow);
 
   async function load() {
-    setRows(await api("/api/exams"));
+    setLoading(true);
+    try {
+      setRows(await api("/api/exams"));
+    } finally {
+      setLoading(false);
+    }
   }
   useEffect(() => {
     load().catch((err) => toast.error(err.message || "Could not load exams"));
@@ -1381,7 +1405,7 @@ function ExamsTab() {
             </select>
           </TableToolbar>
         </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No exams scheduled." busy={busy} busyLabel="Updating exams…">
+        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No exams scheduled." busy={busy || loading} busyLabel={loading ? "Loading exams…" : "Updating exams…"}>
           {(page) => (
             <table className="table">
               <thead>

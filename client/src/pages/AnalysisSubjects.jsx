@@ -5,6 +5,7 @@ import { ExamSelect } from "../components/ExamSelect.jsx";
 import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { NAV_TITLES, paths } from "../lib/nav.js";
 
 export default function AnalysisSubjects() {
@@ -28,7 +29,7 @@ export default function AnalysisSubjects() {
   }, []);
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p>Loading subjects…</p>;
+  if (!data) return <LoadingState label="Loading subjects…" />;
   if (data.empty) return <p>No exam data yet.</p>;
 
   return (

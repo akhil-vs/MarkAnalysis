@@ -13,6 +13,7 @@ import {
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { LoadError } from "../components/LoadError.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import {
   BarTrack,
   ChartTooltip,
@@ -80,7 +81,7 @@ export default function CoordinatorDashboard() {
   }, [data]);
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p className="text-ink-700/60">Loading coordinator view…</p>;
+  if (!data) return <LoadingState label="Loading coordinator view…" />;
   if (data.empty) return <p>No exam data yet.</p>;
 
   const pending = (data.pendingUploads?.teachers || []).filter((t) => t.pending);
