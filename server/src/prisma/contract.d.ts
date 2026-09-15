@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'5513bd333417d776427f03beaf0483d3d36cd8edae48636a6d9097c4069e6297'>;
+  StorageHashBase<'d5fbda4159a6baa200bd812ddbca216e6c2d4a017b7e5ab7fd456797e24c49c9'>;
 export type ExecutionHash =
   ExecutionHashBase<'47b32973b482e3482f74eb4934530e25e38250f4c47a6f8943a2e003354c3f18'>;
 export type ProfileHash =
@@ -565,6 +565,7 @@ export type FieldOutputTypes = {
       readonly digestEmail: CodecTypes['pg/text@1']['output'] | null;
       readonly customStaffRoles: CodecTypes['pg/jsonb@1']['output'] | null;
       readonly roleFeatureAccess: CodecTypes['pg/jsonb@1']['output'] | null;
+      readonly optionalModules: CodecTypes['pg/jsonb@1']['output'] | null;
     };
     readonly Student: {
       readonly id: CodecTypes['pg/text@1']['output'];
@@ -956,6 +957,7 @@ export type FieldInputTypes = {
       readonly digestEmail: CodecTypes['pg/text@1']['input'] | null;
       readonly customStaffRoles: CodecTypes['pg/jsonb@1']['input'] | null;
       readonly roleFeatureAccess: CodecTypes['pg/jsonb@1']['input'] | null;
+      readonly optionalModules: CodecTypes['pg/jsonb@1']['input'] | null;
     };
     readonly Student: {
       readonly id: CodecTypes['pg/text@1']['input'];
@@ -1333,6 +1335,7 @@ export type StorageColumnTypes = {
       readonly logoMimeType: CodecTypes['pg/text@1']['output'] | null;
       readonly motto: CodecTypes['pg/text@1']['output'] | null;
       readonly name: CodecTypes['pg/text@1']['output'];
+      readonly optionalModules: CodecTypes['pg/jsonb@1']['output'] | null;
       readonly passPercent: CodecTypes['pg/float8@1']['output'];
       readonly phone: CodecTypes['pg/text@1']['output'] | null;
       readonly pincode: CodecTypes['pg/text@1']['output'] | null;
@@ -1724,6 +1727,7 @@ export type StorageColumnInputTypes = {
       readonly logoMimeType: CodecTypes['pg/text@1']['input'] | null;
       readonly motto: CodecTypes['pg/text@1']['input'] | null;
       readonly name: CodecTypes['pg/text@1']['input'];
+      readonly optionalModules: CodecTypes['pg/jsonb@1']['input'] | null;
       readonly passPercent: CodecTypes['pg/float8@1']['input'];
       readonly phone: CodecTypes['pg/text@1']['input'] | null;
       readonly pincode: CodecTypes['pg/text@1']['input'] | null;
@@ -1842,6 +1846,7 @@ export namespace Models {
     digestEmail: CodecTypes['pg/text@1']['output'] | null;
     customStaffRoles: CodecTypes['pg/jsonb@1']['output'] | null;
     roleFeatureAccess: CodecTypes['pg/jsonb@1']['output'] | null;
+    optionalModules: CodecTypes['pg/jsonb@1']['output'] | null;
     activityAudits: public_ActivityAudit[];
     assignments: public_TeacherAssignment[];
     boardPacks: public_BoardPack[];
@@ -5107,6 +5112,11 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/jsonb@1';
                   readonly nullable: true;
                 };
+                readonly optionalModules: {
+                  readonly nativeType: 'jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                };
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [
@@ -8300,6 +8310,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
               };
+              readonly optionalModules: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
             };
             readonly relations: {
               readonly activityAudits: {
@@ -8597,6 +8611,7 @@ type ContractBase = Omit<
                 readonly digestEmail: { readonly column: 'digestEmail' };
                 readonly customStaffRoles: { readonly column: 'customStaffRoles' };
                 readonly roleFeatureAccess: { readonly column: 'roleFeatureAccess' };
+                readonly optionalModules: { readonly column: 'optionalModules' };
               };
             };
           };

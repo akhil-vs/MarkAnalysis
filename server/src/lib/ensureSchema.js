@@ -1318,6 +1318,21 @@ async function ensureRoleFeatureAccessColumn() {
   await recordMigration(ROLE_FEATURE_ACCESS_MIGRATION, ROLE_FEATURE_ACCESS_CHECKSUM);
 }
 
+const OPTIONAL_MODULES_MIGRATION = "20260915120000_optional_modules";
+const OPTIONAL_MODULES_CHECKSUM = "optional-modules-catchup-v1";
+
+const OPTIONAL_MODULES_STATEMENTS = [
+  `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "optionalModules" JSONB`,
+];
+
+/** School-wide optional module visibility (Board ops, CPD). */
+async function ensureOptionalModulesColumn() {
+  const hasCol = await columnExists("School", "optionalModules");
+  if (hasCol) return;
+  await applyStatements(OPTIONAL_MODULES_STATEMENTS);
+  await recordMigration(OPTIONAL_MODULES_MIGRATION, OPTIONAL_MODULES_CHECKSUM);
+}
+
 export const CATCHUP_MIGRATION_NAMES = [
   TIMETABLE_MIGRATION,
   MULTI_CLASS_PERIOD_MIGRATION,
@@ -1391,6 +1406,7 @@ export async function ensureAuthSchema() {
       // turn login, /me, or PATCH /api/users into SCHEMA_DRIFT.
       await ensureCustomStaffRolesColumns();
       await ensureRoleFeatureAccessColumn();
+      await ensureOptionalModulesColumn();
       if (await catchupsAlreadyApplied(AUTH_CATCHUP_MIGRATION_NAMES)) return;
       await Promise.all([ensureMustChangePasswordColumn(), ensureRefreshTokenTable()]);
       await ensureMultiTenantSchools();
@@ -1414,6 +1430,7 @@ export async function ensurePendingSchema() {
         await ensureLiveOpsBoardCpdSchema();
         await ensureCustomStaffRolesColumns();
         await ensureRoleFeatureAccessColumn();
+        await ensureOptionalModulesColumn();
         return { skipped: true, reason: "migrations-present" };
       }
       // Auth pieces first so concurrent login can finish while the rest runs.
@@ -1437,6 +1454,7 @@ export async function ensurePendingSchema() {
         ensureLiveOpsBoardCpdSchema(),
         ensureCustomStaffRolesColumns(),
         ensureRoleFeatureAccessColumn(),
+        ensureOptionalModulesColumn(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -1536,10 +1554,14 @@ export const __test = {
   ROLE_FEATURE_ACCESS_MIGRATION,
   ROLE_FEATURE_ACCESS_CHECKSUM,
   ROLE_FEATURE_ACCESS_STATEMENTS,
+  OPTIONAL_MODULES_MIGRATION,
+  OPTIONAL_MODULES_CHECKSUM,
+  OPTIONAL_MODULES_STATEMENTS,
   ensureMfaUserColumns,
   ensureSchoolDigestColumns,
   ensureStudentGuardianEmail,
   ensureCustomStaffRolesColumns,
   ensureRoleFeatureAccessColumn,
+  ensureOptionalModulesColumn,
   resetAuthSchemaEnsure,
 };

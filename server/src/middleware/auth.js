@@ -145,13 +145,14 @@ async function loadFeatureAccessForRequest(req) {
   }
   const school = await prisma.school.findUnique({
     where: { id: req.user.tenantId },
-    select: { customStaffRoles: true, roleFeatureAccess: true },
+    select: { customStaffRoles: true, roleFeatureAccess: true, optionalModules: true },
   });
   return featuresForUser(
     { role: req.user.role, roleTitle: req.user.roleTitle },
     {
       customRoles: normalizeCustomStaffRoles(school?.customStaffRoles),
       roleFeatureAccess: school?.roleFeatureAccess,
+      optionalModules: school?.optionalModules,
     }
   );
 }

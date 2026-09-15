@@ -3643,6 +3643,13 @@
                   "kind": "scalar"
                 }
               },
+              "optionalModules": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
               "passPercent": {
                 "nullable": false,
                 "type": {
@@ -4171,6 +4178,9 @@
                 },
                 "name": {
                   "column": "name"
+                },
+                "optionalModules": {
+                  "column": "optionalModules"
                 },
                 "passPercent": {
                   "column": "passPercent"
@@ -9070,6 +9080,11 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "optionalModules": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
                 "passPercent": {
                   "codecId": "pg/float8@1",
                   "default": {
@@ -10269,7 +10284,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "5513bd333417d776427f03beaf0483d3d36cd8edae48636a6d9097c4069e6297"
+    "storageHash": "d5fbda4159a6baa200bd812ddbca216e6c2d4a017b7e5ab7fd456797e24c49c9"
   },
   "execution": {
     "executionHash": "47b32973b482e3482f74eb4934530e25e38250f4c47a6f8943a2e003354c3f18",

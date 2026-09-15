@@ -60,6 +60,7 @@ describe("buildLetterhead / publicSchool", () => {
     assert.equal(json.logoUrl, "/api/school/logo");
     assert.equal(json.logoBytes, undefined);
     assert.equal(json.logoMimeType, "image/png");
+    assert.deepEqual(json.optionalModules, { boardOps: false, cpd: false });
   });
 });
 
