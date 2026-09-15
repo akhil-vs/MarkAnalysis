@@ -2,6 +2,7 @@ import { prisma } from "./prisma.js";
 import { ensurePendingSchema } from "./ensureSchema.js";
 import { newJoinCode, slugifySchoolName } from "./schoolIdentity.js";
 import { parseSlug, requireTenantId, runWithoutTenant } from "./tenant.js";
+import { invalidateInsightsCache } from "./insightsCache.js";
 import { CacheKeys, cachedTenantLoad, invalidateCurrentTenantCache } from "./tenantCache.js";
 
 const OPTIONAL_TEXT_FIELDS = [
@@ -61,6 +62,8 @@ export async function getSchoolProfile({ includeLogo = false } = {}) {
 /** Call after school identity, grading, logo, or join-code mutations. */
 export function invalidateSchoolProfileCache() {
   invalidateCurrentTenantCache("school:profile");
+  // Grading / weights feed Deep Insight outcomes and weighted annual.
+  invalidateInsightsCache();
 }
 
 export async function getSchoolLetterhead() {

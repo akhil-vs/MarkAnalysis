@@ -10,6 +10,7 @@ import {
 } from "../lib/notifications.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
+import { invalidateInsightsCache } from "../lib/insightsCache.js";
 
 export const markAccessRouter = Router();
 markAccessRouter.use(auth);
@@ -213,6 +214,7 @@ markAccessRouter.post("/", async (req, res) => {
     console.error("Failed to notify leadership of mark access request", err);
   }
 
+  invalidateInsightsCache();
   res.status(201).json(created);
 });
 
@@ -285,5 +287,6 @@ markAccessRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
     console.error("Failed to notify teacher of mark access review", err);
   }
 
+  invalidateInsightsCache();
   res.json({ ...decorated, notified });
 });

@@ -30,10 +30,11 @@ export function isOptimisticAuth() {
 }
 
 
-/** Short-lived GET cache for stable catalogs (classes/exams/subjects/users/school/periods). */
+/** Short-lived GET cache for catalogs + Deep Insight analytics. */
 const catalogCache = new Map();
 const catalogInflight = new Map();
 const CATALOG_TTL_MS = 60_000;
+const INSIGHT_TTL_MS = 45_000;
 const CATALOG_PATHS = [
   "/api/classes",
   "/api/exams",
@@ -43,9 +44,11 @@ const CATALOG_PATHS = [
   "/api/timetable/periods",
 ];
 
-function catalogKey(path) {
+function cacheMeta(path) {
   const base = path.split("?")[0];
-  return CATALOG_PATHS.find((p) => base === p) ? path : null;
+  if (CATALOG_PATHS.includes(base)) return { key: path, ttl: CATALOG_TTL_MS };
+  if (base.startsWith("/api/analytics/insights/")) return { key: path, ttl: INSIGHT_TTL_MS };
+  return null;
 }
 
 export function invalidateApiCache(prefix = "") {
@@ -60,19 +63,33 @@ export function invalidateApiCache(prefix = "") {
 function invalidateForMutation(path) {
   if (path.startsWith("/api/classes") || path.startsWith("/api/students")) {
     invalidateApiCache("/api/classes");
+    invalidateApiCache("/api/analytics/insights");
   }
-  if (path.startsWith("/api/exams")) invalidateApiCache("/api/exams");
-  if (path.startsWith("/api/subjects")) invalidateApiCache("/api/subjects");
+  if (path.startsWith("/api/exams")) {
+    invalidateApiCache("/api/exams");
+    invalidateApiCache("/api/analytics/insights");
+  }
+  if (path.startsWith("/api/subjects")) {
+    invalidateApiCache("/api/subjects");
+    invalidateApiCache("/api/analytics/insights");
+  }
   if (path.startsWith("/api/users")) {
     invalidateApiCache("/api/users");
     if (path.includes("/transfer") || path.includes("/clear-classes")) {
       invalidateApiCache("/api/classes");
       invalidateApiCache("/api/timetable/periods");
+      invalidateApiCache("/api/analytics/insights");
     }
   }
-  if (path.startsWith("/api/school")) invalidateApiCache("/api/school");
+  if (path.startsWith("/api/school")) {
+    invalidateApiCache("/api/school");
+    invalidateApiCache("/api/analytics/insights");
+  }
   if (path.startsWith("/api/timetable/periods") || path.startsWith("/api/timetable/entries")) {
     invalidateApiCache("/api/timetable/periods");
+  }
+  if (path.startsWith("/api/marks") || path.startsWith("/api/mark-access")) {
+    invalidateApiCache("/api/analytics/insights");
   }
 }
 
@@ -192,24 +209,24 @@ async function request(path, { method = "GET", body, headers } = {}, { retry = t
 }
 
 export async function api(path, { method = "GET", body, headers } = {}) {
-  const cacheKey = method === "GET" ? catalogKey(path) : null;
-  if (cacheKey) {
-    const hit = catalogCache.get(cacheKey);
+  const meta = method === "GET" ? cacheMeta(path) : null;
+  if (meta) {
+    const hit = catalogCache.get(meta.key);
     if (hit && Date.now() < hit.expires) return hit.data;
-    const pending = catalogInflight.get(cacheKey);
+    const pending = catalogInflight.get(meta.key);
     if (pending) return pending;
   }
 
   const run = request(path, { method, body, headers });
 
-  if (cacheKey) {
-    catalogInflight.set(cacheKey, run);
+  if (meta) {
+    catalogInflight.set(meta.key, run);
     try {
       const data = await run;
-      catalogCache.set(cacheKey, { data, expires: Date.now() + CATALOG_TTL_MS });
+      catalogCache.set(meta.key, { data, expires: Date.now() + meta.ttl });
       return data;
     } finally {
-      catalogInflight.delete(cacheKey);
+      catalogInflight.delete(meta.key);
     }
   }
 

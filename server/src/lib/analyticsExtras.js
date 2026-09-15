@@ -17,6 +17,29 @@ import {
 } from "./stats.js";
 import { summarizeRegister } from "./registerStatus.js";
 
+/** Index marks by subjectId + classSectionId for O(1) paper lookups. */
+function indexMarksByPaper(marks, { examId = null } = {}) {
+  const map = new Map();
+  for (const m of marks) {
+    if (examId != null && m.examId !== examId) continue;
+    const classSectionId = m.student?.classSectionId;
+    if (!m.subjectId || !classSectionId) continue;
+    const key = `${m.subjectId}::${classSectionId}`;
+    let list = map.get(key);
+    if (!list) {
+      list = [];
+      map.set(key, list);
+    }
+    list.push(m);
+  }
+  return map;
+}
+
+function marksForPaper(index, subjectId, classSectionId) {
+  if (!subjectId || !classSectionId) return [];
+  return index.get(`${subjectId}::${classSectionId}`) || [];
+}
+
 export function toPercentWith(mark, maxField = "maxMarks") {
   if (!isScoredMark(mark)) return null;
   const max = mark.subject?.[maxField] ?? mark.subject?.maxMarks;
@@ -118,15 +141,27 @@ export function consistencyScore(subjectPercents = []) {
 }
 
 export function divisionGapMatrix(marks, sections, subjectNames) {
+  const bySubjectSection = new Map();
+  for (const m of marks) {
+    const subject = m.subject?.name;
+    const classSectionId = m.student?.classSectionId;
+    if (!subject || !classSectionId) continue;
+    const key = `${subject}\0${classSectionId}`;
+    let list = bySubjectSection.get(key);
+    if (!list) {
+      list = [];
+      bySubjectSection.set(key, list);
+    }
+    list.push(m);
+  }
+
   const matrix = [];
   const gaps = [];
   for (const subject of subjectNames) {
     const row = { subject, sections: {} };
     const avgs = [];
     for (const sec of sections) {
-      const list = marks.filter(
-        (m) => m.subject?.name === subject && m.student?.classSectionId === sec.id
-      );
+      const list = bySubjectSection.get(`${subject}\0${sec.id}`) || [];
       const percents = list.map(toPercentWith).filter((p) => p != null);
       const average = percents.length ? round1(mean(percents)) : null;
       row.sections[sec.section] = { average, count: percents.length, classSectionId: sec.id };
@@ -149,8 +184,13 @@ export function divisionGapMatrix(marks, sections, subjectNames) {
 }
 
 export function passFailMatrix(marks, subjects, { passPercent = 50 } = {}) {
+  const byName = groupBy(marks, (m) => m.subject?.name || "—");
+  const byId = groupBy(marks, (m) => m.subjectId);
   return subjects.map((subject) => {
-    const list = marks.filter((m) => (typeof subject === "string" ? m.subject?.name === subject : m.subjectId === subject.id));
+    const list =
+      typeof subject === "string"
+        ? byName.get(subject) || []
+        : byId.get(subject.id) || [];
     const scored = list.filter(isScoredMark);
     const percents = scored.map(toPercentWith).filter((p) => p != null);
     const pass = percents.filter((p) => p >= passPercent).length;
@@ -170,14 +210,10 @@ export function passFailMatrix(marks, subjects, { passPercent = 50 } = {}) {
 }
 
 export function completenessHeatmap(assignments, studentsByClass, marks, examId) {
+  const byPaper = indexMarksByPaper(marks, { examId });
   return assignments.map((a) => {
     const expected = (studentsByClass.get(a.classSectionId) || []).length;
-    const list = marks.filter(
-      (m) =>
-        m.examId === examId &&
-        m.subjectId === a.subjectId &&
-        m.student?.classSectionId === a.classSectionId
-    );
+    const list = marksForPaper(byPaper, a.subjectId, a.classSectionId);
     const reg = summarizeRegister(expected, list);
     return {
       teacherId: a.userId,
@@ -232,12 +268,14 @@ export function improvementCohorts(currentMarks, previousMarks, { improveMin = 4
 
 export function promotionCarryForward(students, marksByYear, fromYear, toYear) {
   const promoted = students.filter((s) => s.status === "ACTIVE" && s.promotedFromId && s.academicYear === toYear);
+  const byId = new Map(students.map((s) => [s.id, s]));
+  const marksByStudent = groupBy(marksByYear, (m) => m.studentId);
   const rows = [];
   for (const s of promoted) {
-    const prior = students.find((x) => x.id === s.promotedFromId);
+    const prior = byId.get(s.promotedFromId);
     if (!prior) continue;
-    const priorMarks = marksByYear.filter((m) => m.studentId === prior.id);
-    const currMarks = marksByYear.filter((m) => m.studentId === s.id);
+    const priorMarks = marksByStudent.get(prior.id) || [];
+    const currMarks = marksByStudent.get(s.id) || [];
     const priorAvg = mean(priorMarks.map(toPercentWith).filter((p) => p != null));
     const currAvg = mean(currMarks.map(toPercentWith).filter((p) => p != null));
     rows.push({
@@ -262,6 +300,7 @@ export function promotionCarryForward(students, marksByYear, fromYear, toYear) {
 
 export function teacherLoadOutcomes(assignments, marks, studentsByClass, { passPercent = 50 } = {}) {
   const byTeacher = groupBy(assignments, (a) => a.userId);
+  const byPaper = indexMarksByPaper(marks);
   return [...byTeacher.entries()].map(([teacherId, assigns]) => {
     const teacher = assigns[0].user;
     let studentIds = new Set();
@@ -272,9 +311,7 @@ export function teacherLoadOutcomes(assignments, marks, studentsByClass, { passP
     for (const a of assigns) {
       const expected = (studentsByClass.get(a.classSectionId) || []).map((s) => s.id);
       expected.forEach((id) => studentIds.add(id));
-      const list = marks.filter(
-        (m) => m.subjectId === a.subjectId && m.student?.classSectionId === a.classSectionId
-      );
+      const list = marksForPaper(byPaper, a.subjectId, a.classSectionId);
       const percents = list.map(toPercentWith).filter((p) => p != null);
       absent += list.filter((m) => m.outcome === "ABSENT").length;
       scored += list.filter(isScoredMark).length;
@@ -310,14 +347,10 @@ export function teacherLoadOutcomes(assignments, marks, studentsByClass, { passP
 
 export function registerVelocity(assignments, marks, exam, studentsByClass) {
   const deadline = exam.marksEntryDeadline ? new Date(exam.marksEntryDeadline) : null;
+  const byPaper = indexMarksByPaper(marks, { examId: exam.id });
   return assignments.map((a) => {
     const expected = (studentsByClass.get(a.classSectionId) || []).length;
-    const list = marks.filter(
-      (m) =>
-        m.examId === exam.id &&
-        m.subjectId === a.subjectId &&
-        m.student?.classSectionId === a.classSectionId
-    );
+    const list = marksForPaper(byPaper, a.subjectId, a.classSectionId);
     const times = list.map((m) => new Date(m.updatedAt).getTime()).filter((t) => !Number.isNaN(t));
     const firstAt = times.length ? new Date(Math.min(...times)) : null;
     const lastAt = times.length ? new Date(Math.max(...times)) : null;
@@ -393,9 +426,13 @@ export function dualCeilingWarnings(subjects = [], consolidationMaxMarks) {
 
 export function weightedAnnualForStudent(marks, exams, weights, gradeFn = defaultGradeFromPercent) {
   // weights: { UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 }
+  const scoredByExam = groupBy(
+    marks.filter(isScoredMark),
+    (m) => m.examId
+  );
   const byType = new Map();
   for (const exam of exams) {
-    const list = marks.filter((m) => m.examId === exam.id && isScoredMark(m));
+    const list = scoredByExam.get(exam.id) || [];
     const percents = list.map(toPercentWith).filter((p) => p != null);
     if (!percents.length) continue;
     const avg = mean(percents);

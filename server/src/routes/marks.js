@@ -35,6 +35,7 @@ import { findStudentByRoll, parseSpreadsheet, studentRollIndex } from "../lib/up
 import { getSchoolLetterhead } from "../lib/school.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
+import { invalidateInsightsCache } from "../lib/insightsCache.js";
 
 const WRITE_CHUNK = 25;
 
@@ -227,6 +228,7 @@ marksRouter.put("/", async (req, res) => {
     chunkSize: WRITE_CHUNK,
   });
 
+  if (results.some((r) => r.ok)) invalidateInsightsCache();
   res.json({ results });
 });
 
@@ -549,6 +551,7 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
     return mark;
   });
 
+  invalidateInsightsCache();
   res.json({
     preview: false,
     saved: saved.length,
@@ -659,6 +662,7 @@ marksRouter.post("/submit", async (req, res) => {
     count: result.count,
   });
 
+  invalidateInsightsCache();
   res.json({ submitted: result.count, teacherId });
 });
 
@@ -694,6 +698,7 @@ marksRouter.post("/approve", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
       teacherId,
       count: result.count,
     });
+    invalidateInsightsCache();
   }
   res.json({ approved: result.count, teacherId });
 });
@@ -730,6 +735,7 @@ marksRouter.post("/unapprove", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
       teacherId,
       count: result.count,
     });
+    invalidateInsightsCache();
   }
   res.json({ reverted: result.count, teacherId });
 });
@@ -826,6 +832,7 @@ marksRouter.post("/moderate", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asyn
     },
   });
 
+  invalidateInsightsCache();
   res.json({
     mark,
     reason: note,

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
   Bar,
@@ -35,6 +35,47 @@ const STATUS_COLORS = {
   PARTIAL: "#7a5c3a",
   MISSING: "#8a6a5a",
 };
+
+/** Build the insight request for a tab + filters (null when filters are incomplete). */
+function buildInsightRequest(tab, { examId, className, fromYear, toYear, academicYear }) {
+  if (tab === "outcomes") {
+    if (!examId) return null;
+    return { url: `/api/analytics/insights/outcomes?examId=${examId}`, key: `outcomes:${examId}` };
+  }
+  if (tab === "readiness") {
+    if (!examId) return null;
+    return { url: `/api/analytics/insights/readiness?examId=${examId}`, key: `readiness:${examId}` };
+  }
+  if (tab === "division") {
+    if (!examId || !className) return null;
+    return {
+      url: `/api/analytics/insights/division-matrix?examId=${examId}&className=${encodeURIComponent(className)}`,
+      key: `division:${examId}:${className}`,
+    };
+  }
+  if (tab === "improvement") {
+    if (!examId) return null;
+    return { url: `/api/analytics/insights/improvement?examId=${examId}`, key: `improvement:${examId}` };
+  }
+  if (tab === "promotion") {
+    if (!fromYear || !toYear) return null;
+    return {
+      url: `/api/analytics/insights/promotion?fromYear=${encodeURIComponent(fromYear)}&toYear=${encodeURIComponent(toYear)}`,
+      key: `promotion:${fromYear}:${toYear}`,
+    };
+  }
+  if (tab === "teachers") {
+    if (!examId) return null;
+    return { url: `/api/analytics/insights/teacher-load?examId=${examId}`, key: `teachers:${examId}` };
+  }
+  if (tab === "weighted") {
+    if (!academicYear) return null;
+    let url = `/api/analytics/insights/weighted-annual?academicYear=${encodeURIComponent(academicYear)}`;
+    if (className) url += `&className=${encodeURIComponent(className)}`;
+    return { url, key: `weighted:${academicYear}:${className || ""}` };
+  }
+  return null;
+}
 
 function TabBar({ tab, setTab }) {
   return (
@@ -126,15 +167,26 @@ export default function AnalysisDeepInsights() {
   const [fromYear, setFromYear] = useState("");
   const [toYear, setToYear] = useState("");
   const [academicYear, setAcademicYear] = useState("");
-  const [data, setData] = useState(null);
+  const [byKey, setByKey] = useState(() => ({}));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const filtersRef = useRef({});
+  const warmKeysRef = useRef(new Set());
 
   function setTab(id) {
     const next = new URLSearchParams(params);
     next.set("tab", id);
     setParams(next, { replace: true });
   }
+
+  const filters = useMemo(
+    () => ({ examId, className, fromYear, toYear, academicYear }),
+    [examId, className, fromYear, toYear, academicYear]
+  );
+  filtersRef.current = filters;
+
+  const request = useMemo(() => buildInsightRequest(tab, filters), [tab, filters]);
+  const data = request ? byKey[request.key] ?? null : null;
 
   useEffect(() => {
     api("/api/analytics/insights/meta")
@@ -151,33 +203,35 @@ export default function AnalysisDeepInsights() {
   }, []);
 
   useEffect(() => {
-    if (!meta) return;
+    if (!meta || !request) return;
     let cancelled = false;
+    const { url, key } = request;
+    const hasCached = warmKeysRef.current.has(key);
+
     async function load() {
-      setLoading(true);
-      setError("");
+      // Keep showing cached tab content; only block when this key is cold.
+      if (!hasCached) {
+        setLoading(true);
+        setError("");
+      }
       try {
-        let url = "";
-        if (tab === "outcomes") url = `/api/analytics/insights/outcomes?examId=${examId}`;
-        else if (tab === "readiness") url = `/api/analytics/insights/readiness?examId=${examId}`;
-        else if (tab === "division") {
-          if (!className) return;
-          url = `/api/analytics/insights/division-matrix?examId=${examId}&className=${encodeURIComponent(className)}`;
-        } else if (tab === "improvement") url = `/api/analytics/insights/improvement?examId=${examId}`;
-        else if (tab === "promotion") {
-          url = `/api/analytics/insights/promotion?fromYear=${encodeURIComponent(fromYear)}&toYear=${encodeURIComponent(toYear)}`;
-        } else if (tab === "teachers") url = `/api/analytics/insights/teacher-load?examId=${examId}`;
-        else if (tab === "weighted") {
-          url = `/api/analytics/insights/weighted-annual?academicYear=${encodeURIComponent(academicYear)}`;
-          if (className) url += `&className=${encodeURIComponent(className)}`;
-        }
-        if (!url) return;
         const res = await api(url);
-        if (!cancelled) setData(res);
+        if (!cancelled) {
+          warmKeysRef.current.add(key);
+          setByKey((prev) => (prev[key] === res ? prev : { ...prev, [key]: res }));
+        }
       } catch (e) {
         if (!cancelled) {
           setError(e.message);
-          setData(null);
+          if (!hasCached) {
+            warmKeysRef.current.delete(key);
+            setByKey((prev) => {
+              if (!(key in prev)) return prev;
+              const next = { ...prev };
+              delete next[key];
+              return next;
+            });
+          }
         }
       } finally {
         if (!cancelled) setLoading(false);
@@ -187,7 +241,27 @@ export default function AnalysisDeepInsights() {
     return () => {
       cancelled = true;
     };
-  }, [meta, tab, examId, className, fromYear, toYear, academicYear]);
+  }, [meta, request]);
+
+  // Prefetch neighboring tabs so switching feels instant (client + server TTL caches).
+  useEffect(() => {
+    if (!meta || !request) return;
+    const idx = TABS.findIndex((t) => t.id === tab);
+    const neighbors = [TABS[idx - 1]?.id, TABS[idx + 1]?.id].filter(Boolean);
+    const timer = setTimeout(() => {
+      for (const id of neighbors) {
+        const req = buildInsightRequest(id, filtersRef.current);
+        if (!req) continue;
+        api(req.url)
+          .then((res) => {
+            warmKeysRef.current.add(req.key);
+            setByKey((prev) => (prev[req.key] ? prev : { ...prev, [req.key]: res }));
+          })
+          .catch(() => {});
+      }
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [meta, tab, request]);
 
   const years = useMemo(
     () => [...new Set((meta?.exams || []).map((e) => e.academicYear).filter(Boolean))].sort(),
@@ -261,15 +335,15 @@ export default function AnalysisDeepInsights() {
 
       <TabBar tab={tab} setTab={setTab} />
       {error && <p className="text-clay-600 mb-3">{error}</p>}
-      {loading && <p className="text-ink-700/60 mb-3">Loading…</p>}
+      {loading && !data && <p className="text-ink-700/60 mb-3">Loading…</p>}
 
-      {!loading && data && tab === "outcomes" && <OutcomesTab data={data} />}
-      {!loading && data && tab === "readiness" && <ReadinessTab data={data} />}
-      {!loading && data && tab === "division" && <DivisionTab data={data} />}
-      {!loading && data && tab === "improvement" && <ImprovementTab data={data} />}
-      {!loading && data && tab === "promotion" && <PromotionTab data={data} />}
-      {!loading && data && tab === "teachers" && <TeachersTab data={data} />}
-      {!loading && data && tab === "weighted" && <WeightedTab data={data} />}
+      {data && tab === "outcomes" && <OutcomesTab data={data} />}
+      {data && tab === "readiness" && <ReadinessTab data={data} />}
+      {data && tab === "division" && <DivisionTab data={data} />}
+      {data && tab === "improvement" && <ImprovementTab data={data} />}
+      {data && tab === "promotion" && <PromotionTab data={data} />}
+      {data && tab === "teachers" && <TeachersTab data={data} />}
+      {data && tab === "weighted" && <WeightedTab data={data} />}
     </div>
   );
 }
