@@ -68,8 +68,14 @@ function Guard({ roles, feature, children }) {
   } else if (onPlatform) {
     return <Navigate to="/" replace />;
   }
-  if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
-  if (feature && !hasFeature(features, feature)) return <Navigate to="/" replace />;
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to={user.role === "PLATFORM_ADMIN" ? "/platform" : "/"} replace />;
+  }
+  if (feature && !hasFeature(features, feature)) {
+    // Never send platform admins to `/` — Home immediately redirects back to
+    // `/platform`, which used to create an infinite blank-page loop.
+    return <Navigate to={user.role === "PLATFORM_ADMIN" ? "/platform" : "/"} replace />;
+  }
   return children;
 }
 

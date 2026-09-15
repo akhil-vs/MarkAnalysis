@@ -429,6 +429,12 @@ export function guardRolesForRoute(routePath) {
 export function guardFeatureForRoute(routePath) {
   const map = routeGuardMap();
   const key = routePath.replace(/^\//, "");
+  // Platform console is role-gated only — nav ids like platformDashboard are not
+  // school feature catalog entries. Gating them caused PLATFORM_ADMIN login to
+  // bounce /platform ↔ / forever (blank page) once login started returning features.
+  if (key === "platform" || key.startsWith("platform/") || map[key] === "platform") {
+    return null;
+  }
   // Find nav item id by matching `to`
   const want = `/${key}`.replace(/\/$/, "") || "/";
   function walk(items) {
@@ -441,12 +447,15 @@ export function guardFeatureForRoute(routePath) {
   }
   for (const group of [...NAV_GROUPS, ...PLATFORM_NAV_GROUPS]) {
     const id = walk(group.items);
-    if (id) return id === "dashboard" || id === "profile" ? null : id;
+    if (id) {
+      if (id === "dashboard" || id === "profile") return null;
+      if (String(id).startsWith("platform")) return null;
+      return id;
+    }
   }
   // Extra nested routes inherit parent feature
   if (key.startsWith("analysis/subjects")) return "analysisSubjects";
   if (key.startsWith("timetables/")) return "timetables";
-  if (key.startsWith("platform/")) return null;
   return null;
 }
 

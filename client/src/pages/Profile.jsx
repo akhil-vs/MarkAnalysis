@@ -1,12 +1,14 @@
 import { useState } from "react";
+import { Navigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { BusyLabel } from "../components/Spinner.jsx";
+import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError } from "../components/FieldError.jsx";
 import { firstError, parsePassword } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
+import { isPlatformAdmin } from "../lib/roles.js";
 
 const ROLE_LABEL = {
   PLATFORM_ADMIN: "Platform admin",
@@ -16,7 +18,7 @@ const ROLE_LABEL = {
 };
 
 export default function Profile() {
-  const { user, changePassword, refresh } = useAuth();
+  const { user, loading, changePassword, refresh } = useAuth();
   const toast = useToast();
   const [form, setForm] = useState({
     currentPassword: "",
@@ -31,6 +33,11 @@ export default function Profile() {
   const [enableCode, setEnableCode] = useState("");
   const [recoveryCodes, setRecoveryCodes] = useState(null);
   const [disableForm, setDisableForm] = useState({ password: "", code: "" });
+
+  if (loading) return <LoadingState label="Loading profile…" />;
+  if (!user) return <Navigate to="/login" replace />;
+
+  const platform = isPlatformAdmin(user.role);
 
   async function onSubmit(e) {
     e.preventDefault();
@@ -130,7 +137,10 @@ export default function Profile() {
 
   return (
     <div>
-      <PageHeader title={NAV_TITLES.profile} subtitle="Account details, password, and MFA" />
+      <PageHeader
+        title={NAV_TITLES.profile}
+        subtitle={platform ? "Platform admin account, password, and MFA" : "Account details, password, and MFA"}
+      />
       {user.mustChangePassword && (
         <div className="mb-4 rounded-xl border border-clay-500/30 bg-clay-500/10 px-4 py-3 text-sm text-ink-900" role="status">
           You must set a new password before using the rest of the app.
@@ -146,27 +156,37 @@ export default function Profile() {
             </div>
             <div>
               <dt className="text-ink-700/60">Role</dt>
-              <dd>{ROLE_LABEL[user.role] || user.role}</dd>
+              <dd>{user.roleTitle || ROLE_LABEL[user.role] || user.role}</dd>
             </div>
             <div>
               <dt className="text-ink-700/60">Email</dt>
               <dd>{user.email || "—"}</dd>
             </div>
-            <div>
-              <dt className="text-ink-700/60">School</dt>
-              <dd>{user.school?.name || "—"}</dd>
-            </div>
-            <div>
-              <dt className="text-ink-700/60">Staff ID</dt>
-              <dd>{user.schoolId || "—"}</dd>
-            </div>
-            {user.school && (
+            {platform ? (
               <div>
-                <dt className="text-ink-700/60">School</dt>
-                <dd>
-                  {user.school.name}
-                  {user.school.slug ? ` · ${user.school.slug}` : ""}
-                </dd>
+                <dt className="text-ink-700/60">Admin ID</dt>
+                <dd>{user.schoolId || "—"}</dd>
+              </div>
+            ) : (
+              <>
+                <div>
+                  <dt className="text-ink-700/60">Staff ID</dt>
+                  <dd>{user.schoolId || "—"}</dd>
+                </div>
+                <div>
+                  <dt className="text-ink-700/60">School</dt>
+                  <dd>
+                    {user.school?.name
+                      ? `${user.school.name}${user.school.slug ? ` · ${user.school.slug}` : ""}`
+                      : "—"}
+                  </dd>
+                </div>
+              </>
+            )}
+            {platform && (
+              <div>
+                <dt className="text-ink-700/60">Scope</dt>
+                <dd>Platform console (all schools)</dd>
               </div>
             )}
           </dl>
