@@ -72,7 +72,7 @@ export function NotificationProvider({ children }) {
   }, [skip]);
 
   useEffect(() => {
-    refreshUnread();
+    const bootTimer = window.setTimeout(refreshUnread, 200);
     const id = setInterval(refreshUnread, 30000);
     function onFocus() {
       refreshUnread();
@@ -83,6 +83,7 @@ export function NotificationProvider({ children }) {
     window.addEventListener("focus", onFocus);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      window.clearTimeout(bootTimer);
       clearInterval(id);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);

@@ -23,6 +23,7 @@ import {
   RankRow,
   greeting,
 } from "../components/DashboardKit.jsx";
+import { dashboardApiPath, resolveDashboardPrefetch } from "../lib/dashboardPrefetch.js";
 import { paths } from "../lib/nav.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
@@ -36,12 +37,21 @@ export default function TeacherDashboard() {
 
   async function load(id) {
     setError("");
+    const path = `/api/analytics/teacher${id ? `?examId=${id}` : ""}`;
+    let prefetched = null;
+    if (!id) {
+      prefetched = await resolveDashboardPrefetch(dashboardApiPath("TEACHER"));
+      if (prefetched) {
+        setData(prefetched);
+        if (prefetched.exam) setExamId(prefetched.exam.id);
+      }
+    }
     try {
-      const res = await api(`/api/analytics/teacher${id ? `?examId=${id}` : ""}`);
+      const res = await api(path);
       setData(res);
       if (res.exam) setExamId(res.exam.id);
     } catch (err) {
-      setError(err.message || "Could not load your classes");
+      if (!prefetched) setError(err.message || "Could not load your classes");
     }
   }
 
@@ -56,7 +66,8 @@ export default function TeacherDashboard() {
 
   useEffect(() => {
     load("");
-    loadNotices();
+    const noticeTimer = window.setTimeout(loadNotices, 0);
+    return () => window.clearTimeout(noticeTimer);
   }, []);
 
   async function openNotice(notice) {
