@@ -21,6 +21,7 @@ import {
   publicGradingConfig,
 } from "../lib/gradingConfig.js";
 import { parseWorkingDays, publicWorkingDays } from "../lib/workingDays.js";
+import { parseOptionalModulesPatch } from "../lib/roleFeatures.js";
 
 export const schoolRouter = Router();
 schoolRouter.use(auth);
@@ -80,6 +81,17 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFea
   const workingDaysPatch = parseWorkingDays(req.body?.workingDays);
   if (workingDaysPatch.error) return res.status(400).json({ error: workingDaysPatch.error });
 
+  // Only principals can flip school-wide optional modules (Board ops / CPD).
+  let optionalModulesData = {};
+  if (req.body?.optionalModules !== undefined) {
+    if (req.user.role !== "PRINCIPAL") {
+      return res.status(403).json({ error: "Only the principal can change optional modules" });
+    }
+    const modulesPatch = parseOptionalModulesPatch(req.body.optionalModules);
+    if (modulesPatch.error) return res.status(400).json({ error: modulesPatch.error });
+    if (modulesPatch.modules) optionalModulesData = { optionalModules: modulesPatch.modules };
+  }
+
   const profile = await getSchoolProfile();
   const updated = await prisma.school.update({
     where: { id: profile.id },
@@ -88,6 +100,7 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFea
       ...identity.data,
       ...(workingDaysPatch.value !== undefined && { workingDays: workingDaysPatch.value }),
       ...gradingPatch.data,
+      ...optionalModulesData,
     },
   });
   invalidateSchoolProfileCache();

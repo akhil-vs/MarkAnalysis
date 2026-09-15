@@ -26,6 +26,7 @@ import {
 import {
   FEATURE_CATALOG,
   effectiveFeatureMap,
+  normalizeOptionalModules,
   normalizeRoleFeatureAccess,
   patchRoleFeatures,
 } from "../lib/roleFeatures.js";
@@ -38,14 +39,15 @@ usersRouter.use(requireFeature("staff"));
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 async function getSchoolRoleAccessConfig(tenantId) {
-  if (!tenantId) return { customStaffRoles: [], roleFeatureAccess: {} };
+  if (!tenantId) return { customStaffRoles: [], roleFeatureAccess: {}, optionalModules: null };
   const school = await prisma.school.findUnique({
     where: { id: tenantId },
-    select: { customStaffRoles: true, roleFeatureAccess: true },
+    select: { customStaffRoles: true, roleFeatureAccess: true, optionalModules: true },
   });
   return {
     customStaffRoles: school?.customStaffRoles || [],
     roleFeatureAccess: normalizeRoleFeatureAccess(school?.roleFeatureAccess),
+    optionalModules: school?.optionalModules || null,
   };
 }
 
@@ -129,7 +131,8 @@ usersRouter.get("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, r
 });
 
 usersRouter.get("/staff-roles", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { customStaffRoles, roleFeatureAccess } = await getSchoolRoleAccessConfig(req.user.tenantId);
+  const { customStaffRoles, roleFeatureAccess, optionalModules } = await getSchoolRoleAccessConfig(req.user.tenantId);
+  const modules = normalizeOptionalModules(optionalModules);
   const roles = listStaffRoles(customStaffRoles, {
     includeCoordinator: req.user.role === "PRINCIPAL",
   }).map((role) => {
@@ -140,6 +143,7 @@ usersRouter.get("/staff-roles", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
   res.json({
     roles,
     features: FEATURE_CATALOG,
+    optionalModules: modules,
     roleFeatureAccess,
     canAddRoles: req.user.role === "PRINCIPAL",
     canManageAccess: req.user.role === "PRINCIPAL",

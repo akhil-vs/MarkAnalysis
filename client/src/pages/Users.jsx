@@ -12,7 +12,7 @@ import { FieldError } from "../components/FieldError.jsx";
 import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
 import { canAddCoordinator, isLeadership } from "../lib/roles.js";
 import { NAV_TITLES } from "../lib/nav.js";
-import { FEATURE_GROUPS } from "../lib/features.js";
+import { FEATURE_GROUPS, OPTIONAL_MODULE_IDS, isOptionalModuleEnabled } from "../lib/features.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 
@@ -354,6 +354,7 @@ export default function Users() {
   const [roleAccessFocusId, setRoleAccessFocusId] = useState(null);
   const [canManageAccess, setCanManageAccess] = useState(() => user.role === "PRINCIPAL");
   const [featureCatalog, setFeatureCatalog] = useState([]);
+  const [optionalModules, setOptionalModules] = useState({ boardOps: false, cpd: false });
   const [notify, setNotify] = useState(null);
   const [busyId, setBusyId] = useState("");
   const [creating, setCreating] = useState(false);
@@ -420,6 +421,10 @@ export default function Users() {
     setCanAddRoles(Boolean(data.canAddRoles));
     setCanManageAccess(Boolean(data.canManageAccess));
     setFeatureCatalog(Array.isArray(data.features) ? data.features : []);
+    setOptionalModules({
+      boardOps: Boolean(data.optionalModules?.boardOps),
+      cpd: Boolean(data.optionalModules?.cpd),
+    });
   }
 
   function openRoleAccessForUser(row) {
@@ -1431,6 +1436,7 @@ export default function Users() {
         <RoleAccessModal
           roles={staffRoles}
           featureCatalog={featureCatalog}
+          optionalModules={optionalModules}
           initialRoleId={roleAccessFocusId}
           onClose={() => {
             setRoleAccessOpen(false);
@@ -1498,7 +1504,7 @@ function PermissionsModal({ user, onClose }) {
   );
 }
 
-function RoleAccessModal({ roles, featureCatalog, initialRoleId, onClose, onSaved }) {
+function RoleAccessModal({ roles, featureCatalog, optionalModules, initialRoleId, onClose, onSaved }) {
   const toast = useToast();
   const selectable = (roles || []).filter((r) => r.id !== "PRINCIPAL");
   const [roleId, setRoleId] = useState(() => {
@@ -1514,18 +1520,31 @@ function RoleAccessModal({ roles, featureCatalog, initialRoleId, onClose, onSave
     setDraft({ ...(next?.features || {}) });
   }, [roleId, roles]);
 
+  const hiddenOptionalLabels = useMemo(() => {
+    return OPTIONAL_MODULE_IDS.filter((id) => !isOptionalModuleEnabled(optionalModules, id)).map(
+      (id) => (id === "boardOps" ? "Board ops" : id === "cpd" ? "CPD" : id)
+    );
+  }, [optionalModules]);
+
   const catalogGroups = useMemo(() => {
-    if (featureCatalog?.length) {
-      const byGroup = new Map();
-      for (const f of featureCatalog) {
-        const g = f.group || "Features";
-        if (!byGroup.has(g)) byGroup.set(g, []);
-        byGroup.get(g).push(f);
-      }
-      return [...byGroup.entries()].map(([id, items]) => ({ id, items }));
-    }
-    return FEATURE_GROUPS;
-  }, [featureCatalog]);
+    const source = featureCatalog?.length
+      ? (() => {
+          const byGroup = new Map();
+          for (const f of featureCatalog) {
+            const g = f.group || "Features";
+            if (!byGroup.has(g)) byGroup.set(g, []);
+            byGroup.get(g).push(f);
+          }
+          return [...byGroup.entries()].map(([id, items]) => ({ id, items }));
+        })()
+      : FEATURE_GROUPS;
+    return source
+      .map((group) => ({
+        ...group,
+        items: group.items.filter((item) => isOptionalModuleEnabled(optionalModules, item.id)),
+      }))
+      .filter((group) => group.items.length > 0);
+  }, [featureCatalog, optionalModules]);
 
   async function save() {
     if (!selected) return;
@@ -1568,6 +1587,13 @@ function RoleAccessModal({ roles, featureCatalog, initialRoleId, onClose, onSave
             Enable or disable features for each staff role. Principal access is always full and cannot be
             changed. Staff must sign in again (or refresh) to pick up updates.
           </p>
+          {hiddenOptionalLabels.length > 0 ? (
+            <p className="mt-2 text-xs text-ink-700/60 rounded-lg border border-ink-900/10 bg-paper/60 px-3 py-2">
+              {hiddenOptionalLabels.join(" and ")}{" "}
+              {hiddenOptionalLabels.length === 1 ? "is" : "are"} hidden school-wide. Enable under School
+              profile → Optional modules before assigning them here.
+            </p>
+          ) : null}
           <label className="label mt-3" htmlFor="role-access-select">
             Role
           </label>

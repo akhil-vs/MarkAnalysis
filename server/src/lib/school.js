@@ -4,6 +4,7 @@ import { newJoinCode, slugifySchoolName } from "./schoolIdentity.js";
 import { parseSlug, requireTenantId, runWithoutTenant } from "./tenant.js";
 import { invalidateInsightsCache } from "./insightsCache.js";
 import { CacheKeys, cachedTenantLoad, invalidateCurrentTenantCache } from "./tenantCache.js";
+import { normalizeOptionalModules } from "./roleFeatures.js";
 
 const OPTIONAL_TEXT_FIELDS = [
   "shortName",
@@ -220,12 +221,13 @@ export function parseLogoFile(file) {
 
 export function publicSchool(profile, { grading, workingDays, includeJoinCode = false } = {}) {
   if (!profile) return profile;
-  const { logoBytes, joinCode, ...rest } = profile;
+  const { logoBytes, joinCode, optionalModules, ...rest } = profile;
   const hasLogo = Boolean(rest.logoMimeType) && (logoBytes == null || logoBytes.length > 0);
   return {
     ...rest,
     hasLogo,
     logoUrl: hasLogo ? "/api/school/logo" : null,
+    optionalModules: normalizeOptionalModules(optionalModules),
     workingDays,
     grading,
     ...(includeJoinCode ? { joinCode } : {}),

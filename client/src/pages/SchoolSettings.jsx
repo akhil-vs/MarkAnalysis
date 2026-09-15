@@ -44,6 +44,8 @@ const EMPTY = {
   emailDigestsEnabled: false,
 };
 
+const DEFAULT_OPTIONAL_MODULES = { boardOps: false, cpd: false };
+
 const DEFAULT_BANDS = [
   { grade: "A+", min: 90 },
   { grade: "A", min: 80 },
@@ -76,6 +78,14 @@ function profileFromApi(s) {
     website: s.website || "",
     digestEmail: s.digestEmail || "",
     emailDigestsEnabled: Boolean(s.emailDigestsEnabled),
+  };
+}
+
+function optionalModulesFromApi(s) {
+  const raw = s?.optionalModules;
+  return {
+    boardOps: Boolean(raw?.boardOps),
+    cpd: Boolean(raw?.cpd),
   };
 }
 
@@ -196,8 +206,9 @@ function LogoCard({ hasLogo, nonce, onChange }) {
 
 export default function SchoolSettings() {
   const toast = useToast();
-  const { user } = useAuth();
+  const { user, refresh } = useAuth();
   const [form, setForm] = useState(EMPTY);
+  const [optionalModules, setOptionalModules] = useState(DEFAULT_OPTIONAL_MODULES);
   const [hasLogo, setHasLogo] = useState(false);
   const [logoNonce, setLogoNonce] = useState(0);
   const [joinCode, setJoinCode] = useState("");
@@ -210,6 +221,7 @@ export default function SchoolSettings() {
 
   function applySchool(s) {
     setForm(profileFromApi(s));
+    setOptionalModules(optionalModulesFromApi(s));
     setHasLogo(Boolean(s.hasLogo));
     setJoinCode(s.joinCode || "");
     const g = s.grading || {};
@@ -281,9 +293,13 @@ export default function SchoolSettings() {
             MID_TERM: Number(weights.MID_TERM),
             FINAL: Number(weights.FINAL),
           },
+          ...(user?.role === "PRINCIPAL" ? { optionalModules } : {}),
         },
       });
       applySchool(saved);
+      if (user?.role === "PRINCIPAL") {
+        await refresh().catch(() => {});
+      }
       toast.success("School profile and grading settings saved.");
     } catch (err) {
       toast.error(err.message || "Could not save school profile");
@@ -507,6 +523,48 @@ export default function SchoolSettings() {
             </div>
           </div>
         </section>
+
+        {user?.role === "PRINCIPAL" ? (
+          <section className="space-y-3 pt-4 border-t border-ink-900/10">
+            <h3 className="font-serif text-xl">Optional modules</h3>
+            <p className="text-sm text-ink-700/65">
+              Board ops and CPD are hidden by default. Turn them on when your school is ready to use
+              them. Staff still need the matching permission under Staff → Role access.
+            </p>
+            <div className="rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={Boolean(optionalModules.boardOps)}
+                  onChange={(e) =>
+                    setOptionalModules((m) => ({ ...m, boardOps: e.target.checked }))
+                  }
+                />
+                <span>
+                  <span className="font-medium text-ink-900">Show Board ops</span>
+                  <span className="block text-ink-700/60">
+                    Exam calendar, report-card release, revaluation, and board upload packs.
+                  </span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={Boolean(optionalModules.cpd)}
+                  onChange={(e) => setOptionalModules((m) => ({ ...m, cpd: e.target.checked }))}
+                />
+                <span>
+                  <span className="font-medium text-ink-900">Show CPD</span>
+                  <span className="block text-ink-700/60">
+                    Training plans, classroom observations, appraisals, and certificates.
+                  </span>
+                </span>
+              </label>
+            </div>
+          </section>
+        ) : null}
 
         {joinCode ? (
           <div className="rounded-xl border border-ink-900/10 bg-paper p-3">

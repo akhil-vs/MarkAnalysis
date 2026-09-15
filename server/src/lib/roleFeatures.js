@@ -1,6 +1,7 @@
 /**
  * Principal-managed feature access for staff roles.
- * PRINCIPAL and PLATFORM_ADMIN always have every feature.
+ * PRINCIPAL and PLATFORM_ADMIN always have every catalog feature,
+ * except school-level optional modules that stay off until enabled.
  */
 
 export const FEATURE_CATALOG = [
@@ -33,7 +34,17 @@ const FEATURE_ID_SET = new Set(FEATURE_IDS);
 /** Always available; not principal-toggleable. */
 export const ALWAYS_ON_FEATURES = ["dashboard", "profile"];
 
-/** Defaults matching historical RBAC (nav + route guards). */
+/**
+ * Features hidden school-wide until principal enables them under School profile.
+ * Role access still applies after a module is turned on.
+ */
+export const OPTIONAL_MODULE_IDS = ["boardOps", "cpd"];
+
+export const DEFAULT_OPTIONAL_MODULES = Object.fromEntries(
+  OPTIONAL_MODULE_IDS.map((id) => [id, false])
+);
+
+/** Defaults matching historical RBAC (nav + route guards), with optional modules off. */
 export const DEFAULT_FEATURES_BY_BASE_ROLE = {
   TEACHER: {
     marks: true,
@@ -55,7 +66,7 @@ export const DEFAULT_FEATURES_BY_BASE_ROLE = {
     timetables: false,
     schoolProfile: false,
     boardOps: false,
-    cpd: true,
+    cpd: false,
   },
   EXAM_COORDINATOR: {
     marks: true,
@@ -76,15 +87,54 @@ export const DEFAULT_FEATURES_BY_BASE_ROLE = {
     records: true,
     timetables: true,
     schoolProfile: true,
-    boardOps: true,
-    cpd: true,
+    boardOps: false,
+    cpd: false,
   },
 };
 
 const SYSTEM_ACCESS_KEYS = new Set(["TEACHER", "EXAM_COORDINATOR"]);
+const OPTIONAL_MODULE_ID_SET = new Set(OPTIONAL_MODULE_IDS);
 
 export function isFeatureId(id) {
   return FEATURE_ID_SET.has(id);
+}
+
+export function isOptionalModuleId(id) {
+  return OPTIONAL_MODULE_ID_SET.has(id);
+}
+
+/** Normalize school optionalModules; missing keys default to hidden (false). */
+export function normalizeOptionalModules(raw) {
+  const out = { ...DEFAULT_OPTIONAL_MODULES };
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  for (const id of OPTIONAL_MODULE_IDS) {
+    if (Object.prototype.hasOwnProperty.call(raw, id)) {
+      out[id] = Boolean(raw[id]);
+    }
+  }
+  return out;
+}
+
+/**
+ * Merge a partial optional-modules patch. Returns { modules } or { error }.
+ */
+export function parseOptionalModulesPatch(raw) {
+  if (raw === undefined) return { modules: undefined };
+  if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
+    return { error: "Optional modules map is required" };
+  }
+  const modules = normalizeOptionalModules(raw);
+  for (const key of Object.keys(raw)) {
+    if (!OPTIONAL_MODULE_ID_SET.has(key)) {
+      return { error: `Unknown optional module “${key}”` };
+    }
+  }
+  return { modules };
+}
+
+export function filterFeaturesByOptionalModules(featureList, optionalModules) {
+  const mods = normalizeOptionalModules(optionalModules);
+  return (featureList || []).filter((id) => !OPTIONAL_MODULE_ID_SET.has(id) || mods[id]);
 }
 
 export function defaultFeaturesForBaseRole(baseRole) {
@@ -178,18 +228,24 @@ export function enabledFeatureList(featureMap) {
   return [...enabled];
 }
 
-export function featuresForUser(user, { customRoles = [], roleFeatureAccess = null } = {}) {
+export function featuresForUser(
+  user,
+  { customRoles = [], roleFeatureAccess = null, optionalModules = null } = {}
+) {
   if (!user) return [...ALWAYS_ON_FEATURES];
+  let list;
   if (user.role === "PRINCIPAL" || user.role === "PLATFORM_ADMIN") {
-    return enabledFeatureList(
-      Object.fromEntries(FEATURE_IDS.map((id) => [id, true]))
-    );
+    list = enabledFeatureList(Object.fromEntries(FEATURE_IDS.map((id) => [id, true])));
+  } else {
+    const accessKey = resolveAccessRoleKey(user, customRoles);
+    const custom = customRoles.find((r) => r.id === accessKey);
+    const baseRole = custom?.baseRole || user.role || "TEACHER";
+    const map = effectiveFeatureMap(accessKey || user.role, roleFeatureAccess, { baseRole });
+    list = enabledFeatureList(map);
   }
-  const accessKey = resolveAccessRoleKey(user, customRoles);
-  const custom = customRoles.find((r) => r.id === accessKey);
-  const baseRole = custom?.baseRole || user.role || "TEACHER";
-  const map = effectiveFeatureMap(accessKey || user.role, roleFeatureAccess, { baseRole });
-  return enabledFeatureList(map);
+  // Platform admins are not school-scoped; optional modules only apply per school tenant.
+  if (user.role === "PLATFORM_ADMIN") return list;
+  return filterFeaturesByOptionalModules(list, optionalModules);
 }
 
 export function userHasFeature(user, featureId, opts = {}) {

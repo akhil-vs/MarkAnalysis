@@ -37,6 +37,9 @@ export const FEATURE_GROUPS = [
   },
 ];
 
+/** Hidden school-wide until principal enables under School profile → Optional modules. */
+export const OPTIONAL_MODULE_IDS = ["boardOps", "cpd"];
+
 export const ALWAYS_ON_FEATURES = ["dashboard", "profile"];
 
 export function hasFeature(features, featureId) {
@@ -50,4 +53,9 @@ export function featureForNavId(navId) {
   if (!navId) return null;
   if (ALWAYS_ON_FEATURES.includes(navId)) return navId;
   return navId;
+}
+
+export function isOptionalModuleEnabled(optionalModules, featureId) {
+  if (!OPTIONAL_MODULE_IDS.includes(featureId)) return true;
+  return Boolean(optionalModules?.[featureId]);
 }

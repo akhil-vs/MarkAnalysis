@@ -226,6 +226,11 @@ describe("ensureSchema bootstrap", () => {
       __test.ROLE_FEATURE_ACCESS_STATEMENTS.some((s) => s.includes("roleFeatureAccess")),
       "auth path must ensure School.roleFeatureAccess used by login /me and staff feature gates"
     );
+    assert.equal(typeof __test.ensureOptionalModulesColumn, "function");
+    assert.ok(
+      __test.OPTIONAL_MODULES_STATEMENTS.some((s) => s.includes("optionalModules")),
+      "auth path must ensure School.optionalModules used to hide Board ops / CPD"
+    );
     assert.equal(typeof __test.resetAuthSchemaEnsure, "function");
     assert.equal(new Set(__test.CATCHUP_MIGRATION_NAMES).size, __test.CATCHUP_MIGRATION_NAMES.length);
     for (const name of __test.AUTH_CATCHUP_MIGRATION_NAMES) {

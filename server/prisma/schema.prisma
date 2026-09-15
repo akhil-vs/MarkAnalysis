@@ -105,6 +105,8 @@ model School {
   customStaffRoles Json?
   /// Per-role feature toggles: { TEACHER|EXAM_COORDINATOR|customRoleId: { featureId: boolean } }.
   roleFeatureAccess Json?
+  /// School-wide optional modules: { boardOps, cpd }. Default off until principal enables.
+  optionalModules Json?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
