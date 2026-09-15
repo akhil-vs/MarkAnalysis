@@ -282,6 +282,7 @@ export default function Layout() {
   useEffect(() => {
     if (!leadership) return;
     let cancelled = false;
+    let badgeTimer;
 
     async function loadBadges() {
       try {
@@ -310,7 +311,7 @@ export default function Layout() {
       }
     }
 
-    loadBadges();
+    badgeTimer = window.setTimeout(loadBadges, 150);
     const id = setInterval(loadBadges, 60000);
     function onFocus() {
       loadBadges();
@@ -322,6 +323,7 @@ export default function Layout() {
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
       cancelled = true;
+      window.clearTimeout(badgeTimer);
       clearInterval(id);
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);

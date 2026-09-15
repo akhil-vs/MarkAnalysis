@@ -34,6 +34,7 @@ import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.j
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { yearDelta } from "../lib/exams.js";
+import { dashboardApiPath, resolveDashboardPrefetch } from "../lib/dashboardPrefetch.js";
 import { NAV_LABELS, paths } from "../lib/nav.js";
 
 export default function PrincipalDashboard() {
@@ -48,13 +49,25 @@ export default function PrincipalDashboard() {
 
   async function load(id) {
     setError("");
+    const base = new URLSearchParams();
+    if (id) base.set("examId", id);
+    base.set("include", "summary");
+    const summaryPath = `/api/analytics/school?${base}`;
+    let prefetched = null;
+    if (!id) {
+      prefetched = await resolveDashboardPrefetch(dashboardApiPath("PRINCIPAL"));
+      if (prefetched) {
+        setData(prefetched);
+        setDetailLoading(false);
+        if (prefetched.exam) setExamId(prefetched.exam.id);
+      }
+    }
     try {
-      const base = new URLSearchParams();
-      if (id) base.set("examId", id);
-      base.set("include", "summary");
-      const summary = await api(`/api/analytics/school?${base}`);
-      setData(summary);
-      setDetailLoading(false);
+      const summary = prefetched || (await api(summaryPath));
+      if (!prefetched) {
+        setData(summary);
+        setDetailLoading(false);
+      }
       if (summary.empty) return;
       if (summary.exam) setExamId(summary.exam.id);
 
@@ -70,7 +83,7 @@ export default function PrincipalDashboard() {
         setDetailLoading(false);
       }
     } catch (e) {
-      setError(e.message || "Could not load school view");
+      if (!prefetched) setError(e.message || "Could not load school view");
     }
   }
 

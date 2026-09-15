@@ -46,11 +46,48 @@ const authWriteLimit = rateLimit({
 /** Fields needed for login / session — avoid selecting live-ops columns on the auth hot path. */
 const SCHOOL_AUTH_SELECT = { id: true, name: true, slug: true, status: true };
 
+const USER_SESSION_INCLUDE = {
+  tenant: { select: SCHOOL_AUTH_SELECT },
+  assignments: { include: { classSection: true, subject: true } },
+  classTeacherOf: {
+    select: { id: true, className: true, section: true },
+    orderBy: [{ className: "asc" }, { section: "asc" }],
+  },
+};
+
+function formatClassTeacherOf(rows) {
+  return rows.map((c) => ({
+    id: c.id,
+    className: c.className,
+    section: c.section,
+    label: `${c.className}-${c.section}`,
+  }));
+}
+
+function formatSessionPayload(user) {
+  return {
+    user: publicUser(user),
+    assignments: user.assignments || [],
+    classTeacherOf: formatClassTeacherOf(user.classTeacherOf || []),
+  };
+}
+
+async function loadUserSession(userId) {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    include: USER_SESSION_INCLUDE,
+  });
+  if (!user) return null;
+  return formatSessionPayload(user);
+}
+
 async function establishSession(req, res, user) {
   const access = signToken(user);
   const refresh = await createRefreshSession(user.id, { userAgent: req.get("user-agent") });
   setAccessCookie(res, access);
   setRefreshCookie(res, refresh.raw);
+  const session = await loadUserSession(user.id);
+  if (session) return session;
   const school =
     user.tenant ||
     (user.tenantId
@@ -61,7 +98,7 @@ async function establishSession(req, res, user) {
           })
         )
       : null);
-  return { user: publicUser(user, school) };
+  return { user: publicUser(user, school), assignments: [], classTeacherOf: [] };
 }
 
 async function assertSchoolActive(school) {
@@ -418,28 +455,9 @@ authRouter.post("/logout", async (req, res) => {
 });
 
 authRouter.get("/me", authAllowPasswordChange, async (req, res) => {
-  const user = await prisma.user.findUnique({
-    where: { id: req.user.userId },
-    include: {
-      tenant: { select: { id: true, name: true, slug: true, status: true } },
-      assignments: { include: { classSection: true, subject: true } },
-      classTeacherOf: {
-        select: { id: true, className: true, section: true },
-        orderBy: [{ className: "asc" }, { section: "asc" }],
-      },
-    },
-  });
-  if (!user) return res.status(404).json({ error: "Not found" });
-  res.json({
-    user: publicUser(user),
-    assignments: user.assignments,
-    classTeacherOf: user.classTeacherOf.map((c) => ({
-      id: c.id,
-      className: c.className,
-      section: c.section,
-      label: `${c.className}-${c.section}`,
-    })),
-  });
+  const session = await loadUserSession(req.user.userId);
+  if (!session) return res.status(404).json({ error: "Not found" });
+  res.json(session);
 });
 
 authRouter.post("/change-password", authAllowPasswordChange, async (req, res) => {

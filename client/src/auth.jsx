@@ -1,5 +1,6 @@
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { api, hasSessionHint, setSessionHint, setToken } from "./api.js";
+import { clearDashboardPrefetch, prefetchDashboard } from "./lib/dashboardPrefetch.js";
 
 const AuthContext = createContext(null);
 const AUTH_CACHE_KEY = "sma_auth_cache";
@@ -37,29 +38,49 @@ export function AuthProvider({ children }) {
   const [assignments, setAssignments] = useState(cached?.assignments || []);
   const [classTeacherOf, setClassTeacherOf] = useState(cached?.classTeacherOf || []);
   const [loading, setLoading] = useState(!cached);
+  const refreshInflight = useRef(null);
+
+  function applySession(data) {
+    if (!data?.user) return;
+    setSessionHint(true);
+    setUser(data.user);
+    setAssignments(data.assignments || []);
+    setClassTeacherOf(data.classTeacherOf || []);
+    writeAuthCache({
+      user: data.user,
+      assignments: data.assignments || [],
+      classTeacherOf: data.classTeacherOf || [],
+    });
+    setLoading(false);
+    prefetchDashboard(data.user.role);
+  }
+
+  function clearSession() {
+    setSessionHint(false);
+    setToken(null);
+    setUser(null);
+    setAssignments([]);
+    setClassTeacherOf([]);
+    writeAuthCache({ user: null });
+    clearDashboardPrefetch();
+  }
 
   async function refresh() {
-    try {
-      const data = await api("/api/auth/me");
-      setSessionHint(true);
-      setUser(data.user);
-      setAssignments(data.assignments || []);
-      setClassTeacherOf(data.classTeacherOf || []);
-      writeAuthCache({
-        user: data.user,
-        assignments: data.assignments || [],
-        classTeacherOf: data.classTeacherOf || [],
-      });
-    } catch {
-      setSessionHint(false);
-      setToken(null);
-      setUser(null);
-      setAssignments([]);
-      setClassTeacherOf([]);
-      writeAuthCache({ user: null });
-    } finally {
-      setLoading(false);
-    }
+    if (refreshInflight.current) return refreshInflight.current;
+
+    refreshInflight.current = (async () => {
+      try {
+        const data = await api("/api/auth/me");
+        applySession(data);
+      } catch {
+        clearSession();
+      } finally {
+        setLoading(false);
+        refreshInflight.current = null;
+      }
+    })();
+
+    return refreshInflight.current;
   }
 
   useEffect(() => {
@@ -79,10 +100,8 @@ export function AuthProvider({ children }) {
           // Challenge issued — do not establish a session yet.
           return data;
         }
-        setSessionHint(true);
         setToken(null);
-        setUser(data.user);
-        await refresh();
+        applySession(data);
         return data;
       },
       async verifyMfa({ mfaToken, code, recoveryCode }) {
@@ -90,10 +109,8 @@ export function AuthProvider({ children }) {
           method: "POST",
           body: { mfaToken, code, recoveryCode },
         });
-        setSessionHint(true);
         setToken(null);
-        setUser(data.user);
-        await refresh();
+        applySession(data);
         return data;
       },
       async signup(payload) {
@@ -121,12 +138,7 @@ export function AuthProvider({ children }) {
         } catch {
           // still clear local session
         }
-        setSessionHint(false);
-        setToken(null);
-        setUser(null);
-        setAssignments([]);
-        setClassTeacherOf([]);
-        writeAuthCache({ user: null });
+        clearSession();
       },
     }),
     [user, assignments, classTeacherOf, loading]
