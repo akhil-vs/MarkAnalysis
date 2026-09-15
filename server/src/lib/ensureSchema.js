@@ -1012,8 +1012,22 @@ async function ensureSchoolDigestColumns() {
   await applyStatements(LIVE_OPS_SCHOOL_STATEMENTS);
 }
 
+const LIVE_OPS_STUDENT_STATEMENTS = [
+  `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "guardianEmail" TEXT`,
+];
+
+/**
+ * Student.guardianEmail ships with board/CPD live-ops. Full Student includes
+ * (coordinator analytics, /api/students) select it; missing column → SCHEMA_DRIFT
+ * on Vercel ensure-only boots. Apply outside the swallowed live-ops try/catch.
+ */
+async function ensureStudentGuardianEmail() {
+  if (await columnExists("Student", "guardianEmail")) return;
+  await applyStatements(LIVE_OPS_STUDENT_STATEMENTS);
+}
+
 const LIVE_OPS_MIGRATION = "20260914191500_board_cpd_live_ops";
-const LIVE_OPS_CHECKSUM = "board-cpd-live-ops-catchup-v1";
+const LIVE_OPS_CHECKSUM = "board-cpd-live-ops-catchup-v2";
 
 const LIVE_OPS_ENUM_LABELS = {
   ReportCardStatus: ["DRAFT", "PUBLISHED", "SIGNED_OFF"],
@@ -1260,6 +1274,7 @@ async function ensureLiveOpsBoardCpdSchema() {
       }
     }
     await applyStatements(LIVE_OPS_SCHOOL_STATEMENTS);
+    await applyStatements(LIVE_OPS_STUDENT_STATEMENTS);
     await applyStatements(LIVE_OPS_TABLE_STATEMENTS);
     await applyStatements(LIVE_OPS_FK_STATEMENTS);
     await recordMigration(LIVE_OPS_MIGRATION, LIVE_OPS_CHECKSUM);
@@ -1374,12 +1389,15 @@ export async function ensurePendingSchema() {
       if (await catchupsAlreadyApplied()) {
         // Still apply MFA / board / CPD catch-ups that shipped after the catchup list was frozen.
         await ensureAuthSchema();
+        // guardianEmail before swallowed live-ops — coordinator desk selects full Student rows.
+        await ensureStudentGuardianEmail();
         await ensureLiveOpsBoardCpdSchema();
         await ensureCustomStaffRolesColumns();
         return { skipped: true, reason: "migrations-present" };
       }
       // Auth pieces first so concurrent login can finish while the rest runs.
       await ensureAuthSchema();
+      await ensureStudentGuardianEmail();
       // Timetable table must exist before period uniqueness migrate.
       await ensureTimetableTables();
       await ensureMultiClassPerPeriod();
@@ -1489,11 +1507,13 @@ export const __test = {
   LIVE_OPS_MIGRATION,
   LIVE_OPS_CHECKSUM,
   LIVE_OPS_SCHOOL_STATEMENTS,
+  LIVE_OPS_STUDENT_STATEMENTS,
   CUSTOM_STAFF_ROLES_MIGRATION,
   CUSTOM_STAFF_ROLES_CHECKSUM,
   CUSTOM_STAFF_ROLES_STATEMENTS,
   ensureMfaUserColumns,
   ensureSchoolDigestColumns,
+  ensureStudentGuardianEmail,
   ensureCustomStaffRolesColumns,
   resetAuthSchemaEnsure,
 };
