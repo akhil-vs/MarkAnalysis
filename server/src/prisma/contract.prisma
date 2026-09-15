@@ -102,6 +102,8 @@ model School {
   digestEmail         String?
   /// Principal-defined staff role titles: [{ id, name, baseRole }, ...] (baseRole TEACHER|EXAM_COORDINATOR).
   customStaffRoles    Jsonb?
+  /// Per-role feature toggles: { TEACHER|EXAM_COORDINATOR|customRoleId: { featureId: boolean } }.
+  roleFeatureAccess   Jsonb?
 
   users                 User[]
   classSections         ClassSection[]

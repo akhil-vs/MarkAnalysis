@@ -8,7 +8,7 @@ import {
 } from "../lib/periods.js";
 import { prisma } from "../lib/prisma.js";
 import { ensureTimetableSchema } from "../lib/ensureSchema.js";
-import { auth, isLeadership, publicUser, requireLeadership } from "../middleware/auth.js";
+import { auth, isLeadership, publicUser, requireLeadership, requireFeature } from "../middleware/auth.js";
 import { getSchoolProfile } from "../lib/school.js";
 import { DAY_NAMES, isWorkingDay, publicWorkingDays } from "../lib/workingDays.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
@@ -16,6 +16,7 @@ import { requireSchoolTenant } from "../lib/tenant.js";
 export const timetableRouter = Router();
 timetableRouter.use(auth);
 timetableRouter.use(requireSchoolTenant);
+timetableRouter.use(requireFeature("timetables"));
 timetableRouter.use(async (_req, _res, next) => {
   try {
     await ensureTimetableSchema();

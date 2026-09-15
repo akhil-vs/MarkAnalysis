@@ -109,6 +109,53 @@ export function requireRole(...roles) {
   };
 }
 
+/**
+ * Require the user to have at least one of the given feature ids.
+ * PRINCIPAL / PLATFORM_ADMIN always pass. Uses req.featureAccess when present.
+ */
+export function requireFeature(...featureIds) {
+  const needed = featureIds.filter(Boolean);
+  return (req, res, next) => {
+    if (!req.user) return res.status(403).json({ error: "Forbidden" });
+    if (req.user.role === "PRINCIPAL" || req.user.role === "PLATFORM_ADMIN") {
+      return next();
+    }
+    if (!needed.length) return next();
+    const access = Array.isArray(req.featureAccess) ? req.featureAccess : null;
+    if (access) {
+      if (needed.some((id) => access.includes(id))) return next();
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    // Lazy resolve when session middleware did not attach features.
+    return loadFeatureAccessForRequest(req)
+      .then((list) => {
+        req.featureAccess = list;
+        if (needed.some((id) => list.includes(id))) return next();
+        return res.status(403).json({ error: "Forbidden" });
+      })
+      .catch(() => res.status(403).json({ error: "Forbidden" }));
+  };
+}
+
+async function loadFeatureAccessForRequest(req) {
+  const { featuresForUser } = await import("../lib/roleFeatures.js");
+  const { normalizeCustomStaffRoles } = await import("../lib/staffRoles.js");
+  if (!req.user?.tenantId) {
+    return featuresForUser({ role: req.user.role, roleTitle: req.user.roleTitle });
+  }
+  const school = await prisma.school.findUnique({
+    where: { id: req.user.tenantId },
+    select: { customStaffRoles: true, roleFeatureAccess: true },
+  });
+  return featuresForUser(
+    { role: req.user.role, roleTitle: req.user.roleTitle },
+    {
+      customRoles: normalizeCustomStaffRoles(school?.customStaffRoles),
+      roleFeatureAccess: school?.roleFeatureAccess,
+    }
+  );
+}
+
 export function signToken(user) {
   return jwt.sign(
     {

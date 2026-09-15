@@ -3678,6 +3678,13 @@
                   "kind": "scalar"
                 }
               },
+              "roleFeatureAccess": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
               "shortName": {
                 "nullable": true,
                 "type": {
@@ -4179,6 +4186,9 @@
                 },
                 "recognitionNo": {
                   "column": "recognitionNo"
+                },
+                "roleFeatureAccess": {
+                  "column": "roleFeatureAccess"
                 },
                 "shortName": {
                   "column": "shortName"
@@ -9089,6 +9099,11 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "roleFeatureAccess": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
                 "shortName": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -10254,7 +10269,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "96765e72b623daa7218fd9ebdd9fa6a404a7c14b5e3da12c10e0f6a771f70551"
+    "storageHash": "5513bd333417d776427f03beaf0483d3d36cd8edae48636a6d9097c4069e6297"
   },
   "execution": {
     "executionHash": "47b32973b482e3482f74eb4934530e25e38250f4c47a6f8943a2e003354c3f18",

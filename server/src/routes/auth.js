@@ -65,11 +65,25 @@ function formatClassTeacherOf(rows) {
   }));
 }
 
-function formatSessionPayload(user) {
+function formatSessionPayload(user, { features } = {}) {
   return {
     user: publicUser(user),
     assignments: user.assignments || [],
     classTeacherOf: formatClassTeacherOf(user.classTeacherOf || []),
+    features: features || undefined,
+  };
+}
+
+async function loadSchoolFeatureContext(tenantId) {
+  if (!tenantId) return { customRoles: [], roleFeatureAccess: null };
+  const school = await prisma.school.findUnique({
+    where: { id: tenantId },
+    select: { customStaffRoles: true, roleFeatureAccess: true },
+  });
+  const { normalizeCustomStaffRoles } = await import("../lib/staffRoles.js");
+  return {
+    customRoles: normalizeCustomStaffRoles(school?.customStaffRoles),
+    roleFeatureAccess: school?.roleFeatureAccess || null,
   };
 }
 
@@ -79,7 +93,13 @@ async function loadUserSession(userId) {
     include: USER_SESSION_INCLUDE,
   });
   if (!user) return null;
-  return formatSessionPayload(user);
+  const { featuresForUser } = await import("../lib/roleFeatures.js");
+  const ctx = await loadSchoolFeatureContext(user.tenantId);
+  const features = featuresForUser(
+    { role: user.role, roleTitle: user.roleTitle },
+    ctx
+  );
+  return formatSessionPayload(user, { features });
 }
 
 /** Overlap bcrypt with session + cache-backed dashboard (discarded if password fails). */

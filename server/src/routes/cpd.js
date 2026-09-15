@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { auth, isLeadership, requireLeadership } from "../middleware/auth.js";
+import { auth, isLeadership, requireLeadership, requireFeature } from "../middleware/auth.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const cpdRouter = Router();
 cpdRouter.use(auth);
 cpdRouter.use(requireSchoolTenant);
+cpdRouter.use(requireFeature("cpd"));
 
 const TEACHER_SELECT = { id: true, name: true, email: true, role: true };
 const OBSERVER_SELECT = { id: true, name: true, email: true };

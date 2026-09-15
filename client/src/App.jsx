@@ -3,7 +3,8 @@ import { Navigate, Route, Routes, useLocation, useParams } from "react-router-do
 import { useAuth } from "./auth.jsx";
 import Layout from "./components/Layout.jsx";
 import { Spinner } from "./components/Spinner.jsx";
-import { guardRolesForRoute, paths } from "./lib/nav.js";
+import { guardFeatureForRoute, guardRolesForRoute, paths } from "./lib/nav.js";
+import { hasFeature } from "./lib/features.js";
 
 const Landing = lazy(() => import("./pages/Landing.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
@@ -55,8 +56,8 @@ function PageFallback() {
   );
 }
 
-function Guard({ roles, children }) {
-  const { user, loading } = useAuth();
+function Guard({ roles, feature, children }) {
+  const { user, loading, features } = useAuth();
   const location = useLocation();
   if (loading) return <PageFallback />;
   if (!user) return <Navigate to="/login" replace />;
@@ -73,11 +74,16 @@ function Guard({ roles, children }) {
     return <Navigate to="/" replace />;
   }
   if (roles && !roles.includes(user.role)) return <Navigate to="/" replace />;
+  if (feature && !hasFeature(features, feature)) return <Navigate to="/" replace />;
   return children;
 }
 
 function Guarded({ route, children }) {
-  return <Guard roles={guardRolesForRoute(route)}>{children}</Guard>;
+  return (
+    <Guard roles={guardRolesForRoute(route)} feature={guardFeatureForRoute(route)}>
+      {children}
+    </Guard>
+  );
 }
 
 function Home() {

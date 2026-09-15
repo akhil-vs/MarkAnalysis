@@ -3,7 +3,7 @@ import bcrypt from "bcryptjs";
 import ExcelJS from "exceljs";
 import multer from "multer";
 import { prisma } from "../lib/prisma.js";
-import { auth, publicUser, requireRole } from "../middleware/auth.js";
+import { auth, publicUser, requireRole, requireFeature } from "../middleware/auth.js";
 import { parseEmail } from "../lib/numbers.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
@@ -23,20 +23,35 @@ import {
   parseNewStaffRole,
   resolveAssignedRole,
 } from "../lib/staffRoles.js";
+import {
+  FEATURE_CATALOG,
+  effectiveFeatureMap,
+  normalizeRoleFeatureAccess,
+  patchRoleFeatures,
+} from "../lib/roleFeatures.js";
 
 export const usersRouter = Router();
 usersRouter.use(auth);
 usersRouter.use(requireSchoolTenant);
+usersRouter.use(requireFeature("staff"));
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
-async function getSchoolCustomStaffRoles(tenantId) {
-  if (!tenantId) return [];
+async function getSchoolRoleAccessConfig(tenantId) {
+  if (!tenantId) return { customStaffRoles: [], roleFeatureAccess: {} };
   const school = await prisma.school.findUnique({
     where: { id: tenantId },
-    select: { customStaffRoles: true },
+    select: { customStaffRoles: true, roleFeatureAccess: true },
   });
-  return school?.customStaffRoles || [];
+  return {
+    customStaffRoles: school?.customStaffRoles || [],
+    roleFeatureAccess: normalizeRoleFeatureAccess(school?.roleFeatureAccess),
+  };
+}
+
+async function getSchoolCustomStaffRoles(tenantId) {
+  const cfg = await getSchoolRoleAccessConfig(tenantId);
+  return cfg.customStaffRoles;
 }
 
 function usersOrderBy(sort) {
@@ -114,11 +129,77 @@ usersRouter.get("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, r
 });
 
 usersRouter.get("/staff-roles", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const custom = await getSchoolCustomStaffRoles(req.user.tenantId);
-  const roles = listStaffRoles(custom, {
+  const { customStaffRoles, roleFeatureAccess } = await getSchoolRoleAccessConfig(req.user.tenantId);
+  const roles = listStaffRoles(customStaffRoles, {
     includeCoordinator: req.user.role === "PRINCIPAL",
+  }).map((role) => {
+    const baseRole = role.baseRole || (role.id === "EXAM_COORDINATOR" ? "EXAM_COORDINATOR" : "TEACHER");
+    const features = effectiveFeatureMap(role.id, roleFeatureAccess, { baseRole });
+    return { ...role, features, baseRole };
   });
-  res.json({ roles, canAddRoles: req.user.role === "PRINCIPAL" });
+  res.json({
+    roles,
+    features: FEATURE_CATALOG,
+    roleFeatureAccess,
+    canAddRoles: req.user.role === "PRINCIPAL",
+    canManageAccess: req.user.role === "PRINCIPAL",
+  });
+});
+
+usersRouter.put("/staff-roles/:roleId/features", requireRole("PRINCIPAL"), async (req, res) => {
+  const roleId = String(req.params.roleId || "").trim();
+  if (!roleId) return res.status(400).json({ error: "Role is required" });
+
+  const school = await prisma.school.findUnique({
+    where: { id: req.user.tenantId },
+    select: { id: true, customStaffRoles: true, roleFeatureAccess: true },
+  });
+  if (!school) return res.status(404).json({ error: "School not found" });
+
+  const listed = listStaffRoles(school.customStaffRoles, { includeCoordinator: true });
+  const role = listed.find((r) => r.id === roleId);
+  if (!role) return res.status(404).json({ error: "Unknown role" });
+  if (roleId === "PRINCIPAL") {
+    return res.status(400).json({ error: "Principal access cannot be changed" });
+  }
+
+  const baseRole = role.baseRole || (roleId === "EXAM_COORDINATOR" ? "EXAM_COORDINATOR" : "TEACHER");
+  const patched = patchRoleFeatures(school.roleFeatureAccess, roleId, req.body?.features || req.body || {}, {
+    baseRole,
+  });
+  if (patched.error) return res.status(400).json({ error: patched.error });
+
+  await prisma.school.update({
+    where: { id: school.id },
+    data: { roleFeatureAccess: patched.access },
+  });
+
+  await logActivity({
+    actorId: req.user.userId,
+    action: "SCHOOL_UPDATED",
+    summary: `Updated feature access for role “${role.name}”`,
+    meta: { staffRoleId: roleId, staffRoleName: role.name, features: patched.features },
+  });
+
+  const roles = listed.map((r) => {
+    const br = r.baseRole || (r.id === "EXAM_COORDINATOR" ? "EXAM_COORDINATOR" : "TEACHER");
+    return {
+      ...r,
+      baseRole: br,
+      features: effectiveFeatureMap(r.id, patched.access, { baseRole: br }),
+    };
+  });
+
+  res.json({
+    role: {
+      ...role,
+      baseRole,
+      features: patched.features,
+    },
+    roles,
+    roleFeatureAccess: patched.access,
+    features: FEATURE_CATALOG,
+  });
 });
 
 usersRouter.post("/staff-roles", requireRole("PRINCIPAL"), async (req, res) => {
@@ -127,7 +208,7 @@ usersRouter.post("/staff-roles", requireRole("PRINCIPAL"), async (req, res) => {
 
   const school = await prisma.school.findUnique({
     where: { id: req.user.tenantId },
-    select: { id: true, customStaffRoles: true },
+    select: { id: true, customStaffRoles: true, roleFeatureAccess: true },
   });
   if (!school) return res.status(404).json({ error: "School not found" });
 
@@ -152,9 +233,22 @@ usersRouter.post("/staff-roles", requireRole("PRINCIPAL"), async (req, res) => {
     meta: { staffRoleId: roleToAdd.id, staffRoleName: roleToAdd.name, baseRole: roleToAdd.baseRole },
   });
 
+  const roleFeatureAccess = normalizeRoleFeatureAccess(school.roleFeatureAccess);
+
   res.status(201).json({
-    role: { ...roleToAdd, system: false },
-    roles: listStaffRoles(next.roles, { includeCoordinator: true }),
+    role: {
+      ...roleToAdd,
+      system: false,
+      features: effectiveFeatureMap(roleToAdd.id, roleFeatureAccess, { baseRole: roleToAdd.baseRole }),
+    },
+    roles: listStaffRoles(next.roles, { includeCoordinator: true }).map((role) => {
+      const baseRole = role.baseRole || (role.id === "EXAM_COORDINATOR" ? "EXAM_COORDINATOR" : "TEACHER");
+      return {
+        ...role,
+        baseRole,
+        features: effectiveFeatureMap(role.id, roleFeatureAccess, { baseRole }),
+      };
+    }),
   });
 });
 

@@ -103,6 +103,8 @@ model School {
   workingDays    Json?
   /// Principal-defined staff role titles: [{ id, name, baseRole }, ...] (baseRole TEACHER|EXAM_COORDINATOR).
   customStaffRoles Json?
+  /// Per-role feature toggles: { TEACHER|EXAM_COORDINATOR|customRoleId: { featureId: boolean } }.
+  roleFeatureAccess Json?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

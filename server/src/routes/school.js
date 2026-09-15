@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { auth, isLeadership, requireRole } from "../middleware/auth.js";
+import { auth, isLeadership, requireRole, requireFeature } from "../middleware/auth.js";
 import {
   allocateJoinCode,
   getSchoolProfile,
@@ -70,7 +70,7 @@ schoolRouter.get("/logo", async (_req, res) => {
   return res.send(buf);
 });
 
-schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("schoolProfile"), async (req, res) => {
   const identity = parseSchoolIdentityPatch(req.body || {});
   if (identity.error) return res.status(400).json({ error: identity.error });
 
@@ -94,7 +94,7 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
   res.json(schoolJson(req, updated));
 });
 
-schoolRouter.post("/join-code", requireRole("PRINCIPAL"), async (req, res) => {
+schoolRouter.post("/join-code", requireRole("PRINCIPAL"), requireFeature("schoolProfile"), async (req, res) => {
   const profile = await getSchoolProfile();
   const joinCode = await allocateJoinCode();
   const updated = await prisma.school.update({
@@ -106,7 +106,7 @@ schoolRouter.post("/join-code", requireRole("PRINCIPAL"), async (req, res) => {
   res.json(schoolJson(req, updated));
 });
 
-schoolRouter.post("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), receiveLogo, async (req, res) => {
+schoolRouter.post("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("schoolProfile"), receiveLogo, async (req, res) => {
   const parsed = parseLogoFile(req.file);
   if (parsed.error) return res.status(400).json({ error: parsed.error });
 
@@ -120,7 +120,7 @@ schoolRouter.post("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), receive
   res.json(schoolJson(req, updated));
 });
 
-schoolRouter.delete("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+schoolRouter.delete("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("schoolProfile"), async (req, res) => {
   const profile = await getSchoolProfile();
   const updated = await prisma.school.update({
     where: { id: profile.id },
@@ -131,7 +131,7 @@ schoolRouter.delete("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
   res.json(schoolJson(req, updated));
 });
 
-schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("schoolProfile"), async (req, res) => {
   const profile = await getSchoolProfile();
   const updated = await prisma.school.update({
     where: { id: profile.id },

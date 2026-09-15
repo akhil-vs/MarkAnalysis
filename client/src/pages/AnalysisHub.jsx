@@ -4,8 +4,8 @@ import { PageHeader } from "../components/Layout.jsx";
 import { analysisHubCards, NAV_TITLES } from "../lib/nav.js";
 
 export default function AnalysisHub() {
-  const { user } = useAuth();
-  const cards = analysisHubCards(user.role);
+  const { user, features } = useAuth();
+  const cards = analysisHubCards(user.role, { features });
 
   return (
     <div>
