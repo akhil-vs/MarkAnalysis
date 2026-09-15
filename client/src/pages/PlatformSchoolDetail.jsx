@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { PageHeader, Kpi } from "../components/Layout.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
+import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { firstError, parseEmail, parseSlug, requiredText } from "../lib/formValidation.js";
 
@@ -163,7 +164,7 @@ export default function PlatformSchoolDetail() {
   }
 
   if (!school) {
-    return <p className="text-ink-700/70 p-4">Loading school…</p>;
+    return <LoadingState label="Loading school…" className="p-4" />;
   }
 
   return (
@@ -238,7 +239,7 @@ export default function PlatformSchoolDetail() {
           </div>
           {error && <FieldError message={error} />}
           <button className="btn-primary" disabled={busy === "save"}>
-            {busy === "save" ? "Saving…" : "Save profile"}
+            <BusyLabel busy={busy === "save"} idle="Save profile" busyText="Saving…" />
           </button>
         </form>
 
@@ -295,7 +296,7 @@ export default function PlatformSchoolDetail() {
               </div>
             </div>
             <button className="btn-primary" disabled={busy === "principal"}>
-              {busy === "principal" ? "Adding…" : "Add principal"}
+              <BusyLabel busy={busy === "principal"} idle="Add principal" busyText="Adding…" />
             </button>
           </form>
         </div>

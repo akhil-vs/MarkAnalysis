@@ -17,6 +17,7 @@ import Breadcrumb from "../components/Breadcrumb.jsx";
 import { GRADE_COLORS, Metric, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { LoadError } from "../components/LoadError.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { NAV_LABELS, paths } from "../lib/nav.js";
 
 export default function SubjectSchoolAnalytics() {
@@ -41,7 +42,7 @@ export default function SubjectSchoolAnalytics() {
   }, [name]);
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p>Loading subject…</p>;
+  if (!data) return <LoadingState label="Loading subject…" />;
   if (data.empty) return <p>No data for this subject yet.</p>;
 
   const grades = Object.entries(data.gradeDist || {}).map(([grade, count]) => ({ grade, count }));

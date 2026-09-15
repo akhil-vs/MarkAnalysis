@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import { Spinner } from "./Spinner.jsx";
 
 function relativeTime(iso) {
   const diff = Date.now() - new Date(iso).getTime();
@@ -234,7 +235,10 @@ export default function NotificationBell() {
             </div>
             <div className="overflow-y-auto" style={{ maxHeight: coords.maxHeight - 42 }}>
               {loading && !listLoaded ? (
-                <p className="px-3 py-4 text-sm text-cream/50">Loading…</p>
+                <p className="px-3 py-4 text-sm text-cream/50 inline-flex items-center gap-2" role="status">
+                  <Spinner className="h-3.5 w-3.5 text-cream/60" label="" />
+                  Loading…
+                </p>
               ) : items.length === 0 ? (
                 <p className="px-3 py-4 text-sm text-cream/50">No notifications yet.</p>
               ) : (

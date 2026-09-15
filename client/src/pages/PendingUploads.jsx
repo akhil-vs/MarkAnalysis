@@ -6,7 +6,7 @@ import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { Kpi, PageHeader } from "../components/Layout.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
-import { BusyLabel } from "../components/Spinner.jsx";
+import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { paths, NAV_TITLES } from "../lib/nav.js";
@@ -41,7 +41,7 @@ export default function PendingUploads() {
   }, []);
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p>Loading upload status…</p>;
+  if (!data) return <LoadingState label="Loading upload status…" />;
   if (data.empty) return <p>No exams yet.</p>;
 
   const pending = (data.teachers || []).filter((t) => t.pending);

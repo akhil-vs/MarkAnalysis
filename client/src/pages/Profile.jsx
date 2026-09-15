@@ -2,6 +2,7 @@ import { useState } from "react";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { BusyLabel } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError } from "../components/FieldError.jsx";
 import { firstError, parsePassword } from "../lib/formValidation.js";
@@ -226,7 +227,7 @@ export default function Profile() {
                 disabled={Boolean(mfaBusy)}
                 onClick={startMfaSetup}
               >
-                {mfaBusy === "setup" ? "Preparing…" : "Enable MFA"}
+                <BusyLabel busy={mfaBusy === "setup"} idle="Enable MFA" busyText="Preparing…" />
               </button>
             )}
           </div>
@@ -258,7 +259,7 @@ export default function Profile() {
               </div>
               <div className="flex flex-wrap gap-2">
                 <button className="btn-accent" disabled={mfaBusy === "enable"}>
-                  {mfaBusy === "enable" ? "Enabling…" : "Confirm and enable"}
+                  <BusyLabel busy={mfaBusy === "enable"} idle="Confirm and enable" busyText="Enabling…" />
                 </button>
                 <button
                   type="button"
@@ -316,7 +317,7 @@ export default function Profile() {
                 />
               </div>
               <button className="btn-ghost" disabled={mfaBusy === "disable"}>
-                {mfaBusy === "disable" ? "Disabling…" : "Disable MFA"}
+                <BusyLabel busy={mfaBusy === "disable"} idle="Disable MFA" busyText="Disabling…" />
               </button>
             </form>
           )}

@@ -6,7 +6,7 @@ import { ExamSelect } from "../components/ExamSelect.jsx";
 import { EmptyNote, Panel } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
-import { Spinner } from "../components/Spinner.jsx";
+import { BusyLabel, Spinner } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
@@ -457,19 +457,19 @@ export default function ConsolidatedLists() {
                   {preview.ready ? (
                     <>
                       <button className="btn-primary" disabled={tableBusy} onClick={() => generate("xlsx", { official: true })}>
-                        {busy === "xlsx-official" ? "Preparing…" : "Official Excel"}
+                        <BusyLabel busy={busy === "xlsx-official"} idle="Official Excel" busyText="Preparing…" />
                       </button>
                       <button className="btn-ghost" disabled={tableBusy} onClick={() => generate("pdf", { official: true })}>
-                        {busy === "pdf-official" ? "Preparing…" : "Official PDF"}
+                        <BusyLabel busy={busy === "pdf-official"} idle="Official PDF" busyText="Preparing…" />
                       </button>
                     </>
                   ) : leadership ? (
                     <>
                       <button className="btn-ghost" disabled={tableBusy} onClick={() => generate("xlsx")}>
-                        {busy === "xlsx" ? "Preparing…" : "Preview Excel"}
+                        <BusyLabel busy={busy === "xlsx"} idle="Preview Excel" busyText="Preparing…" />
                       </button>
                       <button className="btn-ghost" disabled={tableBusy} onClick={() => generate("pdf")}>
-                        {busy === "pdf" ? "Preparing…" : "Preview PDF"}
+                        <BusyLabel busy={busy === "pdf"} idle="Preview PDF" busyText="Preparing…" />
                       </button>
                       <button
                         className="btn-primary"

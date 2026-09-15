@@ -13,6 +13,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { ExamSelect } from "../components/ExamSelect.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { YearComparison } from "../components/AnalysisPanels.jsx";
 import {
   BarTrack,
@@ -96,7 +97,7 @@ export default function TeacherDashboard() {
   }
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p className="text-ink-700/60">Loading your classes…</p>;
+  if (!data) return <LoadingState label="Loading your classes…" />;
 
   const registers = data.registers || [];
   const unreadNotices = notices.filter((n) => !n.readAt);

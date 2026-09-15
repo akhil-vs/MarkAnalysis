@@ -3,7 +3,7 @@ import { api, download } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { EntryAccessNotice } from "../components/MarkEntryAccess.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { BusyLabel } from "../components/Spinner.jsx";
+import { BusyLabel, InlineLoading } from "../components/Spinner.jsx";
 import { isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -204,11 +204,13 @@ export default function MarksUpload() {
           </button>
         </div>
         {busy && (
-          <p className="text-sm text-ink-700/70" role="status">
-            {busyMode === "commit"
-              ? "Uploading marks and saving drafts…"
-              : "Checking spreadsheet…"}
-          </p>
+          <InlineLoading
+            label={
+              busyMode === "commit"
+                ? "Uploading marks and saving drafts…"
+                : "Checking spreadsheet…"
+            }
+          />
         )}
         {preview && !busy && (
           <div className="text-sm space-y-3 rounded-xl border border-ink-900/10 bg-cream/60 p-3.5">

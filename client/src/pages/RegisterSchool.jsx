@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { api, setSessionHint, setToken } from "../api.js";
 import { FieldError } from "../components/FieldError.jsx";
+import { BusyLabel } from "../components/Spinner.jsx";
 import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
 import { AuthShell } from "./Login.jsx";
 
@@ -84,7 +85,7 @@ export default function RegisterSchool() {
         </div>
         {error && <FieldError message={error} />}
         <button className="btn-primary w-full" disabled={busy}>
-          {busy ? "Creating school…" : "Create school"}
+          <BusyLabel busy={busy} idle="Create school" busyText="Creating school…" />
         </button>
         <p className="text-sm text-ink-700/70">
           Staff joining an existing school? <Link className="underline" to="/signup">Request access</Link>

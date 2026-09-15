@@ -4,6 +4,7 @@ import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { PaginatedTable } from "../components/PaginatedTable.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { NAV_TITLES, paths } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
@@ -13,9 +14,9 @@ function studentSearchText(s) {
 }
 
 export default function AnalysisStudents() {
-  const [students, setStudents] = useState([]);
+  const [students, setStudents] = useState(null);
   const [error, setError] = useState("");
-  const table = useTableSearch(students, { getSearchText: studentSearchText });
+  const table = useTableSearch(students || [], { getSearchText: studentSearchText });
 
   useEffect(() => {
     api("/api/students")
@@ -24,6 +25,7 @@ export default function AnalysisStudents() {
   }, []);
 
   if (error) return <LoadError message={error} />;
+  if (!students) return <LoadingState label="Loading students…" />;
 
   return (
     <div>

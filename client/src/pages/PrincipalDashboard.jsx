@@ -14,6 +14,7 @@ import {
 } from "recharts";
 import { api, download } from "../api.js";
 import { LoadError } from "../components/LoadError.jsx";
+import { InlineLoading, LoadingState } from "../components/Spinner.jsx";
 import { useAuth } from "../auth.jsx";
 import { ExamSelect } from "../components/ExamSelect.jsx";
 import { YearComparison } from "../components/AnalysisPanels.jsx";
@@ -130,7 +131,7 @@ export default function PrincipalDashboard() {
   }, [data, examId]);
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p className="text-ink-700/60">Loading school view…</p>;
+  if (!data) return <LoadingState label="Loading school view…" />;
   if (data.empty) return <p>No exam data yet.</p>;
 
   const pending = (data.pendingUploads?.teachers || []).filter((t) => t.pending);
@@ -207,11 +208,7 @@ export default function PrincipalDashboard() {
         />
       </div>
 
-      {detailLoading && (
-        <p className="mb-4 text-sm text-ink-700/55" role="status">
-          Loading charts and rankings…
-        </p>
-      )}
+      {detailLoading && <InlineLoading label="Loading charts and rankings…" className="mb-4" />}
 
       <div className="grid lg:grid-cols-12 gap-4 mb-4">
         <PendingSubmittedApprovals className="lg:col-span-12" />

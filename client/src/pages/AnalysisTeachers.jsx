@@ -5,6 +5,7 @@ import { ExamSelect } from "../components/ExamSelect.jsx";
 import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { PageHeader } from "../components/Layout.jsx";
+import { LoadingState } from "../components/Spinner.jsx";
 import { NAV_TITLES, paths } from "../lib/nav.js";
 
 export default function AnalysisTeachers() {
@@ -28,7 +29,7 @@ export default function AnalysisTeachers() {
   }, []);
 
   if (error) return <LoadError message={error} />;
-  if (!data) return <p>Loading teachers…</p>;
+  if (!data) return <LoadingState label="Loading teachers…" />;
   if (data.empty) return <p>No exam data yet.</p>;
 
   const rows = [...(data.teachers || [])].sort((a, b) => (b.average ?? -1) - (a.average ?? -1));

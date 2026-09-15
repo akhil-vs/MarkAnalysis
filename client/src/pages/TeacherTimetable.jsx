@@ -4,7 +4,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { BusyLabel } from "../components/Spinner.jsx";
+import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { isLeadership } from "../lib/roles.js";
 
@@ -321,7 +321,7 @@ export default function TeacherTimetable() {
     );
   }
 
-  if (!data) return <p>Loading timetable…</p>;
+  if (!data) return <LoadingState label="Loading timetable…" />;
 
   const title = data.teacher?.name || "Teacher";
   const dayLocked = Boolean(draftSlot) && !editingId;
