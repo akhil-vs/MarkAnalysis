@@ -213,4 +213,41 @@ describe("teacher load and weighted annual", () => {
     assert.equal(years.fromYear, "2024-25");
     assert.equal(years.toYear, "2025-26");
   });
+
+  it("indexes paper lookups so large mark sets stay linear", () => {
+    const assignments = Array.from({ length: 40 }, (_, i) => ({
+      userId: `t${i % 8}`,
+      user: { name: `T${i % 8}` },
+      subject: { name: `Sub${i}` },
+      subjectId: `sub${i}`,
+      classSectionId: `c${i % 5}`,
+      classSection: { className: "10", section: String.fromCharCode(65 + (i % 5)) },
+    }));
+    const studentsByClass = new Map(
+      Array.from({ length: 5 }, (_, i) => [
+        `c${i}`,
+        Array.from({ length: 30 }, (_, j) => ({ id: `s${i}-${j}`, classSectionId: `c${i}` })),
+      ])
+    );
+    const marks = [];
+    for (const a of assignments) {
+      const students = studentsByClass.get(a.classSectionId) || [];
+      for (const s of students) {
+        marks.push(
+          scored({
+            studentId: s.id,
+            student: { id: s.id, classSectionId: a.classSectionId, classSection: a.classSection },
+            subjectId: a.subjectId,
+            subject: a.subject,
+            marksObtained: 70,
+          })
+        );
+      }
+    }
+    const started = Date.now();
+    const load = teacherLoadOutcomes(assignments, marks, studentsByClass, { passPercent: 50 });
+    const elapsed = Date.now() - started;
+    assert.equal(load.length, 8);
+    assert.ok(elapsed < 500, `teacherLoadOutcomes took ${elapsed}ms`);
+  });
 });

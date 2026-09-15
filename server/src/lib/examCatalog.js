@@ -1,5 +1,6 @@
 import { prisma } from "./prisma.js";
 import { pickExam } from "./stats.js";
+import { invalidateInsightsCache } from "./insightsCache.js";
 import { CacheKeys, cachedTenantLoad, invalidateCurrentTenantCache } from "./tenantCache.js";
 
 /** Cached exam list (no consolidation include) for analytics / consolidated helpers. */
@@ -16,4 +17,5 @@ export async function loadExams(examId) {
 
 export function invalidateExamCatalog() {
   invalidateCurrentTenantCache(CacheKeys.EXAMS_BASIC);
+  invalidateInsightsCache();
 }
