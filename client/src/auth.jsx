@@ -1,8 +1,9 @@
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from "react";
-import { api, hasSessionHint, setSessionHint, setToken } from "./api.js";
+import { api, hasSessionHint, setOptimisticAuth, setSessionHint, setToken } from "./api.js";
 import {
   clearDashboardPrefetch,
   dashboardApiPath,
+  peekLoginShell,
   prefetchDashboard,
   preloadDashboardModules,
   seedDashboardPrefetch,
@@ -43,10 +44,18 @@ function seedDashboardFromSession(data) {
   preloadDashboardModules(data.user.role);
   const path = data.dashboardPath || dashboardApiPath(data.user.role);
   if (data.dashboard && path) {
-    seedDashboardPrefetch(path, data.dashboard, { userId: data.user.id });
+    seedDashboardPrefetch(path, data.dashboard, {
+      userId: data.user.id,
+      email: data.user.email,
+      schoolId: data.user.schoolId,
+    });
     return;
   }
-  prefetchDashboard(data.user.role, { userId: data.user.id });
+  prefetchDashboard(data.user.role, {
+    userId: data.user.id,
+    email: data.user.email,
+    schoolId: data.user.schoolId,
+  });
 }
 
 export function AuthProvider({ children }) {
@@ -55,11 +64,14 @@ export function AuthProvider({ children }) {
   const [assignments, setAssignments] = useState(cached?.assignments || []);
   const [classTeacherOf, setClassTeacherOf] = useState(cached?.classTeacherOf || []);
   const [loading, setLoading] = useState(!cached);
+  const [optimistic, setOptimistic] = useState(false);
   const refreshInflight = useRef(null);
 
-  function applySession(data) {
+  function applySession(data, { asOptimistic = false } = {}) {
     if (!data?.user) return;
-    setSessionHint(true);
+    setOptimisticAuth(asOptimistic);
+    setOptimistic(asOptimistic);
+    if (!asOptimistic) setSessionHint(true);
     setUser(data.user);
     setAssignments(data.assignments || []);
     setClassTeacherOf(data.classTeacherOf || []);
@@ -73,6 +85,8 @@ export function AuthProvider({ children }) {
   }
 
   function clearSession() {
+    setOptimisticAuth(false);
+    setOptimistic(false);
     setSessionHint(false);
     setToken(null);
     setUser(null);
@@ -80,6 +94,24 @@ export function AuthProvider({ children }) {
     setClassTeacherOf([]);
     writeAuthCache({ user: null });
     clearDashboardPrefetch();
+  }
+
+  /**
+   * Paint a cached dashboard shell immediately on Login click (0ms).
+   * Returns the shell payload when available; caller should navigate home.
+   */
+  function beginOptimisticLogin(payload = {}) {
+    const roleHint = payload.roleHint || null;
+    const shell = peekLoginShell({
+      email: payload.email,
+      schoolId: payload.schoolId,
+      role: roleHint,
+    });
+    if (!shell?.user || !shell.dashboard) return null;
+    if (shell.user.role === "PLATFORM_ADMIN") return null;
+    preloadDashboardModules(shell.user.role);
+    applySession(shell, { asOptimistic: true });
+    return shell;
   }
 
   async function refresh() {
@@ -110,11 +142,14 @@ export function AuthProvider({ children }) {
       assignments,
       classTeacherOf,
       loading,
+      optimistic,
       refresh,
+      beginOptimisticLogin,
       async login(payload) {
         const data = await api("/api/auth/login", { method: "POST", body: payload });
         if (data?.mfaRequired) {
-          // Challenge issued — do not establish a session yet.
+          // Challenge issued — roll back any optimistic shell.
+          clearSession();
           return data;
         }
         setToken(null);
@@ -158,7 +193,7 @@ export function AuthProvider({ children }) {
         clearSession();
       },
     }),
-    [user, assignments, classTeacherOf, loading]
+    [user, assignments, classTeacherOf, loading, optimistic]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

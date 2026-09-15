@@ -27,7 +27,7 @@ const DEMO_ACCOUNTS = [
 ];
 
 export default function Login() {
-  const { user, login, verifyMfa } = useAuth();
+  const { user, login, verifyMfa, beginOptimisticLogin, logout } = useAuth();
   const navigate = useNavigate();
   const [mode, setMode] = useState("email");
   const [email, setEmail] = useState("");
@@ -55,18 +55,42 @@ export default function Login() {
     navigate(data?.user?.mustChangePassword ? "/profile" : home);
   }
 
-  async function signIn(payload) {
+  function roleHintFromAccount(account) {
+    if (!account?.role) return null;
+    if (account.role === "Platform admin") return "PLATFORM_ADMIN";
+    if (account.role === "Principal" || account.role.startsWith("Principal")) return "PRINCIPAL";
+    if (account.role === "Exam Coordinator") return "EXAM_COORDINATOR";
+    if (account.role.startsWith("Teacher")) return "TEACHER";
+    return null;
+  }
+
+  async function signIn(payload, { roleHint } = {}) {
     setError("");
+    const optimistic = beginOptimisticLogin({ ...payload, roleHint });
+    if (optimistic) {
+      // Cached shell is already applied — navigate immediately (0ms paint).
+      goHome(optimistic);
+    }
     try {
       const data = await login(payload);
       if (data?.mfaRequired) {
+        if (optimistic) navigate("/login", { replace: true });
         setMfaChallenge(data);
         setMfaCode("");
         setRecoveryCode("");
         return;
       }
-      goHome(data);
+      if (!optimistic) goHome(data);
+      // Optimistic path: applySession already hydrated fresh dashboard in place.
     } catch (err) {
+      if (optimistic) {
+        try {
+          await logout();
+        } catch {
+          // clearSession already ran inside logout/login failure paths
+        }
+        navigate("/login", { replace: true });
+      }
       if (err.status === 403 && err.data?.user?.status === "PENDING") {
         navigate("/pending");
         return;
@@ -127,16 +151,9 @@ export default function Login() {
     setMode("email");
     setEmail(account.email);
     setPassword(DEMO_PASSWORD);
-    const role =
-      account.role === "Platform admin"
-        ? "PLATFORM_ADMIN"
-        : account.role === "Principal" || account.role.startsWith("Principal")
-          ? "PRINCIPAL"
-          : account.role === "Exam Coordinator"
-            ? "EXAM_COORDINATOR"
-            : "TEACHER";
-    preloadDashboardModules(role);
-    await signIn({ email: account.email, password: DEMO_PASSWORD });
+    const roleHint = roleHintFromAccount(account);
+    preloadDashboardModules(roleHint);
+    await signIn({ email: account.email, password: DEMO_PASSWORD }, { roleHint });
   }
 
   const teachers = DEMO_ACCOUNTS.filter((a) => a.role.startsWith("Teacher"));

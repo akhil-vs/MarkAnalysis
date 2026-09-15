@@ -20,6 +20,15 @@ export function setToken(_token) {
   // no-op — access/refresh tokens live in httpOnly cookies
 }
 
+/** While optimistic login paints a cached shell, 401s must not bounce to /login. */
+let optimisticAuth = false;
+export function setOptimisticAuth(on) {
+  optimisticAuth = Boolean(on);
+}
+export function isOptimisticAuth() {
+  return optimisticAuth;
+}
+
 
 /** Short-lived GET cache for stable catalogs (classes/exams/subjects/users/school/periods). */
 const catalogCache = new Map();
@@ -158,6 +167,11 @@ async function request(path, { method = "GET", body, headers } = {}, { retry = t
     path !== "/api/auth/signup" &&
     !path.startsWith("/api/schools/")
   ) {
+    if (optimisticAuth) {
+      const err = new Error("Session not ready");
+      err.status = 401;
+      throw err;
+    }
     const refreshed = await tryRefreshSession();
     if (refreshed) return request(path, { method, body, headers }, { retry: false });
     setSessionHint(false);

@@ -348,6 +348,8 @@ async function buildPrincipalSummary() {
   };
 }
 
+import { cachedTenantLoad } from "./tenantCache.js";
+
 /** Build the role home dashboard payload (no HTTP). */
 export async function buildHomeDashboard(user) {
   if (!user?.role || user.role === "PLATFORM_ADMIN") return null;
@@ -355,6 +357,18 @@ export async function buildHomeDashboard(user) {
   if (user.role === "EXAM_COORDINATOR") return buildCoordinatorHome();
   if (user.role === "PRINCIPAL") return buildPrincipalSummary();
   return null;
+}
+
+/** Short-TTL cache so login can overlap bcrypt with a warm dashboard hit. */
+export async function buildHomeDashboardCached(user) {
+  if (!user?.role || user.role === "PLATFORM_ADMIN" || !user.tenantId) {
+    return buildHomeDashboard(user);
+  }
+  return cachedTenantLoad(
+    `home-dash:${user.role}:${user.id}`,
+    () => buildHomeDashboard(user),
+    { ttlMs: 45_000, tenantId: user.tenantId }
+  );
 }
 
 export function homeDashboardPath(role) {

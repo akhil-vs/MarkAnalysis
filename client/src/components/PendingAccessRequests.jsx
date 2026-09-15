@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
+import { useAuth } from "../auth.jsx";
 import { EmptyNote, Panel } from "./DashboardKit.jsx";
 import { BusyLabel, Spinner } from "./Spinner.jsx";
 import { useToast } from "./Toast.jsx";
@@ -15,6 +16,7 @@ function kindLabel(kind) {
  * Not scoped to the selected analytics exam.
  */
 export default function PendingAccessRequests({ className = "", limit = 8 }) {
+  const { optimistic } = useAuth();
   const toast = useToast();
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
@@ -32,8 +34,9 @@ export default function PendingAccessRequests({ className = "", limit = 8 }) {
   }, []);
 
   useEffect(() => {
+    if (optimistic) return;
     load();
-  }, [load]);
+  }, [load, optimistic]);
 
   async function review(id, status) {
     setBusyId(id);

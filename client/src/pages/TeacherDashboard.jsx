@@ -29,7 +29,7 @@ import { paths } from "../lib/nav.js";
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
 
 export default function TeacherDashboard() {
-  const { user, assignments, classTeacherOf } = useAuth();
+  const { user, assignments, classTeacherOf, optimistic } = useAuth();
   const homePath = dashboardApiPath("TEACHER");
   const [data, setData] = useState(() => peekDashboardPrefetch(homePath, { userId: user?.id }));
   const [examId, setExamId] = useState(() => data?.exam?.id || "");
@@ -58,9 +58,17 @@ export default function TeacherDashboard() {
   }
 
   useEffect(() => {
-    if (data) {
+    if (optimistic) return undefined;
+    const fresh = peekDashboardPrefetch(homePath, { userId: user?.id });
+    if (fresh) {
+      setData(fresh);
+      if (fresh.exam) setExamId(fresh.exam.id);
+    }
+    if (fresh || data) {
       revalidateDashboard(homePath, {
         userId: user?.id,
+        email: user?.email,
+        schoolId: user?.schoolId,
         onData: (res) => {
           setData(res);
           if (res?.exam) setExamId(res.exam.id);
@@ -71,8 +79,8 @@ export default function TeacherDashboard() {
     }
     const noticeTimer = window.setTimeout(loadNotices, 0);
     return () => window.clearTimeout(noticeTimer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount / optimistic flip
+  }, [optimistic]);
 
   async function openNotice(notice) {
     if (!notice.readAt) {

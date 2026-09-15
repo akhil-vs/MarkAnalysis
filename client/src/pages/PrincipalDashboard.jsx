@@ -38,7 +38,7 @@ import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "..
 import { NAV_LABELS, paths } from "../lib/nav.js";
 
 export default function PrincipalDashboard() {
-  const { user } = useAuth();
+  const { user, optimistic } = useAuth();
   const location = useLocation();
   const toast = useToast();
   const homePath = dashboardApiPath("PRINCIPAL");
@@ -84,21 +84,29 @@ export default function PrincipalDashboard() {
   }
 
   useEffect(() => {
-    if (data) {
-      // Summary already available from login — paint now, pull detail + quiet refresh.
-      loadDetail(data);
+    if (optimistic) return;
+    const fresh = peekDashboardPrefetch(homePath, { userId: user?.id });
+    if (fresh) {
+      setData(fresh);
+      if (fresh.exam) setExamId(fresh.exam.id);
+    }
+    const summary = fresh || data;
+    if (summary) {
+      loadDetail(summary);
       revalidateDashboard(homePath, {
         userId: user?.id,
-        onData: (summary) => {
-          setData((prev) => ({ ...(prev || {}), ...summary }));
-          if (summary?.exam) setExamId(summary.exam.id);
+        email: user?.email,
+        schoolId: user?.schoolId,
+        onData: (next) => {
+          setData((prev) => ({ ...(prev || {}), ...next }));
+          if (next?.exam) setExamId(next.exam.id);
         },
       });
     } else {
       load("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount / optimistic flip
+  }, [optimistic]);
 
   const grades = useMemo(
     () => Object.entries(data?.gradeDist || {}).map(([grade, count]) => ({ grade, count })),

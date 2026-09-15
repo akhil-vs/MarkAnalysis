@@ -31,7 +31,7 @@ import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "..
 import { paths } from "../lib/nav.js";
 
 export default function CoordinatorDashboard() {
-  const { user } = useAuth();
+  const { user, optimistic } = useAuth();
   const toast = useToast();
   const homePath = dashboardApiPath("EXAM_COORDINATOR");
   const [data, setData] = useState(() => peekDashboardPrefetch(homePath, { userId: user?.id }));
@@ -52,9 +52,17 @@ export default function CoordinatorDashboard() {
   }
 
   useEffect(() => {
-    if (data) {
+    if (optimistic) return;
+    const fresh = peekDashboardPrefetch(homePath, { userId: user?.id });
+    if (fresh) {
+      setData(fresh);
+      if (fresh.exam) setExamId(fresh.exam.id);
+    }
+    if (fresh || data) {
       revalidateDashboard(homePath, {
         userId: user?.id,
+        email: user?.email,
+        schoolId: user?.schoolId,
         onData: (res) => {
           setData(res);
           if (res?.exam) setExamId(res.exam.id);
@@ -63,8 +71,8 @@ export default function CoordinatorDashboard() {
     } else {
       load("");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount / optimistic flip
+  }, [optimistic]);
 
   const strongestPair = useMemo(() => {
     const list = [...(data?.correlations || [])].sort((a, b) => Math.abs(b.r) - Math.abs(a.r));

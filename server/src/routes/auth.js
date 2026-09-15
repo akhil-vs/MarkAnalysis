@@ -33,7 +33,7 @@ import {
 import { ensureAuthSchema, resetAuthSchemaEnsure } from "../lib/ensureSchema.js";
 import { isSchemaDriftError } from "../lib/httpErrors.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
-import { buildHomeDashboard, homeDashboardPath } from "../lib/homeDashboard.js";
+import { buildHomeDashboardCached, homeDashboardPath } from "../lib/homeDashboard.js";
 
 export const authRouter = Router();
 
@@ -82,15 +82,38 @@ async function loadUserSession(userId) {
   return formatSessionPayload(user);
 }
 
-async function establishSession(req, res, user) {
-  const access = signToken(user);
+/** Overlap bcrypt with session + cache-backed dashboard (discarded if password fails). */
+async function prefetchLoginBundle(user) {
   const dashPath = homeDashboardPath(user.role);
+  if (user.role === "PLATFORM_ADMIN") {
+    const session = await runWithoutTenant(() => loadUserSession(user.id));
+    return { session, dashboard: null, dashboardPath: null };
+  }
+  if (!user.tenantId) {
+    return { session: null, dashboard: null, dashboardPath: dashPath };
+  }
+  return runWithTenant(user.tenantId, async () => {
+    const [session, dashboard] = await Promise.all([
+      loadUserSession(user.id),
+      dashPath ? buildHomeDashboardCached(user).catch(() => null) : Promise.resolve(null),
+    ]);
+    return { session, dashboard, dashboardPath: dashPath };
+  });
+}
+
+async function establishSession(req, res, user, prefetched = null) {
+  const access = signToken(user);
+  const dashPath = prefetched?.dashboardPath ?? homeDashboardPath(user.role);
   const [refresh, session, dashboard] = await Promise.all([
     createRefreshSession(user.id, { userAgent: req.get("user-agent") }),
-    loadUserSession(user.id),
-    dashPath
-      ? buildHomeDashboard(user).catch(() => null)
-      : Promise.resolve(null),
+    prefetched?.session
+      ? Promise.resolve(prefetched.session)
+      : loadUserSession(user.id),
+    prefetched && "dashboard" in prefetched
+      ? Promise.resolve(prefetched.dashboard)
+      : dashPath
+        ? buildHomeDashboardCached(user).catch(() => null)
+        : Promise.resolve(null),
   ]);
   setAccessCookie(res, access);
   setRefreshCookie(res, refresh.raw);
@@ -98,9 +121,7 @@ async function establishSession(req, res, user) {
   if (session) {
     return {
       ...session,
-      ...(dashboard
-        ? { dashboard, dashboardPath: dashPath }
-        : {}),
+      ...(dashboard ? { dashboard, dashboardPath: dashPath } : {}),
     };
   }
 
@@ -263,7 +284,16 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     }
   }
 
-  if (!user || !(await verifyPassword(password, user.passwordHash))) {
+  if (!user) {
+    return res.status(401).json({ error: "Invalid credentials" });
+  }
+
+  // Overlap password verify with session + cache-backed dashboard load.
+  const [passwordOk, prefetched] = await Promise.all([
+    verifyPassword(password, user.passwordHash),
+    prefetchLoginBundle(user).catch(() => ({ session: null, dashboard: null, dashboardPath: homeDashboardPath(user.role) })),
+  ]);
+  if (!passwordOk) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
 
@@ -274,7 +304,7 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     if (user.mfaEnabled && user.mfaSecret) {
       return res.json(issueMfaChallenge(user));
     }
-    return res.json(await runWithoutTenant(() => establishSession(req, res, user)));
+    return res.json(await runWithoutTenant(() => establishSession(req, res, user, prefetched)));
   }
 
   const school = await runWithoutTenant(() =>
@@ -300,7 +330,7 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     return res.json(issueMfaChallenge(user));
   }
 
-  return res.json(await runWithTenant(user.tenantId, () => establishSession(req, res, user)));
+  return res.json(await runWithTenant(user.tenantId, () => establishSession(req, res, user, prefetched)));
 });
 
 function issueMfaChallenge(user) {

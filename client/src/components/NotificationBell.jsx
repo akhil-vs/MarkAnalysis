@@ -43,8 +43,8 @@ const NotificationContext = createContext(null);
 
 /** Shared notification state so mobile + desktop bells do not double-fetch. */
 export function NotificationProvider({ children }) {
-  const { user } = useAuth();
-  const skip = user?.role === "PLATFORM_ADMIN";
+  const { user, optimistic } = useAuth();
+  const skip = user?.role === "PLATFORM_ADMIN" || optimistic;
   const [items, setItems] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [listLoaded, setListLoaded] = useState(false);
