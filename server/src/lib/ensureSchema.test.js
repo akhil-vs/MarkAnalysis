@@ -216,6 +216,16 @@ describe("ensureSchema bootstrap", () => {
     assert.equal(typeof __test.ensureMfaUserColumns, "function");
     assert.equal(typeof __test.ensureSchoolDigestColumns, "function");
     assert.equal(typeof __test.ensureStudentGuardianEmail, "function");
+    assert.equal(typeof __test.ensureCustomStaffRolesColumns, "function");
+    assert.equal(typeof __test.ensureRoleFeatureAccessColumn, "function");
+    assert.ok(
+      __test.CUSTOM_STAFF_ROLES_STATEMENTS.some((s) => s.includes("roleTitle")),
+      "auth path must ensure User.roleTitle used by session and staff edit"
+    );
+    assert.ok(
+      __test.ROLE_FEATURE_ACCESS_STATEMENTS.some((s) => s.includes("roleFeatureAccess")),
+      "auth path must ensure School.roleFeatureAccess used by login /me and staff feature gates"
+    );
     assert.equal(typeof __test.resetAuthSchemaEnsure, "function");
     assert.equal(new Set(__test.CATCHUP_MIGRATION_NAMES).size, __test.CATCHUP_MIGRATION_NAMES.length);
     for (const name of __test.AUTH_CATCHUP_MIGRATION_NAMES) {

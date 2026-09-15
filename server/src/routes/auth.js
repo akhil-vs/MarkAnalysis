@@ -76,15 +76,24 @@ function formatSessionPayload(user, { features } = {}) {
 
 async function loadSchoolFeatureContext(tenantId) {
   if (!tenantId) return { customRoles: [], roleFeatureAccess: null };
-  const school = await prisma.school.findUnique({
-    where: { id: tenantId },
-    select: { customStaffRoles: true, roleFeatureAccess: true },
-  });
-  const { normalizeCustomStaffRoles } = await import("../lib/staffRoles.js");
-  return {
-    customRoles: normalizeCustomStaffRoles(school?.customStaffRoles),
-    roleFeatureAccess: school?.roleFeatureAccess || null,
-  };
+  try {
+    const school = await prisma.school.findUnique({
+      where: { id: tenantId },
+      select: { customStaffRoles: true, roleFeatureAccess: true },
+    });
+    const { normalizeCustomStaffRoles } = await import("../lib/staffRoles.js");
+    return {
+      customRoles: normalizeCustomStaffRoles(school?.customStaffRoles),
+      roleFeatureAccess: school?.roleFeatureAccess || null,
+    };
+  } catch (err) {
+    // Auth catch-up should have added these columns; if a race still surfaces SCHEMA_DRIFT,
+    // fall back to defaults so login /me / staff edit are not hard-blocked.
+    if (err?.code === "SCHEMA_DRIFT" || err?.code === "42703") {
+      return { customRoles: [], roleFeatureAccess: null };
+    }
+    throw err;
+  }
 }
 
 async function loadUserSession(userId) {
