@@ -1,4 +1,5 @@
 import { canAccessConsolidated, isLeadership, isPlatformAdmin } from "./roles.js";
+import { hasFeature } from "./features.js";
 
 export const LEADERSHIP_ROLES = ["PRINCIPAL", "EXAM_COORDINATOR"];
 
@@ -378,6 +379,12 @@ export function roleAllows(itemRoles, userRole, { classTeacherOf = [] } = {}) {
   return false;
 }
 
+export function featureAllows(itemId, features) {
+  if (!itemId) return true;
+  if (itemId === "dashboard" || itemId === "profile") return true;
+  return hasFeature(features, itemId);
+}
+
 /** Convert nav role shorthand to a Guard `roles` array, or null for all authenticated. */
 export function rolesForGuard(itemRoles) {
   if (!itemRoles || itemRoles === "all") return null;
@@ -418,27 +425,54 @@ export function guardRolesForRoute(routePath) {
   return rolesForGuard(map[key] ?? "all");
 }
 
+/** Feature id required for a route path (nav item id), or null when unrestricted. */
+export function guardFeatureForRoute(routePath) {
+  const map = routeGuardMap();
+  const key = routePath.replace(/^\//, "");
+  // Find nav item id by matching `to`
+  const want = `/${key}`.replace(/\/$/, "") || "/";
+  function walk(items) {
+    for (const item of items || []) {
+      if (item.to && item.to.replace(/\/$/, "") === want.replace(/\/$/, "")) return item.id;
+      const child = walk(item.children);
+      if (child) return child;
+    }
+    return null;
+  }
+  for (const group of [...NAV_GROUPS, ...PLATFORM_NAV_GROUPS]) {
+    const id = walk(group.items);
+    if (id) return id === "dashboard" || id === "profile" ? null : id;
+  }
+  // Extra nested routes inherit parent feature
+  if (key.startsWith("analysis/subjects")) return "analysisSubjects";
+  if (key.startsWith("timetables/")) return "timetables";
+  if (key.startsWith("platform/")) return null;
+  return null;
+}
+
 export function filterNavItems(items, userRole, opts = {}) {
   return (items || [])
     .filter((item) => roleAllows(item.roles, userRole, opts))
+    .filter((item) => featureAllows(item.id, opts.features))
     .map((item) => {
       if (!item.children) return item;
       return { ...item, children: filterNavItems(item.children, userRole, opts) };
-    });
+    })
+    .filter((item) => !item.children || item.children.length > 0 || !item.expandable);
 }
 
-export function navGroupsForRole(userRole, { classTeacherOf = [] } = {}) {
+export function navGroupsForRole(userRole, { classTeacherOf = [], features } = {}) {
   if (isPlatformAdmin(userRole)) return PLATFORM_NAV_GROUPS;
-  const opts = { classTeacherOf };
+  const opts = { classTeacherOf, features };
   return NAV_GROUPS.map((group) => ({
     ...group,
     items: filterNavItems(group.items, userRole, opts),
   })).filter((group) => group.items.length > 0);
 }
 
-export function analysisHubCards(userRole) {
+export function analysisHubCards(userRole, { features } = {}) {
   const analysis = NAV_GROUPS.find((g) => g.id === "insights")?.items.find((i) => i.id === "analysis");
-  return filterNavItems(analysis?.children || [], userRole).map((card) => ({
+  return filterNavItems(analysis?.children || [], userRole, { features }).map((card) => ({
     to: card.to,
     title: card.title || card.label,
     body: card.body || "",

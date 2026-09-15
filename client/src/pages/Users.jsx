@@ -12,6 +12,7 @@ import { FieldError } from "../components/FieldError.jsx";
 import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
 import { canAddCoordinator, isLeadership } from "../lib/roles.js";
 import { NAV_TITLES } from "../lib/nav.js";
+import { FEATURE_GROUPS } from "../lib/features.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 
@@ -347,6 +348,10 @@ export default function Users() {
   const [editingId, setEditingId] = useState(null);
   const [resetting, setResetting] = useState(null);
   const [permissionsUser, setPermissionsUser] = useState(null);
+  const [roleAccessOpen, setRoleAccessOpen] = useState(false);
+  const [roleAccessFocusId, setRoleAccessFocusId] = useState(null);
+  const [canManageAccess, setCanManageAccess] = useState(() => user.role === "PRINCIPAL");
+  const [featureCatalog, setFeatureCatalog] = useState([]);
   const [notify, setNotify] = useState(null);
   const [busyId, setBusyId] = useState("");
   const [creating, setCreating] = useState(false);
@@ -404,6 +409,16 @@ export default function Users() {
     const data = await api("/api/users/staff-roles");
     setStaffRoles(data.roles || []);
     setCanAddRoles(Boolean(data.canAddRoles));
+    setCanManageAccess(Boolean(data.canManageAccess));
+    setFeatureCatalog(Array.isArray(data.features) ? data.features : []);
+  }
+
+  function openRoleAccessForUser(row) {
+    const matchedCustom = (staffRoles || []).find(
+      (r) => !r.system && r.name === row.roleTitle && r.baseRole === row.role
+    );
+    setRoleAccessFocusId(matchedCustom?.id || row.role);
+    setRoleAccessOpen(true);
   }
 
   function applyRoleSelection(value) {
@@ -763,7 +778,23 @@ export default function Users() {
       <PageHeader
         title={NAV_TITLES.staff}
         subtitle="Add staff, edit profiles, transfer classes to a replacement, activate pending sign-ups, and manage role permissions & classroom assignments."
-        actions={<StaffStats summary={summary} />}
+        actions={
+          <div className="flex flex-wrap items-center gap-2">
+            {canManageAccess && (
+              <button
+                type="button"
+                className="btn-ghost"
+                onClick={() => {
+                  setRoleAccessFocusId("TEACHER");
+                  setRoleAccessOpen(true);
+                }}
+              >
+                Role access
+              </button>
+            )}
+            <StaffStats summary={summary} />
+          </div>
+        }
       />
 
       <form className="card p-5 mb-5" onSubmit={saveStaff}>
@@ -1264,9 +1295,17 @@ export default function Users() {
                               onClick={() => setResetting(u)}
                             />
                           )}
-                          {isLeadershipRole && u.status === "ACTIVE" && (
+                          {canManageAccess && u.role !== "PRINCIPAL" && u.status === "ACTIVE" && (
                             <IconAction
-                              tip="Manage permissions"
+                              tip="Manage role access"
+                              icon="permissions"
+                              disabled={tableBusy}
+                              onClick={() => openRoleAccessForUser(u)}
+                            />
+                          )}
+                          {!canManageAccess && isLeadershipRole && u.status === "ACTIVE" && (
+                            <IconAction
+                              tip="View permissions"
                               icon="permissions"
                               disabled={tableBusy}
                               onClick={() => setPermissionsUser(u)}
@@ -1343,6 +1382,21 @@ export default function Users() {
       {permissionsUser && (
         <PermissionsModal user={permissionsUser} onClose={() => setPermissionsUser(null)} />
       )}
+      {roleAccessOpen && (
+        <RoleAccessModal
+          roles={staffRoles}
+          featureCatalog={featureCatalog}
+          initialRoleId={roleAccessFocusId}
+          onClose={() => {
+            setRoleAccessOpen(false);
+            setRoleAccessFocusId(null);
+          }}
+          onSaved={async (roles) => {
+            setStaffRoles(roles);
+            toast.success("Role access updated.");
+          }}
+        />
+      )}
       {notify && (
         <NotifyTeachersDialog
           {...notify}
@@ -1392,6 +1446,166 @@ function PermissionsModal({ user, onClose }) {
         <div className="mt-4 flex justify-end">
           <button type="button" className="btn-primary" onClick={onClose}>
             Close
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RoleAccessModal({ roles, featureCatalog, initialRoleId, onClose, onSaved }) {
+  const toast = useToast();
+  const selectable = (roles || []).filter((r) => r.id !== "PRINCIPAL");
+  const [roleId, setRoleId] = useState(() => {
+    if (initialRoleId && selectable.some((r) => r.id === initialRoleId)) return initialRoleId;
+    return selectable[0]?.id || "TEACHER";
+  });
+  const selected = selectable.find((r) => r.id === roleId) || selectable[0];
+  const [draft, setDraft] = useState(() => ({ ...(selected?.features || {}) }));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    const next = selectable.find((r) => r.id === roleId);
+    setDraft({ ...(next?.features || {}) });
+  }, [roleId, roles]);
+
+  const catalogGroups = useMemo(() => {
+    if (featureCatalog?.length) {
+      const byGroup = new Map();
+      for (const f of featureCatalog) {
+        const g = f.group || "Features";
+        if (!byGroup.has(g)) byGroup.set(g, []);
+        byGroup.get(g).push(f);
+      }
+      return [...byGroup.entries()].map(([id, items]) => ({ id, items }));
+    }
+    return FEATURE_GROUPS;
+  }, [featureCatalog]);
+
+  async function save() {
+    if (!selected) return;
+    setSaving(true);
+    try {
+      const data = await api(`/api/users/staff-roles/${encodeURIComponent(selected.id)}/features`, {
+        method: "PUT",
+        body: { features: draft },
+      });
+      onSaved?.(data.roles || []);
+      onClose?.();
+    } catch (err) {
+      toast.error(err.message || "Could not save role access");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  function setAllInGroup(items, enabled) {
+    setDraft((prev) => {
+      const next = { ...prev };
+      for (const item of items) next[item.id] = enabled;
+      return next;
+    });
+  }
+
+  return (
+    <div className="fixed inset-0 bg-ink-950/40 flex items-end sm:items-center justify-center p-0 sm:p-4 z-20">
+      <div
+        className="card w-full max-w-2xl max-h-[92vh] overflow-hidden rounded-b-none sm:rounded-xl flex flex-col safe-pb"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="role-access-title"
+      >
+        <div className="p-5 border-b border-ink-900/10">
+          <h3 id="role-access-title" className="font-serif text-xl mb-1">
+            Role access control
+          </h3>
+          <p className="text-sm text-ink-700/65">
+            Enable or disable features for each staff role. Principal access is always full and cannot be
+            changed. Staff must sign in again (or refresh) to pick up updates.
+          </p>
+          <label className="label mt-3" htmlFor="role-access-select">
+            Role
+          </label>
+          <select
+            id="role-access-select"
+            className="field"
+            value={selected?.id || roleId}
+            onChange={(e) => setRoleId(e.target.value)}
+            disabled={saving}
+          >
+            {selectable.map((r) => (
+              <option key={r.id} value={r.id}>
+                {r.name}
+                {r.system ? "" : ` (${ROLE_LABEL[r.baseRole] || r.baseRole} level)`}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="p-5 overflow-y-auto grow space-y-5">
+          {catalogGroups.map((group) => (
+            <section key={group.id}>
+              <div className="flex items-center justify-between gap-2 mb-2">
+                <h4 className="text-sm font-semibold text-ink-900">{group.id}</h4>
+                <div className="flex gap-2 text-xs">
+                  <button
+                    type="button"
+                    className="text-ink-700/70 hover:text-ink-950"
+                    disabled={saving}
+                    onClick={() => setAllInGroup(group.items, true)}
+                  >
+                    Enable all
+                  </button>
+                  <button
+                    type="button"
+                    className="text-ink-700/70 hover:text-ink-950"
+                    disabled={saving}
+                    onClick={() => setAllInGroup(group.items, false)}
+                  >
+                    Disable all
+                  </button>
+                </div>
+              </div>
+              <ul className="divide-y divide-ink-900/8 rounded-lg border border-ink-900/10">
+                {group.items.map((item) => {
+                  const checked = Boolean(draft[item.id]);
+                  const nestedDisabled =
+                    item.id.startsWith("analysis") &&
+                    item.id !== "analysis" &&
+                    draft.analysis === false;
+                  return (
+                    <li key={item.id} className="flex items-start gap-3 px-3 py-2.5">
+                      <input
+                        id={`feat-${selected?.id}-${item.id}`}
+                        type="checkbox"
+                        className="mt-1"
+                        checked={checked}
+                        disabled={saving || nestedDisabled}
+                        onChange={(e) =>
+                          setDraft((prev) => ({ ...prev, [item.id]: e.target.checked }))
+                        }
+                      />
+                      <label htmlFor={`feat-${selected?.id}-${item.id}`} className="min-w-0 cursor-pointer">
+                        <div className="text-sm font-medium text-ink-900">{item.label}</div>
+                        {item.description && (
+                          <div className="text-xs text-ink-700/60 mt-0.5">{item.description}</div>
+                        )}
+                        {nestedDisabled && (
+                          <div className="text-xs text-ink-700/50 mt-0.5">Requires Marks analysis</div>
+                        )}
+                      </label>
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ))}
+        </div>
+        <div className="p-4 border-t border-ink-900/10 flex flex-wrap justify-end gap-2">
+          <button type="button" className="btn-ghost" disabled={saving} onClick={onClose}>
+            Cancel
+          </button>
+          <button type="button" className="btn-primary" disabled={saving || !selected} onClick={save}>
+            <BusyLabel busy={saving} idle="Save access" busyText="Saving…" />
           </button>
         </div>
       </div>

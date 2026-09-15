@@ -1303,6 +1303,21 @@ async function ensureCustomStaffRolesColumns() {
   await recordMigration(CUSTOM_STAFF_ROLES_MIGRATION, CUSTOM_STAFF_ROLES_CHECKSUM);
 }
 
+const ROLE_FEATURE_ACCESS_MIGRATION = "20260915110000_role_feature_access";
+const ROLE_FEATURE_ACCESS_CHECKSUM = "role-feature-access-catchup-v1";
+
+const ROLE_FEATURE_ACCESS_STATEMENTS = [
+  `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "roleFeatureAccess" JSONB`,
+];
+
+/** Principal-managed per-role feature toggles. */
+async function ensureRoleFeatureAccessColumn() {
+  const hasCol = await columnExists("School", "roleFeatureAccess");
+  if (hasCol) return;
+  await applyStatements(ROLE_FEATURE_ACCESS_STATEMENTS);
+  await recordMigration(ROLE_FEATURE_ACCESS_MIGRATION, ROLE_FEATURE_ACCESS_CHECKSUM);
+}
+
 export const CATCHUP_MIGRATION_NAMES = [
   TIMETABLE_MIGRATION,
   MULTI_CLASS_PERIOD_MIGRATION,
@@ -1393,6 +1408,7 @@ export async function ensurePendingSchema() {
         await ensureStudentGuardianEmail();
         await ensureLiveOpsBoardCpdSchema();
         await ensureCustomStaffRolesColumns();
+        await ensureRoleFeatureAccessColumn();
         return { skipped: true, reason: "migrations-present" };
       }
       // Auth pieces first so concurrent login can finish while the rest runs.
@@ -1415,6 +1431,7 @@ export async function ensurePendingSchema() {
         ensurePortalAccessLinkTable(),
         ensureLiveOpsBoardCpdSchema(),
         ensureCustomStaffRolesColumns(),
+        ensureRoleFeatureAccessColumn(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -1515,5 +1532,6 @@ export const __test = {
   ensureSchoolDigestColumns,
   ensureStudentGuardianEmail,
   ensureCustomStaffRolesColumns,
+  ensureRoleFeatureAccessColumn,
   resetAuthSchemaEnsure,
 };

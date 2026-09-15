@@ -24,7 +24,7 @@ function readAuthCache() {
   }
 }
 
-function writeAuthCache({ user, assignments, classTeacherOf }) {
+function writeAuthCache({ user, assignments, classTeacherOf, features }) {
   try {
     if (!user) {
       sessionStorage.removeItem(AUTH_CACHE_KEY);
@@ -32,7 +32,12 @@ function writeAuthCache({ user, assignments, classTeacherOf }) {
     }
     sessionStorage.setItem(
       AUTH_CACHE_KEY,
-      JSON.stringify({ user, assignments: assignments || [], classTeacherOf: classTeacherOf || [] })
+      JSON.stringify({
+        user,
+        assignments: assignments || [],
+        classTeacherOf: classTeacherOf || [],
+        features: features || null,
+      })
     );
   } catch {
     // private mode / quota — ignore
@@ -63,6 +68,7 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(cached?.user || null);
   const [assignments, setAssignments] = useState(cached?.assignments || []);
   const [classTeacherOf, setClassTeacherOf] = useState(cached?.classTeacherOf || []);
+  const [features, setFeatures] = useState(cached?.features || null);
   const [loading, setLoading] = useState(!cached);
   const [optimistic, setOptimistic] = useState(false);
   const refreshInflight = useRef(null);
@@ -75,10 +81,12 @@ export function AuthProvider({ children }) {
     setUser(data.user);
     setAssignments(data.assignments || []);
     setClassTeacherOf(data.classTeacherOf || []);
+    setFeatures(Array.isArray(data.features) ? data.features : null);
     writeAuthCache({
       user: data.user,
       assignments: data.assignments || [],
       classTeacherOf: data.classTeacherOf || [],
+      features: Array.isArray(data.features) ? data.features : null,
     });
     setLoading(false);
     seedDashboardFromSession(data);
@@ -92,6 +100,7 @@ export function AuthProvider({ children }) {
     setUser(null);
     setAssignments([]);
     setClassTeacherOf([]);
+    setFeatures(null);
     writeAuthCache({ user: null });
     clearDashboardPrefetch();
   }
@@ -141,6 +150,7 @@ export function AuthProvider({ children }) {
       user,
       assignments,
       classTeacherOf,
+      features,
       loading,
       optimistic,
       refresh,
@@ -178,6 +188,7 @@ export function AuthProvider({ children }) {
             user: data.user,
             assignments,
             classTeacherOf,
+            features,
           });
         } else {
           await refresh();
@@ -193,7 +204,7 @@ export function AuthProvider({ children }) {
         clearSession();
       },
     }),
-    [user, assignments, classTeacherOf, loading, optimistic]
+    [user, assignments, classTeacherOf, features, loading, optimistic]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

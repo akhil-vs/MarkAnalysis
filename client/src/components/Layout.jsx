@@ -228,7 +228,7 @@ function SchoolBrand({ school, compact = false }) {
 }
 
 export default function Layout() {
-  const { user, logout, classTeacherOf, optimistic } = useAuth();
+  const { user, logout, classTeacherOf, features, optimistic } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(null);
@@ -239,7 +239,7 @@ export default function Layout() {
   const leadership = isLeadership(user.role);
   const platform = isPlatformAdmin(user.role);
   const analysisOpen = isAnalysisPath(location.pathname);
-  const groups = navGroupsForRole(user.role, { classTeacherOf });
+  const groups = navGroupsForRole(user.role, { classTeacherOf, features });
 
   const badges = { pending: pendingCount, lateEntry: lateEntryCount };
 

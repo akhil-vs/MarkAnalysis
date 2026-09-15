@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { auth, requireLeadership, requireRole } from "../middleware/auth.js";
+import { auth, requireLeadership, requireRole, requireFeature } from "../middleware/auth.js";
 import { logActivity, classLabel } from "../lib/activityAudit.js";
 import { queueEmail } from "../lib/mailer.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
@@ -9,6 +9,7 @@ export const boardRouter = Router();
 boardRouter.use(auth);
 boardRouter.use(requireSchoolTenant);
 boardRouter.use(requireLeadership());
+boardRouter.use(requireFeature("boardOps"));
 
 const PAPER_INCLUDE = {
   subject: { select: { id: true, name: true, className: true, maxMarks: true } },
