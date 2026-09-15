@@ -333,6 +333,7 @@ export default function Users() {
   const canCreateCoordinator = canAddCoordinator(user.role);
   const leadership = isLeadership(user.role);
   const importInputRef = useRef(null);
+  const staffFormRef = useRef(null);
   const [users, setUsers] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -397,7 +398,10 @@ export default function Users() {
     setNewRoleName("");
     setShowPassword(false);
     setFormError("");
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    // Scroll the page (main overflow container) so the floating edit form sits at the top.
+    requestAnimationFrame(() => {
+      staffFormRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
   }
 
   function cancelEdit() {
@@ -817,7 +821,15 @@ export default function Users() {
         }
       />
 
-      <form className="card p-5 mb-5" onSubmit={saveStaff}>
+      <form
+        ref={staffFormRef}
+        className={
+          editingId
+            ? "card sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-30 mb-5 p-5 shadow-md ring-1 ring-ink-900/10 lg:top-0"
+            : "card mb-5 p-5"
+        }
+        onSubmit={saveStaff}
+      >
         <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between mb-4">
           <div className="min-w-0">
             <h3 className="font-serif text-xl flex items-center gap-2">
