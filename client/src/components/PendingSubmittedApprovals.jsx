@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
+import { useAuth } from "../auth.jsx";
 import { useConfirm } from "./ConfirmDialog.jsx";
 import { EmptyNote, Panel } from "./DashboardKit.jsx";
 import { BusyLabel, Spinner } from "./Spinner.jsx";
@@ -12,6 +13,7 @@ import { paths } from "../lib/nav.js";
  * Approve in place — no need to pick exam/class first.
  */
 export default function PendingSubmittedApprovals({ className = "", limit = 8 }) {
+  const { optimistic } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
   const [rows, setRows] = useState(null);
@@ -30,8 +32,9 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
   }, []);
 
   useEffect(() => {
+    if (optimistic) return;
     load();
-  }, [load]);
+  }, [load, optimistic]);
 
   async function approve(row) {
     const key = `${row.examId}|${row.classSectionId}|${row.subjectId}|${row.teacherId}`;

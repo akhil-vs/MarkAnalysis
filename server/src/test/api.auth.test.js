@@ -63,6 +63,8 @@ describe("API auth (real database)", () => {
     assert.equal(login.json?.user?.role, "PRINCIPAL");
     assert.ok(Array.isArray(login.json?.assignments), "login should include assignments");
     assert.ok(Array.isArray(login.json?.classTeacherOf), "login should include classTeacherOf");
+    assert.ok(login.json?.dashboard, "login should embed home dashboard payload");
+    assert.equal(login.json?.dashboardPath, "/api/analytics/school?include=summary");
     assert.ok(login.jar.has(ACCESS_COOKIE), "sma_access cookie missing");
     assert.ok(login.jar.has(REFRESH_COOKIE), "sma_refresh cookie missing");
 

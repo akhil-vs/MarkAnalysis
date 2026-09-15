@@ -228,7 +228,7 @@ function SchoolBrand({ school, compact = false }) {
 }
 
 export default function Layout() {
-  const { user, logout, classTeacherOf } = useAuth();
+  const { user, logout, classTeacherOf, optimistic } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(null);
@@ -248,7 +248,7 @@ export default function Layout() {
   }, [location.pathname]);
 
   useEffect(() => {
-    if (platform) return undefined;
+    if (platform || optimistic) return undefined;
     let cancelled = false;
     api("/api/school")
       .then((s) => {
@@ -258,7 +258,7 @@ export default function Layout() {
     return () => {
       cancelled = true;
     };
-  }, [platform]);
+  }, [platform, optimistic]);
 
   useEffect(() => {
     if (!navOpen) return;
@@ -280,7 +280,7 @@ export default function Layout() {
   }, [navOpen]);
 
   useEffect(() => {
-    if (!leadership) return;
+    if (!leadership || optimistic) return;
     let cancelled = false;
     let badgeTimer;
 
@@ -328,7 +328,7 @@ export default function Layout() {
       window.removeEventListener("focus", onFocus);
       document.removeEventListener("visibilitychange", onVisibility);
     };
-  }, [leadership]);
+  }, [leadership, optimistic]);
 
   function closeNav() {
     setNavOpen(false);

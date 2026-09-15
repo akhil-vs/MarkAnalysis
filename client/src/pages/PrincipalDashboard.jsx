@@ -34,18 +34,36 @@ import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.j
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { yearDelta } from "../lib/exams.js";
-import { dashboardApiPath, resolveDashboardPrefetch } from "../lib/dashboardPrefetch.js";
+import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
 import { NAV_LABELS, paths } from "../lib/nav.js";
 
 export default function PrincipalDashboard() {
-  const { user } = useAuth();
+  const { user, optimistic } = useAuth();
   const location = useLocation();
   const toast = useToast();
-  const [data, setData] = useState(null);
-  const [examId, setExamId] = useState("");
+  const homePath = dashboardApiPath("PRINCIPAL");
+  const [data, setData] = useState(() => peekDashboardPrefetch(homePath, { userId: user?.id }));
+  const [examId, setExamId] = useState(() => data?.exam?.id || "");
   const [error, setError] = useState("");
   const [notify, setNotify] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  async function loadDetail(summary) {
+    if (!summary?.exam?.id || summary.empty) return;
+    setDetailLoading(true);
+    try {
+      const detailQ = new URLSearchParams({
+        examId: summary.exam.id,
+        include: "detail",
+      });
+      const detail = await api(`/api/analytics/school?${detailQ}`);
+      setData((prev) => ({ ...(prev || {}), ...detail }));
+    } catch {
+      // summary already painted
+    } finally {
+      setDetailLoading(false);
+    }
+  }
 
   async function load(id) {
     setError("");
@@ -53,43 +71,42 @@ export default function PrincipalDashboard() {
     if (id) base.set("examId", id);
     base.set("include", "summary");
     const summaryPath = `/api/analytics/school?${base}`;
-    let prefetched = null;
-    if (!id) {
-      prefetched = await resolveDashboardPrefetch(dashboardApiPath("PRINCIPAL"));
-      if (prefetched) {
-        setData(prefetched);
-        setDetailLoading(false);
-        if (prefetched.exam) setExamId(prefetched.exam.id);
-      }
-    }
     try {
-      const summary = prefetched || (await api(summaryPath));
-      if (!prefetched) {
-        setData(summary);
-        setDetailLoading(false);
-      }
+      const summary = await api(summaryPath);
+      setData(summary);
+      setDetailLoading(false);
       if (summary.empty) return;
       if (summary.exam) setExamId(summary.exam.id);
-
-      const detailQ = new URLSearchParams({
-        examId: summary.exam.id,
-        include: "detail",
-      });
-      setDetailLoading(true);
-      try {
-        const detail = await api(`/api/analytics/school?${detailQ}`);
-        setData((prev) => ({ ...(prev || {}), ...detail }));
-      } finally {
-        setDetailLoading(false);
-      }
+      await loadDetail(summary);
     } catch (e) {
-      if (!prefetched) setError(e.message || "Could not load school view");
+      if (!data) setError(e.message || "Could not load school view");
     }
   }
 
   useEffect(() => {
-    load("");
-  }, []);
+    if (optimistic) return;
+    const fresh = peekDashboardPrefetch(homePath, { userId: user?.id });
+    if (fresh) {
+      setData(fresh);
+      if (fresh.exam) setExamId(fresh.exam.id);
+    }
+    const summary = fresh || data;
+    if (summary) {
+      loadDetail(summary);
+      revalidateDashboard(homePath, {
+        userId: user?.id,
+        email: user?.email,
+        schoolId: user?.schoolId,
+        onData: (next) => {
+          setData((prev) => ({ ...(prev || {}), ...next }));
+          if (next?.exam) setExamId(next.exam.id);
+        },
+      });
+    } else {
+      load("");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount / optimistic flip
+  }, [optimistic]);
 
   const grades = useMemo(
     () => Object.entries(data?.gradeDist || {}).map(([grade, count]) => ({ grade, count })),
