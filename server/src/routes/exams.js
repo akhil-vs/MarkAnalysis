@@ -130,7 +130,12 @@ examsRouter.put("/:id/papers", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
     },
   });
   invalidateExamCatalog();
-  res.json(result);
+  res.json({
+    papers: result.papers,
+    paperCount: result.summary.paperCount,
+    firstPaperDate: result.summary.firstPaperDate,
+    lastPaperDate: result.summary.lastPaperDate,
+  });
 });
 
 examsRouter.delete("/:id/papers/:paperId", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
