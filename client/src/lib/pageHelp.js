@@ -95,7 +95,7 @@ export const PAGE_HELP = {
   hallTickets: {
     title: "What's on this page",
     about: "Class hall tickets for a selected exam: student identity and photo, paper schedule, venue, and instructions. Five tickets print on each A4 page. Principals and exam coordinators create and edit batches; teachers can view and download for their classes.",
-    useful: "Create a batch per division before the exam window. Upload student photos under Records → Students, and set paper dates/venues under Board ops when that module is on.",
+    useful: "Create a batch per division before the exam window. Upload student photos under Records → Students, and set per-class / per-subject paper dates under Records → Exams (Board ops can still add venues when that module is on).",
   },
   audit: {
     title: "What's on this page",
@@ -109,8 +109,8 @@ export const PAGE_HELP = {
   },
   records: {
     title: "What's on this page",
-    about: "School structure: classes, subjects (entry max marks), students, the exam calendar (including consolidation max marks), and year-end promotion.",
-    useful: "Keep this current so registers, analytics, and promotion lineage stay accurate. Promote a class after results are locked, not mid-exam.",
+    about: "School structure: classes, subjects (entry max marks), students, the exam calendar with per-class / per-subject paper dates and consolidation max marks, and year-end promotion.",
+    useful: "When scheduling an exam, set the same date for every paper or different dates per class and subject. Keep this current so registers, hall tickets, analytics, and promotion lineage stay accurate.",
   },
   timetables: {
     title: "What's on this page",
