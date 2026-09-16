@@ -12,6 +12,7 @@ import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import ExamPaperScheduleEditor, {
   buildPaperDrafts,
+  firstClassFromDrafts,
   papersPayloadFromDrafts,
 } from "../components/ExamPaperScheduleEditor.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
@@ -1202,7 +1203,7 @@ function ExamsTab() {
   const confirm = useConfirm();
   const [form, setForm] = useState(emptyExamForm());
   const [paperDrafts, setPaperDrafts] = useState([]);
-  const [paperClassFilter, setPaperClassFilter] = useState("");
+  const [paperClass, setPaperClass] = useState("");
   const [formError, setFormError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
@@ -1228,7 +1229,9 @@ function ExamsTab() {
       setRows(exams);
       setSubjects(subjectList || []);
       if (!editingId) {
-        setPaperDrafts(buildPaperDrafts(subjectList || [], []));
+        const drafts = buildPaperDrafts(subjectList || [], []);
+        setPaperDrafts(drafts);
+        setPaperClass((prev) => prev || firstClassFromDrafts(drafts));
       }
     } finally {
       setLoading(false);
@@ -1241,7 +1244,6 @@ function ExamsTab() {
   async function startEdit(row) {
     setEditingId(row.id);
     setFormError("");
-    setPaperClassFilter("");
     setForm({
       name: row.name,
       term: row.term,
@@ -1256,10 +1258,14 @@ function ExamsTab() {
     setBusy(true);
     try {
       const data = await api(`/api/exams/${row.id}/papers`);
-      setPaperDrafts(buildPaperDrafts(subjects, data.papers || []));
+      const drafts = buildPaperDrafts(subjects, data.papers || []);
+      setPaperDrafts(drafts);
+      setPaperClass(firstClassFromDrafts(drafts));
     } catch (err) {
       toast.error(err.message || "Could not load paper schedule");
-      setPaperDrafts(buildPaperDrafts(subjects, row.paperSchedules || []));
+      const drafts = buildPaperDrafts(subjects, row.paperSchedules || []);
+      setPaperDrafts(drafts);
+      setPaperClass(firstClassFromDrafts(drafts));
     } finally {
       setBusy(false);
     }
@@ -1268,9 +1274,10 @@ function ExamsTab() {
   function cancelEdit() {
     setEditingId(null);
     setFormError("");
-    setPaperClassFilter("");
     setForm(emptyExamForm());
-    setPaperDrafts(buildPaperDrafts(subjects, []));
+    const drafts = buildPaperDrafts(subjects, []);
+    setPaperDrafts(drafts);
+    setPaperClass(firstClassFromDrafts(drafts));
   }
 
   async function save(e) {
@@ -1508,8 +1515,8 @@ function ExamsTab() {
           drafts={paperDrafts}
           onChange={setPaperDrafts}
           disabled={busy}
-          classFilter={paperClassFilter}
-          onClassFilterChange={setPaperClassFilter}
+          selectedClass={paperClass}
+          onSelectedClassChange={setPaperClass}
         />
 
         {formError && <FieldError message={formError} />}
