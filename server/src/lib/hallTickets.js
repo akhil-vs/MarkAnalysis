@@ -450,14 +450,25 @@ export function streamHallTicketsPdf(res, { letterhead, tickets, filename }) {
       right: layout.margin,
     },
     autoFirstPage: true,
+    bufferPages: true,
   });
   doc.pipe(res);
+
+  // Hall tickets are absolutely positioned; suppress PDFKit's automatic page
+  // breaks so five cards stay on one sheet.
+  const realAddPage = doc.addPage.bind(doc);
+  let allowAddPage = false;
+  doc.addPage = (...args) => {
+    if (!allowAddPage) return doc;
+    return realAddPage(...args);
+  };
 
   const schoolName = letterhead?.name || "School";
   const schoolLogo = letterhead?.logo || null;
   const list = tickets?.length ? tickets : [];
 
   if (!list.length) {
+    allowAddPage = true;
     doc.font("Helvetica").fontSize(12).fillColor(INK).text("No active students in this class.", {
       align: "center",
     });
@@ -467,7 +478,11 @@ export function streamHallTicketsPdf(res, { letterhead, tickets, filename }) {
 
   list.forEach((ticket, index) => {
     const slot = index % layout.perPage;
-    if (index > 0 && slot === 0) doc.addPage();
+    if (index > 0 && slot === 0) {
+      allowAddPage = true;
+      doc.addPage();
+      allowAddPage = false;
+    }
     const y = layout.margin + slot * (layout.ticketHeight + layout.gap);
     drawTicket(
       doc,
@@ -480,6 +495,9 @@ export function streamHallTicketsPdf(res, { letterhead, tickets, filename }) {
       },
       { schoolName, schoolLogo }
     );
+    // Keep the cursor inside the page so a later draw cannot trip a break.
+    doc.x = layout.margin;
+    doc.y = layout.margin;
   });
 
   doc.end();
