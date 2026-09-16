@@ -48,6 +48,7 @@ export default function HallTickets() {
   const canEdit = isLeadership(user?.role);
   const [params, setParams] = useSearchParams();
   const [examId, setExamId] = useState(params.get("examId") || "");
+  const [exams, setExams] = useState([]);
   const [selectedClassName, setSelectedClassName] = useState(params.get("className") || "");
   const [selectedId, setSelectedId] = useState(params.get("classSectionId") || "");
   const [status, setStatus] = useState(null);
@@ -133,7 +134,29 @@ export default function HallTickets() {
   }
 
   useEffect(() => {
-    loadStatus(examId).catch((e) => setError(e.message));
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api("/api/exams");
+        if (cancelled) return;
+        const list = Array.isArray(res) ? res : res?.items || [];
+        setExams(list);
+        const latest = list.length ? list[list.length - 1] : null;
+        const initial = examId || latest?.id || "";
+        if (initial && initial !== examId) {
+          setExamId(initial);
+          const next = new URLSearchParams(params);
+          next.set("examId", initial);
+          setParams(next, { replace: true });
+        }
+        await loadStatus(initial);
+      } catch (e) {
+        if (!cancelled) setError(e.message);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -241,7 +264,7 @@ export default function HallTickets() {
       />
 
       <Panel title="Exam">
-        <ExamSelect value={examId} onChange={onExam} />
+        <ExamSelect exams={exams} value={examId} onChange={onExam} />
       </Panel>
 
       {error && (
