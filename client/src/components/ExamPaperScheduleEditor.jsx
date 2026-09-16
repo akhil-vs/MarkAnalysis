@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 function toDateInput(value) {
   if (!value) return "";
@@ -54,18 +54,26 @@ export function papersPayloadFromDrafts(drafts = []) {
     }));
 }
 
+export function firstClassFromDrafts(drafts = []) {
+  const classes = [
+    ...new Set((drafts || []).map((d) => d.className).filter(Boolean)),
+  ].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+  return classes[0] || "";
+}
+
 /**
  * Per-class / per-subject exam paper date editor used by Records → Exams.
+ * Class selection comes first; subject dates are shown for that class only.
  */
 export default function ExamPaperScheduleEditor({
   drafts,
   onChange,
   disabled = false,
-  classFilter = "",
-  onClassFilterChange,
+  selectedClass = "",
+  onSelectedClassChange,
 }) {
-  const [bulkDate, setBulkDate] = useState("");
-  const [classBulkDate, setClassBulkDate] = useState("");
+  const [classDate, setClassDate] = useState("");
+  const [allClassesDate, setAllClassesDate] = useState("");
 
   const classOptions = useMemo(
     () =>
@@ -75,22 +83,28 @@ export default function ExamPaperScheduleEditor({
     [drafts]
   );
 
-  const visible = useMemo(() => {
-    if (!classFilter) return drafts || [];
-    return (drafts || []).filter((d) => String(d.className) === String(classFilter));
-  }, [drafts, classFilter]);
+  // Keep a class selected whenever options exist.
+  useEffect(() => {
+    if (!classOptions.length) return;
+    if (selectedClass && classOptions.includes(selectedClass)) return;
+    onSelectedClassChange?.(classOptions[0]);
+  }, [classOptions, selectedClass, onSelectedClassChange]);
 
-  const grouped = useMemo(() => {
-    const map = new Map();
-    for (const row of visible) {
-      const key = row.className || "—";
-      if (!map.has(key)) map.set(key, []);
-      map.get(key).push(row);
-    }
-    return [...map.entries()];
-  }, [visible]);
+  const classRows = useMemo(() => {
+    if (!selectedClass) return [];
+    return (drafts || []).filter((d) => String(d.className) === String(selectedClass));
+  }, [drafts, selectedClass]);
 
   const datedCount = (drafts || []).filter((d) => d.paperDate).length;
+  const classDatedCount = classRows.filter((d) => d.paperDate).length;
+
+  const classStatus = useMemo(() => {
+    return classOptions.map((className) => {
+      const rows = (drafts || []).filter((d) => String(d.className) === String(className));
+      const dated = rows.filter((d) => d.paperDate).length;
+      return { className, total: rows.length, dated };
+    });
+  }, [classOptions, drafts]);
 
   function patchRow(subjectId, patch) {
     onChange(
@@ -98,30 +112,27 @@ export default function ExamPaperScheduleEditor({
     );
   }
 
-  function applyToAll() {
-    if (!bulkDate) return;
-    onChange((drafts || []).map((row) => ({ ...row, paperDate: bulkDate })));
-  }
-
-  function applyToVisibleClass() {
-    if (!classBulkDate || !classFilter) return;
+  function applyToSelectedClass() {
+    if (!classDate || !selectedClass) return;
     onChange(
       (drafts || []).map((row) =>
-        String(row.className) === String(classFilter)
-          ? { ...row, paperDate: classBulkDate }
+        String(row.className) === String(selectedClass)
+          ? { ...row, paperDate: classDate }
           : row
       )
     );
   }
 
-  function clearVisible() {
-    if (!classFilter) {
-      onChange((drafts || []).map((row) => ({ ...row, paperDate: "", startTime: "", endTime: "" })));
-      return;
-    }
+  function applyToAllClasses() {
+    if (!allClassesDate) return;
+    onChange((drafts || []).map((row) => ({ ...row, paperDate: allClassesDate })));
+  }
+
+  function clearSelectedClass() {
+    if (!selectedClass) return;
     onChange(
       (drafts || []).map((row) =>
-        String(row.className) === String(classFilter)
+        String(row.className) === String(selectedClass)
           ? { ...row, paperDate: "", startTime: "", endTime: "" }
           : row
       )
@@ -131,137 +142,186 @@ export default function ExamPaperScheduleEditor({
   if (!(drafts || []).length) {
     return (
       <div className="rounded-md border border-ink-900/10 bg-cream/40 p-3 text-sm text-ink-700/70">
-        Add subjects under Records → Subjects first. Each subject (per class) can then get its own
-        exam date here — same day or different days.
+        Add subjects under Records → Subjects first. Choose a class here, then set each subject’s
+        exam date — same day or different days.
       </div>
     );
   }
 
   return (
     <div className="space-y-3 rounded-md border border-ink-900/10 p-3">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h4 className="font-medium text-ink-800">Paper dates by class &amp; subject</h4>
-          <p className="text-xs text-ink-700/55 mt-0.5">
-            Set the same date for every paper, or different dates per class and subject.
-            {datedCount ? ` ${datedCount} of ${drafts.length} dated.` : " No papers dated yet."}
-          </p>
-        </div>
-        <select
-          className="field-filter"
-          value={classFilter}
-          onChange={(e) => onClassFilterChange?.(e.target.value)}
-          disabled={disabled}
-          aria-label="Filter paper schedule by class"
-        >
-          <option value="">All classes</option>
-          {classOptions.map((c) => (
-            <option key={c} value={c}>
-              Class {c}
-            </option>
-          ))}
-        </select>
+      <div>
+        <h4 className="font-medium text-ink-800">Paper dates by class &amp; subject</h4>
+        <p className="text-xs text-ink-700/55 mt-0.5">
+          Choose a class first, then set subject dates for that class. Switch classes to schedule
+          the rest.
+          {datedCount ? ` ${datedCount} of ${drafts.length} papers dated overall.` : " No papers dated yet."}
+        </p>
       </div>
 
-      <div className="flex flex-wrap gap-2 items-end">
-        <div>
-          <label className="label">Apply date to all papers</label>
-          <div className="flex gap-2">
-            <input
-              type="date"
-              className="field"
-              value={bulkDate}
-              disabled={disabled}
-              onChange={(e) => setBulkDate(e.target.value)}
-            />
-            <button type="button" className="btn-ghost" disabled={disabled || !bulkDate} onClick={applyToAll}>
-              Apply all
-            </button>
-          </div>
-        </div>
-        {classFilter ? (
-          <div>
-            <label className="label">Apply to class {classFilter}</label>
-            <div className="flex gap-2">
-              <input
-                type="date"
-                className="field"
-                value={classBulkDate}
-                disabled={disabled}
-                onChange={(e) => setClassBulkDate(e.target.value)}
-              />
+      <div>
+        <label className="label" htmlFor="exam-paper-class">
+          Class
+        </label>
+        <select
+          id="exam-paper-class"
+          className="field max-w-xs"
+          value={selectedClass}
+          onChange={(e) => onSelectedClassChange?.(e.target.value)}
+          disabled={disabled || classOptions.length === 0}
+          aria-label="Select class for paper dates"
+          required
+        >
+          {classOptions.length === 0 ? (
+            <option value="">No classes with subjects</option>
+          ) : (
+            classOptions.map((c) => {
+              const status = classStatus.find((s) => s.className === c);
+              const label =
+                status && status.dated
+                  ? `Class ${c} (${status.dated}/${status.total} dated)`
+                  : `Class ${c}`;
+              return (
+                <option key={c} value={c}>
+                  {label}
+                </option>
+              );
+            })
+          )}
+        </select>
+        {classOptions.length > 1 ? (
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {classStatus.map((s) => (
               <button
+                key={s.className}
                 type="button"
-                className="btn-ghost"
-                disabled={disabled || !classBulkDate}
-                onClick={applyToVisibleClass}
+                className={
+                  String(s.className) === String(selectedClass)
+                    ? "btn-primary text-xs px-2.5 py-1"
+                    : "btn-ghost text-xs px-2.5 py-1"
+                }
+                disabled={disabled}
+                onClick={() => onSelectedClassChange?.(s.className)}
               >
-                Apply class
+                {s.className}
+                <span className="ml-1 opacity-70">
+                  {s.dated}/{s.total}
+                </span>
               </button>
-            </div>
+            ))}
           </div>
         ) : null}
-        <button type="button" className="btn-ghost" disabled={disabled} onClick={clearVisible}>
-          Clear {classFilter ? `class ${classFilter}` : "all"} dates
-        </button>
       </div>
 
-      <div className="max-h-80 overflow-auto space-y-4">
-        {grouped.map(([className, rows]) => (
-          <div key={className}>
-            <div className="text-xs font-semibold uppercase tracking-wide text-ink-700/50 mb-1.5">
-              Class {className}
+      {selectedClass ? (
+        <>
+          <div className="flex flex-wrap gap-2 items-end">
+            <div>
+              <label className="label">Apply one date to class {selectedClass}</label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  className="field"
+                  value={classDate}
+                  disabled={disabled}
+                  onChange={(e) => setClassDate(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  disabled={disabled || !classDate}
+                  onClick={applyToSelectedClass}
+                >
+                  Apply to class
+                </button>
+              </div>
             </div>
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Date</th>
-                  <th>Start</th>
-                  <th>End</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr key={row.subjectId}>
-                    <td className="whitespace-nowrap">{row.subjectName}</td>
-                    <td>
-                      <input
-                        type="date"
-                        className="field w-[9.5rem]"
-                        value={row.paperDate}
-                        disabled={disabled}
-                        onChange={(e) => patchRow(row.subjectId, { paperDate: e.target.value })}
-                        aria-label={`Date for ${row.subjectName} class ${row.className}`}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="time"
-                        className="field w-[7.5rem]"
-                        value={row.startTime}
-                        disabled={disabled}
-                        onChange={(e) => patchRow(row.subjectId, { startTime: e.target.value })}
-                        aria-label={`Start time for ${row.subjectName}`}
-                      />
-                    </td>
-                    <td>
-                      <input
-                        type="time"
-                        className="field w-[7.5rem]"
-                        value={row.endTime}
-                        disabled={disabled}
-                        onChange={(e) => patchRow(row.subjectId, { endTime: e.target.value })}
-                        aria-label={`End time for ${row.subjectName}`}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div>
+              <label className="label">Same date for every class</label>
+              <div className="flex gap-2">
+                <input
+                  type="date"
+                  className="field"
+                  value={allClassesDate}
+                  disabled={disabled}
+                  onChange={(e) => setAllClassesDate(e.target.value)}
+                />
+                <button
+                  type="button"
+                  className="btn-ghost"
+                  disabled={disabled || !allClassesDate}
+                  onClick={applyToAllClasses}
+                >
+                  Apply all classes
+                </button>
+              </div>
+            </div>
+            <button type="button" className="btn-ghost" disabled={disabled} onClick={clearSelectedClass}>
+              Clear class {selectedClass}
+            </button>
           </div>
-        ))}
-      </div>
+
+          <div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-ink-700/50 mb-1.5">
+              Class {selectedClass} subjects
+              {classDatedCount
+                ? ` · ${classDatedCount} of ${classRows.length} dated`
+                : " · none dated yet"}
+            </div>
+            <div className="max-h-80 overflow-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Date</th>
+                    <th>Start</th>
+                    <th>End</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {classRows.map((row) => (
+                    <tr key={row.subjectId}>
+                      <td className="whitespace-nowrap">{row.subjectName}</td>
+                      <td>
+                        <input
+                          type="date"
+                          className="field w-[9.5rem]"
+                          value={row.paperDate}
+                          disabled={disabled}
+                          onChange={(e) => patchRow(row.subjectId, { paperDate: e.target.value })}
+                          aria-label={`Date for ${row.subjectName} class ${row.className}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="time"
+                          className="field w-[7.5rem]"
+                          value={row.startTime}
+                          disabled={disabled}
+                          onChange={(e) => patchRow(row.subjectId, { startTime: e.target.value })}
+                          aria-label={`Start time for ${row.subjectName}`}
+                        />
+                      </td>
+                      <td>
+                        <input
+                          type="time"
+                          className="field w-[7.5rem]"
+                          value={row.endTime}
+                          disabled={disabled}
+                          onChange={(e) => patchRow(row.subjectId, { endTime: e.target.value })}
+                          aria-label={`End time for ${row.subjectName}`}
+                        />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      ) : (
+        <p className="text-sm text-ink-700/60">Select a class to set subject dates.</p>
+      )}
     </div>
   );
 }
