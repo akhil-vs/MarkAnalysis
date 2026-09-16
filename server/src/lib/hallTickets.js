@@ -107,17 +107,6 @@ function formatPaperDate(value) {
   });
 }
 
-function formatDob(value) {
-  if (!value) return "—";
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return "—";
-  return d.toLocaleDateString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
-}
-
 function formatTimeRange(start, end) {
   const a = String(start || "").trim();
   const b = String(end || "").trim();
@@ -199,6 +188,18 @@ function photoBuffer(student) {
   return buf.length ? buf : null;
 }
 
+function drawMetaCell(doc, label, value, x, y, width) {
+  doc.font("Helvetica-Bold").fontSize(7.5).fillColor(INK).text(`${label}: `, x, y, {
+    continued: true,
+    lineBreak: false,
+  });
+  doc.font("Helvetica").text(String(value || "—"), {
+    width: Math.max(40, width - 52),
+    lineBreak: false,
+    ellipsis: true,
+  });
+}
+
 function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
   const { x, y, width, height } = box;
   const pad = 8;
@@ -206,6 +207,9 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
   const photoH = 62;
   const right = x + width;
   const bottom = y + height;
+  const fullTextWidth = width - pad * 2;
+  const footerReserve = 28; // instructions + signature band
+  const contentBottom = bottom - footerReserve;
 
   doc.save();
   doc.roundedRect(x, y, width, height, 3).strokeColor(INK).lineWidth(1).stroke();
@@ -213,11 +217,11 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
 
   let cursorY = y + pad;
   const textLeft = x + pad;
-  const textWidth = width - pad * 2 - (ticket.includePhoto ? photoW + 10 : 0);
 
   if (schoolLogo) {
     try {
-      doc.image(schoolLogo, textLeft, cursorY, { fit: [22, 22] });
+      doc.image(schoolLogo, x + width / 2 - 11, cursorY, { fit: [22, 22] });
+      cursorY += 24;
     } catch {
       // text-only header still prints
     }
@@ -225,10 +229,11 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
 
   doc
     .font("Helvetica-Bold")
-    .fontSize(8)
+    .fontSize(9)
     .fillColor(INK)
-    .text(schoolName || "School", textLeft + (schoolLogo ? 26 : 0), cursorY, {
-      width: textWidth - (schoolLogo ? 26 : 0),
+    .text(schoolName || "School", textLeft, cursorY, {
+      width: fullTextWidth,
+      align: "center",
       lineBreak: false,
     });
   cursorY += 12;
@@ -237,8 +242,12 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
     .font("Helvetica-Bold")
     .fontSize(10)
     .fillColor(INK)
-    .text(ticket.title, textLeft, cursorY, { width: textWidth, lineBreak: false });
-  cursorY += 13;
+    .text(ticket.title, textLeft, cursorY, {
+      width: fullTextWidth,
+      align: "center",
+      lineBreak: false,
+    });
+  cursorY += 12;
 
   if (ticket.examCentre) {
     doc
@@ -246,21 +255,29 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
       .fontSize(7.5)
       .fillColor(MUTED)
       .text(`Exam centre: ${ticket.examCentre}`, textLeft, cursorY, {
-        width: textWidth,
+        width: fullTextWidth,
+        align: "center",
         lineBreak: false,
       });
     cursorY += 10;
   }
 
+  const identityTop = cursorY;
+  const textWidth = fullTextWidth - (ticket.includePhoto ? photoW + 10 : 0);
+
   if (ticket.includePhoto) {
     const px = right - pad - photoW;
-    const py = y + pad + 10;
+    const py = identityTop;
     doc.save();
     doc.rect(px, py, photoW, photoH).fillAndStroke(PHOTO_BG, RULE);
     const buf = photoBuffer(ticket.student);
     if (buf) {
       try {
-        doc.image(buf, px + 1, py + 1, { fit: [photoW - 2, photoH - 2], align: "center", valign: "center" });
+        doc.image(buf, px + 1, py + 1, {
+          fit: [photoW - 2, photoH - 2],
+          align: "center",
+          valign: "center",
+        });
       } catch {
         doc.font("Helvetica").fontSize(7).fillColor(MUTED).text("Photo", px, py + photoH / 2 - 4, {
           width: photoW,
@@ -276,36 +293,35 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
     doc.restore();
   }
 
-  const meta = [
-    ["Name", ticket.student.name],
-    ["Roll No", ticket.student.rollNo],
-    ["Class", ticket.classLabel],
-    ["Admission No", ticket.student.admissionNo || "—"],
-    ["Date of birth", formatDob(ticket.student.dob)],
-  ];
-  doc.font("Helvetica").fontSize(7.5).fillColor(INK);
-  for (const [label, value] of meta) {
-    doc.font("Helvetica-Bold").text(`${label}: `, textLeft, cursorY, {
-      continued: true,
-      lineBreak: false,
-    });
-    doc.font("Helvetica").text(String(value || "—"), { width: textWidth - 70, lineBreak: false });
-    cursorY += 10;
-  }
+  // Two columns × two rows each:
+  //   Name / Roll No          Class / Admn No
+  const colGap = 10;
+  const colWidth = (textWidth - colGap) / 2;
+  const col2X = textLeft + colWidth + colGap;
+  drawMetaCell(doc, "Name", ticket.student.name, textLeft, cursorY, colWidth);
+  drawMetaCell(doc, "Class", ticket.classLabel, col2X, cursorY, colWidth);
+  cursorY += 11;
+  drawMetaCell(doc, "Roll No", ticket.student.rollNo, textLeft, cursorY, colWidth);
+  drawMetaCell(doc, "Admn No", ticket.student.admissionNo || "—", col2X, cursorY, colWidth);
+  cursorY += 12;
 
-  cursorY += 2;
+  // Keep schedule flowing under the identity block; stay beside the photo until cleared.
+  const photoClearsAt = ticket.includePhoto ? identityTop + photoH + 4 : cursorY;
+  const scheduleWidthAt = (yPos) =>
+    ticket.includePhoto && yPos < photoClearsAt ? textWidth : fullTextWidth;
+
   doc
     .font("Helvetica-Bold")
     .fontSize(7.5)
     .fillColor(INK)
     .text("Examination schedule", textLeft, cursorY, { lineBreak: false });
-  cursorY += 10;
+  cursorY += 9;
 
+  const scheduleWidth = scheduleWidthAt(cursorY);
   const cols = [
-    { key: "subject", label: "Subject", width: textWidth * 0.34 },
-    { key: "date", label: "Date", width: textWidth * 0.22 },
-    { key: "time", label: "Time", width: textWidth * 0.22 },
-    { key: "venue", label: "Venue", width: textWidth * 0.22 },
+    { key: "subject", label: "Subject", width: scheduleWidth * 0.46 },
+    { key: "date", label: "Date", width: scheduleWidth * 0.27 },
+    { key: "time", label: "Time", width: scheduleWidth * 0.27 },
   ];
   let cx = textLeft;
   doc.font("Helvetica-Bold").fontSize(6.5).fillColor(MUTED);
@@ -313,74 +329,96 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
     doc.text(col.label, cx, cursorY, { width: col.width, lineBreak: false });
     cx += col.width;
   }
-  cursorY += 8;
+  cursorY += 7;
   doc
     .moveTo(textLeft, cursorY)
-    .lineTo(textLeft + textWidth, cursorY)
+    .lineTo(textLeft + scheduleWidth, cursorY)
     .strokeColor(RULE)
     .lineWidth(0.4)
     .stroke();
   cursorY += 3;
 
   const papers = ticket.papers || [];
-  const maxRows = Math.max(1, Math.min(papers.length, 6));
+  const rowH = 8;
+  const spaceForRows = Math.max(0, contentBottom - cursorY - 2);
+  const maxRows = Math.max(0, Math.min(papers.length, Math.floor(spaceForRows / rowH)));
   doc.font("Helvetica").fontSize(6.5).fillColor(INK);
   if (!papers.length) {
-    doc.text("No papers scheduled for this class yet.", textLeft, cursorY, {
-      width: textWidth,
-      lineBreak: false,
-    });
-    cursorY += 9;
+    if (cursorY + 9 <= contentBottom) {
+      doc.text("No papers scheduled for this class yet.", textLeft, cursorY, {
+        width: scheduleWidthAt(cursorY),
+        lineBreak: false,
+      });
+      cursorY += 9;
+    }
+  } else if (maxRows === 0) {
+    doc
+      .font("Helvetica-Oblique")
+      .fontSize(6)
+      .fillColor(MUTED)
+      .text(`${papers.length} paper(s) — see school notice for schedule`, textLeft, cursorY, {
+        width: scheduleWidthAt(cursorY),
+        lineBreak: false,
+      });
+    cursorY += 8;
   } else {
     for (let i = 0; i < maxRows; i += 1) {
       const paper = papers[i];
+      const rowWidth = scheduleWidthAt(cursorY);
+      const rowCols = [
+        { width: rowWidth * 0.46 },
+        { width: rowWidth * 0.27 },
+        { width: rowWidth * 0.27 },
+      ];
       const values = [
         paper.subjectName,
         formatPaperDate(paper.paperDate),
         formatTimeRange(paper.startTime, paper.endTime),
-        paper.venue || "—",
       ];
       cx = textLeft;
-      for (let c = 0; c < cols.length; c += 1) {
+      for (let c = 0; c < rowCols.length; c += 1) {
         doc.text(String(values[c] || "—"), cx, cursorY, {
-          width: cols[c].width - 2,
+          width: rowCols[c].width - 2,
           lineBreak: false,
           ellipsis: true,
         });
-        cx += cols[c].width;
+        cx += rowCols[c].width;
       }
-      cursorY += 8.5;
+      cursorY += rowH;
     }
-    if (papers.length > maxRows) {
+    if (papers.length > maxRows && cursorY + 8 <= contentBottom) {
       doc
         .font("Helvetica-Oblique")
         .fontSize(6)
         .fillColor(MUTED)
         .text(`+${papers.length - maxRows} more paper(s)`, textLeft, cursorY, {
-          width: textWidth,
+          width: scheduleWidthAt(cursorY),
           lineBreak: false,
         });
-      cursorY += 8;
     }
   }
 
   const instructions = ticket.instructions || DEFAULT_HALL_TICKET_INSTRUCTIONS;
-  const instructionsTop = Math.min(cursorY + 2, bottom - 34);
+  const instructionsTop = bottom - 26;
   doc
     .font("Helvetica-Oblique")
     .fontSize(6)
     .fillColor(MUTED)
     .text(instructions, textLeft, instructionsTop, {
-      width: textWidth,
-      height: 16,
+      width: fullTextWidth,
+      height: 12,
       ellipsis: true,
     });
 
-  const sigY = bottom - 14;
+  const sigY = bottom - 12;
   doc.font("Helvetica").fontSize(6.5).fillColor(INK);
   doc.text("Student sign: ____________", textLeft, sigY, { lineBreak: false });
-  doc.text("Invigilator: ____________", textLeft + textWidth * 0.38, sigY, { lineBreak: false });
-  doc.text("Principal: ____________", textLeft + textWidth * 0.7, sigY, { lineBreak: false });
+  doc.text("Invigilator: ____________", textLeft + fullTextWidth * 0.38, sigY, {
+    lineBreak: false,
+  });
+  doc.text("Principal: ____________", textLeft + fullTextWidth * 0.7, sigY, {
+    lineBreak: false,
+  });
 
   doc.restore();
 }
@@ -425,7 +463,6 @@ export function buildHallTicketPayload({
       name: student.name,
       rollNo: student.rollNo,
       admissionNo: student.admissionNo || null,
-      dob: student.dob || null,
       photoBytes: student.photoBytes || null,
       photoMimeType: student.photoMimeType || null,
     },

@@ -539,7 +539,6 @@ export default function HallTickets() {
                                 <th className="px-3 py-2">Subject</th>
                                 <th className="px-3 py-2">Date</th>
                                 <th className="px-3 py-2">Time</th>
-                                <th className="px-3 py-2">Venue</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -559,7 +558,6 @@ export default function HallTickets() {
                                   <td className="px-3 py-2">
                                     {[paper.startTime, paper.endTime].filter(Boolean).join("–") || "—"}
                                   </td>
-                                  <td className="px-3 py-2">{paper.venue || "—"}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -567,7 +565,7 @@ export default function HallTickets() {
                         </div>
                       ) : (
                         <EmptyNote>
-                          No paper calendar rows yet — tickets will use the exam date. Add venues under Board ops when that module is enabled.
+                          No paper calendar rows yet — tickets will use the exam date. Set paper dates under Records → Exams.
                         </EmptyNote>
                       )}
                     </div>
