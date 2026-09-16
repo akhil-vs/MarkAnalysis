@@ -42,6 +42,18 @@ function formFromIssue(issue, defaults) {
   };
 }
 
+function paperHasDateAndTime(paper) {
+  return Boolean(paper?.paperDate) && Boolean(String(paper?.startTime || "").trim());
+}
+
+function papersScheduleComplete(papers) {
+  const list = papers || [];
+  return list.length > 0 && list.every(paperHasDateAndTime);
+}
+
+const SCHEDULE_INCOMPLETE_HINT =
+  "Set a date and start time for every paper under Records → Exams before downloading.";
+
 export default function HallTickets() {
   const toast = useToast();
   const { user } = useAuth();
@@ -83,6 +95,17 @@ export default function HallTickets() {
     (status?.classes || []).find((c) => c.id === selectedId) ||
     selectedGroup?.divisions.find((d) => d.id === selectedId) ||
     null;
+
+  const canDownloadPdf = useMemo(() => {
+    if (preview) {
+      if (typeof preview.canDownloadPdf === "boolean") return preview.canDownloadPdf;
+      if (typeof preview.scheduleComplete === "boolean") return preview.scheduleComplete;
+      return papersScheduleComplete(preview.papers);
+    }
+    return Boolean(selectedSection?.scheduleComplete);
+  }, [preview, selectedSection]);
+
+  const scheduleIncompleteMessage = canDownloadPdf ? "" : SCHEDULE_INCOMPLETE_HINT;
 
   function syncParams({
     exam = examId,
@@ -237,7 +260,7 @@ export default function HallTickets() {
   }
 
   async function downloadPdf() {
-    if (!examId || !selectedId) return;
+    if (!examId || !selectedId || !canDownloadPdf) return;
     setBusy("pdf");
     try {
       await download(
@@ -329,9 +352,14 @@ export default function HallTickets() {
                       <button
                         type="button"
                         className="btn-ghost rounded-lg px-2.5 text-xs"
-                        title={`Download PDF for ${div.label}`}
-                        disabled={Boolean(busy) || !examId}
+                        title={
+                          div.scheduleComplete
+                            ? `Download PDF for ${div.label}`
+                            : `${div.label}: ${SCHEDULE_INCOMPLETE_HINT}`
+                        }
+                        disabled={Boolean(busy) || !examId || !div.scheduleComplete}
                         onClick={async () => {
+                          if (!div.scheduleComplete) return;
                           selectDivision(div.id);
                           setBusy("pdf");
                           try {
@@ -366,7 +394,8 @@ export default function HallTickets() {
                   <button
                     type="button"
                     className="btn-primary"
-                    disabled={Boolean(busy) || loadingPreview || !preview}
+                    disabled={Boolean(busy) || loadingPreview || !preview || !canDownloadPdf}
+                    title={scheduleIncompleteMessage || undefined}
                     onClick={downloadPdf}
                   >
                     <BusyLabel busy={busy === "pdf"} idle="Download PDF (5 / A4)" busyText="Preparing…" />
@@ -388,11 +417,15 @@ export default function HallTickets() {
                         {" · "}
                         {preview.paperCount} paper{preview.paperCount === 1 ? "" : "s"}
                         {preview.issue ? " · batch saved" : " · using defaults until you save a batch"}
+                        {!canDownloadPdf ? (
+                          <p className="mt-1 text-xs text-amber-800">{SCHEDULE_INCOMPLETE_HINT}</p>
+                        ) : null}
                       </div>
                       <button
                         type="button"
                         className="btn-primary"
-                        disabled={Boolean(busy)}
+                        disabled={Boolean(busy) || !canDownloadPdf}
+                        title={scheduleIncompleteMessage || undefined}
                         onClick={downloadPdf}
                       >
                         <BusyLabel busy={busy === "pdf"} idle="Download PDF (5 / A4)" busyText="Preparing…" />
@@ -551,12 +584,16 @@ export default function HallTickets() {
                                       <span className="ml-1 text-xs text-ink-700/50">(elective)</span>
                                     ) : null}
                                   </td>
-                                  <td className="px-3 py-2">
+                                  <td className={`px-3 py-2 ${paper.paperDate ? "" : "text-amber-800"}`}>
                                     {paper.paperDate
                                       ? new Date(paper.paperDate).toLocaleDateString()
                                       : "—"}
                                   </td>
-                                  <td className="px-3 py-2">
+                                  <td
+                                    className={`px-3 py-2 ${
+                                      String(paper.startTime || "").trim() ? "" : "text-amber-800"
+                                    }`}
+                                  >
                                     {[paper.startTime, paper.endTime].filter(Boolean).join("–") || "—"}
                                   </td>
                                   <td className="px-3 py-2 text-ink-700/45">__________</td>

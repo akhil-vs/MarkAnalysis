@@ -173,6 +173,24 @@ export function papersForStudent(allPapers, studentId, enrollmentKeys) {
   );
 }
 
+/** True when a paper row has both a date and a start time for the ticket schedule. */
+export function paperHasDateAndTime(paper) {
+  if (!paper) return false;
+  const hasDate = Boolean(paper.paperDate);
+  const hasTime = Boolean(String(paper.startTime || "").trim());
+  return hasDate && hasTime;
+}
+
+/**
+ * Hall ticket PDF requires every paper to have date + start time set.
+ * Empty schedules are incomplete (nothing useful to print).
+ */
+export function papersHaveDateAndTime(papers) {
+  const list = papers || [];
+  if (!list.length) return false;
+  return list.every(paperHasDateAndTime);
+}
+
 export function ticketLayout(page = A4, { perPage = HALL_TICKETS_PER_PAGE, margin = 22 } = {}) {
   const usableHeight = page.height - margin * 2;
   const gap = 8;
