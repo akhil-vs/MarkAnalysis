@@ -305,10 +305,9 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
   drawMetaCell(doc, "Admn No", ticket.student.admissionNo || "—", col2X, cursorY, colWidth);
   cursorY += 12;
 
-  // Keep schedule flowing under the identity block; stay beside the photo until cleared.
-  const photoClearsAt = ticket.includePhoto ? identityTop + photoH + 4 : cursorY;
-  const scheduleWidthAt = (yPos) =>
-    ticket.includePhoto && yPos < photoClearsAt ? textWidth : fullTextWidth;
+  // Keep schedule in the identity text column so column widths stay aligned
+  // beside the photo (avoids invigilator lines jumping when past the photo).
+  const scheduleWidth = textWidth;
 
   doc
     .font("Helvetica-Bold")
@@ -317,7 +316,6 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
     .text("Examination schedule", textLeft, cursorY, { lineBreak: false });
   cursorY += 9;
 
-  const scheduleWidth = scheduleWidthAt(cursorY);
   const cols = [
     { key: "subject", label: "Subject", width: scheduleWidth * 0.34 },
     { key: "date", label: "Date", width: scheduleWidth * 0.22 },
@@ -347,7 +345,7 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
   if (!papers.length) {
     if (cursorY + 9 <= contentBottom) {
       doc.text("No papers scheduled for this class yet.", textLeft, cursorY, {
-        width: scheduleWidthAt(cursorY),
+        width: scheduleWidth,
         lineBreak: false,
       });
       cursorY += 9;
@@ -358,20 +356,13 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
       .fontSize(6)
       .fillColor(MUTED)
       .text(`${papers.length} paper(s) — see school notice for schedule`, textLeft, cursorY, {
-        width: scheduleWidthAt(cursorY),
+        width: scheduleWidth,
         lineBreak: false,
       });
     cursorY += 8;
   } else {
     for (let i = 0; i < maxRows; i += 1) {
       const paper = papers[i];
-      const rowWidth = scheduleWidthAt(cursorY);
-      const rowCols = [
-        { width: rowWidth * 0.34 },
-        { width: rowWidth * 0.22 },
-        { width: rowWidth * 0.22 },
-        { width: rowWidth * 0.22 },
-      ];
       const values = [
         paper.subjectName,
         formatPaperDate(paper.paperDate),
@@ -379,13 +370,13 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
         "__________",
       ];
       cx = textLeft;
-      for (let c = 0; c < rowCols.length; c += 1) {
+      for (let c = 0; c < cols.length; c += 1) {
         doc.text(String(values[c] || "—"), cx, cursorY, {
-          width: rowCols[c].width - 2,
+          width: cols[c].width - 2,
           lineBreak: false,
           ellipsis: true,
         });
-        cx += rowCols[c].width;
+        cx += cols[c].width;
       }
       cursorY += rowH;
     }
@@ -395,7 +386,7 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
         .fontSize(6)
         .fillColor(MUTED)
         .text(`+${papers.length - maxRows} more paper(s)`, textLeft, cursorY, {
-          width: scheduleWidthAt(cursorY),
+          width: scheduleWidth,
           lineBreak: false,
         });
     }
