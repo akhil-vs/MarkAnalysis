@@ -97,6 +97,13 @@ const NAV_ICON_PATHS = {
       <path d="M4 7h.01M4 12h.01M4 17h.01" strokeLinecap="round" />
     </>
   ),
+  tickets: (
+    <>
+      <rect x="4" y="5" width="16" height="14" rx="1.5" />
+      <path d="M8 9h5M8 12h8M8 15h4" strokeLinecap="round" />
+      <rect x="14.5" y="8" width="3.5" height="4.5" rx="0.5" />
+    </>
+  ),
   audit: (
     <>
       <path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8z" strokeLinejoin="round" />

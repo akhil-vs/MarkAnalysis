@@ -256,12 +256,15 @@ model Student {
   tenantId       String
   name           String
   rollNo         String
+  admissionNo    String?
   classSectionId String
   academicYear   String        @default("2025-26")
   status         StudentStatus @default(ACTIVE)
   dob            DateTime?
   guardianName   String?
   guardianPhone  String?
+  photoBytes     Bytes?
+  photoMimeType  String?
   promotedFromId String?
 
   tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)

@@ -46,6 +46,9 @@ const ACTIVITY_ACTIONS = [
   "BACKUP_CREATED",
   "BACKUP_RESTORED",
   "CPD_UPDATED",
+  "HALL_TICKET_CREATED",
+  "HALL_TICKET_UPDATED",
+  "HALL_TICKET_DELETED",
 ];
 
 const ACTIVITY_STATEMENTS = [
@@ -1333,6 +1336,92 @@ async function ensureOptionalModulesColumn() {
   await recordMigration(OPTIONAL_MODULES_MIGRATION, OPTIONAL_MODULES_CHECKSUM);
 }
 
+const HALL_TICKETS_MIGRATION = "20260916153100_hall_tickets";
+const HALL_TICKETS_CHECKSUM = "hall-tickets-catchup-v1";
+
+const HALL_TICKETS_STUDENT_STATEMENTS = [
+  `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "admissionNo" TEXT`,
+  `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "photoBytes" BYTEA`,
+  `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "photoMimeType" TEXT`,
+];
+
+const HALL_TICKETS_TABLE_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "HallTicketIssue" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "examId" TEXT NOT NULL,
+    "classSectionId" TEXT NOT NULL,
+    "title" TEXT,
+    "instructions" TEXT,
+    "defaultVenue" TEXT,
+    "examCentre" TEXT,
+    "includePhoto" BOOLEAN NOT NULL DEFAULT true,
+    "internalNotes" TEXT,
+    "createdById" TEXT NOT NULL,
+    "updatedById" TEXT,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "HallTicketIssue_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "HallTicketIssue_examId_classSectionId_key"
+    ON "HallTicketIssue" ("examId", "classSectionId")`,
+  `CREATE INDEX IF NOT EXISTS "HallTicketIssue_tenantId_examId_idx"
+    ON "HallTicketIssue" ("tenantId", "examId")`,
+  `CREATE INDEX IF NOT EXISTS "HallTicketIssue_classSectionId_idx"
+    ON "HallTicketIssue" ("classSectionId")`,
+  `CREATE INDEX IF NOT EXISTS "HallTicketIssue_createdById_idx"
+    ON "HallTicketIssue" ("createdById")`,
+  `CREATE INDEX IF NOT EXISTS "HallTicketIssue_updatedById_idx"
+    ON "HallTicketIssue" ("updatedById")`,
+];
+
+const HALL_TICKETS_FK_STATEMENTS = [
+  `ALTER TABLE "HallTicketIssue" ADD CONSTRAINT "HallTicketIssue_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "HallTicketIssue" ADD CONSTRAINT "HallTicketIssue_examId_fkey" FOREIGN KEY ("examId") REFERENCES "Exam"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "HallTicketIssue" ADD CONSTRAINT "HallTicketIssue_classSectionId_fkey" FOREIGN KEY ("classSectionId") REFERENCES "ClassSection"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "HallTicketIssue" ADD CONSTRAINT "HallTicketIssue_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "HallTicketIssue" ADD CONSTRAINT "HallTicketIssue_updatedById_fkey" FOREIGN KEY ("updatedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+];
+
+/**
+ * Hall-ticket batches + student admission/photo columns.
+ * Safe to call repeatedly; used by the hall-tickets API and ensurePendingSchema.
+ */
+export async function ensureHallTicketsSchema() {
+  const hasTable = await tableExists("HallTicketIssue");
+  const hasAdmission = await columnExists("Student", "admissionNo");
+  const hasPhoto = await columnExists("Student", "photoBytes");
+  if (hasTable && hasAdmission && hasPhoto) {
+    const missingActions = await missingEnumLabels("AuditAction", [
+      "HALL_TICKET_CREATED",
+      "HALL_TICKET_UPDATED",
+      "HALL_TICKET_DELETED",
+    ]);
+    if (missingActions.length) {
+      for (const value of missingActions) {
+        await applyStatements([
+          `ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS '${value}'`,
+        ]);
+      }
+    }
+    return;
+  }
+
+  await applyStatements(HALL_TICKETS_STUDENT_STATEMENTS);
+  await applyStatements(HALL_TICKETS_TABLE_STATEMENTS);
+  for (const value of ["HALL_TICKET_CREATED", "HALL_TICKET_UPDATED", "HALL_TICKET_DELETED"]) {
+    await applyStatements([`ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS '${value}'`]);
+  }
+  for (const stmt of HALL_TICKETS_FK_STATEMENTS) {
+    try {
+      await applyStatements([stmt]);
+    } catch {
+      // Constraint may already exist from a prior partial catch-up.
+    }
+  }
+  await recordMigration(HALL_TICKETS_MIGRATION, HALL_TICKETS_CHECKSUM);
+}
+
 export const CATCHUP_MIGRATION_NAMES = [
   TIMETABLE_MIGRATION,
   MULTI_CLASS_PERIOD_MIGRATION,
@@ -1431,6 +1520,7 @@ export async function ensurePendingSchema() {
         await ensureCustomStaffRolesColumns();
         await ensureRoleFeatureAccessColumn();
         await ensureOptionalModulesColumn();
+        await ensureHallTicketsSchema();
         return { skipped: true, reason: "migrations-present" };
       }
       // Auth pieces first so concurrent login can finish while the rest runs.
@@ -1455,6 +1545,7 @@ export async function ensurePendingSchema() {
         ensureCustomStaffRolesColumns(),
         ensureRoleFeatureAccessColumn(),
         ensureOptionalModulesColumn(),
+        ensureHallTicketsSchema(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -1557,11 +1648,16 @@ export const __test = {
   OPTIONAL_MODULES_MIGRATION,
   OPTIONAL_MODULES_CHECKSUM,
   OPTIONAL_MODULES_STATEMENTS,
+  HALL_TICKETS_MIGRATION,
+  HALL_TICKETS_CHECKSUM,
+  HALL_TICKETS_STUDENT_STATEMENTS,
+  HALL_TICKETS_TABLE_STATEMENTS,
   ensureMfaUserColumns,
   ensureSchoolDigestColumns,
   ensureStudentGuardianEmail,
   ensureCustomStaffRolesColumns,
   ensureRoleFeatureAccessColumn,
   ensureOptionalModulesColumn,
+  ensureHallTicketsSchema,
   resetAuthSchemaEnsure,
 };

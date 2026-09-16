@@ -92,6 +92,11 @@ export const PAGE_HELP = {
     about: "Full mark list for a class: every subject side by side, totals, averages, grades, and ranks — once papers are approved. Totals use the selected exam’s consolidation max marks.",
     useful: "The list you print or share after an exam. Set that exam’s consolidation ceiling under Records → Exams. Class teachers see their section when every paper in that section is in.",
   },
+  hallTickets: {
+    title: "What's on this page",
+    about: "Class hall tickets for a selected exam: student identity and photo, paper schedule, venue, and instructions. Five tickets print on each A4 page. Principals and exam coordinators create and edit batches; teachers can view and download for their classes.",
+    useful: "Create a batch per division before the exam window. Upload student photos under Records → Students, and set paper dates/venues under Board ops when that module is on.",
+  },
   audit: {
     title: "What's on this page",
     about: "A trail of mark changes, approvals, and access grants. Principals can include exam-coordinator actions.",

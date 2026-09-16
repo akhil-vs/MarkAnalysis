@@ -6,15 +6,35 @@ import { auth, requireRole, getTeacherClassIds } from "../middleware/auth.js";
 import { cell, parseDob, parseSpreadsheet } from "../lib/upload.js";
 import { academicYearFromDate, nextAcademicYear, nextClassName } from "../lib/stats.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
-import { getSchoolLetterhead } from "../lib/school.js";
+import { getSchoolLetterhead, LOGO_MAX_BYTES, parseLogoFile } from "../lib/school.js";
+import { publicStudent } from "../lib/hallTickets.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
+import { ensureHallTicketsSchema } from "../lib/ensureSchema.js";
 
 export const studentsRouter = Router();
 studentsRouter.use(auth);
 studentsRouter.use(requireSchoolTenant);
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const photoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: LOGO_MAX_BYTES },
+});
+
+function receivePhoto(req, res, next) {
+  photoUpload.single("photo")(req, res, (err) => {
+    if (!err) return next();
+    const tooBig = err.code === "LIMIT_FILE_SIZE";
+    err.status = 400;
+    err.message = tooBig ? "Photo must be 1 MB or smaller" : err.message || "Could not upload photo";
+    next(err);
+  });
+}
+
+function omitPhoto(student) {
+  return publicStudent(student);
+}
 
 studentsRouter.get("/template", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { classSectionId } = req.query;
@@ -27,22 +47,34 @@ studentsRouter.get("/template", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
   const letterhead = await getSchoolLetterhead();
   workbook.creator = letterhead.name;
   const sheet = workbook.addWorksheet("Students");
-  const headers = ["Class", "Section", "Roll No", "Name", "Date of Birth", "Guardian Name", "Guardian Phone"];
+  const headers = [
+    "Class",
+    "Section",
+    "Roll No",
+    "Name",
+    "Admission No",
+    "Date of Birth",
+    "Guardian Name",
+    "Guardian Phone",
+  ];
   writeExcelLetterhead(workbook, sheet, letterhead, headers.length);
   const headerRow = sheet.addRow(headers);
   headerRow.font = { bold: true };
   sheet.pageSetup.printTitlesRow = `1:${headerRow.number}`;
   sheet.getColumn(3).numFmt = "@";
+  sheet.getColumn(5).numFmt = "@";
 
   if (selected) {
     for (let i = 0; i < 12; i++) {
-      const row = sheet.addRow([selected.className, selected.section, "", "", "", "", ""]);
+      const row = sheet.addRow([selected.className, selected.section, "", "", "", "", "", ""]);
       row.getCell(3).numFmt = "@";
+      row.getCell(5).numFmt = "@";
     }
   } else {
     for (const cls of classes) {
-      const row = sheet.addRow([cls.className, cls.section, "01", "", "", "", ""]);
+      const row = sheet.addRow([cls.className, cls.section, "01", "", "", "", "", ""]);
       row.getCell(3).numFmt = "@";
+      row.getCell(5).numFmt = "@";
     }
   }
   sheet.columns.forEach((col) => {
@@ -103,9 +135,11 @@ studentsRouter.post("/upload", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), upl
       return;
     }
     seen.add(key);
+    const admissionNo = String(cell(row, "Admission No", "Admission", "admissionNo") || "").trim() || null;
     valid.push({
       name,
       rollNo,
+      admissionNo,
       classSectionId: cls.id,
       classLabel: `${cls.className}-${cls.section}`,
       dob: parseDob(cell(row, "Date of Birth", "DOB", "Dob")),
@@ -133,6 +167,7 @@ studentsRouter.post("/upload", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), upl
       create: {
         name: item.name,
         rollNo: item.rollNo,
+        admissionNo: item.admissionNo,
         classSectionId: item.classSectionId,
         academicYear: academicYearFromDate(new Date()) || "2025-26",
         status: "ACTIVE",
@@ -143,6 +178,7 @@ studentsRouter.post("/upload", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), upl
       },
       update: {
         name: item.name,
+        admissionNo: item.admissionNo,
         dob: item.dob,
         guardianName: item.guardianName,
         guardianPhone: item.guardianPhone,
@@ -176,6 +212,7 @@ studentsRouter.get("/", async (req, res) => {
     where.OR = [
       { name: { contains: paging.q, mode: "insensitive" } },
       { rollNo: { contains: paging.q, mode: "insensitive" } },
+      { admissionNo: { contains: paging.q, mode: "insensitive" } },
       { guardianName: { contains: paging.q, mode: "insensitive" } },
       { guardianPhone: { contains: paging.q, mode: "insensitive" } },
     ];
@@ -186,8 +223,9 @@ studentsRouter.get("/", async (req, res) => {
       where,
       orderBy: [{ rollNo: "asc" }],
       include: { classSection: true },
+      omit: { photoBytes: true },
     });
-    return res.json(students);
+    return res.json(students.map(omitPhoto));
   }
 
   const yearWhere = { ...where };
@@ -200,6 +238,7 @@ studentsRouter.get("/", async (req, res) => {
       where,
       orderBy: [{ rollNo: "asc" }],
       include: { classSection: true },
+      omit: { photoBytes: true },
       skip: paging.skip,
       take: paging.take,
     }),
@@ -211,7 +250,12 @@ studentsRouter.get("/", async (req, res) => {
     }),
   ]);
   res.json({
-    ...pageResult({ items, total, page: paging.page, pageSize: paging.pageSize }),
+    ...pageResult({
+      items: items.map(omitPhoto),
+      total,
+      page: paging.page,
+      pageSize: paging.pageSize,
+    }),
     years: yearRows.map((r) => r.academicYear).filter(Boolean),
   });
 });
@@ -221,6 +265,7 @@ studentsRouter.get("/:id", async (req, res) => {
   const student = await prisma.student.findUnique({
     where: { id: req.params.id },
     include: { classSection: true },
+    omit: { photoBytes: true },
   });
   if (!student) return res.status(404).json({ error: "Not found" });
 
@@ -231,11 +276,89 @@ studentsRouter.get("/:id", async (req, res) => {
     }
   }
 
-  res.json(student);
+  res.json(omitPhoto(student));
+});
+
+studentsRouter.get("/:id/photo", async (req, res) => {
+  await ensureHallTicketsSchema();
+  const student = await prisma.student.findUnique({
+    where: { id: req.params.id },
+    select: {
+      id: true,
+      classSectionId: true,
+      photoBytes: true,
+      photoMimeType: true,
+    },
+  });
+  if (!student) return res.status(404).json({ error: "Not found" });
+
+  if (req.user.role === "TEACHER") {
+    const allowed = new Set(await getTeacherClassIds(req.user.userId));
+    if (!allowed.has(student.classSectionId)) {
+      return res.status(403).json({ error: "Not assigned to this student's class" });
+    }
+  }
+
+  const raw = student.photoBytes;
+  const buf = raw ? (Buffer.isBuffer(raw) ? raw : Buffer.from(raw)) : null;
+  if (!buf?.length || !student.photoMimeType) {
+    return res.status(404).json({ error: "No student photo uploaded" });
+  }
+  res.setHeader("Content-Type", student.photoMimeType);
+  res.setHeader("Cache-Control", "private, no-store");
+  return res.send(buf);
+});
+
+studentsRouter.post(
+  "/:id/photo",
+  requireRole("PRINCIPAL", "EXAM_COORDINATOR"),
+  receivePhoto,
+  async (req, res) => {
+    await ensureHallTicketsSchema();
+    const existing = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { id: true },
+    });
+    if (!existing) return res.status(404).json({ error: "Not found" });
+
+    const parsed = parseLogoFile(req.file);
+    if (parsed.error) {
+      // Reuse logo validator but surface student-oriented wording.
+      return res.status(400).json({
+        error: String(parsed.error).replace(/^Logo/, "Photo"),
+      });
+    }
+
+    const updated = await prisma.student.update({
+      where: { id: existing.id },
+      data: { photoBytes: parsed.bytes, photoMimeType: parsed.mime },
+      include: { classSection: true },
+      omit: { photoBytes: true },
+    });
+    res.json(omitPhoto(updated));
+  }
+);
+
+studentsRouter.delete("/:id/photo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  await ensureHallTicketsSchema();
+  const existing = await prisma.student.findUnique({
+    where: { id: req.params.id },
+    select: { id: true },
+  });
+  if (!existing) return res.status(404).json({ error: "Not found" });
+
+  const updated = await prisma.student.update({
+    where: { id: existing.id },
+    data: { photoBytes: null, photoMimeType: null },
+    include: { classSection: true },
+    omit: { photoBytes: true },
+  });
+  res.json(omitPhoto(updated));
 });
 
 studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, rollNo, classSectionId, dob, guardianName, guardianPhone, academicYear } = req.body || {};
+  const { name, rollNo, classSectionId, dob, guardianName, guardianPhone, academicYear, admissionNo } =
+    req.body || {};
   if (!String(name || "").trim() || !String(rollNo || "").trim() || !classSectionId) {
     return res.status(400).json({ error: "Name, roll number, and class are required" });
   }
@@ -244,6 +367,7 @@ studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
     data: {
       name,
       rollNo: String(rollNo),
+      admissionNo: String(admissionNo || "").trim() || null,
       classSectionId,
       academicYear: year,
       status: "ACTIVE",
@@ -252,17 +376,29 @@ studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
       guardianPhone: guardianPhone || null,
       tenantId: req.tenantId,
     },
+    omit: { photoBytes: true },
   });
-  res.status(201).json(created);
+  res.status(201).json(omitPhoto(created));
 });
 
 studentsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, rollNo, classSectionId, dob, guardianName, guardianPhone, academicYear, status } = req.body || {};
+  const {
+    name,
+    rollNo,
+    classSectionId,
+    dob,
+    guardianName,
+    guardianPhone,
+    academicYear,
+    status,
+    admissionNo,
+  } = req.body || {};
   const updated = await prisma.student.update({
     where: { id: req.params.id },
     data: {
       ...(name && { name }),
       ...(rollNo && { rollNo: String(rollNo) }),
+      ...(admissionNo !== undefined && { admissionNo: String(admissionNo || "").trim() || null }),
       ...(classSectionId && { classSectionId }),
       ...(academicYear && { academicYear: String(academicYear).trim() }),
       ...(status && ["ACTIVE", "PROMOTED", "TRANSFERRED", "LEFT"].includes(status) && { status }),
@@ -270,8 +406,9 @@ studentsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
       ...(guardianName !== undefined && { guardianName }),
       ...(guardianPhone !== undefined && { guardianPhone }),
     },
+    omit: { photoBytes: true },
   });
-  res.json(updated);
+  res.json(omitPhoto(updated));
 });
 
 studentsRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
@@ -325,15 +462,19 @@ studentsRouter.post("/promote", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
       data: {
         name: student.name,
         rollNo,
+        admissionNo: student.admissionNo || null,
         classSectionId: toClassSectionId,
         academicYear: destYear,
         status: "ACTIVE",
         dob: student.dob,
         guardianName: student.guardianName,
         guardianPhone: student.guardianPhone,
+        photoBytes: student.photoBytes || null,
+        photoMimeType: student.photoMimeType || null,
         promotedFromId: student.id,
         tenantId: req.tenantId,
       },
+      omit: { photoBytes: true },
     });
     await prisma.student.update({
       where: { id: student.id },

@@ -38,6 +38,9 @@ export const ACTION_LABELS = {
   BACKUP_CREATED: "Backup created",
   BACKUP_RESTORED: "Backup restored",
   CPD_UPDATED: "CPD updated",
+  HALL_TICKET_CREATED: "Hall tickets created",
+  HALL_TICKET_UPDATED: "Hall tickets updated",
+  HALL_TICKET_DELETED: "Hall tickets removed",
 };
 
 const ROLE_LABELS = {

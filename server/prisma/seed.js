@@ -1,5 +1,6 @@
 import bcrypt from "bcryptjs";
 import { ensurePlatformAdmin } from "../src/lib/ensurePlatformAdmin.js";
+import { DEMO_STUDENT_PHOTO } from "../src/lib/hallTickets.js";
 import { DEFAULT_PERIODS } from "../src/lib/periods.js";
 import { prisma } from "../src/lib/prisma.js";
 import { runWithoutTenant, runWithTenant } from "../src/lib/tenant.js";
@@ -268,10 +269,14 @@ async function seedSchool(school) {
       studentData.push({
         name: nameAt(idx),
         rollNo: roll,
+        admissionNo: `ADM-${cls.className}${cls.section}-${roll}`,
         classSectionId: cls.id,
         dob: new Date(cls.className === "9" ? 2010 : 2009, idx % 12, (idx % 27) + 1),
         guardianName: `Parent of ${nameAt(idx)}`,
         guardianPhone: `98${String(10000000 + idx * 17).slice(0, 8)}`,
+        ...(n <= 4
+          ? { photoBytes: DEMO_STUDENT_PHOTO, photoMimeType: "image/png" }
+          : {}),
       });
       idx += 1;
     }

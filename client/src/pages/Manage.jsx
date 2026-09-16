@@ -661,13 +661,23 @@ function SubjectsTab() {
 }
 
 function emptyStudentForm(classSectionId = "") {
-  return { name: "", rollNo: "", classSectionId, guardianName: "", guardianPhone: "", dob: "", academicYear: "" };
+  return {
+    name: "",
+    rollNo: "",
+    admissionNo: "",
+    classSectionId,
+    guardianName: "",
+    guardianPhone: "",
+    dob: "",
+    academicYear: "",
+  };
 }
 
 function studentSearchText(r) {
   return searchHaystack(
     r.name,
     r.rollNo,
+    r.admissionNo,
     r.classSection?.className,
     r.classSection?.section,
     r.academicYear,
@@ -737,6 +747,7 @@ function StudentsTab() {
     setForm({
       name: row.name,
       rollNo: row.rollNo,
+      admissionNo: row.admissionNo || "",
       classSectionId: row.classSectionId,
       guardianName: row.guardianName || "",
       guardianPhone: row.guardianPhone || "",
@@ -766,6 +777,7 @@ function StudentsTab() {
       ...form,
       name: name.value,
       rollNo: rollNo.value,
+      admissionNo: form.admissionNo?.trim() || null,
       dob: form.dob || null,
       guardianName: form.guardianName || null,
       guardianPhone: phone.value || null,
@@ -838,6 +850,35 @@ function StudentsTab() {
     }
   }
 
+  async function uploadPhoto(row, file) {
+    if (!file) return;
+    const body = new FormData();
+    body.append("photo", file);
+    setBusy(true);
+    try {
+      await api(`/api/students/${row.id}/photo`, { method: "POST", body });
+      toast.success(`Photo saved for ${row.name}.`);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function clearPhoto(row) {
+    setBusy(true);
+    try {
+      await api(`/api/students/${row.id}/photo`, { method: "DELETE" });
+      toast.success(`Photo removed for ${row.name}.`);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const [uploadMode, setUploadMode] = useState(null);
 
   async function send(commit) {
@@ -872,7 +913,7 @@ function StudentsTab() {
       <div className="card p-5 space-y-3" aria-busy={Boolean(uploadMode)}>
         <h3 className="font-serif text-lg">Bulk upload students</h3>
         <p className="text-sm text-ink-700/60">
-          Spreadsheet columns: Class, Section, Roll No, Name, Date of Birth, Guardian Name, Guardian Phone.
+          Spreadsheet columns: Class, Section, Roll No, Name, Admission No, Date of Birth, Guardian Name, Guardian Phone.
           If you pick a class below, Class/Section can be left blank in the file.
         </p>
         <div className="flex flex-wrap gap-2">
@@ -969,6 +1010,7 @@ function StudentsTab() {
           <h3 className="font-serif text-lg">{editingId ? "Edit student" : "Add one student"}</h3>
           <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
           <input className="field" placeholder="Roll no" value={form.rollNo} onChange={(e) => setForm({ ...form, rollNo: e.target.value })} required disabled={busy} />
+          <input className="field" placeholder="Admission no" value={form.admissionNo} onChange={(e) => setForm({ ...form, admissionNo: e.target.value })} disabled={busy} />
           <select className="field" value={form.classSectionId} onChange={(e) => setForm({ ...form, classSectionId: e.target.value })} required disabled={busy}>
             {classes.map((c) => <option key={c.id} value={c.id}>{c.className}-{c.section}</option>)}
           </select>
@@ -994,7 +1036,7 @@ function StudentsTab() {
                 setPage(1);
                 table.setQ(value);
               }}
-              placeholder="Search name, roll, guardian…"
+              placeholder="Search name, roll, admission, guardian…"
               matched={total}
               total={total}
             >
@@ -1052,6 +1094,8 @@ function StudentsTab() {
                   <tr>
                     <th>Roll</th>
                     <th>Name</th>
+                    <th>Admission</th>
+                    <th>Photo</th>
                     <th>Class</th>
                     <th>Year</th>
                     <th>DOB</th>
@@ -1065,6 +1109,8 @@ function StudentsTab() {
                     <tr key={r.id}>
                       <td>{r.rollNo}</td>
                       <td>{r.name}</td>
+                      <td>{r.admissionNo || "—"}</td>
+                      <td>{r.hasPhoto ? "Yes" : "—"}</td>
                       <td>{r.classSection.className}-{r.classSection.section}</td>
                       <td>{r.academicYear || "—"}</td>
                       <td>{r.dob ? new Date(r.dob).toLocaleDateString() : "—"}</td>
@@ -1072,6 +1118,25 @@ function StudentsTab() {
                       <td>{r.guardianPhone || "—"}</td>
                       <td className="whitespace-nowrap space-x-2">
                         <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
+                        <label className="btn-ghost inline-flex cursor-pointer items-center">
+                          Photo
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg"
+                            className="sr-only"
+                            disabled={busy}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              e.target.value = "";
+                              if (file) uploadPhoto(r, file);
+                            }}
+                          />
+                        </label>
+                        {r.hasPhoto && (
+                          <button type="button" className="btn-ghost" onClick={() => clearPhoto(r)} disabled={busy}>
+                            Clear photo
+                          </button>
+                        )}
                         {canIssuePortal && (
                           <button type="button" className="btn-ghost" onClick={() => issuePortalLink(r)} disabled={busy}>Portal link</button>
                         )}
