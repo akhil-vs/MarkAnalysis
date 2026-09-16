@@ -131,6 +131,7 @@ model School {
   cpdAppraisals         CpdAppraisal[]
   cpdCertificates       CpdCertificate[]
   emailOutbox           EmailOutbox[]
+  hallTicketIssues      HallTicketIssue[]
   @@map("School")
 }
 
@@ -174,6 +175,8 @@ model User {
   revaluationsRequested RevaluationRequest[]   @relation("RevalRequester")
   revaluationsReviewed  RevaluationRequest[]   @relation("RevalReviewer")
   boardPacksCreated  BoardPack[]               @relation("BoardPackCreator")
+  hallTicketsCreated HallTicketIssue[]         @relation("HallTicketCreator")
+  hallTicketsUpdated HallTicketIssue[]         @relation("HallTicketUpdater")
   cpdPlansOwned      CpdTrainingPlan[]         @relation("CpdPlanTeacher")
   cpdPlansCreated    CpdTrainingPlan[]         @relation("CpdPlanCreator")
   cpdObservationsAsTeacher CpdObservation[]    @relation("CpdObsTeacher")
@@ -219,6 +222,7 @@ model ClassSection {
   markEntryRequests MarkEntryAccessRequest[]
   timetableEntries  TimetableEntry[]
   reportCardReleases ReportCardRelease[]
+  hallTicketIssues  HallTicketIssue[]
 
   @@unique([tenantId, className, section])
   @@index([tenantId])
@@ -290,6 +294,8 @@ model Student {
   tenantId       String
   name           String
   rollNo         String
+  /// Optional school admission / register number printed on hall tickets.
+  admissionNo    String?
   classSectionId String
   academicYear   String        @default("2025-26")
   status         pg.enum(StudentStatus) @default("ACTIVE")
@@ -298,6 +304,9 @@ model Student {
   guardianPhone  String?
   /// Optional parent/guardian email for report-card and portal notifications.
   guardianEmail  String?
+  /// PNG or JPEG bytes for hall tickets and student profile.
+  photoBytes     Bytes?
+  photoMimeType  String?
   promotedFromId String?
 
   tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
@@ -358,6 +367,7 @@ model Exam {
   reportCardReleases      ReportCardRelease[]
   revaluationRequests     RevaluationRequest[]
   boardPacks              BoardPack[]
+  hallTicketIssues        HallTicketIssue[]
 
   @@index([tenantId])
   @@map("Exam")
@@ -473,6 +483,9 @@ native_enum AuditAction {
   BACKUP_CREATED = "BACKUP_CREATED"
   BACKUP_RESTORED = "BACKUP_RESTORED"
   CPD_UPDATED = "CPD_UPDATED"
+  HALL_TICKET_CREATED = "HALL_TICKET_CREATED"
+  HALL_TICKET_UPDATED = "HALL_TICKET_UPDATED"
+  HALL_TICKET_DELETED = "HALL_TICKET_DELETED"
 }
 
 /// Operational audit trail (approvals, access reviews, staff/exam changes).
@@ -612,6 +625,40 @@ native_enum EmailOutboxStatus {
   SENT = "SENT"
   FAILED = "FAILED"
   SKIPPED = "SKIPPED"
+}
+
+/// Saved hall-ticket batch settings for one exam × class section (create / modify / reprint).
+model HallTicketIssue {
+  id             String  @id @default(cuid(2))
+  tenantId       String
+  examId         String
+  classSectionId String
+  /// Optional override title printed on tickets (defaults to exam name + “Hall Ticket”).
+  title          String?
+  /// Instructions / rules printed on each ticket.
+  instructions   String?
+  /// Default venue when a paper schedule row has none.
+  defaultVenue   String?
+  /// Optional exam centre name printed under the school letterhead area.
+  examCentre     String?
+  /// When true, student photos are printed when available.
+  includePhoto   Boolean @default(true)
+  /// Free-form note for staff (not printed on tickets).
+  internalNotes  String?
+  createdById    String
+  updatedById    String?
+  createdAt      TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  exam         Exam         @relation(fields: [examId], references: [id], onDelete: Cascade)
+  classSection ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  createdBy    User         @relation("HallTicketCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  updatedBy    User?        @relation("HallTicketUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([examId, classSectionId])
+  @@index([tenantId, examId])
+  @@map("HallTicketIssue")
 }
 
 /// Per-paper exam calendar row (subject sitting date within an exam window).

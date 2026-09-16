@@ -63,3 +63,4 @@ Remaining work that would make this suitable for a live school:
 - ~~Migrate-on-deploy~~ (`prisma migrate deploy` on API boot + GitHub Action; `ensurePendingSchema` fallback)
 - ~~Replace `xlsx` parse path with ExcelJS-only~~ (uploads parse via ExcelJS; legacy `.xls` rejected)
 - ~~Deploy auth config guard~~ (`assertDeployAuthConfig` on Vercel/API boot; documented env vars)
+- ~~Per-class hall ticket generator (5 / A4) with student photos~~ (Principal / Exam coordinator create-edit; teachers view/download)

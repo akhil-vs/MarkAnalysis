@@ -11,6 +11,7 @@ export const FEATURE_CATALOG = [
   { id: "pendingUploads", label: "Pending uploads", group: "Marks", description: "Review and approve submitted mark registers." },
   { id: "accessRequests", label: "Access requests", group: "Marks", description: "Approve late-entry and edit requests." },
   { id: "consolidated", label: "Consolidated lists", group: "Marks", description: "Open and download consolidated mark lists." },
+  { id: "hallTickets", label: "Hall tickets", group: "Marks", description: "Create and print class hall tickets for an exam." },
   { id: "audit", label: "Audit log", group: "Marks", description: "View school activity and mark change history." },
   { id: "analysis", label: "Marks analysis", group: "Insights", description: "Open the analysis hub and nested reports." },
   { id: "analysisSchool", label: "School overview", group: "Insights", description: "School-wide KPIs and grade mix." },
@@ -59,6 +60,7 @@ export const DEFAULT_FEATURES_BY_BASE_ROLE = {
     pendingUploads: false,
     accessRequests: false,
     consolidated: true, // still gated by class-teacher status in nav/API
+    hallTickets: true,
     audit: false,
     analysis: true,
     analysisSchool: false,
@@ -81,6 +83,7 @@ export const DEFAULT_FEATURES_BY_BASE_ROLE = {
     pendingUploads: true,
     accessRequests: true,
     consolidated: true,
+    hallTickets: true,
     audit: true,
     analysis: true,
     analysisSchool: true,

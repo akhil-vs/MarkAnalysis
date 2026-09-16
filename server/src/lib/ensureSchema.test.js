@@ -231,6 +231,15 @@ describe("ensureSchema bootstrap", () => {
       __test.OPTIONAL_MODULES_STATEMENTS.some((s) => s.includes("optionalModules")),
       "auth path must ensure School.optionalModules used to hide Board ops / CPD"
     );
+    assert.equal(typeof __test.ensureHallTicketsSchema, "function");
+    assert.ok(
+      __test.HALL_TICKETS_TABLE_STATEMENTS.some((s) => s.includes("HallTicketIssue")),
+      "catch-up must create HallTicketIssue for hall ticket batches"
+    );
+    assert.ok(
+      __test.HALL_TICKETS_STUDENT_STATEMENTS.some((s) => s.includes("photoBytes")),
+      "catch-up must add Student photo columns for hall tickets"
+    );
     assert.equal(typeof __test.resetAuthSchemaEnsure, "function");
     assert.equal(new Set(__test.CATCHUP_MIGRATION_NAMES).size, __test.CATCHUP_MIGRATION_NAMES.length);
     for (const name of __test.AUTH_CATCHUP_MIGRATION_NAMES) {

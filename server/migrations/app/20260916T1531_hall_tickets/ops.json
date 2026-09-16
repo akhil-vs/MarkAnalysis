@@ -1,0 +1,848 @@
+[
+  {
+    "id": "addNativeEnumValue.AuditAction.HALL_TICKET_CREATED",
+    "label": "Add value \"HALL_TICKET_CREATED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"HALL_TICKET_CREATED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"HALL_TICKET_CREATED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "HALL_TICKET_CREATED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"HALL_TICKET_CREATED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'HALL_TICKET_CREATED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"HALL_TICKET_CREATED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "HALL_TICKET_CREATED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.HALL_TICKET_UPDATED",
+    "label": "Add value \"HALL_TICKET_UPDATED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"HALL_TICKET_UPDATED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"HALL_TICKET_UPDATED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "HALL_TICKET_UPDATED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"HALL_TICKET_UPDATED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'HALL_TICKET_UPDATED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"HALL_TICKET_UPDATED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "HALL_TICKET_UPDATED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "addNativeEnumValue.AuditAction.HALL_TICKET_DELETED",
+    "label": "Add value \"HALL_TICKET_DELETED\" to enum type \"AuditAction\"",
+    "summary": "Adds value \"HALL_TICKET_DELETED\" to enum type \"AuditAction\". A newly added enum value cannot be used until the transaction that adds it commits, so a migration that both appends a value and uses it in the same step will fail at apply.",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "AuditAction"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure enum type \"AuditAction\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_type\" AS \"t\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"t\".\"typtype\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "e"
+        ]
+      },
+      {
+        "description": "ensure value \"HALL_TICKET_DELETED\" is absent from enum type \"AuditAction\"",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "HALL_TICKET_DELETED"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add value \"HALL_TICKET_DELETED\" to enum type \"AuditAction\"",
+        "sql": "ALTER TYPE \"public\".\"AuditAction\" ADD VALUE 'HALL_TICKET_DELETED'"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify value \"HALL_TICKET_DELETED\" exists on enum type \"AuditAction\"",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_enum\" AS \"e\" INNER JOIN \"pg_type\" AS \"t\" ON \"t\".\"oid\" = \"e\".\"enumtypid\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"t\".\"typnamespace\" WHERE (\"n\".\"nspname\" = $1 AND \"t\".\"typname\" = $2 AND \"e\".\"enumlabel\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "AuditAction",
+          "HALL_TICKET_DELETED"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "table.HallTicketIssue",
+    "label": "Create table \"HallTicketIssue\"",
+    "summary": "Creates table \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"HallTicketIssue\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"HallTicketIssue\"",
+        "sql": "CREATE TABLE \"public\".\"HallTicketIssue\" (\n  \"classSectionId\" text NOT NULL,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"createdById\" text NOT NULL,\n  \"defaultVenue\" text,\n  \"examCentre\" text,\n  \"examId\" text NOT NULL,\n  \"id\" text NOT NULL,\n  \"includePhoto\" bool DEFAULT true NOT NULL,\n  \"instructions\" text,\n  \"internalNotes\" text,\n  \"tenantId\" text NOT NULL,\n  \"title\" text,\n  \"updatedAt\" timestamptz NOT NULL,\n  \"updatedById\" text,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"HallTicketIssue\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.School.optionalModules",
+    "label": "Add column \"optionalModules\" to \"School\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "optionalModules",
+        "table": "School"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"optionalModules\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "optionalModules"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"optionalModules\"",
+        "sql": "ALTER TABLE \"public\".\"School\" ADD COLUMN \"optionalModules\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"optionalModules\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "optionalModules"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Student.admissionNo",
+    "label": "Add column \"admissionNo\" to \"Student\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "admissionNo",
+        "table": "Student"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"admissionNo\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Student",
+          "admissionNo"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"admissionNo\"",
+        "sql": "ALTER TABLE \"public\".\"Student\" ADD COLUMN \"admissionNo\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"admissionNo\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Student",
+          "admissionNo"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Student.photoBytes",
+    "label": "Add column \"photoBytes\" to \"Student\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "photoBytes",
+        "table": "Student"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"photoBytes\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Student",
+          "photoBytes"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"photoBytes\"",
+        "sql": "ALTER TABLE \"public\".\"Student\" ADD COLUMN \"photoBytes\" bytea"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"photoBytes\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Student",
+          "photoBytes"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Student.photoMimeType",
+    "label": "Add column \"photoMimeType\" to \"Student\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "photoMimeType",
+        "table": "Student"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"photoMimeType\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Student",
+          "photoMimeType"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"photoMimeType\"",
+        "sql": "ALTER TABLE \"public\".\"Student\" ADD COLUMN \"photoMimeType\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"photoMimeType\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Student",
+          "photoMimeType"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "unique.HallTicketIssue.HallTicketIssue_examId_classSectionId_key",
+    "label": "Add unique constraint on \"HallTicketIssue\" (examId, classSectionId)",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "unique",
+        "name": "HallTicketIssue_examId_classSectionId_key",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure constraint \"HallTicketIssue_examId_classSectionId_key\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_examId_classSectionId_key",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add unique constraint \"HallTicketIssue_examId_classSectionId_key\"",
+        "sql": "ALTER TABLE \"public\".\"HallTicketIssue\" ADD CONSTRAINT \"HallTicketIssue_examId_classSectionId_key\" UNIQUE (\"examId\", \"classSectionId\")"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify constraint \"HallTicketIssue_examId_classSectionId_key\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_examId_classSectionId_key",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.HallTicketIssue.HallTicketIssue_classSectionId_idx_095a6e92",
+    "label": "Create index \"HallTicketIssue_classSectionId_idx_095a6e92\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "HallTicketIssue_classSectionId_idx_095a6e92",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"HallTicketIssue_classSectionId_idx_095a6e92\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_classSectionId_idx_095a6e92\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"HallTicketIssue_classSectionId_idx_095a6e92\"",
+        "sql": "CREATE INDEX \"HallTicketIssue_classSectionId_idx_095a6e92\" ON \"public\".\"HallTicketIssue\" (\"classSectionId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"HallTicketIssue_classSectionId_idx_095a6e92\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_classSectionId_idx_095a6e92\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.HallTicketIssue.HallTicketIssue_createdById_idx_8bf640ed",
+    "label": "Create index \"HallTicketIssue_createdById_idx_8bf640ed\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "HallTicketIssue_createdById_idx_8bf640ed",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"HallTicketIssue_createdById_idx_8bf640ed\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_createdById_idx_8bf640ed\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"HallTicketIssue_createdById_idx_8bf640ed\"",
+        "sql": "CREATE INDEX \"HallTicketIssue_createdById_idx_8bf640ed\" ON \"public\".\"HallTicketIssue\" (\"createdById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"HallTicketIssue_createdById_idx_8bf640ed\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_createdById_idx_8bf640ed\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.HallTicketIssue.HallTicketIssue_examId_idx_a57bdadd",
+    "label": "Create index \"HallTicketIssue_examId_idx_a57bdadd\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "HallTicketIssue_examId_idx_a57bdadd",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"HallTicketIssue_examId_idx_a57bdadd\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_examId_idx_a57bdadd\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"HallTicketIssue_examId_idx_a57bdadd\"",
+        "sql": "CREATE INDEX \"HallTicketIssue_examId_idx_a57bdadd\" ON \"public\".\"HallTicketIssue\" (\"examId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"HallTicketIssue_examId_idx_a57bdadd\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_examId_idx_a57bdadd\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.HallTicketIssue.HallTicketIssue_tenantId_examId_idx_b62d70cd",
+    "label": "Create index \"HallTicketIssue_tenantId_examId_idx_b62d70cd\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "HallTicketIssue_tenantId_examId_idx_b62d70cd",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"HallTicketIssue_tenantId_examId_idx_b62d70cd\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_tenantId_examId_idx_b62d70cd\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"HallTicketIssue_tenantId_examId_idx_b62d70cd\"",
+        "sql": "CREATE INDEX \"HallTicketIssue_tenantId_examId_idx_b62d70cd\" ON \"public\".\"HallTicketIssue\" (\"tenantId\", \"examId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"HallTicketIssue_tenantId_examId_idx_b62d70cd\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_tenantId_examId_idx_b62d70cd\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.HallTicketIssue.HallTicketIssue_tenantId_idx_c93ed4f1",
+    "label": "Create index \"HallTicketIssue_tenantId_idx_c93ed4f1\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "HallTicketIssue_tenantId_idx_c93ed4f1",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"HallTicketIssue_tenantId_idx_c93ed4f1\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"HallTicketIssue_tenantId_idx_c93ed4f1\"",
+        "sql": "CREATE INDEX \"HallTicketIssue_tenantId_idx_c93ed4f1\" ON \"public\".\"HallTicketIssue\" (\"tenantId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"HallTicketIssue_tenantId_idx_c93ed4f1\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_tenantId_idx_c93ed4f1\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.HallTicketIssue.HallTicketIssue_updatedById_idx_d0517c24",
+    "label": "Create index \"HallTicketIssue_updatedById_idx_d0517c24\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "HallTicketIssue_updatedById_idx_d0517c24",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"HallTicketIssue_updatedById_idx_d0517c24\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_updatedById_idx_d0517c24\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"HallTicketIssue_updatedById_idx_d0517c24\"",
+        "sql": "CREATE INDEX \"HallTicketIssue_updatedById_idx_d0517c24\" ON \"public\".\"HallTicketIssue\" (\"updatedById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"HallTicketIssue_updatedById_idx_d0517c24\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"HallTicketIssue_updatedById_idx_d0517c24\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.HallTicketIssue.HallTicketIssue_tenantId_fkey",
+    "label": "Add foreign key \"HallTicketIssue_tenantId_fkey\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "HallTicketIssue_tenantId_fkey",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"HallTicketIssue_tenantId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_tenantId_fkey",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"HallTicketIssue_tenantId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"HallTicketIssue\"\nADD CONSTRAINT \"HallTicketIssue_tenantId_fkey\"\nFOREIGN KEY (\"tenantId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"HallTicketIssue_tenantId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_tenantId_fkey",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.HallTicketIssue.HallTicketIssue_examId_fkey",
+    "label": "Add foreign key \"HallTicketIssue_examId_fkey\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "HallTicketIssue_examId_fkey",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"HallTicketIssue_examId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_examId_fkey",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"HallTicketIssue_examId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"HallTicketIssue\"\nADD CONSTRAINT \"HallTicketIssue_examId_fkey\"\nFOREIGN KEY (\"examId\")\nREFERENCES \"public\".\"Exam\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"HallTicketIssue_examId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_examId_fkey",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.HallTicketIssue.HallTicketIssue_classSectionId_fkey",
+    "label": "Add foreign key \"HallTicketIssue_classSectionId_fkey\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "HallTicketIssue_classSectionId_fkey",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"HallTicketIssue_classSectionId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_classSectionId_fkey",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"HallTicketIssue_classSectionId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"HallTicketIssue\"\nADD CONSTRAINT \"HallTicketIssue_classSectionId_fkey\"\nFOREIGN KEY (\"classSectionId\")\nREFERENCES \"public\".\"ClassSection\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"HallTicketIssue_classSectionId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_classSectionId_fkey",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.HallTicketIssue.HallTicketIssue_createdById_fkey",
+    "label": "Add foreign key \"HallTicketIssue_createdById_fkey\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "HallTicketIssue_createdById_fkey",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"HallTicketIssue_createdById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_createdById_fkey",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"HallTicketIssue_createdById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"HallTicketIssue\"\nADD CONSTRAINT \"HallTicketIssue_createdById_fkey\"\nFOREIGN KEY (\"createdById\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE CASCADE"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"HallTicketIssue_createdById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_createdById_fkey",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.HallTicketIssue.HallTicketIssue_updatedById_fkey",
+    "label": "Add foreign key \"HallTicketIssue_updatedById_fkey\" on \"HallTicketIssue\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "HallTicketIssue_updatedById_fkey",
+        "table": "HallTicketIssue"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"HallTicketIssue_updatedById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_updatedById_fkey",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"HallTicketIssue_updatedById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"HallTicketIssue\"\nADD CONSTRAINT \"HallTicketIssue_updatedById_fkey\"\nFOREIGN KEY (\"updatedById\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"HallTicketIssue_updatedById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "HallTicketIssue_updatedById_fkey",
+          "public",
+          "\"public\".\"HallTicketIssue\""
+        ]
+      }
+    ]
+  }
+]

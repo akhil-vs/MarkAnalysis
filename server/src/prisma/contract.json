@@ -44,6 +44,10 @@
       "model": "ExamPaperSchedule",
       "namespace": "public"
     },
+    "HallTicketIssue": {
+      "model": "HallTicketIssue",
+      "namespace": "public"
+    },
     "Mark": {
       "model": "Mark",
       "namespace": "public"
@@ -470,6 +474,21 @@
                 },
                 "to": {
                   "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "hallTicketIssues": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "classSectionId"
+                  ]
+                },
+                "to": {
+                  "model": "HallTicketIssue",
                   "namespace": "public"
                 }
               },
@@ -1578,6 +1597,21 @@
                   "namespace": "public"
                 }
               },
+              "hallTicketIssues": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "examId"
+                  ]
+                },
+                "to": {
+                  "model": "HallTicketIssue",
+                  "namespace": "public"
+                }
+              },
               "markEntryRequests": {
                 "cardinality": "1:N",
                 "on": {
@@ -1906,6 +1940,238 @@
               },
               "namespaceId": "public",
               "table": "ExamPaperSchedule"
+            }
+          },
+          "HallTicketIssue": {
+            "fields": {
+              "classSectionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdById": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "defaultVenue": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "examCentre": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "examId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "includePhoto": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "instructions": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "internalNotes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "title": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "classSection": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "classSectionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ClassSection",
+                  "namespace": "public"
+                }
+              },
+              "createdBy": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "createdById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "exam": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "examId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Exam",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              },
+              "updatedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "updatedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "classSectionId": {
+                  "column": "classSectionId"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "createdById": {
+                  "column": "createdById"
+                },
+                "defaultVenue": {
+                  "column": "defaultVenue"
+                },
+                "examCentre": {
+                  "column": "examCentre"
+                },
+                "examId": {
+                  "column": "examId"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "includePhoto": {
+                  "column": "includePhoto"
+                },
+                "instructions": {
+                  "column": "instructions"
+                },
+                "internalNotes": {
+                  "column": "internalNotes"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "title": {
+                  "column": "title"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "updatedById": {
+                  "column": "updatedById"
+                }
+              },
+              "namespaceId": "public",
+              "table": "HallTicketIssue"
             }
           },
           "Mark": {
@@ -3918,6 +4184,21 @@
                   "namespace": "public"
                 }
               },
+              "hallTicketIssues": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "HallTicketIssue",
+                  "namespace": "public"
+                }
+              },
               "markAudits": {
                 "cardinality": "1:N",
                 "on": {
@@ -4238,6 +4519,13 @@
                   "kind": "scalar"
                 }
               },
+              "admissionNo": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "classSectionId": {
                 "nullable": false,
                 "type": {
@@ -4282,6 +4570,20 @@
               },
               "name": {
                 "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "photoBytes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/bytea@1",
+                  "kind": "scalar"
+                }
+              },
+              "photoMimeType": {
+                "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
                   "kind": "scalar"
@@ -4434,6 +4736,9 @@
                 "academicYear": {
                   "column": "academicYear"
                 },
+                "admissionNo": {
+                  "column": "admissionNo"
+                },
                 "classSectionId": {
                   "column": "classSectionId"
                 },
@@ -4454,6 +4759,12 @@
                 },
                 "name": {
                   "column": "name"
+                },
+                "photoBytes": {
+                  "column": "photoBytes"
+                },
+                "photoMimeType": {
+                  "column": "photoMimeType"
                 },
                 "promotedFromId": {
                   "column": "promotedFromId"
@@ -5416,6 +5727,36 @@
                   "namespace": "public"
                 }
               },
+              "hallTicketsCreated": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "createdById"
+                  ]
+                },
+                "to": {
+                  "model": "HallTicketIssue",
+                  "namespace": "public"
+                }
+              },
+              "hallTicketsUpdated": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "updatedById"
+                  ]
+                },
+                "to": {
+                  "model": "HallTicketIssue",
+                  "namespace": "public"
+                }
+              },
               "markEntryRequests": {
                 "cardinality": "1:N",
                 "on": {
@@ -5661,7 +6002,10 @@
                 "PARENT_NOTIFIED",
                 "BACKUP_CREATED",
                 "BACKUP_RESTORED",
-                "CPD_UPDATED"
+                "CPD_UPDATED",
+                "HALL_TICKET_CREATED",
+                "HALL_TICKET_UPDATED",
+                "HALL_TICKET_DELETED"
               ],
               "typeName": "AuditAction"
             },
@@ -7350,6 +7694,239 @@
                     "examId",
                     "subjectId",
                     "className"
+                  ]
+                }
+              ]
+            },
+            "HallTicketIssue": {
+              "columns": {
+                "classSectionId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "createdById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "defaultVenue": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "examCentre": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "examId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "includePhoto": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": true
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "instructions": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "internalNotes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "title": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "updatedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "HallTicketIssue"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "examId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "HallTicketIssue"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Exam"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "classSectionId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "HallTicketIssue"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ClassSection"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "createdById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "HallTicketIssue"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "updatedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "HallTicketIssue"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "classSectionId"
+                  ],
+                  "name": "HallTicketIssue_classSectionId_idx_095a6e92",
+                  "prefix": "HallTicketIssue_classSectionId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "createdById"
+                  ],
+                  "name": "HallTicketIssue_createdById_idx_8bf640ed",
+                  "prefix": "HallTicketIssue_createdById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "examId"
+                  ],
+                  "name": "HallTicketIssue_examId_idx_a57bdadd",
+                  "prefix": "HallTicketIssue_examId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "examId"
+                  ],
+                  "name": "HallTicketIssue_tenantId_examId_idx_b62d70cd",
+                  "prefix": "HallTicketIssue_tenantId_examId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "HallTicketIssue_tenantId_idx_c93ed4f1",
+                  "prefix": "HallTicketIssue_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "updatedById"
+                  ],
+                  "name": "HallTicketIssue_updatedById_idx_d0517c24",
+                  "prefix": "HallTicketIssue_updatedById_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "examId",
+                    "classSectionId"
                   ]
                 }
               ]
@@ -9204,6 +9781,11 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "admissionNo": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "classSectionId": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -9238,6 +9820,16 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": false
+                },
+                "photoBytes": {
+                  "codecId": "pg/bytea@1",
+                  "nativeType": "bytea",
+                  "nullable": true
+                },
+                "photoMimeType": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
                 },
                 "promotedFromId": {
                   "codecId": "pg/text@1",
@@ -10139,7 +10731,10 @@
                 "PARENT_NOTIFIED",
                 "BACKUP_CREATED",
                 "BACKUP_RESTORED",
-                "CPD_UPDATED"
+                "CPD_UPDATED",
+                "HALL_TICKET_CREATED",
+                "HALL_TICKET_UPDATED",
+                "HALL_TICKET_DELETED"
               ]
             },
             "BoardPackStatus": {
@@ -10284,10 +10879,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "d5fbda4159a6baa200bd812ddbca216e6c2d4a017b7e5ab7fd456797e24c49c9"
+    "storageHash": "176eac814fef73ddfd3eb82de454156e0944a581824b660335ec52309b70bd4a"
   },
   "execution": {
-    "executionHash": "47b32973b482e3482f74eb4934530e25e38250f4c47a6f8943a2e003354c3f18",
+    "executionHash": "36db68f0be4277ccf9e3f1a5d5d903a939bef25a1ead4471ce6c7b948ddd8e44",
     "mutations": {
       "defaults": [
         {
@@ -10428,6 +11023,32 @@
             "column": "id",
             "namespace": "public",
             "table": "ExamPaperSchedule"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "HallTicketIssue"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updatedAt",
+            "namespace": "public",
+            "table": "HallTicketIssue"
           }
         },
         {
