@@ -539,6 +539,7 @@ export default function HallTickets() {
                                 <th className="px-3 py-2">Subject</th>
                                 <th className="px-3 py-2">Date</th>
                                 <th className="px-3 py-2">Time</th>
+                                <th className="px-3 py-2">Invigilator sign</th>
                               </tr>
                             </thead>
                             <tbody>
@@ -558,6 +559,7 @@ export default function HallTickets() {
                                   <td className="px-3 py-2">
                                     {[paper.startTime, paper.endTime].filter(Boolean).join("–") || "—"}
                                   </td>
+                                  <td className="px-3 py-2 text-ink-700/45">__________</td>
                                 </tr>
                               ))}
                             </tbody>

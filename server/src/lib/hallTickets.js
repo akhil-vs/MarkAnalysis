@@ -319,9 +319,10 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
 
   const scheduleWidth = scheduleWidthAt(cursorY);
   const cols = [
-    { key: "subject", label: "Subject", width: scheduleWidth * 0.46 },
-    { key: "date", label: "Date", width: scheduleWidth * 0.27 },
-    { key: "time", label: "Time", width: scheduleWidth * 0.27 },
+    { key: "subject", label: "Subject", width: scheduleWidth * 0.34 },
+    { key: "date", label: "Date", width: scheduleWidth * 0.22 },
+    { key: "time", label: "Time", width: scheduleWidth * 0.22 },
+    { key: "invigilator", label: "Invigilator sign", width: scheduleWidth * 0.22 },
   ];
   let cx = textLeft;
   doc.font("Helvetica-Bold").fontSize(6.5).fillColor(MUTED);
@@ -366,14 +367,16 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
       const paper = papers[i];
       const rowWidth = scheduleWidthAt(cursorY);
       const rowCols = [
-        { width: rowWidth * 0.46 },
-        { width: rowWidth * 0.27 },
-        { width: rowWidth * 0.27 },
+        { width: rowWidth * 0.34 },
+        { width: rowWidth * 0.22 },
+        { width: rowWidth * 0.22 },
+        { width: rowWidth * 0.22 },
       ];
       const values = [
         paper.subjectName,
         formatPaperDate(paper.paperDate),
         formatTimeRange(paper.startTime, paper.endTime),
+        "__________",
       ];
       cx = textLeft;
       for (let c = 0; c < rowCols.length; c += 1) {
@@ -412,11 +415,8 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
 
   const sigY = bottom - 12;
   doc.font("Helvetica").fontSize(6.5).fillColor(INK);
-  doc.text("Student sign: ____________", textLeft, sigY, { lineBreak: false });
-  doc.text("Invigilator: ____________", textLeft + fullTextWidth * 0.38, sigY, {
-    lineBreak: false,
-  });
-  doc.text("Principal: ____________", textLeft + fullTextWidth * 0.7, sigY, {
+  doc.text("Class teacher sign: ____________", textLeft, sigY, { lineBreak: false });
+  doc.text("Principal: ____________", textLeft + fullTextWidth * 0.62, sigY, {
     lineBreak: false,
   });
 
