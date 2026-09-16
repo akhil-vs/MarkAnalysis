@@ -1,7 +1,9 @@
-import { canAccessConsolidated, isLeadership, isPlatformAdmin } from "./roles.js";
+import { canAccessConsolidated, canEnterMarks, isLeadership, isPlatformAdmin } from "./roles.js";
 import { hasFeature } from "./features.js";
 
 export const LEADERSHIP_ROLES = ["PRINCIPAL", "EXAM_COORDINATOR"];
+/** Roles that enter marks (register + bulk upload), not principals. */
+export const MARKS_ENTRY_ROLES = ["TEACHER", "EXAM_COORDINATOR"];
 
 /** Canonical frontend paths for nested analysis detail pages and deep-links. */
 export const paths = {
@@ -130,14 +132,16 @@ export const NAV_GROUPS = [
         to: "/marks",
         label: NAV_LABELS.marks,
         icon: "register",
+        // Principals review via Pending uploads → Open register; no sidebar entry.
         roles: "all",
+        hideForRoles: ["PRINCIPAL"],
       },
       {
         id: "upload",
         to: "/upload",
         label: NAV_LABELS.upload,
         icon: "upload",
-        roles: "all",
+        roles: MARKS_ENTRY_ROLES,
       },
       {
         id: "pendingUploads",
@@ -375,6 +379,7 @@ export function roleAllows(itemRoles, userRole, { classTeacherOf = [] } = {}) {
   if (itemRoles === "leadership") return isLeadership(userRole);
   if (itemRoles === "platform") return isPlatformAdmin(userRole);
   if (itemRoles === "consolidated") return canAccessConsolidated(userRole, classTeacherOf);
+  if (itemRoles === "marksEntry") return canEnterMarks(userRole);
   if (Array.isArray(itemRoles)) return itemRoles.includes(userRole);
   return false;
 }
@@ -390,6 +395,7 @@ export function rolesForGuard(itemRoles) {
   if (!itemRoles || itemRoles === "all") return null;
   if (itemRoles === "leadership") return LEADERSHIP_ROLES;
   if (itemRoles === "platform") return ["PLATFORM_ADMIN"];
+  if (itemRoles === "marksEntry") return MARKS_ENTRY_ROLES;
   // Route is open to authenticated users; page/API enforce class-teacher rules.
   if (itemRoles === "consolidated") return null;
   if (Array.isArray(itemRoles)) return itemRoles;
@@ -462,6 +468,7 @@ export function guardFeatureForRoute(routePath) {
 export function filterNavItems(items, userRole, opts = {}) {
   return (items || [])
     .filter((item) => roleAllows(item.roles, userRole, opts))
+    .filter((item) => !(item.hideForRoles || []).includes(userRole))
     .filter((item) => featureAllows(item.id, opts.features))
     .map((item) => {
       if (!item.children) return item;

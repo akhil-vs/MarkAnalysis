@@ -9,7 +9,7 @@ import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel, Spinner } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
-import { isLeadership } from "../lib/roles.js";
+import { canEnterMarks, isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
 import { formatMarkCell, markInputIssue, parseMarkInput } from "../lib/markCodes.js";
 import { rejectNegativeKey } from "../lib/formValidation.js";
@@ -162,6 +162,8 @@ export default function MarksEntry() {
   const confirm = useConfirm();
   const toast = useToast();
   const leadership = isLeadership(user.role);
+  const isPrincipal = user.role === "PRINCIPAL";
+  const entersMarks = canEnterMarks(user.role);
   const isMdUp = useMediaQuery("(min-width: 768px)");
   const [params, setParams] = useSearchParams();
   const [classes, setClasses] = useState([]);
@@ -345,6 +347,7 @@ export default function MarksEntry() {
   }
 
   function canEditSubject(id) {
+    if (isPrincipal) return true; // stage moderate adjustments only (Save progress hidden)
     return leadership || grid?.entryAccess?.bySubject?.[id]?.canEnter !== false;
   }
 
@@ -352,7 +355,7 @@ export default function MarksEntry() {
     const subject = grid?.subjects?.find((s) => s.id === subjectId);
     if (subject && studentId && !studentTakesSubjectCell(subject, studentId)) return false;
     if (!canEditSubject(subjectId)) return false;
-    if (leadership) return true;
+    if (isPrincipal || leadership) return true;
     const locked = meta?.status === "SUBMITTED" || meta?.status === "APPROVED";
     if (!locked) return true;
     return Boolean(grid?.entryAccess?.bySubject?.[subjectId]?.canEditLocked);
@@ -960,9 +963,11 @@ export default function MarksEntry() {
       <PageHeader
         title={NAV_TITLES.marks}
         subtitle={
-          leadership
-            ? "Review and approve submitted marks. Use Moderate with reason for grace adjustments that stay approved."
-            : "Enter marks by class and subject. Save progress as draft, then submit for leadership approval."
+          isPrincipal
+            ? "Review and approve submitted marks. Teachers and exam coordinators enter marks — use Moderate with reason for grace adjustments."
+            : leadership
+              ? "Review and approve submitted marks. Use Moderate with reason for grace adjustments that stay approved."
+              : "Enter marks by class and subject. Save progress as draft, then submit for leadership approval."
         }
         actions={
           <div className="hidden lg:flex flex-wrap gap-2">
@@ -989,17 +994,19 @@ export default function MarksEntry() {
                 />
               </button>
             )}
-            <button
-              className="btn-ghost"
-              onClick={() => save()}
-              disabled={allLocked || !grid || saving || submitting || approving || moderating || stats.dirty === 0}
-            >
-              <BusyLabel
-                busy={saving}
-                idle={stats.dirty ? `Save progress (${stats.dirty})` : "Save progress"}
-                busyText="Saving…"
-              />
-            </button>
+            {entersMarks && (
+              <button
+                className="btn-ghost"
+                onClick={() => save()}
+                disabled={allLocked || !grid || saving || submitting || approving || moderating || stats.dirty === 0}
+              >
+                <BusyLabel
+                  busy={saving}
+                  idle={stats.dirty ? `Save progress (${stats.dirty})` : "Save progress"}
+                  busyText="Saving…"
+                />
+              </button>
+            )}
             {canRequestEdit && (
               <button
                 className="btn-ghost"
@@ -1068,17 +1075,19 @@ export default function MarksEntry() {
               />
             </button>
           )}
-          <button
-            className="btn-ghost flex-1 min-w-[8rem]"
-            onClick={() => save()}
-            disabled={allLocked || !grid || saving || submitting || approving || moderating || stats.dirty === 0}
-          >
-            <BusyLabel
-              busy={saving}
-              idle={stats.dirty ? `Save (${stats.dirty})` : "Save"}
-              busyText="Saving…"
-            />
-          </button>
+          {entersMarks && (
+            <button
+              className="btn-ghost flex-1 min-w-[8rem]"
+              onClick={() => save()}
+              disabled={allLocked || !grid || saving || submitting || approving || moderating || stats.dirty === 0}
+            >
+              <BusyLabel
+                busy={saving}
+                idle={stats.dirty ? `Save (${stats.dirty})` : "Save"}
+                busyText="Saving…"
+              />
+            </button>
+          )}
           {canRequestEdit && (
             <button
               className="btn-ghost flex-1 min-w-[8rem]"

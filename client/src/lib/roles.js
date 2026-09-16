@@ -14,6 +14,11 @@ export function canViewAllAudits(role) {
   return role === "PRINCIPAL";
 }
 
+/** Teachers and exam coordinators enter marks; principals review and approve. */
+export function canEnterMarks(role) {
+  return role === "TEACHER" || role === "EXAM_COORDINATOR";
+}
+
 /** Leadership always; teachers only when they are class teacher of at least one section. */
 export function canAccessConsolidated(role, classTeacherOf = []) {
   if (isLeadership(role)) return true;

@@ -150,6 +150,12 @@ marksRouter.get("/", async (req, res) => {
 });
 
 marksRouter.put("/", async (req, res) => {
+  if (req.user.role === "PRINCIPAL") {
+    return res.status(403).json({
+      error: "Principals do not enter marks. Approve submitted registers or use Moderate with a reason.",
+    });
+  }
+
   const { examId, entries } = req.body || {};
   if (!examId || !Array.isArray(entries)) {
     return res.status(400).json({ error: "examId and entries are required" });
@@ -380,6 +386,12 @@ function markSampleRows(valid) {
 }
 
 marksRouter.post("/upload", upload.single("file"), async (req, res) => {
+  if (req.user.role === "PRINCIPAL") {
+    return res.status(403).json({
+      error: "Principals do not bulk-upload marks. Teachers and exam coordinators enter marks.",
+    });
+  }
+
   const { classSectionId, examId, commit } = req.body || {};
   if (!classSectionId || !examId) {
     return res.status(400).json({ error: "classSectionId and examId are required" });
@@ -563,6 +575,12 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
 
 
 marksRouter.post("/submit", async (req, res) => {
+  if (req.user.role === "PRINCIPAL") {
+    return res.status(403).json({
+      error: "Principals do not submit mark registers. Approve submitted marks from teachers instead.",
+    });
+  }
+
   const { examId, classSectionId, subjectId } = req.body || {};
   if (!examId || !classSectionId || !subjectId) {
     return res.status(400).json({ error: "examId, classSectionId, and subjectId are required" });

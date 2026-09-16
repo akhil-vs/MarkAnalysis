@@ -72,6 +72,11 @@ export const PAGE_HELP = {
     about: "The mark register: enter marks by class and subject, save a draft, then submit for leadership approval. Use AB, EX, or WH for absent, exempt, or withheld.",
     useful: "This is the official paper. Drafts stay private; only approved marks feed analytics, ranks, and consolidated lists.",
   },
+  marksPrincipal: {
+    title: "What's on this page",
+    about: "Review a class register to approve submitted marks or moderate with a reason. Teachers and exam coordinators enter marks — principals do not type or bulk-upload registers.",
+    useful: "Open registers from Pending uploads. Approve submitted papers here, or use Moderate for grace adjustments that stay approved.",
+  },
   upload: {
     title: "What's on this page",
     about: "Bulk-import marks from a spreadsheet template for one class and exam. Preview first, then commit.",
@@ -318,6 +323,7 @@ export function helpForPath(pathname, role) {
     if (role === "PLATFORM_ADMIN") return PAGE_HELP.platformDashboard;
     return PAGE_HELP.dashboard;
   }
+  if (id === "marks" && role === "PRINCIPAL") return PAGE_HELP.marksPrincipal;
   return PAGE_HELP[id] || null;
 }
 
