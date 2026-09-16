@@ -420,6 +420,9 @@ export default function BoardOps() {
 
           <form className="card p-4 sm:p-5 space-y-3" onSubmit={savePaper}>
             <h3 className="font-serif text-lg">Schedule a paper</h3>
+            <p className="text-xs text-ink-700/55">
+              Day-to-day exam dates can also be set under Records → Exams (same or different per class and subject). Use this form for venues and board calendar detail.
+            </p>
             <div>
               <label className="label">Subject</label>
               <select

@@ -10,6 +10,10 @@ import { useAuth } from "../auth.jsx";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
+import ExamPaperScheduleEditor, {
+  buildPaperDrafts,
+  papersPayloadFromDrafts,
+} from "../components/ExamPaperScheduleEditor.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
 import {
@@ -44,7 +48,10 @@ export default function Manage() {
 
   return (
     <div>
-      <PageHeader title={NAV_TITLES.records} subtitle="Classes, subjects, students, and exam schedule" />
+      <PageHeader
+        title={NAV_TITLES.records}
+        subtitle="Classes, subjects, students, and exam paper dates by class"
+      />
       <div className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin">
         {TABS.map((t) => (
           <button
@@ -1174,6 +1181,16 @@ function examIsLocked(row) {
   return Boolean(row?.consolidationLocked || row?.consolidation?.maxMarksLocked);
 }
 
+function formatExamDateRange(row) {
+  const first = row.firstPaperDate || row.date;
+  const last = row.lastPaperDate || row.firstPaperDate || row.date;
+  if (!first) return "—";
+  const a = new Date(first).toLocaleDateString();
+  const b = new Date(last).toLocaleDateString();
+  if (a === b) return a;
+  return `${a} – ${b}`;
+}
+
 const EXAM_FILTERS = [
   { key: "type", match: (r, v) => r.type === v },
   { key: "academicYear", match: (r, v) => String(r.academicYear || "") === v },
@@ -1181,8 +1198,11 @@ const EXAM_FILTERS = [
 
 function ExamsTab() {
   const [rows, setRows] = useState([]);
+  const [subjects, setSubjects] = useState([]);
   const confirm = useConfirm();
   const [form, setForm] = useState(emptyExamForm());
+  const [paperDrafts, setPaperDrafts] = useState([]);
+  const [paperClassFilter, setPaperClassFilter] = useState("");
   const [formError, setFormError] = useState("");
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
@@ -1196,11 +1216,20 @@ function ExamsTab() {
   );
   const editingRow = editingId ? rows.find((r) => r.id === editingId) : null;
   const consolidationLocked = examIsLocked(editingRow);
+  const datedPapers = useMemo(
+    () => papersPayloadFromDrafts(paperDrafts),
+    [paperDrafts]
+  );
 
   async function load() {
     setLoading(true);
     try {
-      setRows(await api("/api/exams"));
+      const [exams, subjectList] = await Promise.all([api("/api/exams"), api("/api/subjects")]);
+      setRows(exams);
+      setSubjects(subjectList || []);
+      if (!editingId) {
+        setPaperDrafts(buildPaperDrafts(subjectList || [], []));
+      }
     } finally {
       setLoading(false);
     }
@@ -1209,9 +1238,10 @@ function ExamsTab() {
     load().catch((err) => toast.error(err.message || "Could not load exams"));
   }, []);
 
-  function startEdit(row) {
+  async function startEdit(row) {
     setEditingId(row.id);
     setFormError("");
+    setPaperClassFilter("");
     setForm({
       name: row.name,
       term: row.term,
@@ -1223,24 +1253,43 @@ function ExamsTab() {
         : "",
       consolidationMaxMarks: row.consolidationMaxMarks ?? row.consolidation?.consolidationMaxMarks ?? 100,
     });
+    setBusy(true);
+    try {
+      const data = await api(`/api/exams/${row.id}/papers`);
+      setPaperDrafts(buildPaperDrafts(subjects, data.papers || []));
+    } catch (err) {
+      toast.error(err.message || "Could not load paper schedule");
+      setPaperDrafts(buildPaperDrafts(subjects, row.paperSchedules || []));
+    } finally {
+      setBusy(false);
+    }
   }
 
   function cancelEdit() {
     setEditingId(null);
     setFormError("");
+    setPaperClassFilter("");
     setForm(emptyExamForm());
+    setPaperDrafts(buildPaperDrafts(subjects, []));
   }
 
   async function save(e) {
     e.preventDefault();
     const name = requiredText(form.name, "Exam name");
     const term = requiredText(form.term, "Term");
-    const date = requiredText(form.date, "Exam date");
     const year = parseAcademicYear(form.academicYear);
     const consolidationMaxMarks = consolidationLocked && editingId
       ? { value: form.consolidationMaxMarks }
       : parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]");
-    const err = firstError(name, term, date, year, consolidationMaxMarks);
+    const hasWindowDate = Boolean(form.date);
+    const hasPapers = datedPapers.length > 0;
+    if (!hasWindowDate && !hasPapers) {
+      const msg = "Set an exam window start date, or date at least one paper.";
+      setFormError(msg);
+      toast.error(msg);
+      return;
+    }
+    const err = firstError(name, term, year, consolidationMaxMarks);
     if (err) {
       setFormError(err);
       toast.error(err);
@@ -1249,11 +1298,12 @@ function ExamsTab() {
     const body = {
       name: name.value,
       term: term.value,
-      date: form.date,
       type: form.type,
       academicYear: year.value,
       marksEntryDeadline: form.marksEntryDeadline || null,
+      papers: datedPapers,
     };
+    if (hasWindowDate) body.date = form.date;
     if (!(consolidationLocked && editingId)) {
       body.consolidationMaxMarks = consolidationMaxMarks.value;
     }
@@ -1262,10 +1312,18 @@ function ExamsTab() {
     try {
       if (editingId) {
         await api(`/api/exams/${editingId}`, { method: "PATCH", body });
-        toast.success("Exam updated.");
+        toast.success(
+          datedPapers.length
+            ? `Exam updated · ${datedPapers.length} paper date${datedPapers.length === 1 ? "" : "s"}.`
+            : "Exam updated."
+        );
       } else {
         await api("/api/exams", { method: "POST", body });
-        toast.success("Exam scheduled.");
+        toast.success(
+          datedPapers.length
+            ? `Exam scheduled · ${datedPapers.length} paper date${datedPapers.length === 1 ? "" : "s"}.`
+            : "Exam scheduled."
+        );
       }
       cancelEdit();
       await load();
@@ -1354,71 +1412,106 @@ function ExamsTab() {
   }
 
   return (
-    <div className="grid lg:grid-cols-3 gap-4">
+    <div className="space-y-4">
       <form className="card p-4 space-y-3" onSubmit={save}>
         <h3 className="font-serif text-lg">{editingId ? "Edit exam" : "Schedule exam"}</h3>
-        <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
-        <input className="field" placeholder="Term" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} required disabled={busy} />
-        <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} pattern="\d{4}-\d{2}" title="Use a year like 2025-26" disabled={busy} />
-        <input className="field" type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} required disabled={busy} />
-        <select className="field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} disabled={busy}>
-          <option value="UNIT_TEST">Unit test</option>
-          <option value="MID_TERM">Mid-term</option>
-          <option value="FINAL">Final</option>
-        </select>
-        <div>
-          <label className="label">Mark entry deadline</label>
-          <input
-            className="field"
-            type="date"
-            value={form.marksEntryDeadline}
-            onChange={(e) => setForm({ ...form, marksEntryDeadline: e.target.value })}
-            disabled={busy}
-          />
-        </div>
-        <div>
-          <label className="label">Max marks [consolidation]</label>
-          <input
-            className={fieldClass(
-              formError && parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]").error
-            )}
-            type="number"
-            min={1}
-            step={1}
-            inputMode="numeric"
-            placeholder="Consolidation max"
-            value={form.consolidationMaxMarks}
-            onKeyDown={rejectNegativeKey}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                consolidationMaxMarks: acceptNonNegativeInput(
-                  e.target.value,
-                  form.consolidationMaxMarks,
-                  { integer: true }
-                ),
-              })
-            }
-            required
-            disabled={busy || (Boolean(editingId) && consolidationLocked)}
-          />
-          {editingId && consolidationLocked ? (
-            <p className="mt-1 text-xs text-clay-600">
-              Locked
-              {editingRow?.consolidation?.lockedBy?.name
-                ? ` by ${editingRow.consolidation.lockedBy.name}`
-                : ""}
-              {editingRow?.consolidation?.lockedAt
-                ? ` on ${new Date(editingRow.consolidation.lockedAt).toLocaleString()}`
-                : ""}
-              . Unlock to change this exam’s CML ceiling.
-            </p>
-          ) : (
+        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
+          <div>
+            <label className="label">Name</label>
+            <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
+          </div>
+          <div>
+            <label className="label">Term</label>
+            <input className="field" placeholder="Term" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} required disabled={busy} />
+          </div>
+          <div>
+            <label className="label">Academic year</label>
+            <input className="field" placeholder="e.g. 2025-26" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} pattern="\d{4}-\d{2}" title="Use a year like 2025-26" disabled={busy} />
+          </div>
+          <div>
+            <label className="label">Exam window start</label>
+            <input
+              className="field"
+              type="date"
+              value={form.date}
+              onChange={(e) => setForm({ ...form, date: e.target.value })}
+              disabled={busy}
+            />
             <p className="mt-1 text-xs text-ink-700/55">
-              Entered marks are scaled to this ceiling so this exam’s consolidated lists stay within 100%. Must be 1 or more.
+              Used for sorting when paper dates differ. Fills from the earliest paper if left blank.
             </p>
-          )}
+          </div>
+          <div>
+            <label className="label">Type</label>
+            <select className="field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} disabled={busy}>
+              <option value="UNIT_TEST">Unit test</option>
+              <option value="MID_TERM">Mid-term</option>
+              <option value="FINAL">Final</option>
+            </select>
+          </div>
+          <div>
+            <label className="label">Mark entry deadline</label>
+            <input
+              className="field"
+              type="date"
+              value={form.marksEntryDeadline}
+              onChange={(e) => setForm({ ...form, marksEntryDeadline: e.target.value })}
+              disabled={busy}
+            />
+          </div>
+          <div>
+            <label className="label">Max marks [consolidation]</label>
+            <input
+              className={fieldClass(
+                formError && parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]").error
+              )}
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              placeholder="Consolidation max"
+              value={form.consolidationMaxMarks}
+              onKeyDown={rejectNegativeKey}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  consolidationMaxMarks: acceptNonNegativeInput(
+                    e.target.value,
+                    form.consolidationMaxMarks,
+                    { integer: true }
+                  ),
+                })
+              }
+              required
+              disabled={busy || (Boolean(editingId) && consolidationLocked)}
+            />
+            {editingId && consolidationLocked ? (
+              <p className="mt-1 text-xs text-clay-600">
+                Locked
+                {editingRow?.consolidation?.lockedBy?.name
+                  ? ` by ${editingRow.consolidation.lockedBy.name}`
+                  : ""}
+                {editingRow?.consolidation?.lockedAt
+                  ? ` on ${new Date(editingRow.consolidation.lockedAt).toLocaleString()}`
+                  : ""}
+                . Unlock to change this exam’s CML ceiling.
+              </p>
+            ) : (
+              <p className="mt-1 text-xs text-ink-700/55">
+                Entered marks are scaled to this ceiling so this exam’s consolidated lists stay within 100%.
+              </p>
+            )}
+          </div>
         </div>
+
+        <ExamPaperScheduleEditor
+          drafts={paperDrafts}
+          onChange={setPaperDrafts}
+          disabled={busy}
+          classFilter={paperClassFilter}
+          onClassFilterChange={setPaperClassFilter}
+        />
+
         {formError && <FieldError message={formError} />}
         <div className="flex flex-wrap gap-2">
           <button className="btn-primary" disabled={busy}>
@@ -1437,7 +1530,8 @@ function ExamsTab() {
           {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
         </div>
       </form>
-      <div className="lg:col-span-2 card">
+
+      <div className="card">
         <div className="p-3 border-b border-ink-900/10">
           <TableToolbar
             q={table.q}
@@ -1480,7 +1574,8 @@ function ExamsTab() {
                   <th>Term</th>
                   <th>Type</th>
                   <th>CML max</th>
-                  <th>Date</th>
+                  <th>Papers</th>
+                  <th>Dates</th>
                   <th>Deadline</th>
                   <th></th>
                 </tr>
@@ -1498,7 +1593,8 @@ function ExamsTab() {
                         <span className="ml-1 text-xs text-moss-600">locked</span>
                       ) : null}
                     </td>
-                    <td>{new Date(r.date).toLocaleDateString()}</td>
+                    <td>{r.paperCount ?? r.paperSchedules?.length ?? 0}</td>
+                    <td>{formatExamDateRange(r)}</td>
                     <td>{r.marksEntryDeadline ? new Date(r.marksEntryDeadline).toLocaleDateString() : "—"}</td>
                     <td className="whitespace-nowrap space-x-2">
                       <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
