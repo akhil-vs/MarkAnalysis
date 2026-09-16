@@ -311,21 +311,45 @@ export default function HallTickets() {
               <Panel title={`Divisions · Class ${selectedGroup.className}`}>
                 <div className="flex flex-wrap gap-2">
                   {selectedGroup.divisions.map((div) => (
-                    <button
-                      key={div.id}
-                      type="button"
-                      className={`rounded-lg border px-3 py-2 text-sm ${
-                        selectedId === div.id
-                          ? "border-ink-900 bg-ink-900 text-cream"
-                          : "border-ink-900/10 bg-white hover:border-ink-900/25"
-                      }`}
-                      onClick={() => selectDivision(div.id)}
-                    >
-                      <span className="font-medium">{div.label}</span>
-                      <span className={`ml-2 text-xs ${selectedId === div.id ? "text-cream/70" : "text-ink-700/60"}`}>
-                        {div.studentCount} · {div.issue ? "Saved" : "New"}
-                      </span>
-                    </button>
+                    <div key={div.id} className="flex items-stretch gap-1">
+                      <button
+                        type="button"
+                        className={`rounded-lg border px-3 py-2 text-sm ${
+                          selectedId === div.id
+                            ? "border-ink-900 bg-ink-900 text-cream"
+                            : "border-ink-900/10 bg-white hover:border-ink-900/25"
+                        }`}
+                        onClick={() => selectDivision(div.id)}
+                      >
+                        <span className="font-medium">{div.label}</span>
+                        <span className={`ml-2 text-xs ${selectedId === div.id ? "text-cream/70" : "text-ink-700/60"}`}>
+                          {div.studentCount} · {div.issue ? "Saved" : "New"}
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost rounded-lg px-2.5 text-xs"
+                        title={`Download PDF for ${div.label}`}
+                        disabled={Boolean(busy) || !examId}
+                        onClick={async () => {
+                          selectDivision(div.id);
+                          setBusy("pdf");
+                          try {
+                            await download(
+                              `/api/hall-tickets/pdf?examId=${encodeURIComponent(examId)}&classSectionId=${encodeURIComponent(div.id)}`,
+                              `hall-tickets-${div.label}.pdf`
+                            );
+                            toast.success(`Downloaded hall tickets for ${div.label}.`);
+                          } catch (e) {
+                            toast.error(e.message);
+                          } finally {
+                            setBusy("");
+                          }
+                        }}
+                      >
+                        PDF
+                      </button>
+                    </div>
                   ))}
                 </div>
               </Panel>
@@ -338,11 +362,11 @@ export default function HallTickets() {
             {selectedId && (
               <Panel
                 title={selectedSection?.label || "Hall tickets"}
-                actions={
+                action={
                   <button
                     type="button"
                     className="btn-primary"
-                    disabled={Boolean(busy) || loadingPreview}
+                    disabled={Boolean(busy) || loadingPreview || !preview}
                     onClick={downloadPdf}
                   >
                     <BusyLabel busy={busy === "pdf"} idle="Download PDF (5 / A4)" busyText="Preparing…" />
@@ -356,6 +380,25 @@ export default function HallTickets() {
                   </div>
                 ) : preview ? (
                   <div className="space-y-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-ink-900/10 bg-cream/50 px-3 py-3">
+                      <div className="text-sm text-ink-700/80">
+                        <span className="font-medium text-ink-900">Preview ready</span>
+                        {" · "}
+                        {preview.studentCount} student{preview.studentCount === 1 ? "" : "s"}
+                        {" · "}
+                        {preview.paperCount} paper{preview.paperCount === 1 ? "" : "s"}
+                        {preview.issue ? " · batch saved" : " · using defaults until you save a batch"}
+                      </div>
+                      <button
+                        type="button"
+                        className="btn-primary"
+                        disabled={Boolean(busy)}
+                        onClick={downloadPdf}
+                      >
+                        <BusyLabel busy={busy === "pdf"} idle="Download PDF (5 / A4)" busyText="Preparing…" />
+                      </button>
+                    </div>
+
                     <div className="grid gap-3 sm:grid-cols-3">
                       <div className="rounded-lg border border-ink-900/10 bg-cream/40 px-3 py-2">
                         <div className="text-xs uppercase tracking-wide text-ink-700/50">Students</div>
