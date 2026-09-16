@@ -1,7 +1,8 @@
 /**
  * Principal-managed feature access for staff roles.
  * PRINCIPAL and PLATFORM_ADMIN always have every catalog feature,
- * except school-level optional modules that stay off until enabled.
+ * except school-level optional modules that stay off until enabled,
+ * and mark entry / bulk upload which principals do not use.
  */
 
 export const FEATURE_CATALOG = [
@@ -33,6 +34,12 @@ const FEATURE_ID_SET = new Set(FEATURE_IDS);
 
 /** Always available; not principal-toggleable. */
 export const ALWAYS_ON_FEATURES = ["dashboard", "profile"];
+
+/**
+ * Features principals do not use. Mark register stays reachable via deep links
+ * from Pending uploads for review/approve; bulk upload is fully withheld.
+ */
+export const PRINCIPAL_EXCLUDED_FEATURES = ["upload"];
 
 /**
  * Features hidden school-wide until principal enables them under School profile.
@@ -236,6 +243,9 @@ export function featuresForUser(
   let list;
   if (user.role === "PRINCIPAL" || user.role === "PLATFORM_ADMIN") {
     list = enabledFeatureList(Object.fromEntries(FEATURE_IDS.map((id) => [id, true])));
+    if (user.role === "PRINCIPAL") {
+      list = list.filter((id) => !PRINCIPAL_EXCLUDED_FEATURES.includes(id));
+    }
   } else {
     const accessKey = resolveAccessRoleKey(user, customRoles);
     const custom = customRoles.find((r) => r.id === accessKey);

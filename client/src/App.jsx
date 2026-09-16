@@ -144,7 +144,7 @@ export default function App() {
           <Route path="users" element={<Guarded route="users"><Users /></Guarded>} />
           <Route path="manage" element={<Guarded route="manage"><Manage /></Guarded>} />
           <Route path="marks" element={<MarksEntry />} />
-          <Route path="upload" element={<MarksUpload />} />
+          <Route path="upload" element={<Guarded route="upload"><MarksUpload /></Guarded>} />
           <Route path="audit" element={<Guarded route="audit"><AuditLog /></Guarded>} />
           <Route path="analysis" element={<AnalysisHub />} />
           <Route

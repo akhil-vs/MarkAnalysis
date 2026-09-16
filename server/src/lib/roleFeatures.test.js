@@ -58,6 +58,8 @@ describe("resolveAccessRoleKey / featuresForUser", () => {
     assert.ok(list.includes("dashboard"));
     assert.ok(list.includes("boardOps"));
     assert.ok(list.includes("cpd"));
+    assert.equal(list.includes("upload"), false);
+    assert.ok(list.includes("marks"));
   });
 
   it("hides board ops and cpd by default even for principals", () => {
@@ -65,6 +67,7 @@ describe("resolveAccessRoleKey / featuresForUser", () => {
     assert.equal(list.includes("boardOps"), false);
     assert.equal(list.includes("cpd"), false);
     assert.ok(list.includes("staff"));
+    assert.equal(list.includes("upload"), false);
   });
 
   it("applies stored overrides for teachers", () => {
