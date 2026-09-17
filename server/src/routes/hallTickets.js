@@ -4,8 +4,10 @@ import { logActivity } from "../lib/activityAudit.js";
 import { ensureHallTicketsSchema } from "../lib/ensureSchema.js";
 import {
   buildHallTicketPayload,
+  papersHaveDateAndTime,
   parseHallTicketPatch,
   publicHallTicketIssue,
+  resolvePaperRows,
   streamHallTicketsPdf,
 } from "../lib/hallTickets.js";
 import { getSchoolLetterhead } from "../lib/school.js";
@@ -84,6 +86,7 @@ async function buildPreviewBundle({ exam, classSection, issue }) {
     studentCount: students.length,
     photoCount: students.filter((s) => s.photoMimeType && s.photoBytes?.length).length,
     paperCount: tickets[0]?.papers?.length || 0,
+    scheduleComplete: papersHaveDateAndTime(tickets[0]?.papers || []),
   };
 }
 
@@ -123,6 +126,43 @@ hallTicketsRouter.get("/", async (req, res) => {
 
   const issueByClass = new Map(issues.map((i) => [`${i.examId}:${i.classSectionId}`, i]));
 
+  let scheduleCompleteByClassName = new Map();
+  if (examId) {
+    const exam = await prisma.exam.findUnique({ where: { id: examId } });
+    if (exam) {
+      const classNames = [...new Set(visibleClasses.map((c) => c.className))];
+      const [subjects, schedules] = await Promise.all([
+        prisma.subject.findMany({
+          where: { className: { in: classNames.length ? classNames : ["__none__"] } },
+          orderBy: { name: "asc" },
+        }),
+        prisma.examPaperSchedule.findMany({
+          where: {
+            examId,
+            OR: [
+              { className: null },
+              ...(classNames.length ? [{ className: { in: classNames } }] : []),
+            ],
+          },
+        }),
+      ]);
+      const subjectsByClass = new Map();
+      for (const subject of subjects) {
+        if (!subjectsByClass.has(subject.className)) subjectsByClass.set(subject.className, []);
+        subjectsByClass.get(subject.className).push(subject);
+      }
+      for (const className of classNames) {
+        const papers = resolvePaperRows({
+          subjects: subjectsByClass.get(className) || [],
+          schedules,
+          exam,
+          className,
+        });
+        scheduleCompleteByClassName.set(className, papersHaveDateAndTime(papers));
+      }
+    }
+  }
+
   res.json({
     canEdit: isLeadership(req.user.role),
     examId: examId || null,
@@ -136,6 +176,7 @@ hallTicketsRouter.get("/", async (req, res) => {
         label: `${cls.className}-${cls.section}`,
         studentCount: cls._count?.students || 0,
         issue: issue ? publicHallTicketIssue(issue) : null,
+        scheduleComplete: examId ? Boolean(scheduleCompleteByClassName.get(cls.className)) : false,
       };
     }),
   });
@@ -187,6 +228,8 @@ hallTicketsRouter.get("/preview", async (req, res) => {
     studentCount: bundle.studentCount,
     photoCount: bundle.photoCount,
     paperCount: bundle.paperCount,
+    scheduleComplete: bundle.scheduleComplete,
+    canDownloadPdf: bundle.scheduleComplete,
     students: bundle.students.map((s) => ({
       id: s.id,
       name: s.name,
@@ -225,6 +268,11 @@ hallTicketsRouter.get("/pdf", async (req, res) => {
   });
 
   const bundle = await buildPreviewBundle({ exam, classSection, issue });
+  if (!bundle.scheduleComplete) {
+    return res.status(400).json({
+      error: "Set a date and start time for every paper under Records → Exams before downloading hall tickets.",
+    });
+  }
   const stem = `hall-tickets-${classSection.className}${classSection.section}-${exam.name}`
     .replace(/\s+/g, "_")
     .replace(/[^a-zA-Z0-9._-]/g, "");

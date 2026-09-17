@@ -3,7 +3,9 @@ import { describe, it } from "node:test";
 import {
   HALL_TICKETS_PER_PAGE,
   buildHallTicketPayload,
+  paperHasDateAndTime,
   papersForStudent,
+  papersHaveDateAndTime,
   parseHallTicketPatch,
   publicStudent,
   resolvePaperRows,
@@ -114,5 +116,29 @@ describe("hallTickets helpers", () => {
     assert.equal(patch.title, null);
     assert.equal(patch.instructions, "Keep calm");
     assert.equal(patch.includePhoto, false);
+  });
+
+  it("papersHaveDateAndTime requires date and start time on every paper", () => {
+    assert.equal(papersHaveDateAndTime([]), false);
+    assert.equal(
+      paperHasDateAndTime({ paperDate: "2026-03-10", startTime: "09:00" }),
+      true
+    );
+    assert.equal(paperHasDateAndTime({ paperDate: "2026-03-10", startTime: "" }), false);
+    assert.equal(paperHasDateAndTime({ paperDate: null, startTime: "09:00" }), false);
+    assert.equal(
+      papersHaveDateAndTime([
+        { paperDate: "2026-03-10", startTime: "09:00" },
+        { paperDate: "2026-03-11", startTime: null },
+      ]),
+      false
+    );
+    assert.equal(
+      papersHaveDateAndTime([
+        { paperDate: "2026-03-10", startTime: "09:00" },
+        { paperDate: "2026-03-11", startTime: "10:00" },
+      ]),
+      true
+    );
   });
 });
