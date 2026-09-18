@@ -7,21 +7,6 @@ import { BusyLabel, InlineLoading, LoadingState } from "../components/Spinner.js
 import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
-import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
-
-function studentSearchText(s) {
-  return searchHaystack(
-    s.name,
-    s.rollNo,
-    s.admissionNo,
-    s.classSection?.className,
-    s.classSection?.section
-  );
-}
-
-const STUDENT_FILTERS = [
-  { key: "classSectionId", match: (r, v) => r.classSectionId === v },
-];
 
 function StudentPhotoThumb({ studentId, hasPhoto, nonce }) {
   const [preview, setPreview] = useState(null);
@@ -79,7 +64,7 @@ function StudentPhotoThumb({ studentId, hasPhoto, nonce }) {
 
 export default function StudentPhotos() {
   const toast = useToast();
-  const [rows, setRows] = useState(null);
+  const [rows, setRows] = useState([]);
   const [classes, setClasses] = useState([]);
   const [error, setError] = useState("");
   const [busyId, setBusyId] = useState(null);
@@ -88,22 +73,41 @@ export default function StudentPhotos() {
   const [bulkResult, setBulkResult] = useState(null);
   const [bulkInputKey, setBulkInputKey] = useState(0);
   const [photoNonce, setPhotoNonce] = useState(0);
-  const table = useTableSearch(rows || [], {
-    getSearchText: studentSearchText,
-    filterDefs: STUDENT_FILTERS,
-  });
+  const [loading, setLoading] = useState(true);
+  const [q, setQ] = useState("");
+  const [classSectionId, setClassSectionId] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [total, setTotal] = useState(0);
+  const [pageCount, setPageCount] = useState(1);
 
   const anyBusy = Boolean(busyId) || bulkBusy;
 
   async function load() {
-    const [sRes, c] = await Promise.all([api("/api/students"), api("/api/classes")]);
-    setRows(Array.isArray(sRes) ? sRes : sRes.items || []);
-    setClasses(Array.isArray(c) ? c : c.items || []);
+    const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
+    if (q.trim()) params.set("q", q.trim());
+    if (classSectionId) params.set("classSectionId", classSectionId);
+    setLoading(true);
+    try {
+      const [sRes, c] = await Promise.all([api(`/api/students?${params}`), api("/api/classes")]);
+      if (Array.isArray(sRes)) {
+        setRows(sRes);
+        setTotal(sRes.length);
+        setPageCount(1);
+      } else {
+        setRows(sRes.items || []);
+        setTotal(sRes.total || 0);
+        setPageCount(sRes.pageCount || 1);
+      }
+      setClasses(Array.isArray(c) ? c : c.items || []);
+    } finally {
+      setLoading(false);
+    }
   }
 
   useEffect(() => {
     load().catch((err) => setError(err.message || "Could not load students"));
-  }, []);
+  }, [page, pageSize, q, classSectionId]);
 
   async function uploadPhoto(row, file) {
     if (!file) return;
@@ -216,7 +220,7 @@ export default function StudentPhotos() {
   }
 
   if (error) return <LoadError message={error} />;
-  if (!rows) return <LoadingState label="Loading students…" />;
+  if (loading && !rows.length) return <LoadingState label="Loading students…" />;
 
   return (
     <div className="space-y-4">
@@ -350,16 +354,22 @@ export default function StudentPhotos() {
       <div className="card">
         <div className="p-3 border-b border-ink-900/10 space-y-2">
           <TableToolbar
-            q={table.q}
-            setQ={table.setQ}
+            q={q}
+            setQ={(value) => {
+              setQ(value);
+              setPage(1);
+            }}
             placeholder="Search name, roll, admission, or class…"
-            matched={table.matched}
-            total={table.total}
+            matched={total}
+            total={total}
           >
             <select
               className="field-filter"
-              value={table.filters.classSectionId || ""}
-              onChange={(e) => table.setFilter("classSectionId", e.target.value)}
+              value={classSectionId}
+              onChange={(e) => {
+                setClassSectionId(e.target.value);
+                setPage(1);
+              }}
               aria-label="Filter by class"
             >
               <option value="">All classes</option>
@@ -377,11 +387,21 @@ export default function StudentPhotos() {
         </div>
         {busyId && <InlineLoading label="Updating photo…" />}
         <PaginatedTable
-          items={table.filtered}
-          resetKey={table.resetKey}
+          items={rows}
           empty="No matching students."
-          busy={anyBusy}
-          busyLabel={bulkBusy ? "Uploading photos…" : "Updating photo…"}
+          busy={anyBusy || loading}
+          busyLabel={bulkBusy ? "Uploading photos…" : loading ? "Loading students…" : "Updating photo…"}
+          server={{
+            page,
+            setPage,
+            pageCount,
+            pageSize,
+            setPageSize: (n) => {
+              setPageSize(n);
+              setPage(1);
+            },
+            total,
+          }}
         >
           {(page) => (
             <table className="table">
