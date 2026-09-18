@@ -42,7 +42,7 @@ export const FEATURE_GROUPS = [
 /** Hidden school-wide until principal enables under School profile → Optional modules. */
 export const OPTIONAL_MODULE_IDS = ["boardOps", "cpd"];
 
-export const ALWAYS_ON_FEATURES = ["dashboard", "profile"];
+export const ALWAYS_ON_FEATURES = ["dashboard", "profile", "help"];
 
 export function hasFeature(features, featureId) {
   if (!featureId || ALWAYS_ON_FEATURES.includes(featureId)) return true;

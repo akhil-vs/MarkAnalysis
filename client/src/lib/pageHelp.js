@@ -142,6 +142,11 @@ export const PAGE_HELP = {
     about: "Your name, email, school ID, password, and two-factor authentication (MFA) status.",
     useful: "Keep sign-in details up to date. Enable MFA for stronger account security; a password change takes effect on the next login.",
   },
+  help: {
+    title: "What's on this page",
+    about: "Downloadable PDF user manuals for principals, exam co-ordinators, and teachers.",
+    useful: "Open your role’s PDF guide. Each school user only sees the manual that matches their role.",
+  },
   platformDashboard: {
     title: "What's on this page",
     about: "Platform overview of every school on this deployment: how many are active or suspended, total staff and students, and the most recently added campuses.",

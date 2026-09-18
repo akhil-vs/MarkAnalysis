@@ -180,6 +180,13 @@ const NAV_ICON_PATHS = {
       <path d="M10 11h4M10 14h4" strokeLinecap="round" />
     </>
   ),
+  help: (
+    <>
+      <circle cx="12" cy="12" r="8" />
+      <path d="M9.5 9.5a2.5 2.5 0 0 1 4.6 1.2c0 1.5-1.5 2-1.5 3" strokeLinecap="round" />
+      <path d="M12 16.5h.01" strokeLinecap="round" />
+    </>
+  ),
 };
 
 function NavIcon({ name, size = 16 }) {

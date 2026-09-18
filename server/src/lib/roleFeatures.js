@@ -40,7 +40,7 @@ export const FEATURE_IDS = FEATURE_CATALOG.map((f) => f.id);
 const FEATURE_ID_SET = new Set(FEATURE_IDS);
 
 /** Always available; not principal-toggleable. */
-export const ALWAYS_ON_FEATURES = ["dashboard", "profile"];
+export const ALWAYS_ON_FEATURES = ["dashboard", "profile", "help"];
 
 /**
  * Features principals do not use. Mark register stays reachable via deep links
