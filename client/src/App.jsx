@@ -37,6 +37,7 @@ const LateEntryRequests = lazy(() => import("./pages/LateEntryRequests.jsx"));
 const AuditLog = lazy(() => import("./pages/AuditLog.jsx"));
 const ConsolidatedLists = lazy(() => import("./pages/ConsolidatedLists.jsx"));
 const HallTickets = lazy(() => import("./pages/HallTickets.jsx"));
+const StudentPhotos = lazy(() => import("./pages/StudentPhotos.jsx"));
 const Profile = lazy(() => import("./pages/Profile.jsx"));
 const SchoolSettings = lazy(() => import("./pages/SchoolSettings.jsx"));
 const Timetables = lazy(() => import("./pages/Timetables.jsx"));
@@ -189,6 +190,10 @@ export default function App() {
           <Route
             path="hall-tickets"
             element={<Guarded route="hall-tickets"><HallTickets /></Guarded>}
+          />
+          <Route
+            path="student-photos"
+            element={<Guarded route="student-photos"><StudentPhotos /></Guarded>}
           />
           <Route
             path="pending-uploads"

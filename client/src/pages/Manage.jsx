@@ -7,6 +7,7 @@ import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel, InlineLoading } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { useAuth } from "../auth.jsx";
+import { hasFeature } from "../lib/features.js";
 import { FilterBar, FilterField, TableToolbar } from "../components/TableToolbar.jsx";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
@@ -700,8 +701,9 @@ const STUDENT_FILTERS = [
 ];
 
 function StudentsTab() {
-  const { user } = useAuth();
+  const { user, features } = useAuth();
   const canIssuePortal = user?.role === "PRINCIPAL" || user?.role === "EXAM_COORDINATOR";
+  const canManagePhotos = hasFeature(features, "studentPhotos");
   const [rows, setRows] = useState([]);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
@@ -1126,21 +1128,23 @@ function StudentsTab() {
                       <td>{r.guardianPhone || "—"}</td>
                       <td className="whitespace-nowrap space-x-2">
                         <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
-                        <label className="btn-ghost inline-flex cursor-pointer items-center">
-                          Photo
-                          <input
-                            type="file"
-                            accept="image/png,image/jpeg"
-                            className="sr-only"
-                            disabled={busy}
-                            onChange={(e) => {
-                              const file = e.target.files?.[0];
-                              e.target.value = "";
-                              if (file) uploadPhoto(r, file);
-                            }}
-                          />
-                        </label>
-                        {r.hasPhoto && (
+                        {canManagePhotos && (
+                          <label className="btn-ghost inline-flex cursor-pointer items-center">
+                            Photo
+                            <input
+                              type="file"
+                              accept="image/png,image/jpeg"
+                              className="sr-only"
+                              disabled={busy}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                e.target.value = "";
+                                if (file) uploadPhoto(r, file);
+                              }}
+                            />
+                          </label>
+                        )}
+                        {canManagePhotos && r.hasPhoto && (
                           <button type="button" className="btn-ghost" onClick={() => clearPhoto(r)} disabled={busy}>
                             Clear photo
                           </button>

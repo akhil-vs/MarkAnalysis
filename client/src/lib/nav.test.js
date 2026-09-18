@@ -18,6 +18,7 @@ describe("guardFeatureForRoute", () => {
     assert.equal(guardFeatureForRoute("users"), "staff");
     assert.equal(guardFeatureForRoute("school"), "schoolProfile");
     assert.equal(guardFeatureForRoute("board"), "boardOps");
+    assert.equal(guardFeatureForRoute("student-photos"), "studentPhotos");
   });
 
   it("leaves always-on account routes unrestricted", () => {
@@ -50,6 +51,8 @@ describe("navGroupsForRole", () => {
     "pendingUploads",
     "accessRequests",
     "consolidated",
+    "hallTickets",
+    "studentPhotos",
     "audit",
     "analysis",
     "analysisSchool",
@@ -85,5 +88,11 @@ describe("navGroupsForRole", () => {
     assert.ok(navIds("TEACHER").includes("upload"));
     assert.ok(navIds("EXAM_COORDINATOR").includes("marks"));
     assert.ok(navIds("EXAM_COORDINATOR").includes("upload"));
+  });
+
+  it("shows student photos for teachers and coordinators when the feature is on", () => {
+    assert.ok(navIds("TEACHER").includes("studentPhotos"));
+    assert.ok(navIds("EXAM_COORDINATOR").includes("studentPhotos"));
+    assert.equal(navIds("TEACHER", ["dashboard", "marks", "profile"]).includes("studentPhotos"), false);
   });
 });

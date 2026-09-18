@@ -9,6 +9,7 @@ export const FEATURE_GROUPS = [
       { id: "accessRequests", label: "Access requests" },
       { id: "consolidated", label: "Consolidated lists" },
       { id: "hallTickets", label: "Hall tickets" },
+      { id: "studentPhotos", label: "Student photos" },
       { id: "audit", label: "Audit log" },
     ],
   },

@@ -104,6 +104,13 @@ const NAV_ICON_PATHS = {
       <rect x="14.5" y="8" width="3.5" height="4.5" rx="0.5" />
     </>
   ),
+  photos: (
+    <>
+      <rect x="3" y="5" width="18" height="14" rx="1.5" />
+      <circle cx="9" cy="10" r="2" />
+      <path d="M4.5 17.5 9 13l3 3 3.5-4.5 4 5" strokeLinecap="round" strokeLinejoin="round" />
+    </>
+  ),
   audit: (
     <>
       <path d="M14 3H7a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V8z" strokeLinejoin="round" />

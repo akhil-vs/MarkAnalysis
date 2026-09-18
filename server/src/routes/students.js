@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import ExcelJS from "exceljs";
 import { prisma } from "../lib/prisma.js";
-import { auth, requireRole, getTeacherClassIds } from "../middleware/auth.js";
+import { auth, requireRole, requireFeature, getTeacherClassIds } from "../middleware/auth.js";
 import { cell, parseDob, parseSpreadsheet } from "../lib/upload.js";
 import { academicYearFromDate, nextAcademicYear, nextClassName } from "../lib/stats.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
@@ -11,15 +11,26 @@ import { publicStudent } from "../lib/hallTickets.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 import { ensureHallTicketsSchema } from "../lib/ensureSchema.js";
+import {
+  indexStudentsByAdmission,
+  matchPhotoFileToStudent,
+  normalizeAdmissionKey,
+} from "../lib/studentPhotos.js";
 
 export const studentsRouter = Router();
 studentsRouter.use(auth);
 studentsRouter.use(requireSchoolTenant);
 
+const BULK_PHOTO_MAX_FILES = 100;
+
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 const photoUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: LOGO_MAX_BYTES },
+});
+const bulkPhotoUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: LOGO_MAX_BYTES, files: BULK_PHOTO_MAX_FILES },
 });
 
 function receivePhoto(req, res, next) {
@@ -32,8 +43,32 @@ function receivePhoto(req, res, next) {
   });
 }
 
+function receiveBulkPhotos(req, res, next) {
+  bulkPhotoUpload.array("photos", BULK_PHOTO_MAX_FILES)(req, res, (err) => {
+    if (!err) return next();
+    const tooBig = err.code === "LIMIT_FILE_SIZE";
+    const tooMany = err.code === "LIMIT_FILE_COUNT" || err.code === "LIMIT_UNEXPECTED_FILE";
+    err.status = 400;
+    err.message = tooBig
+      ? "Each photo must be 1 MB or smaller"
+      : tooMany
+        ? `Upload at most ${BULK_PHOTO_MAX_FILES} photos at a time`
+        : err.message || "Could not upload photos";
+    next(err);
+  });
+}
+
 function omitPhoto(student) {
   return publicStudent(student);
+}
+
+async function assertTeacherCanAccessClass(req, classSectionId) {
+  if (req.user.role !== "TEACHER") return null;
+  const allowed = new Set(await getTeacherClassIds(req.user.userId));
+  if (!allowed.has(classSectionId)) {
+    return { status: 403, error: "Not assigned to this student's class" };
+  }
+  return null;
 }
 
 studentsRouter.get("/template", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
@@ -260,6 +295,101 @@ studentsRouter.get("/", async (req, res) => {
   });
 });
 
+studentsRouter.post(
+  "/photos/bulk",
+  requireRole("PRINCIPAL", "EXAM_COORDINATOR", "TEACHER"),
+  requireFeature("studentPhotos"),
+  receiveBulkPhotos,
+  async (req, res) => {
+    await ensureHallTicketsSchema();
+    const files = Array.isArray(req.files) ? req.files : [];
+    if (!files.length) {
+      return res.status(400).json({ error: "Choose one or more photo files named by admission number" });
+    }
+
+    const where = { status: "ACTIVE" };
+    if (req.user.role === "TEACHER") {
+      const allowed = await getTeacherClassIds(req.user.userId);
+      where.classSectionId = { in: allowed };
+    }
+
+    const students = await prisma.student.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        admissionNo: true,
+        classSectionId: true,
+        rollNo: true,
+      },
+    });
+    const index = indexStudentsByAdmission(students);
+
+    const errors = [];
+    const matched = [];
+    const seenKeys = new Map();
+
+    for (const file of files) {
+      const fileName = file.originalname || "photo";
+      const hit = matchPhotoFileToStudent(file, index);
+      if (!hit.ok) {
+        errors.push({ file: fileName, error: hit.error });
+        continue;
+      }
+
+      const key = normalizeAdmissionKey(hit.admissionNo);
+      if (seenKeys.has(key)) {
+        errors.push({
+          file: fileName,
+          error: `Duplicate file for admission no “${hit.admissionNo}” (already matched ${seenKeys.get(key)})`,
+        });
+        continue;
+      }
+
+      const parsed = parseLogoFile(file);
+      if (parsed.error) {
+        errors.push({
+          file: fileName,
+          error: String(parsed.error).replace(/^Logo/, "Photo"),
+        });
+        continue;
+      }
+
+      seenKeys.set(key, fileName);
+      matched.push({
+        file: fileName,
+        student: hit.student,
+        admissionNo: hit.admissionNo,
+        bytes: parsed.bytes,
+        mime: parsed.mime,
+      });
+    }
+
+    const updated = [];
+    for (const item of matched) {
+      await prisma.student.update({
+        where: { id: item.student.id },
+        data: { photoBytes: item.bytes, photoMimeType: item.mime },
+      });
+      updated.push({
+        file: item.file,
+        admissionNo: item.admissionNo,
+        studentId: item.student.id,
+        name: item.student.name,
+        rollNo: item.student.rollNo,
+      });
+    }
+
+    res.json({
+      totalFiles: files.length,
+      matched: matched.length,
+      updated: updated.length,
+      errorCount: errors.length,
+      results: updated,
+      errors,
+    });
+  }
+);
 
 studentsRouter.get("/:id", async (req, res) => {
   const student = await prisma.student.findUnique({
@@ -311,15 +441,19 @@ studentsRouter.get("/:id/photo", async (req, res) => {
 
 studentsRouter.post(
   "/:id/photo",
-  requireRole("PRINCIPAL", "EXAM_COORDINATOR"),
+  requireRole("PRINCIPAL", "EXAM_COORDINATOR", "TEACHER"),
+  requireFeature("studentPhotos"),
   receivePhoto,
   async (req, res) => {
     await ensureHallTicketsSchema();
     const existing = await prisma.student.findUnique({
       where: { id: req.params.id },
-      select: { id: true },
+      select: { id: true, classSectionId: true },
     });
     if (!existing) return res.status(404).json({ error: "Not found" });
+
+    const denied = await assertTeacherCanAccessClass(req, existing.classSectionId);
+    if (denied) return res.status(denied.status).json({ error: denied.error });
 
     const parsed = parseLogoFile(req.file);
     if (parsed.error) {
@@ -339,22 +473,30 @@ studentsRouter.post(
   }
 );
 
-studentsRouter.delete("/:id/photo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  await ensureHallTicketsSchema();
-  const existing = await prisma.student.findUnique({
-    where: { id: req.params.id },
-    select: { id: true },
-  });
-  if (!existing) return res.status(404).json({ error: "Not found" });
+studentsRouter.delete(
+  "/:id/photo",
+  requireRole("PRINCIPAL", "EXAM_COORDINATOR", "TEACHER"),
+  requireFeature("studentPhotos"),
+  async (req, res) => {
+    await ensureHallTicketsSchema();
+    const existing = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, classSectionId: true },
+    });
+    if (!existing) return res.status(404).json({ error: "Not found" });
 
-  const updated = await prisma.student.update({
-    where: { id: existing.id },
-    data: { photoBytes: null, photoMimeType: null },
-    include: { classSection: true },
-    omit: { photoBytes: true },
-  });
-  res.json(omitPhoto(updated));
-});
+    const denied = await assertTeacherCanAccessClass(req, existing.classSectionId);
+    if (denied) return res.status(denied.status).json({ error: denied.error });
+
+    const updated = await prisma.student.update({
+      where: { id: existing.id },
+      data: { photoBytes: null, photoMimeType: null },
+      include: { classSection: true },
+      omit: { photoBytes: true },
+    });
+    res.json(omitPhoto(updated));
+  }
+);
 
 studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { name, rollNo, classSectionId, dob, guardianName, guardianPhone, academicYear, admissionNo } =
