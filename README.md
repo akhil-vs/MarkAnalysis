@@ -2,6 +2,15 @@
 
 Role-based marks upload and analytics for principals, exam coordinators, and teachers.
 
+## User manuals
+
+Step-by-step guides for each school role:
+
+- [Principal](docs/user-manuals/principal.md)
+- [Exam co-ordinator](docs/user-manuals/coordinator.md)
+- [Teacher](docs/user-manuals/teacher.md)
+- [Index](docs/user-manuals/README.md)
+
 ## Stack
 
 - React + Vite + Tailwind CSS + Recharts

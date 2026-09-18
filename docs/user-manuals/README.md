@@ -1,0 +1,32 @@
+# User manuals — School Marks Analytics
+
+Role-based guides for day-to-day use of the School Marks Analytics platform.
+
+| Role | Manual |
+|---|---|
+| **Principal** | [Principal user manual](./principal.md) |
+| **Exam co-ordinator** | [Co-ordinator user manual](./coordinator.md) |
+| **Teacher** | [Teacher user manual](./teacher.md) |
+
+## Who does what (at a glance)
+
+| Task | Principal | Co-ordinator | Teacher |
+|---|---|---|---|
+| Enter / bulk-upload marks | — | Yes | Yes |
+| Approve submitted registers | Yes | Yes | — |
+| Manage staff & assignments | Yes (incl. co-ordinators & feature access) | Teachers & assignments | — |
+| School profile & join code | Yes (join code rotate is principal-only) | Edit profile (not join code) | — |
+| Records (classes, subjects, students, exams) | Yes | Yes | — |
+| Consolidated mark lists | Yes | Yes | Class teachers only (own section, when complete) |
+| School / subject / teacher analysis | Yes | Yes | Limited (own classes & students) |
+| Timetables | Yes | Yes | View own schedule via staff link if shared |
+| Board ops & CPD (when enabled) | Yes | Yes | Own CPD record |
+| Audit log (all staff) | Full | Teacher actions | — |
+
+## Getting access
+
+1. **New school** — register at `/register-school` (creates the school and an active principal).
+2. **Staff** — open `/signup`, enter the school’s **join code** (from **School profile**), and wait for the principal (or leadership) to activate the account.
+3. **Sign in** — use your email, school ID, and password. Enable MFA under **Profile** for stronger security.
+
+Passwords reset by leadership may require a change on the next login.
