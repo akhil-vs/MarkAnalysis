@@ -4,12 +4,14 @@ Role-based marks upload and analytics for principals, exam coordinators, and tea
 
 ## User manuals
 
-Step-by-step guides for each school role:
+Step-by-step guides for each school role (also under **HELP → User manuals** in the app):
 
-- [Principal](docs/user-manuals/principal.md)
-- [Exam co-ordinator](docs/user-manuals/coordinator.md)
-- [Teacher](docs/user-manuals/teacher.md)
+- [Principal](docs/user-manuals/principal.md) · [PDF](client/public/help/principal-user-manual.pdf)
+- [Exam co-ordinator](docs/user-manuals/coordinator.md) · [PDF](client/public/help/coordinator-user-manual.pdf)
+- [Teacher](docs/user-manuals/teacher.md) · [PDF](client/public/help/teacher-user-manual.pdf)
 - [Index](docs/user-manuals/README.md)
+
+Regenerate PDFs with `npm run docs:pdf`.
 
 ## Stack
 

@@ -1,0 +1,23 @@
+{
+  "generatedAt": "2026-09-18T11:30:50.396Z",
+  "manuals": [
+    {
+      "id": "principal",
+      "title": "Principal user manual",
+      "file": "principal-user-manual.pdf",
+      "href": "/help/principal-user-manual.pdf"
+    },
+    {
+      "id": "coordinator",
+      "title": "Exam co-ordinator user manual",
+      "file": "coordinator-user-manual.pdf",
+      "href": "/help/coordinator-user-manual.pdf"
+    },
+    {
+      "id": "teacher",
+      "title": "Teacher user manual",
+      "file": "teacher-user-manual.pdf",
+      "href": "/help/teacher-user-manual.pdf"
+    }
+  ]
+}

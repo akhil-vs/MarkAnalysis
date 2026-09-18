@@ -2,11 +2,20 @@
 
 Role-based guides for day-to-day use of the School Marks Analytics platform.
 
-| Role | Manual |
-|---|---|
-| **Principal** | [Principal user manual](./principal.md) |
-| **Exam co-ordinator** | [Co-ordinator user manual](./coordinator.md) |
-| **Teacher** | [Teacher user manual](./teacher.md) |
+| Role | Manual (Markdown) | PDF |
+|---|---|---|
+| **Principal** | [Principal user manual](./principal.md) | [`principal-user-manual.pdf`](../../client/public/help/principal-user-manual.pdf) |
+| **Exam co-ordinator** | [Co-ordinator user manual](./coordinator.md) | [`coordinator-user-manual.pdf`](../../client/public/help/coordinator-user-manual.pdf) |
+| **Teacher** | [Teacher user manual](./teacher.md) | [`teacher-user-manual.pdf`](../../client/public/help/teacher-user-manual.pdf) |
+
+In the app, every signed-in user can open **HELP → User manuals** to view or download these PDFs.
+
+Regenerate PDFs after editing the Markdown guides:
+
+```bash
+npm run docs:pdf
+```
+
 
 ## Who does what (at a glance)
 

@@ -60,6 +60,7 @@ export const NAV_LABELS = {
   schoolProfile: "School profile",
   boardOps: "Board ops",
   cpd: "CPD",
+  help: "User manuals",
   profile: "Profile",
   platformDashboard: "Overview",
   platformSchools: "All schools",
@@ -90,6 +91,7 @@ export const NAV_TITLES = {
   schoolProfile: "School profile",
   boardOps: "Board operations",
   cpd: "Continuing professional development",
+  help: "HELP — user manuals",
   profile: "Your profile",
   platformDashboard: "Platform overview",
   platformSchools: "Schools",
@@ -317,6 +319,19 @@ export const NAV_GROUPS = [
     ],
   },
   {
+    id: "help",
+    label: "HELP",
+    items: [
+      {
+        id: "help",
+        to: "/help",
+        label: NAV_LABELS.help,
+        icon: "help",
+        roles: "all",
+      },
+    ],
+  },
+  {
     id: "account",
     label: "Account",
     items: [
@@ -367,6 +382,20 @@ export const PLATFORM_NAV_GROUPS = [
     ],
   },
   {
+    id: "help",
+    label: "HELP",
+    items: [
+      {
+        id: "help",
+        to: "/help",
+        label: NAV_LABELS.help,
+        icon: "help",
+        // Same path as school HELP — keep roles open so route guards stay permissive.
+        roles: "all",
+      },
+    ],
+  },
+  {
     id: "account",
     label: "Account",
     items: [
@@ -404,7 +433,7 @@ export function roleAllows(itemRoles, userRole, { classTeacherOf = [] } = {}) {
 
 export function featureAllows(itemId, features) {
   if (!itemId) return true;
-  if (itemId === "dashboard" || itemId === "profile") return true;
+  if (itemId === "dashboard" || itemId === "profile" || itemId === "help") return true;
   return hasFeature(features, itemId);
 }
 
@@ -472,7 +501,7 @@ export function guardFeatureForRoute(routePath) {
   for (const group of [...NAV_GROUPS, ...PLATFORM_NAV_GROUPS]) {
     const id = walk(group.items);
     if (id) {
-      if (id === "dashboard" || id === "profile") return null;
+      if (id === "dashboard" || id === "profile" || id === "help") return null;
       if (String(id).startsWith("platform")) return null;
       return id;
     }

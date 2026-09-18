@@ -23,6 +23,7 @@ describe("guardFeatureForRoute", () => {
 
   it("leaves always-on account routes unrestricted", () => {
     assert.equal(guardFeatureForRoute("profile"), null);
+    assert.equal(guardFeatureForRoute("help"), null);
   });
 });
 
@@ -40,6 +41,10 @@ describe("guardRolesForRoute", () => {
 
   it("keeps mark register open for authenticated school users including principal", () => {
     assert.equal(guardRolesForRoute("marks"), null);
+  });
+
+  it("keeps HELP open for authenticated users", () => {
+    assert.equal(guardRolesForRoute("help"), null);
   });
 });
 
@@ -67,12 +72,19 @@ describe("navGroupsForRole", () => {
     "timetables",
     "schoolProfile",
     "profile",
+    "help",
   ];
 
   function navIds(role, features = allFeatures) {
     return navGroupsForRole(role, { features })
       .flatMap((g) => g.items)
       .map((i) => i.id);
+  }
+
+  function navGroupLabels(role, features = allFeatures) {
+    return navGroupsForRole(role, { features })
+      .map((g) => g.label)
+      .filter(Boolean);
   }
 
   it("hides mark register and bulk upload from the principal sidebar", () => {
@@ -94,5 +106,17 @@ describe("navGroupsForRole", () => {
     assert.ok(navIds("TEACHER").includes("studentPhotos"));
     assert.ok(navIds("EXAM_COORDINATOR").includes("studentPhotos"));
     assert.equal(navIds("TEACHER", ["dashboard", "marks", "profile"]).includes("studentPhotos"), false);
+  });
+
+  it("always shows HELP for school roles even when features are sparse", () => {
+    for (const role of ["PRINCIPAL", "EXAM_COORDINATOR", "TEACHER"]) {
+      assert.ok(navIds(role, ["dashboard", "profile"]).includes("help"));
+      assert.ok(navGroupLabels(role, ["dashboard", "profile"]).includes("HELP"));
+    }
+  });
+
+  it("shows HELP for platform admins", () => {
+    assert.ok(navIds("PLATFORM_ADMIN").includes("help"));
+    assert.ok(navGroupLabels("PLATFORM_ADMIN").includes("HELP"));
   });
 });

@@ -44,6 +44,7 @@ const Timetables = lazy(() => import("./pages/Timetables.jsx"));
 const TeacherTimetable = lazy(() => import("./pages/TeacherTimetable.jsx"));
 const BoardOps = lazy(() => import("./pages/BoardOps.jsx"));
 const Cpd = lazy(() => import("./pages/Cpd.jsx"));
+const Help = lazy(() => import("./pages/Help.jsx"));
 const PlatformHome = lazy(() => import("./pages/PlatformHome.jsx"));
 const PlatformSchools = lazy(() => import("./pages/PlatformSchools.jsx"));
 const PlatformSchoolNew = lazy(() => import("./pages/PlatformSchoolNew.jsx"));
@@ -63,8 +64,9 @@ function Guard({ roles, feature, children }) {
     return <Navigate to="/profile" replace />;
   }
   const onPlatform = location.pathname === "/platform" || location.pathname.startsWith("/platform/");
+  const onHelp = location.pathname === "/help" || location.pathname.startsWith("/help/");
   if (user.role === "PLATFORM_ADMIN") {
-    if (!onPlatform && location.pathname !== "/profile") {
+    if (!onPlatform && location.pathname !== "/profile" && !onHelp) {
       return <Navigate to="/platform" replace />;
     }
   } else if (onPlatform) {
@@ -209,6 +211,7 @@ export default function App() {
             element={<Guarded route="timetables/teachers/:id"><TeacherTimetable /></Guarded>}
           />
           <Route path="profile" element={<Profile />} />
+          <Route path="help" element={<Help />} />
           <Route path="school" element={<Guarded route="school"><SchoolSettings /></Guarded>} />
           <Route path="board" element={<Guarded route="board"><BoardOps /></Guarded>} />
           <Route path="cpd" element={<Guarded route="cpd"><Cpd /></Guarded>} />
