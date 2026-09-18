@@ -100,7 +100,7 @@ export const PAGE_HELP = {
   studentPhotos: {
     title: "What's on this page",
     about: "Upload and clear passport-style photos for students in your classes. Photos appear on hall tickets when printing is enabled. Teachers manage assigned classes; exam coordinators and principals can update any student.",
-    useful: "Filter by class, then use Photo to add a PNG or JPEG (1 MB or smaller) or Clear photo to remove one. Keep photos current before printing hall tickets for an exam.",
+    useful: "Use Bulk upload by admission no with files named like ADM-10B-01.jpg to match many photos at once, or add one photo per student in the table. PNG or JPEG, 1 MB or smaller. Keep photos current before printing hall tickets.",
   },
   audit: {
     title: "What's on this page",
