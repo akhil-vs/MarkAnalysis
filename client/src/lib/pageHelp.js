@@ -145,7 +145,7 @@ export const PAGE_HELP = {
   help: {
     title: "What's on this page",
     about: "Downloadable PDF user manuals for principals, exam co-ordinators, and teachers.",
-    useful: "Open your role’s guide first. Leadership can also share the other manuals when onboarding staff.",
+    useful: "Open your role’s PDF guide. Each school user only sees the manual that matches their role.",
   },
   platformDashboard: {
     title: "What's on this page",

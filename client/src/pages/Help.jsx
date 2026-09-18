@@ -1,17 +1,13 @@
 import { PageHeader } from "../components/Layout.jsx";
 import { useAuth } from "../auth.jsx";
-import { HELP_MANUALS, manualsForRole } from "../lib/helpManuals.js";
+import { manualsForRole } from "../lib/helpManuals.js";
 import { NAV_TITLES } from "../lib/nav.js";
+import { isPlatformAdmin } from "../lib/roles.js";
 
-function ManualCard({ manual, highlight }) {
+function ManualCard({ manual }) {
   return (
-    <article
-      className={`card p-5 flex flex-col gap-3 ${highlight ? "border-clay-500/50 bg-[#fbf7f1]" : ""}`}
-    >
+    <article className="card p-5 flex flex-col gap-3 max-w-xl">
       <div>
-        {highlight ? (
-          <div className="mb-1 text-[11px] uppercase tracking-wide text-clay-600">Your role</div>
-        ) : null}
         <h2 className="font-serif text-2xl text-ink-900">{manual.title}</h2>
         <p className="mt-1 text-sm text-ink-700/55">{manual.audience}</p>
         <p className="mt-2 text-sm text-ink-700/75">{manual.body}</p>
@@ -31,30 +27,37 @@ function ManualCard({ manual, highlight }) {
 export default function Help() {
   const { user } = useAuth();
   const manuals = manualsForRole(user?.role);
-  const primaryId = manuals[0]?.id;
+  const platform = isPlatformAdmin(user?.role);
 
   return (
     <div>
       <PageHeader
         title={NAV_TITLES.help}
-        subtitle="Downloadable user manuals for every school role"
+        subtitle={
+          platform
+            ? "Downloadable user manuals for every school role"
+            : "Your role’s user manual"
+        }
       />
-      <p className="mb-5 max-w-2xl text-sm text-ink-700/70">
-        Open the guide that matches your role, or browse the other manuals to see how principals,
-        exam co-ordinators, and teachers work together on marks.
-      </p>
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-        {manuals.map((manual) => (
-          <ManualCard
-            key={manual.id}
-            manual={manual}
-            highlight={user?.role !== "PLATFORM_ADMIN" && manual.id === primaryId}
-          />
-        ))}
-      </div>
-      <p className="mt-6 text-xs text-ink-700/45">
-        PDFs are generated from the guides in the repository ({HELP_MANUALS.length} manuals).
-      </p>
+      {platform ? (
+        <p className="mb-5 max-w-2xl text-sm text-ink-700/70">
+          Open any school-role guide. Staff signed in as principal, exam co-ordinator, or teacher
+          only see the manual for their own role.
+        </p>
+      ) : (
+        <p className="mb-5 max-w-2xl text-sm text-ink-700/70">
+          This guide matches your signed-in role. Open or download the PDF for step-by-step help.
+        </p>
+      )}
+      {manuals.length === 0 ? (
+        <p className="text-sm text-ink-700/70">No user manual is available for this account.</p>
+      ) : (
+        <div className={`grid gap-4 ${platform ? "sm:grid-cols-2 xl:grid-cols-3" : ""}`}>
+          {manuals.map((manual) => (
+            <ManualCard key={manual.id} manual={manual} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -29,9 +29,9 @@ export const HELP_MANUALS = [
   },
 ];
 
+/** Manuals shown on HELP for this role — school users get only their own guide. */
 export function manualsForRole(role) {
-  if (!role || role === "PLATFORM_ADMIN") return HELP_MANUALS;
+  if (role === "PLATFORM_ADMIN") return HELP_MANUALS;
   const mine = HELP_MANUALS.find((m) => m.role === role);
-  if (!mine) return HELP_MANUALS;
-  return [mine, ...HELP_MANUALS.filter((m) => m.id !== mine.id)];
+  return mine ? [mine] : [];
 }
