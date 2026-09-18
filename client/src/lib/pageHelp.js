@@ -95,7 +95,12 @@ export const PAGE_HELP = {
   hallTickets: {
     title: "What's on this page",
     about: "Class hall tickets for a selected exam: student identity and photo, paper schedule, venue, and instructions. Five tickets print on each A4 page. Principals and exam coordinators create and edit batches; teachers can view and download for their classes.",
-    useful: "Pick an exam, then a class and division. Preview loads on the right; use Download PDF (or the PDF button beside each division) to print. Create/save a batch to store title, venue, and instructions. Upload student photos under Records → Students, and set paper dates under Records → Exams.",
+    useful: "Pick an exam, then a class and division. Preview loads on the right; use Download PDF (or the PDF button beside each division) to print. Create/save a batch to store title, venue, and instructions. Upload student photos under Student photos (or Records → Students), and set paper dates under Records → Exams.",
+  },
+  studentPhotos: {
+    title: "What's on this page",
+    about: "Upload and clear passport-style photos for students in your classes. Photos appear on hall tickets when printing is enabled. Teachers manage assigned classes; exam coordinators and principals can update any student.",
+    useful: "Filter by class, then use Photo to add a PNG or JPEG (1 MB or smaller) or Clear photo to remove one. Keep photos current before printing hall tickets for an exam.",
   },
   audit: {
     title: "What's on this page",

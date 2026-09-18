@@ -145,6 +145,8 @@ describe("enabledFeatureList / userHasFeature", () => {
 
   it("checks a single feature", () => {
     assert.equal(userHasFeature({ role: "TEACHER" }, "marks"), true);
+    assert.equal(userHasFeature({ role: "TEACHER" }, "studentPhotos"), true);
+    assert.equal(userHasFeature({ role: "EXAM_COORDINATOR" }, "studentPhotos"), true);
     assert.equal(userHasFeature({ role: "TEACHER" }, "staff"), false);
     assert.equal(
       userHasFeature(
@@ -153,6 +155,14 @@ describe("enabledFeatureList / userHasFeature", () => {
         { roleFeatureAccess: { TEACHER: { staff: true } } }
       ),
       true
+    );
+    assert.equal(
+      userHasFeature(
+        { role: "TEACHER" },
+        "studentPhotos",
+        { roleFeatureAccess: { TEACHER: { studentPhotos: false } } }
+      ),
+      false
     );
     assert.equal(userHasFeature({ role: "PRINCIPAL" }, "boardOps"), false);
     assert.equal(

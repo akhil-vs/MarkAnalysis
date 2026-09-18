@@ -596,7 +596,8 @@ export default function HallTickets() {
                         </table>
                       </div>
                       <p className="mt-2 text-xs text-ink-700/50">
-                        Upload student photos under Records → Students. PDF packs five tickets per A4 page.
+                        Upload student photos under Student photos (or Records → Students). PDF packs five
+                        tickets per A4 page.
                       </p>
                     </div>
                   </div>

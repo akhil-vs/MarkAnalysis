@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import ExcelJS from "exceljs";
 import { prisma } from "../lib/prisma.js";
-import { auth, requireRole, getTeacherClassIds } from "../middleware/auth.js";
+import { auth, requireRole, requireFeature, getTeacherClassIds } from "../middleware/auth.js";
 import { cell, parseDob, parseSpreadsheet } from "../lib/upload.js";
 import { academicYearFromDate, nextAcademicYear, nextClassName } from "../lib/stats.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
@@ -34,6 +34,15 @@ function receivePhoto(req, res, next) {
 
 function omitPhoto(student) {
   return publicStudent(student);
+}
+
+async function assertTeacherCanAccessClass(req, classSectionId) {
+  if (req.user.role !== "TEACHER") return null;
+  const allowed = new Set(await getTeacherClassIds(req.user.userId));
+  if (!allowed.has(classSectionId)) {
+    return { status: 403, error: "Not assigned to this student's class" };
+  }
+  return null;
 }
 
 studentsRouter.get("/template", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
@@ -311,15 +320,19 @@ studentsRouter.get("/:id/photo", async (req, res) => {
 
 studentsRouter.post(
   "/:id/photo",
-  requireRole("PRINCIPAL", "EXAM_COORDINATOR"),
+  requireRole("PRINCIPAL", "EXAM_COORDINATOR", "TEACHER"),
+  requireFeature("studentPhotos"),
   receivePhoto,
   async (req, res) => {
     await ensureHallTicketsSchema();
     const existing = await prisma.student.findUnique({
       where: { id: req.params.id },
-      select: { id: true },
+      select: { id: true, classSectionId: true },
     });
     if (!existing) return res.status(404).json({ error: "Not found" });
+
+    const denied = await assertTeacherCanAccessClass(req, existing.classSectionId);
+    if (denied) return res.status(denied.status).json({ error: denied.error });
 
     const parsed = parseLogoFile(req.file);
     if (parsed.error) {
@@ -339,22 +352,30 @@ studentsRouter.post(
   }
 );
 
-studentsRouter.delete("/:id/photo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  await ensureHallTicketsSchema();
-  const existing = await prisma.student.findUnique({
-    where: { id: req.params.id },
-    select: { id: true },
-  });
-  if (!existing) return res.status(404).json({ error: "Not found" });
+studentsRouter.delete(
+  "/:id/photo",
+  requireRole("PRINCIPAL", "EXAM_COORDINATOR", "TEACHER"),
+  requireFeature("studentPhotos"),
+  async (req, res) => {
+    await ensureHallTicketsSchema();
+    const existing = await prisma.student.findUnique({
+      where: { id: req.params.id },
+      select: { id: true, classSectionId: true },
+    });
+    if (!existing) return res.status(404).json({ error: "Not found" });
 
-  const updated = await prisma.student.update({
-    where: { id: existing.id },
-    data: { photoBytes: null, photoMimeType: null },
-    include: { classSection: true },
-    omit: { photoBytes: true },
-  });
-  res.json(omitPhoto(updated));
-});
+    const denied = await assertTeacherCanAccessClass(req, existing.classSectionId);
+    if (denied) return res.status(denied.status).json({ error: denied.error });
+
+    const updated = await prisma.student.update({
+      where: { id: existing.id },
+      data: { photoBytes: null, photoMimeType: null },
+      include: { classSection: true },
+      omit: { photoBytes: true },
+    });
+    res.json(omitPhoto(updated));
+  }
+);
 
 studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { name, rollNo, classSectionId, dob, guardianName, guardianPhone, academicYear, admissionNo } =
