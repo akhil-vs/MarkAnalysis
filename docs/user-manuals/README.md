@@ -2,13 +2,14 @@
 
 Role-based guides for day-to-day use of the School Marks Analytics platform.
 
-| Role | Manual (Markdown) | PDF |
+| Guide | Markdown | PDF |
 |---|---|---|
+| **Application flows (all roles)** | [Application flows](./application-flows.md) | [`application-flows.pdf`](../../client/public/help/application-flows.pdf) |
 | **Principal** | [Principal user manual](./principal.md) | [`principal-user-manual.pdf`](../../client/public/help/principal-user-manual.pdf) |
 | **Exam co-ordinator** | [Co-ordinator user manual](./coordinator.md) | [`coordinator-user-manual.pdf`](../../client/public/help/coordinator-user-manual.pdf) |
 | **Teacher** | [Teacher user manual](./teacher.md) | [`teacher-user-manual.pdf`](../../client/public/help/teacher-user-manual.pdf) |
 
-In the app, **HELP → User manuals** shows **only the signed-in user’s own role PDF** (principals, co-ordinators, and teachers each get their guide). Platform admins can open every manual.
+In the app, **HELP → User manuals** shows the shared **application flows** PDF plus **the signed-in user’s own role manual**. Platform admins can open every PDF.
 
 Regenerate PDFs after editing the Markdown guides:
 

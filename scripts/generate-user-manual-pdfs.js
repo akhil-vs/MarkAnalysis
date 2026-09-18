@@ -15,22 +15,32 @@ const outDir = path.join(root, "client", "public", "help");
 
 const MANUALS = [
   {
+    source: "application-flows.md",
+    outfile: "application-flows.pdf",
+    title: "Application flows by role",
+    subtitle: "School Marks Analytics — Principal, Co-ordinator, Teacher",
+    id: "flows",
+  },
+  {
     source: "principal.md",
     outfile: "principal-user-manual.pdf",
     title: "Principal user manual",
     subtitle: "School Marks Analytics",
+    id: "principal",
   },
   {
     source: "coordinator.md",
     outfile: "coordinator-user-manual.pdf",
     title: "Exam co-ordinator user manual",
     subtitle: "School Marks Analytics",
+    id: "coordinator",
   },
   {
     source: "teacher.md",
     outfile: "teacher-user-manual.pdf",
     title: "Teacher user manual",
     subtitle: "School Marks Analytics",
+    id: "teacher",
   },
 ];
 
@@ -284,7 +294,7 @@ for (const manual of MANUALS) {
 const manifest = {
   generatedAt: new Date().toISOString(),
   manuals: MANUALS.map((m) => ({
-    id: m.outfile.replace(/-user-manual\.pdf$/, ""),
+    id: m.id || m.outfile.replace(/\.pdf$/, "").replace(/-user-manual$/, ""),
     title: m.title,
     file: m.outfile,
     href: `/help/${m.outfile}`,
