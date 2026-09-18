@@ -17,6 +17,40 @@ import {
 } from "./analyticsExtras.js";
 import { enrichMarksInsights } from "../routes/analyticsInsights.js";
 import { buildPendingUploads } from "../routes/analytics.js";
+import {
+  assignmentAnalyticsSelect,
+  markAnalyticsSelect,
+  markHistorySelect,
+  subjectCoreSelect,
+} from "./markSelects.js";
+
+function subjectCorrelations(marks, subjectNames) {
+  const uniqueNames = [...new Set(subjectNames)];
+  const byStudent = groupBy(marks, (m) => m.studentId);
+  const correlations = [];
+  for (let i = 0; i < uniqueNames.length; i++) {
+    for (let j = i + 1; j < uniqueNames.length; j++) {
+      const a = uniqueNames[i];
+      const b = uniqueNames[j];
+      const pairs = [];
+      for (const [, list] of byStudent) {
+        const ma = list.find((m) => m.subject.name === a);
+        const mb = list.find((m) => m.subject.name === b);
+        if (ma && mb) {
+          const pa = toPercent(ma);
+          const pb = toPercent(mb);
+          if (pa != null && pb != null) pairs.push([pa, pb]);
+        }
+      }
+      const r = pearson(
+        pairs.map((p) => p[0]),
+        pairs.map((p) => p[1])
+      );
+      if (r != null) correlations.push({ a, b, r });
+    }
+  }
+  return correlations;
+}
 
 async function buildTeacherHome(user) {
   const { exams, exam } = await loadExams();
@@ -35,7 +69,7 @@ async function buildTeacherHome(user) {
         subjectId: { in: subjectIds },
         student: { classSectionId: { in: classIds } },
       },
-      include: { student: { include: { classSection: true } }, subject: true },
+      select: markAnalyticsSelect,
     }),
     prisma.student.findMany({
       where: { classSectionId: { in: classIds } },
@@ -47,7 +81,7 @@ async function buildTeacherHome(user) {
         student: { classSectionId: { in: classIds } },
         status: { in: ["DRAFT", "APPROVED"] },
       },
-      include: { student: true, subject: true, exam: true },
+      select: markHistorySelect,
     }),
   ]);
 
@@ -145,22 +179,24 @@ async function buildCoordinatorHome() {
   const { exams, exam } = await loadExams();
   if (!exam) return { empty: true };
 
-  const [marks, subjects, classes, assignments, pending] = await Promise.all([
+  const [marks, subjects, classes, assignments, pending, pendingUploads] = await Promise.all([
     prisma.mark.findMany({
       where: { examId: exam.id, status: "APPROVED" },
-      include: {
-        student: { include: { classSection: true } },
-        subject: true,
-      },
+      select: markAnalyticsSelect,
     }),
-    prisma.subject.findMany({ orderBy: { name: "asc" } }),
+    prisma.subject.findMany({
+      orderBy: { name: "asc" },
+      select: subjectCoreSelect,
+    }),
     prisma.classSection.findMany({
       orderBy: [{ className: "asc" }, { section: "asc" }],
+      select: { id: true, className: true, section: true },
     }),
     prisma.teacherAssignment.findMany({
-      include: { user: true, subject: true, classSection: true },
+      select: assignmentAnalyticsSelect,
     }),
     prisma.mark.count({ where: { examId: exam.id, status: "DRAFT" } }),
+    buildPendingUploads(exam),
   ]);
 
   const difficulty = subjects
@@ -194,36 +230,15 @@ async function buildCoordinatorHome() {
     };
   });
 
-  const uniqueNames = [...new Set(subjects.map((s) => s.name))];
-  const correlations = [];
-  for (let i = 0; i < uniqueNames.length; i++) {
-    for (let j = i + 1; j < uniqueNames.length; j++) {
-      const a = uniqueNames[i];
-      const b = uniqueNames[j];
-      const pairs = [];
-      const byStudent = groupBy(marks, (m) => m.studentId);
-      for (const [, list] of byStudent) {
-        const ma = list.find((m) => m.subject.name === a);
-        const mb = list.find((m) => m.subject.name === b);
-        if (ma && mb) pairs.push([toPercent(ma), toPercent(mb)]);
-      }
-      const r = pearson(
-        pairs.map((p) => p[0]),
-        pairs.map((p) => p[1])
-      );
-      if (r != null) correlations.push({ a, b, r });
-    }
-  }
-
   return {
     exam,
     exams,
     difficulty,
     teacherBySubject,
-    correlations,
+    correlations: subjectCorrelations(marks, subjects.map((s) => s.name)),
     classes,
     pendingDrafts: pending,
-    pendingUploads: await buildPendingUploads(exam),
+    pendingUploads,
   };
 }
 
@@ -233,28 +248,6 @@ async function buildPrincipalSummary() {
 
   const grading = gradingHelpers(await getGradingConfig());
   const { passPercent, gradeFn, distinctionMin } = grading;
-
-  const markCoreSelect = {
-    id: true,
-    studentId: true,
-    subjectId: true,
-    examId: true,
-    marksObtained: true,
-    outcome: true,
-    status: true,
-    updatedAt: true,
-    student: {
-      select: {
-        id: true,
-        name: true,
-        rollNo: true,
-        status: true,
-        classSectionId: true,
-        classSection: { select: { id: true, className: true, section: true } },
-      },
-    },
-    subject: { select: { id: true, name: true, className: true, maxMarks: true } },
-  };
 
   const [
     examMarks,
@@ -266,24 +259,13 @@ async function buildPrincipalSummary() {
     activeStudentRows,
     accessRequests,
   ] = await Promise.all([
-    prisma.mark.findMany({ where: { examId: exam.id }, select: markCoreSelect }),
+    prisma.mark.findMany({ where: { examId: exam.id }, select: markAnalyticsSelect }),
     prisma.classSection.findMany({
       orderBy: [{ className: "asc" }, { section: "asc" }],
       include: { _count: { select: { students: { where: { status: "ACTIVE" } } } } },
     }),
-    prisma.subject.findMany({
-      select: { id: true, name: true, className: true, maxMarks: true },
-    }),
-    prisma.teacherAssignment.findMany({
-      select: {
-        userId: true,
-        classSectionId: true,
-        subjectId: true,
-        user: { select: { id: true, name: true, email: true } },
-        subject: { select: { id: true, name: true, className: true, maxMarks: true } },
-        classSection: { select: { id: true, className: true, section: true } },
-      },
-    }),
+    prisma.subject.findMany({ select: subjectCoreSelect }),
+    prisma.teacherAssignment.findMany({ select: assignmentAnalyticsSelect }),
     prisma.student.count({ where: { status: "ACTIVE" } }),
     prisma.user.count({ where: { role: "TEACHER", status: "ACTIVE" } }),
     prisma.student.findMany({ where: { status: "ACTIVE" }, select: { id: true, classSectionId: true } }),
