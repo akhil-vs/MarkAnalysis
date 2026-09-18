@@ -86,6 +86,7 @@ export default function StudentPhotos() {
   const [bulkBusy, setBulkBusy] = useState(false);
   const [bulkFiles, setBulkFiles] = useState([]);
   const [bulkResult, setBulkResult] = useState(null);
+  const [bulkInputKey, setBulkInputKey] = useState(0);
   const [photoNonce, setPhotoNonce] = useState(0);
   const table = useTableSearch(rows || [], {
     getSearchText: studentSearchText,
@@ -178,6 +179,42 @@ export default function StudentPhotos() {
     }
   }
 
+  function removeUnmatchedFiles(fileNames) {
+    const remove = new Set((fileNames || []).map((n) => String(n)));
+    if (!remove.size) return;
+    setBulkFiles((prev) => prev.filter((f) => !remove.has(f.name)));
+    setBulkInputKey((k) => k + 1);
+    setBulkResult((prev) => {
+      if (!prev) return prev;
+      const errors = (prev.errors || []).filter((e) => !remove.has(e.file));
+      const next = {
+        ...prev,
+        errors,
+        errorCount: errors.length,
+        totalFiles: Math.max(0, (prev.totalFiles || 0) - remove.size),
+      };
+      // Drop the result card once nothing remains to show.
+      if (!next.results?.length && !next.errors.length) return null;
+      return next;
+    });
+  }
+
+  function removeOneUnmatched(fileName) {
+    removeUnmatchedFiles([fileName]);
+    toast.info(`Removed ${fileName} from selection.`);
+  }
+
+  function removeAllUnmatched() {
+    const names = (bulkResult?.errors || []).map((e) => e.file).filter(Boolean);
+    if (!names.length) return;
+    removeUnmatchedFiles(names);
+    toast.info(
+      names.length === 1
+        ? "Removed 1 unmatched photo from selection."
+        : `Removed ${names.length} unmatched photos from selection.`
+    );
+  }
+
   if (error) return <LoadError message={error} />;
   if (!rows) return <LoadingState label="Loading students…" />;
 
@@ -197,6 +234,7 @@ export default function StudentPhotos() {
         </p>
         <div className="space-y-1.5">
           <input
+            key={bulkInputKey}
             type="file"
             accept="image/png,image/jpeg"
             multiple
@@ -236,6 +274,7 @@ export default function StudentPhotos() {
               onClick={() => {
                 setBulkFiles([]);
                 setBulkResult(null);
+                setBulkInputKey((k) => k + 1);
               }}
             >
               Clear selection
@@ -270,13 +309,39 @@ export default function StudentPhotos() {
               </div>
             )}
             {bulkResult.errors?.length > 0 && (
-              <ul className="text-clay-600 list-disc pl-5">
-                {bulkResult.errors.map((e, i) => (
-                  <li key={`${e.file}-${i}`}>
-                    {e.file} — {e.error}
-                  </li>
-                ))}
-              </ul>
+              <div className="space-y-2">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="font-medium text-ink-800">Unmatched / skipped</div>
+                  <button
+                    type="button"
+                    className="btn-ghost text-xs"
+                    disabled={anyBusy}
+                    onClick={removeAllUnmatched}
+                  >
+                    Remove unmatched
+                  </button>
+                </div>
+                <ul className="space-y-1.5">
+                  {bulkResult.errors.map((e, i) => (
+                    <li
+                      key={`${e.file}-${i}`}
+                      className="flex flex-wrap items-start justify-between gap-2 text-clay-600"
+                    >
+                      <span>
+                        {e.file} — {e.error}
+                      </span>
+                      <button
+                        type="button"
+                        className="btn-ghost shrink-0 text-xs"
+                        disabled={anyBusy}
+                        onClick={() => removeOneUnmatched(e.file)}
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
           </div>
         )}
