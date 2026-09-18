@@ -17,7 +17,7 @@ function ManualCard({ manual, highlight }) {
         <p className="mt-2 text-sm text-ink-700/75">{manual.body}</p>
       </div>
       <div className="mt-auto flex flex-wrap gap-2">
-        <a className="btn-primary" href={manual.href} target="_blank" rel="noopener noreferrer">
+        <a className="btn-primary" href={manual.href}>
           Open PDF
         </a>
         <a className="btn-ghost" href={manual.href} download={manual.file}>
