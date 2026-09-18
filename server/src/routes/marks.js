@@ -36,6 +36,8 @@ import { getSchoolLetterhead } from "../lib/school.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 import { invalidateInsightsCache } from "../lib/insightsCache.js";
+import { publicStudent } from "../lib/hallTickets.js";
+import { studentListOmit } from "../lib/markSelects.js";
 
 const WRITE_CHUNK = 25;
 
@@ -76,10 +78,12 @@ marksRouter.get("/", async (req, res) => {
     return res.status(400).json({ error: "classSectionId and examId are required" });
   }
 
-  const classSection = await prisma.classSection.findUnique({
-    where: { id: classSectionId },
-  });
+  const [classSection, exam] = await Promise.all([
+    prisma.classSection.findUnique({ where: { id: classSectionId } }),
+    prisma.exam.findUnique({ where: { id: examId } }),
+  ]);
   if (!classSection) return res.status(404).json({ error: "Class not found" });
+  if (!exam) return res.status(404).json({ error: "Exam not found" });
 
   if (req.user.role === "TEACHER") {
     const ok = await teacherCanAccess(req.user, { classSectionId });
@@ -94,16 +98,21 @@ marksRouter.get("/", async (req, res) => {
     subjects = subjects.filter((s) => s.id === subjectId);
   }
 
-  const exam = await prisma.exam.findUnique({ where: { id: examId } });
   const students = await prisma.student.findMany({
     where: await studentWhereForExam(classSectionId, exam),
     orderBy: { rollNo: "asc" },
+    omit: studentListOmit,
   });
 
   const studentIds = students.map((s) => s.id);
   const subjectIds = subjects.map((s) => s.id);
   const electiveSubjectIds = subjects.filter((s) => s.isElective).map((s) => s.id);
-  const [marks, electiveRows] = await Promise.all([
+  const writable =
+    req.user.role === "TEACHER"
+      ? (await assignedSubjects(req.user, classSection, teacherAssignments)).map((s) => s.id)
+      : subjects.map((s) => s.id);
+
+  const [marks, electiveRows, entryAccess] = await Promise.all([
     studentIds.length && subjectIds.length
       ? prisma.mark.findMany({
           where: {
@@ -123,25 +132,16 @@ marksRouter.get("/", async (req, res) => {
           select: { studentId: true, subjectId: true },
         })
       : Promise.resolve([]),
+    getMarkEntryAccessMap(req.user, examId, classSectionId, subjectIds, {
+      writableSubjectIds: writable,
+      exam,
+    }),
   ]);
-
-  const writable =
-    req.user.role === "TEACHER"
-      ? (await assignedSubjects(req.user, classSection, teacherAssignments)).map((s) => s.id)
-      : subjects.map((s) => s.id);
-
-  const entryAccess = await getMarkEntryAccessMap(
-    req.user,
-    examId,
-    classSectionId,
-    subjects.map((s) => s.id),
-    { writableSubjectIds: writable, exam }
-  );
 
   res.json({
     classSection,
     subjects,
-    students,
+    students: students.map(publicStudent),
     marks,
     entryAccess,
     electiveEnrollments: electiveEnrollmentMap(subjects, electiveRows),
@@ -168,7 +168,10 @@ marksRouter.put("/", async (req, res) => {
   const subjectIds = [...new Set(uniqueEntries.map((e) => e.subjectId))];
 
   const [students, subjects, existingMarks] = await Promise.all([
-    prisma.student.findMany({ where: { id: { in: studentIds } } }),
+    prisma.student.findMany({
+      where: { id: { in: studentIds } },
+      omit: studentListOmit,
+    }),
     prisma.subject.findMany({ where: { id: { in: subjectIds } } }),
     prisma.mark.findMany({
       where: {
@@ -343,6 +346,7 @@ marksRouter.get("/template", async (req, res) => {
   const students = await prisma.student.findMany({
     where: await studentWhereForExam(classSectionId, exam),
     orderBy: { rollNo: "asc" },
+    select: { id: true, name: true, rollNo: true },
   });
 
   const workbook = new ExcelJS.Workbook();
@@ -413,6 +417,7 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
   const students = await prisma.student.findMany({
     where: await studentWhereForExam(classSectionId, exam),
     orderBy: { rollNo: "asc" },
+    select: { id: true, name: true, rollNo: true },
   });
   const byRoll = studentRollIndex(students);
 

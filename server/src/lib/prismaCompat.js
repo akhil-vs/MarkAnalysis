@@ -381,6 +381,37 @@ function partitionProjection(select, include) {
   return { scalarSelect, relations, countSelect };
 }
 
+/** Scalar column names for a model from the Prisma contract (excludes relations). */
+function scalarFieldNames(Model) {
+  const modelName = Model?.modelName;
+  const ns = Model?.namespaceId || "public";
+  const fields = Model?.contract?.domain?.namespaces?.[ns]?.models?.[modelName]?.fields;
+  if (!fields || typeof fields !== "object") return [];
+  return Object.entries(fields)
+    .filter(([, meta]) => meta?.type?.kind === "scalar")
+    .map(([name]) => name);
+}
+
+/**
+ * Prisma `omit` is not honored by the ORM-8 façade unless we rewrite it to `select`.
+ * When `select` is already set, Prisma ignores `omit` — we do the same.
+ */
+function resolveOmitArgs(Model, args = {}) {
+  if (!args?.omit || args.select) return args;
+  const omitted = Object.entries(args.omit)
+    .filter(([, value]) => value === true)
+    .map(([key]) => key);
+  if (!omitted.length) return args;
+  const omitSet = new Set(omitted);
+  const select = {};
+  for (const name of scalarFieldNames(Model)) {
+    if (!omitSet.has(name)) select[name] = true;
+  }
+  if (!Object.keys(select).length) return args;
+  const { omit, ...rest } = args;
+  return { ...rest, select };
+}
+
 function applyBranchOptions(branch, opts) {
   if (!opts || opts === true) return branch;
   let b = branch;
@@ -410,6 +441,7 @@ function applyBranchOptions(branch, opts) {
 }
 
 function applyArgs(collection, args = {}, { ignorePaging = false } = {}) {
+  args = resolveOmitArgs(collection, args);
   let q = collection;
   const countKeys = [];
 
@@ -671,8 +703,12 @@ export function createPrismaCompat(db, options = {}) {
       create(args = {}) {
         return run(async (Model) => {
           const data = normalizeWriteData(args.data);
-          if (args.select || args.include) {
-            const meta = applyArgs(Model, { select: args.select, include: args.include });
+          if (args.select || args.include || args.omit) {
+            const meta = applyArgs(Model, {
+              select: args.select,
+              include: args.include,
+              omit: args.omit,
+            });
             return reshapeCountFields(await meta.collection.create(data), meta.countKeys);
           }
           return Model.create(data);
@@ -747,8 +783,13 @@ export function createPrismaCompat(db, options = {}) {
           const data = normalizeWriteData(args.data);
           let q = Model.where((row) => whereToPredicate(row, where));
           let countKeys = [];
-          if (args.select || args.include) {
-            const meta = applyArgs(Model, { where, select: args.select, include: args.include });
+          if (args.select || args.include || args.omit) {
+            const meta = applyArgs(Model, {
+              where,
+              select: args.select,
+              include: args.include,
+              omit: args.omit,
+            });
             q = meta.collection;
             countKeys = meta.countKeys;
           }
@@ -773,8 +814,13 @@ export function createPrismaCompat(db, options = {}) {
           const where = flattenUniqueWhere(args.where || {});
           let q = Model.where((row) => whereToPredicate(row, where));
           let countKeys = [];
-          if (args.select || args.include) {
-            const meta = applyArgs(Model, { where, select: args.select, include: args.include });
+          if (args.select || args.include || args.omit) {
+            const meta = applyArgs(Model, {
+              where,
+              select: args.select,
+              include: args.include,
+              omit: args.omit,
+            });
             q = meta.collection;
             countKeys = meta.countKeys;
           }
@@ -800,8 +846,12 @@ export function createPrismaCompat(db, options = {}) {
           const update = normalizeWriteData(args.update) || {};
           let q = Model;
           let countKeys = [];
-          if (args.select || args.include) {
-            const meta = applyArgs(Model, { select: args.select, include: args.include });
+          if (args.select || args.include || args.omit) {
+            const meta = applyArgs(Model, {
+              select: args.select,
+              include: args.include,
+              omit: args.omit,
+            });
             q = meta.collection;
             countKeys = meta.countKeys;
           }
