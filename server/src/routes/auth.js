@@ -33,7 +33,11 @@ import {
 import { ensureAuthSchema, resetAuthSchemaEnsure } from "../lib/ensureSchema.js";
 import { isSchemaDriftError } from "../lib/httpErrors.js";
 import { hashPassword, verifyPassword } from "../lib/password.js";
-import { buildHomeDashboardCached, homeDashboardPath } from "../lib/homeDashboard.js";
+import {
+  buildHomeDashboardCached,
+  buildHomeDashboardForLogin,
+  homeDashboardPath,
+} from "../lib/homeDashboard.js";
 
 export const authRouter = Router();
 
@@ -112,7 +116,7 @@ async function loadUserSession(userId) {
   return formatSessionPayload(user, { features });
 }
 
-/** Overlap bcrypt with session + cache-backed dashboard (discarded if password fails). */
+/** Overlap bcrypt with session + budgeted dashboard (discarded if password fails). */
 async function prefetchLoginBundle(user) {
   const dashPath = homeDashboardPath(user.role);
   if (user.role === "PLATFORM_ADMIN") {
@@ -125,7 +129,8 @@ async function prefetchLoginBundle(user) {
   return runWithTenant(user.tenantId, async () => {
     const [session, dashboard] = await Promise.all([
       loadUserSession(user.id),
-      dashPath ? buildHomeDashboardCached(user).catch(() => null) : Promise.resolve(null),
+      // Soft budget: never stall login on a cold principal/teacher build.
+      dashPath ? buildHomeDashboardForLogin(user) : Promise.resolve(null),
     ]);
     return { session, dashboard, dashboardPath: dashPath };
   });

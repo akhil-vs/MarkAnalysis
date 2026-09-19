@@ -141,6 +141,13 @@ export function prefetchDashboard(role, { userId, email, schoolId } = {}) {
   inflight.set(path, run);
 }
 
+/** Warm catalog GETs used by Manage / Users / Marks so tables paint faster. */
+export function prefetchCatalogs() {
+  for (const path of ["/api/classes", "/api/exams", "/api/subjects"]) {
+    api(path).catch(() => {});
+  }
+}
+
 /** Synchronous peek — used to initialize dashboard state without awaiting. */
 export function peekDashboardPrefetch(path, { userId } = {}) {
   const hit = cache.get(path);

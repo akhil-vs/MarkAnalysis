@@ -493,7 +493,7 @@ export default function Users() {
     }
   }
 
-  async function load({ q = table.q, page: pageArg = page } = {}) {
+  async function loadUsers({ q = table.q, page: pageArg = page } = {}) {
     const params = new URLSearchParams({ page: String(pageArg), pageSize: String(pageSize) });
     if (q) params.set("q", q);
     if (table.filters.status) params.set("status", table.filters.status);
@@ -501,11 +501,7 @@ export default function Users() {
     if (sort) params.set("sort", sort);
     setListLoading(true);
     try {
-      const [uRes, c, s] = await Promise.all([
-        api(`/api/users?${params}`),
-        api("/api/classes"),
-        api("/api/subjects"),
-      ]);
+      const uRes = await api(`/api/users?${params}`);
       if (Array.isArray(uRes)) {
         setUsers(uRes);
         setTotal(uRes.length);
@@ -521,18 +517,27 @@ export default function Users() {
         setPageCount(uRes.pageCount || 1);
         if (uRes.summary) setSummary(uRes.summary);
       }
-      setClasses(c);
-      setSubjects(s);
     } finally {
       setListLoading(false);
     }
   }
 
+  async function loadCatalogs() {
+    try {
+      const [c, s] = await Promise.all([api("/api/classes"), api("/api/subjects")]);
+      setClasses(c);
+      setSubjects(s);
+    } catch {
+      // assignment editors still work once catalogs retry on next edit
+    }
+  }
+
   useEffect(() => {
-    load().catch(() => {});
+    loadUsers().catch(() => {});
   }, [page, pageSize, table.q, table.filters.status, table.filters.role, sort]);
 
   useEffect(() => {
+    loadCatalogs().catch(() => {});
     loadStaffRoles().catch(() => {});
   }, []);
 
@@ -554,7 +559,7 @@ export default function Users() {
     setBusyId(id);
     try {
       await api(`/api/users/${id}`, { method: "PATCH", body: { status } });
-      await load();
+      await loadUsers();
       toast.success(status === "ACTIVE" ? "Staff account approved." : "Staff account rejected.");
     } catch (err) {
       toast.error(err.message || "Could not update staff status");
@@ -568,7 +573,7 @@ export default function Users() {
     try {
       await api(`/api/users/${userId}`, { method: "PATCH", body: { assignments } });
       setAssigning(null);
-      await load();
+      await loadUsers();
       toast.success("Assignments saved.");
     } catch (err) {
       toast.error(err.message || "Could not save assignments");
@@ -585,7 +590,7 @@ export default function Users() {
         body: { toUserId, includeTimetable, includeClassTeacher },
       });
       setTransferring(null);
-      await load();
+      await loadUsers();
       const parts = [];
       if (result.assignmentsMoved) {
         parts.push(
@@ -672,7 +677,7 @@ export default function Users() {
         await api(`/api/users/${editingId}`, { method: "PATCH", body });
         cancelEdit();
         toast.success("Staff account updated.");
-        await load();
+        await loadUsers();
       } catch (err) {
         toast.error(err.message || "Could not update staff account");
       } finally {
@@ -706,7 +711,7 @@ export default function Users() {
       setForm(emptyStaffForm());
       setShowPassword(false);
       toast.success("Staff account created and active. They can sign in now.");
-      await load();
+      await loadUsers();
     } catch (err) {
       toast.error(err.message || "Could not create staff account");
     } finally {
@@ -741,7 +746,7 @@ export default function Users() {
       toast.success("Staff account deleted.");
       setDeleting(null);
       if (editingId === row.id) cancelEdit();
-      await load();
+      await loadUsers();
     } catch (err) {
       if (err?.data?.code === "HAS_ASSIGNMENTS") {
         setDeleting(row);
@@ -759,7 +764,7 @@ export default function Users() {
     try {
       await api(`/api/users/${row.id}/clear-classes`, { method: "POST" });
       toast.success("Classroom assignments removed.");
-      await load();
+      await loadUsers();
       setBusyId("");
       if (
         !(await confirm({
@@ -789,7 +794,7 @@ export default function Users() {
       // Clear search so newly imported rows are visible in the refreshed list.
       table.setQ("");
       if (page !== 1) setPage(1);
-      await load({ q: "", page: 1 });
+      await loadUsers({ q: "", page: 1 });
       const ok = result.created || 0;
       const errors = result.errors || [];
       if (ok) toast.success(`Imported ${ok} staff account${ok === 1 ? "" : "s"}.`);
