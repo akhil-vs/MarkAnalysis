@@ -306,30 +306,25 @@ export default function Layout() {
     let badgeTimer;
 
     async function loadBadges() {
-      try {
-        const d = await api("/api/analytics/awaiting-approvals?countOnly=1");
-        if (!cancelled) setPendingCount(Number(d.count) || 0);
-      } catch {
-        try {
-          const d = await api("/api/analytics/pending-uploads");
-          if (!cancelled) {
-            setPendingCount((d.pendingTeacherCount ?? 0) + (d.awaitingApprovalTeacherCount ?? 0));
-          }
-        } catch {
-          if (!cancelled) setPendingCount(null);
-        }
-      }
-      try {
-        const d = await api("/api/mark-access/count?status=PENDING");
-        if (!cancelled) setLateEntryCount(Number(d.count) || 0);
-      } catch {
-        try {
-          const rows = await api("/api/mark-access?status=PENDING");
-          if (!cancelled) setLateEntryCount(Array.isArray(rows) ? rows.length : 0);
-        } catch {
-          if (!cancelled) setLateEntryCount(null);
-        }
-      }
+      const pendingPromise = api("/api/analytics/awaiting-approvals?countOnly=1")
+        .then((d) => Number(d.count) || 0)
+        .catch(() =>
+          api("/api/analytics/pending-uploads")
+            .then((d) => (d.pendingTeacherCount ?? 0) + (d.awaitingApprovalTeacherCount ?? 0))
+            .catch(() => null)
+        );
+      const latePromise = api("/api/mark-access/count?status=PENDING")
+        .then((d) => Number(d.count) || 0)
+        .catch(() =>
+          api("/api/mark-access?status=PENDING")
+            .then((rows) => (Array.isArray(rows) ? rows.length : 0))
+            .catch(() => null)
+        );
+
+      const [pending, late] = await Promise.all([pendingPromise, latePromise]);
+      if (cancelled) return;
+      setPendingCount(pending);
+      setLateEntryCount(late);
     }
 
     badgeTimer = window.setTimeout(loadBadges, 150);

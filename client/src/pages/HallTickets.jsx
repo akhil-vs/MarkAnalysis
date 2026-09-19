@@ -172,7 +172,7 @@ export default function HallTickets() {
           next.set("examId", initial);
           setParams(next, { replace: true });
         }
-        await loadStatus(initial);
+        if (initial) await loadStatus(initial);
       } catch (e) {
         if (!cancelled) setError(e.message);
       }

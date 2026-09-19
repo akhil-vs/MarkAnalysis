@@ -39,12 +39,20 @@ async function loadIssueContext(examId, classSectionId) {
   return { exam, classSection };
 }
 
-async function buildPreviewBundle({ exam, classSection, issue }) {
+async function buildPreviewBundle({ exam, classSection, issue, includePhotoBytes = false }) {
+  const studentQuery = includePhotoBytes
+    ? {
+        where: { classSectionId: classSection.id, status: "ACTIVE" },
+        orderBy: { rollNo: "asc" },
+      }
+    : {
+        where: { classSectionId: classSection.id, status: "ACTIVE" },
+        orderBy: { rollNo: "asc" },
+        omit: { photoBytes: true },
+      };
+
   const [students, subjects, schedules, enrollments, letterhead] = await Promise.all([
-    prisma.student.findMany({
-      where: { classSectionId: classSection.id, status: "ACTIVE" },
-      orderBy: { rollNo: "asc" },
-    }),
+    prisma.student.findMany(studentQuery),
     prisma.subject.findMany({
       where: { className: classSection.className },
       orderBy: { name: "asc" },
@@ -84,7 +92,7 @@ async function buildPreviewBundle({ exam, classSection, issue }) {
     schedules,
     tickets,
     studentCount: students.length,
-    photoCount: students.filter((s) => s.photoMimeType && s.photoBytes?.length).length,
+    photoCount: students.filter((s) => Boolean(s.photoMimeType)).length,
     paperCount: tickets[0]?.papers?.length || 0,
     scheduleComplete: papersHaveDateAndTime(tickets[0]?.papers || []),
   };
@@ -100,23 +108,24 @@ hallTicketsRouter.get("/", async (req, res) => {
     where.classSectionId = { in: allowed.length ? allowed : ["__none__"] };
   }
 
-  const issues = await prisma.hallTicketIssue.findMany({
-    where,
-    include: {
-      exam: true,
-      classSection: true,
-      createdBy: { select: { id: true, name: true } },
-      updatedBy: { select: { id: true, name: true } },
-    },
-    orderBy: [{ updatedAt: "desc" }],
-  });
-
-  const classes = await prisma.classSection.findMany({
-    orderBy: [{ className: "asc" }, { section: "asc" }],
-    include: {
-      _count: { select: { students: { where: { status: "ACTIVE" } } } },
-    },
-  });
+  const [issues, classes] = await Promise.all([
+    prisma.hallTicketIssue.findMany({
+      where,
+      include: {
+        exam: true,
+        classSection: true,
+        createdBy: { select: { id: true, name: true } },
+        updatedBy: { select: { id: true, name: true } },
+      },
+      orderBy: [{ updatedAt: "desc" }],
+    }),
+    prisma.classSection.findMany({
+      orderBy: [{ className: "asc" }, { section: "asc" }],
+      include: {
+        _count: { select: { students: { where: { status: "ACTIVE" } } } },
+      },
+    }),
+  ]);
 
   let visibleClasses = classes;
   if (!isLeadership(req.user.role)) {
@@ -235,7 +244,7 @@ hallTicketsRouter.get("/preview", async (req, res) => {
       name: s.name,
       rollNo: s.rollNo,
       admissionNo: s.admissionNo || null,
-      hasPhoto: Boolean(s.photoMimeType && s.photoBytes?.length),
+      hasPhoto: Boolean(s.photoMimeType),
       paperCount: bundle.tickets.find((t) => t.student.id === s.id)?.papers?.length || 0,
     })),
     papers: bundle.tickets[0]?.papers || [],
@@ -267,7 +276,7 @@ hallTicketsRouter.get("/pdf", async (req, res) => {
     where: { examId_classSectionId: { examId, classSectionId } },
   });
 
-  const bundle = await buildPreviewBundle({ exam, classSection, issue });
+  const bundle = await buildPreviewBundle({ exam, classSection, issue, includePhotoBytes: true });
   if (!bundle.scheduleComplete) {
     return res.status(400).json({
       error: "Set a date and start time for every paper under Records → Exams before downloading hall tickets.",
