@@ -4,10 +4,9 @@ import {
   PASS_PERCENT,
   gradeFromPercent,
   mean,
-  pearson,
   round1,
 } from "../lib/grades.js";
-import { auth, getAssignments, isLeadership, teacherCanAccess } from "../middleware/auth.js";
+import { auth, isLeadership, teacherCanAccess } from "../middleware/auth.js";
 import { getTenantId, requireSchoolTenant } from "../lib/tenant.js";
 import {
   classLabel,
@@ -44,34 +43,16 @@ import {
   studentListOmit,
   subjectCoreSelect,
 } from "../lib/markSelects.js";
-
-function subjectCorrelations(marks, subjectNames) {
-  const uniqueNames = [...new Set(subjectNames)];
-  const byStudent = groupBy(marks, (m) => m.studentId);
-  const correlations = [];
-  for (let i = 0; i < uniqueNames.length; i++) {
-    for (let j = i + 1; j < uniqueNames.length; j++) {
-      const a = uniqueNames[i];
-      const b = uniqueNames[j];
-      const pairs = [];
-      for (const [, list] of byStudent) {
-        const ma = list.find((m) => m.subject.name === a);
-        const mb = list.find((m) => m.subject.name === b);
-        if (ma && mb) {
-          const pa = toPercent(ma);
-          const pb = toPercent(mb);
-          if (pa != null && pb != null) pairs.push([pa, pb]);
-        }
-      }
-      const r = pearson(
-        pairs.map((p) => p[0]),
-        pairs.map((p) => p[1])
-      );
-      if (r != null) correlations.push({ a, b, r });
-    }
-  }
-  return correlations;
-}
+import { buildHomeDashboardCached } from "../lib/homeDashboard.js";
+import {
+  indexMarksByPaper,
+  indexMarksBySubject,
+  marksForPaper,
+  slimPendingUploads,
+  subjectCorrelations,
+  subjectDifficulty,
+  teacherSubjectAverages,
+} from "../lib/dashboardAgg.js";
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
@@ -89,8 +70,6 @@ analyticsRouter.get("/school", async (req, res) => {
   if (!isLeadership(req.user.role)) {
     return res.status(403).json({ error: "Forbidden" });
   }
-  const { exams, exam } = await loadExams(req.query.examId);
-  if (!exam) return res.json({ empty: true });
 
   const includeParts = String(req.query.include || "full")
     .split(",")
@@ -99,6 +78,22 @@ analyticsRouter.get("/school", async (req, res) => {
   const wantAll = !includeParts.length || includeParts.includes("full");
   const wantSummary = wantAll || includeParts.includes("summary");
   const wantDetail = wantAll || includeParts.includes("detail");
+
+  // Principal summary (home + exam switch) shares the login/dashboard tenant cache.
+  if (wantSummary && !wantDetail && req.user.role === "PRINCIPAL") {
+    const dash = await buildHomeDashboardCached(
+      {
+        id: req.user.userId,
+        role: "PRINCIPAL",
+        tenantId: req.user.tenantId,
+      },
+      { examId: req.query.examId || undefined }
+    );
+    return res.json(dash || { empty: true });
+  }
+
+  const { exams, exam } = await loadExams(req.query.examId);
+  if (!exam) return res.json({ empty: true });
 
   const grading = gradingHelpers(await getGradingConfig());
   const { passPercent, gradeFn, gradeBands, distinctionMin } = grading;
@@ -410,6 +405,19 @@ analyticsRouter.get("/coordinator", async (req, res) => {
   if (!isLeadership(req.user.role)) {
     return res.status(403).json({ error: "Forbidden" });
   }
+  // Default + exam-switch share the login/home tenant cache for coordinators.
+  if (req.user.role === "EXAM_COORDINATOR") {
+    const dash = await buildHomeDashboardCached(
+      {
+        id: req.user.userId,
+        role: "EXAM_COORDINATOR",
+        tenantId: req.user.tenantId,
+      },
+      { examId: req.query.examId || undefined }
+    );
+    return res.json(dash || { empty: true });
+  }
+
   const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true });
 
@@ -433,61 +441,45 @@ analyticsRouter.get("/coordinator", async (req, res) => {
     buildPendingUploads(exam),
   ]);
 
-  const difficulty = subjects
-    .map((subject) => {
-      const list = marks.filter((m) => m.subjectId === subject.id).map(toPercent).filter((p) => p != null);
-      return {
-        subjectId: subject.id,
-        name: subject.name,
-        average: round1(mean(list)),
-        passRate: list.length
-          ? round1((list.filter((p) => p >= PASS_PERCENT).length / list.length) * 100)
-          : 0,
-        count: list.length,
-      };
-    })
-    .sort((a, b) => (a.average ?? 100) - (b.average ?? 100));
-
-  const teacherBySubject = assignments.map((a) => {
-    const list = marks
-      .filter((m) => m.subjectId === a.subjectId && m.student.classSectionId === a.classSectionId)
-      .map(toPercent)
-      .filter((p) => p != null);
-    return {
-      teacher: a.user.name,
-      subject: a.subject.name,
-      classLabel: `${a.classSection.className}-${a.classSection.section}`,
-      average: round1(mean(list)),
-      passRate: list.length
-        ? round1((list.filter((p) => p >= PASS_PERCENT).length / list.length) * 100)
-        : null,
-    };
-  });
+  const marksBySubject = indexMarksBySubject(marks);
+  const marksByPaper = indexMarksByPaper(marks);
 
   res.json({
     exam,
     exams,
-    difficulty,
-    teacherBySubject,
+    difficulty: subjectDifficulty(subjects, marksBySubject),
+    teacherBySubject: teacherSubjectAverages(assignments, marksByPaper),
     correlations: subjectCorrelations(marks, subjects.map((s) => s.name)),
     classes,
     pendingDrafts: pending,
-    pendingUploads,
+    pendingUploads: slimPendingUploads(pendingUploads),
   });
 });
 
 analyticsRouter.get("/teacher", async (req, res) => {
+  // Teacher home + exam switches reuse the shared builder / tenant cache.
+  if (req.user.role === "TEACHER") {
+    const dash = await buildHomeDashboardCached(
+      {
+        id: req.user.userId,
+        role: "TEACHER",
+        tenantId: req.user.tenantId,
+      },
+      { examId: req.query.examId || undefined }
+    );
+    return res.json(dash || { empty: true });
+  }
+
+  if (!isLeadership(req.user.role)) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
   const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true });
 
-  let assignments = [];
-  if (req.user.role === "TEACHER") {
-    assignments = await getAssignments(req.user.userId);
-  } else {
-    assignments = await prisma.teacherAssignment.findMany({
-      select: assignmentAnalyticsSelect,
-    });
-  }
+  const assignments = await prisma.teacherAssignment.findMany({
+    select: assignmentAnalyticsSelect,
+  });
   if (!assignments.length) return res.json({ empty: true, exams, exam });
 
   const classIds = [...new Set(assignments.map((a) => a.classSectionId))];
@@ -510,17 +502,18 @@ analyticsRouter.get("/teacher", async (req, res) => {
       where: {
         subjectId: { in: subjectIds },
         student: { classSectionId: { in: classIds } },
-        status: { in: req.user.role === "TEACHER" ? ["DRAFT", "APPROVED"] : ["APPROVED"] },
+        status: "APPROVED",
       },
       select: markHistorySelect,
     }),
   ]);
 
+  const studentsByClass = groupBy(students, (s) => s.classSectionId);
+  const marksByPaper = indexMarksByPaper(marks);
+
   const registers = assignments.map((a) => {
-    const expected = students.filter((s) => s.classSectionId === a.classSectionId);
-    const list = marks.filter(
-      (m) => m.subjectId === a.subjectId && m.student.classSectionId === a.classSectionId
-    );
+    const expected = studentsByClass.get(a.classSectionId) || [];
+    const list = marksForPaper(marksByPaper, a.subjectId, a.classSectionId);
     const approved = list.filter((m) => m.status === "APPROVED");
     const forAverage = approved.length ? approved : list;
     const percents = forAverage.map(toPercent).filter((p) => p != null);
@@ -546,7 +539,7 @@ analyticsRouter.get("/teacher", async (req, res) => {
     average: r.average ?? 0,
   }));
 
-  const studentTrends = [];
+  const watchlist = [];
   const byStudent = groupBy(allMarks, (m) => m.studentId);
   for (const [studentId, list] of byStudent) {
     const byExam = groupBy(list, (m) => m.examId);
@@ -557,33 +550,27 @@ analyticsRouter.get("/teacher", async (req, res) => {
       average: round1(mean(ms.map(toPercent).filter((p) => p != null))),
     }));
     points.sort((a, b) => new Date(a.date) - new Date(b.date));
-    studentTrends.push({
+    const latest = points.at(-1);
+    const prev = points.at(-2);
+    const delta =
+      latest?.average != null && prev?.average != null
+        ? round1(latest.average - prev.average)
+        : null;
+    const atRisk = (latest?.average ?? 100) < 55;
+    const declining = delta != null && delta <= -4;
+    if (!atRisk && !declining) continue;
+    watchlist.push({
       studentId,
       name: list[0].student.name,
       rollNo: list[0].student.rollNo,
       points,
+      latest: latest?.average ?? null,
+      delta,
+      declining,
+      atRisk,
     });
   }
-
-  const watchlist = studentTrends
-    .map((s) => {
-      const latest = s.points.at(-1);
-      const prev = s.points.at(-2);
-      const delta =
-        latest?.average != null && prev?.average != null
-          ? round1(latest.average - prev.average)
-          : null;
-      return {
-        ...s,
-        latest: latest?.average ?? null,
-        delta,
-        declining: delta != null && delta <= -4,
-        atRisk: (latest?.average ?? 100) < 55,
-      };
-    })
-    .filter((s) => s.atRisk || s.declining)
-    .sort((a, b) => (a.latest ?? 100) - (b.latest ?? 100))
-    .slice(0, 8);
+  watchlist.sort((a, b) => (a.latest ?? 100) - (b.latest ?? 100));
 
   const uploadedPercents = registers.flatMap((r) => (r.average != null ? [r.average] : []));
   const kpis = {
@@ -599,8 +586,7 @@ analyticsRouter.get("/teacher", async (req, res) => {
     assignments,
     radar,
     registers,
-    studentTrends,
-    watchlist,
+    watchlist: watchlist.slice(0, 8),
     kpis,
     yearComparison: yearSeries(allMarks, exams, exam),
   });

@@ -4,6 +4,7 @@ import {
   clearDashboardPrefetch,
   dashboardApiPath,
   peekLoginShell,
+  prefetchCatalogs,
   prefetchDashboard,
   preloadDashboardModules,
   seedDashboardPrefetch,
@@ -90,6 +91,10 @@ export function AuthProvider({ children }) {
     });
     setLoading(false);
     seedDashboardFromSession(data);
+    if (!asOptimistic && data.user?.role !== "PLATFORM_ADMIN") {
+      // Warm Manage / Marks catalogs in the background after auth.
+      prefetchCatalogs();
+    }
   }
 
   function clearSession() {

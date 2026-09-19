@@ -108,7 +108,10 @@ function ClassesTab() {
   async function load() {
     setLoading(true);
     try {
-      const [c, u] = await Promise.all([api("/api/classes"), api("/api/users")]);
+      const [c, u] = await Promise.all([
+        api("/api/classes"),
+        api("/api/users?role=TEACHER&status=ACTIVE&page=1&pageSize=200&sort=name"),
+      ]);
       setRows(c);
       const staff = Array.isArray(u) ? u : u.items || [];
       setTeachers(staff.filter((x) => x.role === "TEACHER" && x.status === "ACTIVE"));

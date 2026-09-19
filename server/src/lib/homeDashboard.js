@@ -1,5 +1,5 @@
 import { prisma } from "./prisma.js";
-import { PASS_PERCENT, mean, pearson, round1 } from "./grades.js";
+import { PASS_PERCENT, mean, round1 } from "./grades.js";
 import { getAssignments } from "../middleware/auth.js";
 import {
   examLabel,
@@ -14,8 +14,9 @@ import { gradingHelpers, getGradingConfig } from "./gradingConfig.js";
 import {
   dualCeilingWarnings,
   examReadiness,
+  markBandHistogram,
+  outcomeBreakdown,
 } from "./analyticsExtras.js";
-import { enrichMarksInsights } from "../routes/analyticsInsights.js";
 import { buildPendingUploads } from "../routes/analytics.js";
 import {
   assignmentAnalyticsSelect,
@@ -23,37 +24,22 @@ import {
   markHistorySelect,
   subjectCoreSelect,
 } from "./markSelects.js";
+import {
+  indexMarksByPaper,
+  indexMarksBySubject,
+  marksForPaper,
+  slimPendingUploads,
+  subjectCorrelations,
+  subjectDifficulty,
+  teacherSubjectAverages,
+} from "./dashboardAgg.js";
+import { cachedTenantLoad } from "./tenantCache.js";
 
-function subjectCorrelations(marks, subjectNames) {
-  const uniqueNames = [...new Set(subjectNames)];
-  const byStudent = groupBy(marks, (m) => m.studentId);
-  const correlations = [];
-  for (let i = 0; i < uniqueNames.length; i++) {
-    for (let j = i + 1; j < uniqueNames.length; j++) {
-      const a = uniqueNames[i];
-      const b = uniqueNames[j];
-      const pairs = [];
-      for (const [, list] of byStudent) {
-        const ma = list.find((m) => m.subject.name === a);
-        const mb = list.find((m) => m.subject.name === b);
-        if (ma && mb) {
-          const pa = toPercent(ma);
-          const pb = toPercent(mb);
-          if (pa != null && pb != null) pairs.push([pa, pb]);
-        }
-      }
-      const r = pearson(
-        pairs.map((p) => p[0]),
-        pairs.map((p) => p[1])
-      );
-      if (r != null) correlations.push({ a, b, r });
-    }
-  }
-  return correlations;
-}
+/** Max wait for embedding dashboard in the login response (ms). */
+export const LOGIN_DASHBOARD_BUDGET_MS = 350;
 
-async function buildTeacherHome(user) {
-  const { exams, exam } = await loadExams();
+async function buildTeacherHome(user, examId) {
+  const { exams, exam } = await loadExams(examId);
   if (!exam) return { empty: true };
 
   const assignments = await getAssignments(user.id);
@@ -85,11 +71,12 @@ async function buildTeacherHome(user) {
     }),
   ]);
 
+  const studentsByClass = groupBy(students, (s) => s.classSectionId);
+  const marksByPaper = indexMarksByPaper(marks);
+
   const registers = assignments.map((a) => {
-    const expected = students.filter((s) => s.classSectionId === a.classSectionId);
-    const list = marks.filter(
-      (m) => m.subjectId === a.subjectId && m.student.classSectionId === a.classSectionId
-    );
+    const expected = studentsByClass.get(a.classSectionId) || [];
+    const list = marksForPaper(marksByPaper, a.subjectId, a.classSectionId);
     const approved = list.filter((m) => m.status === "APPROVED");
     const forAverage = approved.length ? approved : list;
     const percents = forAverage.map(toPercent).filter((p) => p != null);
@@ -115,7 +102,8 @@ async function buildTeacherHome(user) {
     average: r.average ?? 0,
   }));
 
-  const studentTrends = [];
+  // Build watchlist in-memory; do not ship full studentTrends (unused by SPA).
+  const watchlist = [];
   const byStudent = groupBy(allMarks, (m) => m.studentId);
   for (const [studentId, list] of byStudent) {
     const byExam = groupBy(list, (m) => m.examId);
@@ -126,33 +114,28 @@ async function buildTeacherHome(user) {
       average: round1(mean(ms.map(toPercent).filter((p) => p != null))),
     }));
     points.sort((a, b) => new Date(a.date) - new Date(b.date));
-    studentTrends.push({
+    const latest = points.at(-1);
+    const prev = points.at(-2);
+    const delta =
+      latest?.average != null && prev?.average != null
+        ? round1(latest.average - prev.average)
+        : null;
+    const atRisk = (latest?.average ?? 100) < 55;
+    const declining = delta != null && delta <= -4;
+    if (!atRisk && !declining) continue;
+    watchlist.push({
       studentId,
       name: list[0].student.name,
       rollNo: list[0].student.rollNo,
       points,
+      latest: latest?.average ?? null,
+      delta,
+      declining,
+      atRisk,
     });
   }
-
-  const watchlist = studentTrends
-    .map((s) => {
-      const latest = s.points.at(-1);
-      const prev = s.points.at(-2);
-      const delta =
-        latest?.average != null && prev?.average != null
-          ? round1(latest.average - prev.average)
-          : null;
-      return {
-        ...s,
-        latest: latest?.average ?? null,
-        delta,
-        declining: delta != null && delta <= -4,
-        atRisk: (latest?.average ?? 100) < 55,
-      };
-    })
-    .filter((s) => s.atRisk || s.declining)
-    .sort((a, b) => (a.latest ?? 100) - (b.latest ?? 100))
-    .slice(0, 8);
+  watchlist.sort((a, b) => (a.latest ?? 100) - (b.latest ?? 100));
+  const topWatch = watchlist.slice(0, 8);
 
   const uploadedPercents = registers.flatMap((r) => (r.average != null ? [r.average] : []));
   const kpis = {
@@ -168,15 +151,14 @@ async function buildTeacherHome(user) {
     assignments,
     radar,
     registers,
-    studentTrends,
-    watchlist,
+    watchlist: topWatch,
     kpis,
     yearComparison: yearSeries(allMarks, exams, exam),
   };
 }
 
-async function buildCoordinatorHome() {
-  const { exams, exam } = await loadExams();
+async function buildCoordinatorHome(examId) {
+  const { exams, exam } = await loadExams(examId);
   if (!exam) return { empty: true };
 
   const [marks, subjects, classes, assignments, pending, pendingUploads] = await Promise.all([
@@ -199,55 +181,27 @@ async function buildCoordinatorHome() {
     buildPendingUploads(exam),
   ]);
 
-  const difficulty = subjects
-    .map((subject) => {
-      const list = marks.filter((m) => m.subjectId === subject.id).map(toPercent).filter((p) => p != null);
-      return {
-        subjectId: subject.id,
-        name: subject.name,
-        average: round1(mean(list)),
-        passRate: list.length
-          ? round1((list.filter((p) => p >= PASS_PERCENT).length / list.length) * 100)
-          : 0,
-        count: list.length,
-      };
-    })
-    .sort((a, b) => (a.average ?? 100) - (b.average ?? 100));
-
-  const teacherBySubject = assignments.map((a) => {
-    const list = marks
-      .filter((m) => m.subjectId === a.subjectId && m.student.classSectionId === a.classSectionId)
-      .map(toPercent)
-      .filter((p) => p != null);
-    return {
-      teacher: a.user.name,
-      subject: a.subject.name,
-      classLabel: `${a.classSection.className}-${a.classSection.section}`,
-      average: round1(mean(list)),
-      passRate: list.length
-        ? round1((list.filter((p) => p >= PASS_PERCENT).length / list.length) * 100)
-        : null,
-    };
-  });
+  const marksBySubject = indexMarksBySubject(marks);
+  const marksByPaper = indexMarksByPaper(marks);
 
   return {
     exam,
     exams,
-    difficulty,
-    teacherBySubject,
+    difficulty: subjectDifficulty(subjects, marksBySubject),
+    teacherBySubject: teacherSubjectAverages(assignments, marksByPaper),
     correlations: subjectCorrelations(marks, subjects.map((s) => s.name)),
     classes,
     pendingDrafts: pending,
-    pendingUploads,
+    pendingUploads: slimPendingUploads(pendingUploads),
   };
 }
 
-async function buildPrincipalSummary() {
-  const { exams, exam } = await loadExams();
+async function buildPrincipalSummary(examId) {
+  const { exams, exam } = await loadExams(examId);
   if (!exam) return { empty: true };
 
   const grading = gradingHelpers(await getGradingConfig());
-  const { passPercent, gradeFn, distinctionMin } = grading;
+  const { passPercent, gradeFn, distinctionMin, gradeBands, examWeights } = grading;
 
   const [
     examMarks,
@@ -279,26 +233,36 @@ async function buildPrincipalSummary() {
     .filter((m) => m.status === "APPROVED" && m.student?.status === "ACTIVE")
     .map((m) => ({ ...m, exam }));
   const studentAvgs = studentTotals(groupBy(marks, (m) => m.studentId), { gradeFn });
+  const scored = studentAvgs.filter((s) => s.avg != null);
+  const boardSummary = {
+    distinction: scored.filter((s) => s.avg >= distinctionMin).length,
+    pass: scored.filter((s) => s.avg >= passPercent).length,
+    fail: scored.filter((s) => s.avg < passPercent).length,
+    passPercent,
+    distinctionMin,
+  };
   const kpis = {
     students: activeStudents,
     teachers: teacherCount,
     classes: classes.length,
-    schoolAverage: round1(mean(studentAvgs.map((s) => s.avg).filter((v) => v != null))),
-    passRate: studentAvgs.length
-      ? round1((studentAvgs.filter((s) => (s.avg ?? 0) >= passPercent).length / studentAvgs.length) * 100)
+    schoolAverage: round1(mean(scored.map((s) => s.avg))),
+    passRate: scored.length
+      ? round1((boardSummary.pass / scored.length) * 100)
       : 0,
   };
 
-  const pendingUploads = await buildPendingUploads(exam, {
-    assignments,
-    students: activeStudentRows,
-    marks: examMarks.map((m) => ({
-      studentId: m.studentId,
-      subjectId: m.subjectId,
-      status: m.status,
-    })),
-  });
-  const extras = await enrichMarksInsights(marks, grading);
+  const [pendingUploads] = await Promise.all([
+    buildPendingUploads(exam, {
+      assignments,
+      students: activeStudentRows,
+      marks: examMarks.map((m) => ({
+        studentId: m.studentId,
+        subjectId: m.subjectId,
+        status: m.status,
+      })),
+    }),
+  ]);
+
   const studentsByClass = groupBy(activeStudentRows, (s) => s.classSectionId);
   const readiness = examReadiness({
     exam,
@@ -308,49 +272,80 @@ async function buildPrincipalSummary() {
     accessRequests,
   });
 
+  // Summary path: bands + outcome rates only — skip heavy distinction/fail student lists.
   return {
     exam,
     exams,
     kpis,
-    pendingUploads,
-    ...extras,
+    pendingUploads: slimPendingUploads(pendingUploads),
+    outcomes: outcomeBreakdown(marks),
+    markBands: markBandHistogram(marks),
+    outcomeLists: {
+      counts: {
+        distinction: boardSummary.distinction,
+        pass: boardSummary.pass,
+        fail: boardSummary.fail,
+        students: scored.length,
+      },
+      distinction: [],
+      fail: [],
+      bySubjectFail: [],
+    },
+    grading: {
+      passPercent,
+      distinctionMin,
+      gradeBands,
+      examWeights,
+    },
     readiness: {
       pastDeadline: readiness.pastDeadline,
       deadline: readiness.deadline,
       kpis: readiness.kpis,
     },
     dualCeiling: dualCeilingWarnings(subjects, exam.consolidationMaxMarks),
-    boardSummary: {
-      distinction: extras.outcomeLists.counts.distinction,
-      pass: extras.outcomeLists.counts.pass,
-      fail: extras.outcomeLists.counts.fail,
-      passPercent,
-      distinctionMin,
-    },
+    boardSummary,
   };
 }
 
-import { cachedTenantLoad } from "./tenantCache.js";
-
 /** Build the role home dashboard payload (no HTTP). */
-export async function buildHomeDashboard(user) {
+export async function buildHomeDashboard(user, { examId } = {}) {
   if (!user?.role || user.role === "PLATFORM_ADMIN") return null;
-  if (user.role === "TEACHER") return buildTeacherHome(user);
-  if (user.role === "EXAM_COORDINATOR") return buildCoordinatorHome();
-  if (user.role === "PRINCIPAL") return buildPrincipalSummary();
+  if (user.role === "TEACHER") return buildTeacherHome(user, examId);
+  if (user.role === "EXAM_COORDINATOR") return buildCoordinatorHome(examId);
+  if (user.role === "PRINCIPAL") return buildPrincipalSummary(examId);
   return null;
 }
 
 /** Short-TTL cache so login can overlap bcrypt with a warm dashboard hit. */
-export async function buildHomeDashboardCached(user) {
+export async function buildHomeDashboardCached(user, { examId } = {}) {
   if (!user?.role || user.role === "PLATFORM_ADMIN" || !user.tenantId) {
-    return buildHomeDashboard(user);
+    return buildHomeDashboard(user, { examId });
   }
+  const examKey = examId || "default";
   return cachedTenantLoad(
-    `home-dash:${user.role}:${user.id}`,
-    () => buildHomeDashboard(user),
+    `home-dash:${user.role}:${user.id}:${examKey}`,
+    () => buildHomeDashboard(user, { examId }),
     { ttlMs: 45_000, tenantId: user.tenantId }
   );
+}
+
+/**
+ * Like buildHomeDashboardCached but aborts embedding after `budgetMs`.
+ * Used on the login path so a cold principal build cannot stall sign-in.
+ */
+export async function buildHomeDashboardForLogin(user, budgetMs = LOGIN_DASHBOARD_BUDGET_MS) {
+  if (!user?.role || user.role === "PLATFORM_ADMIN") return null;
+  let timer;
+  try {
+    return await Promise.race([
+      buildHomeDashboardCached(user).catch(() => null),
+      new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), budgetMs);
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 export function homeDashboardPath(role) {
@@ -359,3 +354,5 @@ export function homeDashboardPath(role) {
   if (role === "TEACHER") return "/api/analytics/teacher";
   return null;
 }
+
+export { subjectCorrelations };
