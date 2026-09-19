@@ -144,8 +144,8 @@ export const PAGE_HELP = {
   },
   help: {
     title: "What's on this page",
-    about: "Downloadable PDF user manuals for principals, exam co-ordinators, and teachers.",
-    useful: "Open your role’s PDF guide. Each school user only sees the manual that matches their role.",
+    about: "Downloadable PDFs: a shared application-flows overview plus role user manuals for principals, exam co-ordinators, and teachers.",
+    useful: "Download the flows sheet for every role, then open your role’s step-by-step manual. Platform admins can open every PDF.",
   },
   platformDashboard: {
     title: "What's on this page",

@@ -35,24 +35,26 @@ export default function Help() {
         title={NAV_TITLES.help}
         subtitle={
           platform
-            ? "Downloadable user manuals for every school role"
-            : "Your role’s user manual"
+            ? "Downloadable application flows and user manuals for every school role"
+            : "Application flows and your role’s user manual"
         }
       />
       {platform ? (
         <p className="mb-5 max-w-2xl text-sm text-ink-700/70">
-          Open any school-role guide. Staff signed in as principal, exam co-ordinator, or teacher
-          only see the manual for their own role.
+          Start with the shared application-flows PDF, then open any school-role guide. Staff signed in
+          as principal, exam co-ordinator, or teacher see the flows sheet plus the manual for their own
+          role.
         </p>
       ) : (
         <p className="mb-5 max-w-2xl text-sm text-ink-700/70">
-          This guide matches your signed-in role. Open or download the PDF for step-by-step help.
+          Download the application-flows overview for every role, plus the step-by-step manual that
+          matches your signed-in role.
         </p>
       )}
       {manuals.length === 0 ? (
         <p className="text-sm text-ink-700/70">No user manual is available for this account.</p>
       ) : (
-        <div className={`grid gap-4 ${platform ? "sm:grid-cols-2 xl:grid-cols-3" : ""}`}>
+        <div className={`grid gap-4 ${manuals.length > 1 ? "sm:grid-cols-2 xl:grid-cols-3" : ""}`}>
           {manuals.map((manual) => (
             <ManualCard key={manual.id} manual={manual} />
           ))}

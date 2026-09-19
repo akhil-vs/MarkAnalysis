@@ -1,4 +1,18 @@
-/** Static catalog of role user-manual PDFs served from /help/*.pdf */
+/** Static catalog of help PDFs served from /help/*.pdf */
+
+/** Shared overview — shown to every school role and platform admins. */
+export const APPLICATION_FLOWS = {
+  id: "flows",
+  role: null,
+  shared: true,
+  title: "Application flows by role",
+  audience: "All school roles",
+  body: "End-to-end map for principal, exam co-ordinator, and teacher — access, desks, marks cycle, and who does what.",
+  href: "/help/application-flows.pdf",
+  file: "application-flows.pdf",
+};
+
+/** Role-specific step-by-step user manuals. */
 export const HELP_MANUALS = [
   {
     id: "principal",
@@ -29,9 +43,17 @@ export const HELP_MANUALS = [
   },
 ];
 
-/** Manuals shown on HELP for this role — school users get only their own guide. */
+/** All help PDFs (flows + role manuals), for platform admins and catalog checks. */
+export const ALL_HELP_PDFS = [APPLICATION_FLOWS, ...HELP_MANUALS];
+
+/**
+ * PDFs shown on HELP for this role.
+ * School users get the shared application-flows PDF plus their own role manual.
+ * Platform admins get every PDF.
+ */
 export function manualsForRole(role) {
-  if (role === "PLATFORM_ADMIN") return HELP_MANUALS;
+  if (role === "PLATFORM_ADMIN") return ALL_HELP_PDFS;
   const mine = HELP_MANUALS.find((m) => m.role === role);
-  return mine ? [mine] : [];
+  if (!mine) return [];
+  return [APPLICATION_FLOWS, mine];
 }

@@ -1,6 +1,12 @@
 {
-  "generatedAt": "2026-09-18T11:30:50.396Z",
+  "generatedAt": "2026-09-18T12:52:09.256Z",
   "manuals": [
+    {
+      "id": "flows",
+      "title": "Application flows by role",
+      "file": "application-flows.pdf",
+      "href": "/help/application-flows.pdf"
+    },
     {
       "id": "principal",
       "title": "Principal user manual",
