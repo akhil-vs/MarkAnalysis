@@ -71,6 +71,16 @@ npm run test:api
 
 CI runs the same flow in the `api-integration` job (Postgres 16 service).
 
+### User-manual API automation
+
+API workflows mapped to `docs/user-manuals/` checklists. Writes HTML/JSON/Markdown under `reports/`:
+
+```bash
+npm run test:manual-automation
+# or wipe-seed then run:
+npm run test:manual-automation:prepare
+```
+
 ### Full-application E2E (Playwright)
 
 Browser workflows for every role manual (principal, co-ordinator, teacher) plus the cross-role marks cycle:
