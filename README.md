@@ -71,6 +71,20 @@ npm run test:api
 
 CI runs the same flow in the `api-integration` job (Postgres 16 service).
 
+### User-manual automation
+
+End-to-end API workflows mapped to `docs/user-manuals/` (principal, co-ordinator, teacher checklists). Writes HTML, JSON, and Markdown reports under `reports/`:
+
+```bash
+# DB already prepared & seeded:
+npm run test:manual-automation
+
+# Or prepare + wipe-seed + run:
+npm run test:manual-automation:prepare
+```
+
+Open `reports/manual-automation-report.html` after the run.
+
 ### Deploy auth config (Vercel / production)
 
 Set these on the Vercel project (or host env) before going live:

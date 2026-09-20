@@ -8,3 +8,4 @@ server/uploads/
 client/dist/
 .vercel
 .env*
+reports/
