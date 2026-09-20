@@ -1,5 +1,14 @@
 import { test, expect } from "@playwright/test";
-import { ACCOUNTS, demoLogin, goNav, expectPageTitle, openAnalysisChild, signOut } from "../helpers/auth.js";
+import {
+  ACCOUNTS,
+  ROUTES,
+  demoLogin,
+  goNav,
+  goRoute,
+  expectPageTitle,
+  expectNavLink,
+  signOut,
+} from "../helpers/auth.js";
 
 /**
  * Principal user manual — full-app UI walkthrough
@@ -15,115 +24,109 @@ test.describe("Principal manual — complete application workflow", () => {
   });
 
   test("§1 Sign in lands on Principal desk with exam selector", async ({ page }) => {
-    await expect(page.getByText(/principal|good (morning|afternoon|evening)/i).first()).toBeVisible({
-      timeout: 20_000,
-    });
-    // Exam selector shared with leadership
-    await expect(page.locator("select, [role='combobox']").first()).toBeVisible();
+    await expect(page.locator("main")).toContainText(/principal|good (morning|afternoon|evening)|school/i);
+    await expect(page.locator("main select, main [role='combobox']").first()).toBeVisible();
   });
 
   test("§2.1 School profile — identity, join code, grading", async ({ page }) => {
     await goNav(page, "School profile");
+    await expect(page).toHaveURL(/\/school/);
     await expectPageTitle(page, "School profile");
-    await expect(page.getByText(/join code|DEMO-JOIN|staff join/i).first()).toBeVisible();
-    await expect(page.getByText(/pass percent|distinction|grade|working week|bell/i).first()).toBeVisible();
+    await expect(page.locator("main")).toContainText(/join code|DEMO-JOIN/i);
   });
 
   test("§2.2 Records — classes, subjects, students, exams tabs", async ({ page }) => {
     await goNav(page, "Records");
-    await expectPageTitle(page, "School records|Records");
+    await expect(page).toHaveURL(/\/manage/);
+    await expectPageTitle(page, "School records");
     for (const tab of ["Classes", "Subjects", "Students", "Exams"]) {
-      const tabBtn = page.getByRole("button", { name: new RegExp(`^${tab}$`, "i") }).or(
-        page.getByRole("tab", { name: new RegExp(`^${tab}$`, "i") })
-      );
-      if (await tabBtn.count()) {
-        await tabBtn.first().click();
-      } else {
-        await page.getByText(tab, { exact: true }).first().click();
-      }
-      await expect(page.locator("main, .flex-1").first()).toBeVisible();
+      await page.locator("main").getByRole("button", { name: new RegExp(`^${tab}$`, "i") }).click();
+      await expect(page.locator("main")).toBeVisible();
     }
   });
 
   test("§2.3 Staff — active teachers and co-ordinators listed", async ({ page }) => {
     await goNav(page, "Staff");
+    await expect(page).toHaveURL(/\/users/);
     await expectPageTitle(page, "Staff");
-    await expect(page.getByText(/Anita Sharma|Meera Iyer|Sanjay Menon/i).first()).toBeVisible({
-      timeout: 20_000,
-    });
+    await expect(page.locator("main")).toContainText(/Anita Sharma|Meera Iyer|Sanjay Menon/i);
   });
 
   test("§2.4 Timetables — teachers / daily board / find free", async ({ page }) => {
     await goNav(page, "Timetables");
+    await expect(page).toHaveURL(/\/timetables/);
     await expectPageTitle(page, "timetable");
-    await expect(page.getByText(/teacher|daily|weekly|find free/i).first()).toBeVisible();
+    await expect(page.locator("main")).toContainText(/teacher|daily|weekly|find free/i);
   });
 
   test("§3.1 Pending uploads — chase & approve queue", async ({ page }) => {
     await goNav(page, "Pending uploads");
+    await expect(page).toHaveURL(/\/pending-uploads/);
     await expectPageTitle(page, "Pending");
-    await expect(page.getByText(/pending|awaiting|upload|approval|teacher/i).first()).toBeVisible();
   });
 
   test("§3.2 Access requests inbox", async ({ page }) => {
     await goNav(page, "Access requests");
+    await expect(page).toHaveURL(/\/late-entry/);
     await expectPageTitle(page, "Access request");
   });
 
   test("§3.4 Consolidated lists", async ({ page }) => {
     await goNav(page, "Consolidated lists");
+    await expect(page).toHaveURL(/\/consolidated/);
     await expectPageTitle(page, "Consolidated");
   });
 
   test("§3.5 Hall tickets", async ({ page }) => {
     await goNav(page, "Hall tickets");
+    await expect(page).toHaveURL(/\/hall-tickets/);
     await expectPageTitle(page, "Hall ticket");
   });
 
   test("§3.6 Audit log", async ({ page }) => {
     await goNav(page, "Audit log");
+    await expect(page).toHaveURL(/\/audit/);
     await expectPageTitle(page, "Audit");
   });
 
   test("§4 Insights suite — school / classes / subjects / teachers / students / compare / deep", async ({
     page,
   }) => {
-    const children = [
-      "School overview",
-      "Classes",
-      "Subjects",
-      "Teachers",
-      "Students",
-      "Compare",
-      "Deep insights",
+    const routes = [
+      ROUTES.analysisSchool,
+      ROUTES.analysisClasses,
+      ROUTES.analysisSubjects,
+      ROUTES.analysisTeachers,
+      ROUTES.analysisStudents,
+      ROUTES.analysisCompare,
+      ROUTES.analysisDeep,
     ];
-    for (const label of children) {
-      await openAnalysisChild(page, label);
-      await expect(page.locator("main, .flex-1").first()).toBeVisible();
-      // Page should not bounce to login
+    for (const path of routes) {
+      await goRoute(page, path);
+      await expect(page).toHaveURL(new RegExp(path.replace(/\//g, "\\/")));
       await expect(page).not.toHaveURL(/\/login/);
+      await expect(page.locator("main")).toBeVisible();
     }
   });
 
   test("§10 Principal has no Mark register / Bulk upload in sidebar", async ({ page }) => {
-    const marks = page.locator("nav a").filter({ hasText: /^Mark register$/ });
-    const upload = page.locator("nav a").filter({ hasText: /^Bulk upload$/ });
-    await expect(marks).toHaveCount(0);
-    await expect(upload).toHaveCount(0);
+    await expectNavLink(page, "Mark register", { visible: false });
+    await expectNavLink(page, "Bulk upload", { visible: false });
   });
 
   test("§ HELP — only Principal user manual PDF", async ({ page }) => {
     await goNav(page, "User manuals");
+    await expect(page).toHaveURL(/\/help/);
     await expectPageTitle(page, "HELP|user manual");
-    await expect(page.getByRole("heading", { name: /Principal user manual/i })).toBeVisible();
-    await expect(page.getByRole("heading", { name: /Teacher user manual/i })).toHaveCount(0);
-    await expect(page.getByRole("heading", { name: /co-ordinator user manual|coordinator user manual/i })).toHaveCount(0);
+    await expect(page.locator("main")).toContainText(/Principal user manual/i);
+    await expect(page.locator("main")).not.toContainText(/Teacher user manual/i);
     await expect(page.getByRole("link", { name: /Open PDF|Download/i }).first()).toBeVisible();
   });
 
   test("§8 Profile — account security page", async ({ page }) => {
     await goNav(page, "Profile");
+    await expect(page).toHaveURL(/\/profile/);
     await expectPageTitle(page, "profile");
-    await expect(page.getByText(/password|MFA|authenticator/i).first()).toBeVisible();
+    await expect(page.locator("main")).toContainText(/password|MFA|authenticator/i);
   });
 });

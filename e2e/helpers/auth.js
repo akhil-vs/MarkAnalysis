@@ -1,3 +1,5 @@
+import { expect } from "@playwright/test";
+
 /** Shared demo accounts from the seed / login page. */
 export const ACCOUNTS = {
   principal: {
@@ -27,32 +29,65 @@ export const ACCOUNTS = {
   },
 };
 
+/** Canonical SPA routes from client/src/lib/nav.js */
+export const ROUTES = {
+  dashboard: "/",
+  marks: "/marks",
+  upload: "/upload",
+  pendingUploads: "/pending-uploads",
+  accessRequests: "/late-entry",
+  consolidated: "/consolidated",
+  hallTickets: "/hall-tickets",
+  studentPhotos: "/student-photos",
+  audit: "/audit",
+  analysis: "/analysis",
+  analysisSchool: "/analysis/school",
+  analysisClasses: "/analysis/classes",
+  analysisSubjects: "/analysis/subjects",
+  analysisTeachers: "/analysis/teachers",
+  analysisStudents: "/analysis/students",
+  analysisCompare: "/analysis/compare",
+  analysisDeep: "/analysis/deep",
+  staff: "/users",
+  records: "/manage",
+  timetables: "/timetables",
+  schoolProfile: "/school",
+  boardOps: "/board",
+  cpd: "/cpd",
+  help: "/help",
+  profile: "/profile",
+  platform: "/platform",
+};
+
+function escapeRegExp(s) {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 /**
  * Sign in via the one-click demo button on /login (Vite DEV enables demos).
  */
 export async function demoLogin(page, account) {
   await page.goto("/login");
   await page.getByRole("heading", { name: /sign in/i }).waitFor({ state: "visible" });
-  const btn = page.locator("button").filter({
+  const btn = page.getByRole("button").filter({
     has: page.getByText(account.name, { exact: true }),
   });
   await btn.first().click();
-  // Principals / teachers / coordinators land on desk; platform admin on /platform
   if (account.role === "Platform admin") {
     await page.waitForURL(/\/platform/);
   } else {
     await page.waitForURL((url) => url.pathname === "/" || url.pathname === "");
   }
+  await page.locator("main").waitFor({ state: "visible" });
 }
 
 export async function signOut(page) {
-  const logout = page.getByRole("button", { name: /sign out|log out/i });
+  const logout = page.getByRole("button", { name: /^Sign out$/i });
   if (await logout.count()) {
     await logout.first().click();
     await page.waitForURL(/\/login/);
     return;
   }
-  // Fallback: clear session via API + reload
   await page.evaluate(async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
@@ -63,39 +98,54 @@ export async function signOut(page) {
   await page.goto("/login");
 }
 
-/** Click a sidebar link by visible label. */
+/** Click a sidebar link by visible label (tolerates badge suffixes like "Pending uploads 0"). */
 export async function goNav(page, label) {
-  const link = page.locator("nav a, nav button").filter({ hasText: new RegExp(`^${escapeRegExp(label)}$`) });
-  if (await link.count()) {
-    await link.first().click();
+  const link = page.getByRole("navigation").getByRole("link", {
+    name: new RegExp(`^${escapeRegExp(label)}(\\s+\\d+)?$`, "i"),
+  });
+  await link.first().click();
+  await page.locator("main").waitFor({ state: "visible" });
+}
+
+/** Navigate by SPA path and wait for main content. */
+export async function goRoute(page, path) {
+  await page.goto(path);
+  await page.locator("main").waitFor({ state: "visible" });
+}
+
+/**
+ * Assert the page h1 (PageHeader) matches. Help hint text is part of the accessible name,
+ * so we match against innerText / substring regex.
+ */
+export async function expectPageTitle(page, pattern) {
+  const heading = page.locator("main h1").first();
+  await heading.waitFor({ state: "visible", timeout: 20_000 });
+  const re = typeof pattern === "string" ? new RegExp(pattern, "i") : pattern;
+  await expect.poll(async () => (await heading.innerText()).replace(/\s+/g, " ")).toMatch(re);
+}
+
+export async function openAnalysisChild(page, label, route) {
+  if (route) {
+    await goRoute(page, route);
     return;
   }
-  // Expandable parent (e.g. Marks analysis)
-  const parent = page.locator("nav").getByText(label, { exact: true });
-  await parent.first().click();
-}
-
-function escapeRegExp(s) {
-  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-/** Assert the page header / main title contains text. */
-export async function expectPageTitle(page, text) {
-  const main = page.locator("main, [role='main'], .flex-1").first();
-  await main.getByRole("heading", { name: new RegExp(text, "i") }).first().waitFor({
-    state: "visible",
-    timeout: 20_000,
+  const side = page.getByRole("navigation").getByRole("link", {
+    name: new RegExp(`^${escapeRegExp(label)}$`, "i"),
   });
-}
-
-/** Open Marks analysis child route via hub or sidebar. */
-export async function openAnalysisChild(page, label) {
-  // Try sidebar child first
-  const side = page.locator("nav a").filter({ hasText: new RegExp(`^${escapeRegExp(label)}$`) });
   if (await side.count()) {
     await side.first().click();
-    return;
+  } else {
+    await goRoute(page, ROUTES.analysis);
+    await page.locator("main").getByRole("link", { name: new RegExp(label, "i") }).first().click();
   }
-  await goNav(page, "Marks analysis");
-  await page.getByRole("link", { name: new RegExp(label, "i") }).first().click();
+  await page.locator("main").waitFor({ state: "visible" });
+}
+
+/** Assert a sidebar link is present or absent. */
+export async function expectNavLink(page, label, { visible = true } = {}) {
+  const link = page.getByRole("navigation").getByRole("link", {
+    name: new RegExp(`^${escapeRegExp(label)}(\\s+\\d+)?$`, "i"),
+  });
+  if (visible) await expect(link.first()).toBeVisible();
+  else await expect(link).toHaveCount(0);
 }
