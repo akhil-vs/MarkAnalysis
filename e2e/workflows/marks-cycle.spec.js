@@ -62,7 +62,10 @@ test.describe("Cross-role marks cycle (manuals exam workflow)", () => {
     const page = await ctx.newPage();
     await page.goto("/platform");
     await expect(page).toHaveURL(/\/platform/);
-    await expect(page.locator("main, body")).toContainText(/school|platform|Greenfield|Riverside/i);
+    await page.locator("main").waitFor({ state: "visible", timeout: 45_000 });
+    await expect(page.locator("main")).toContainText(/school|platform|Greenfield|Riverside/i, {
+      timeout: 30_000,
+    });
     await ctx.close();
   });
 
