@@ -71,6 +71,20 @@ npm run test:api
 
 CI runs the same flow in the `api-integration` job (Postgres 16 service).
 
+### Full-application E2E (Playwright)
+
+Browser workflows for every role manual (principal, co-ordinator, teacher) plus the cross-role marks cycle:
+
+```bash
+# API + Vite are started automatically if not already running
+npm run test:e2e
+
+# API automation + E2E together
+npm run test:app
+```
+
+HTML report: `reports/playwright-html/index.html` (also `reports/playwright-report.json`).
+
 ### Deploy auth config (Vercel / production)
 
 Set these on the Vercel project (or host env) before going live:

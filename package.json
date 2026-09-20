@@ -8,7 +8,12 @@
   "scripts": {
     "build": "cd server && npx prisma contract emit && cd ../client && npm run build",
     "vercel-build": "cd server && npx prisma contract emit && cd ../client && npm run build",
-    "docs:pdf": "node scripts/generate-user-manual-pdfs.js"
+    "docs:pdf": "node scripts/generate-user-manual-pdfs.js",
+    "test:manual-automation": "node scripts/run-manual-automation.mjs",
+    "test:manual-automation:prepare": "PREPARE_DB=1 SEED=1 node scripts/run-manual-automation.mjs",
+    "test:e2e": "npx playwright test --config=e2e/playwright.config.js",
+    "test:e2e:report": "npx playwright show-report reports/playwright-html",
+    "test:app": "npm run test:manual-automation && npm run test:e2e"
   },
   "dependencies": {
     "@prisma/cli-engine": "^0.3.0",
@@ -27,6 +32,7 @@
     "temporal-polyfill": "^1.0.5"
   },
   "devDependencies": {
+    "@playwright/test": "^1.55.0",
     "prisma": "^8.0.0-rc.14"
   }
 }

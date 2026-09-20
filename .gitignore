@@ -8,3 +8,5 @@ server/uploads/
 client/dist/
 .vercel
 .env*
+reports/
+e2e/.auth/
