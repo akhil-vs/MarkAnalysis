@@ -1,70 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
+import {
+  buildPaperDrafts,
+  copyClassScheduleToAll,
+  firstClassFromDrafts,
+  papersPayloadFromDrafts,
+} from "../lib/examPaperSchedule.js";
 
-function toDateInput(value) {
-  if (!value) return "";
-  try {
-    return new Date(value).toISOString().slice(0, 10);
-  } catch {
-    return "";
-  }
-}
+export {
+  buildPaperDrafts,
+  copyClassScheduleToAll,
+  firstClassFromDrafts,
+  papersPayloadFromDrafts,
+};
 
-/**
- * Build editable draft rows from subjects + existing paper schedules.
- * One row per subject (subjects are already scoped to a class name).
- */
-export function buildPaperDrafts(subjects = [], schedules = []) {
-  const bySubject = new Map();
-  for (const row of schedules || []) {
-    if (!row?.subjectId) continue;
-    bySubject.set(row.subjectId, row);
-  }
-  return (subjects || [])
-    .slice()
-    .sort((a, b) => {
-      const c = String(a.className).localeCompare(String(b.className), undefined, { numeric: true });
-      if (c) return c;
-      return String(a.name).localeCompare(String(b.name));
-    })
-    .map((subject) => {
-      const existing = bySubject.get(subject.id);
-      return {
-        subjectId: subject.id,
-        subjectName: subject.name,
-        className: subject.className,
-        paperDate: toDateInput(existing?.paperDate),
-        startTime: existing?.startTime || "",
-        endTime: existing?.endTime || "",
-        venue: existing?.venue || "",
-        scheduleId: existing?.id || null,
-      };
-    });
-}
-
-export function papersPayloadFromDrafts(drafts = []) {
-  return (drafts || [])
-    .filter((row) => row.paperDate)
-    .map((row) => ({
-      subjectId: row.subjectId,
-      className: row.className || null,
-      paperDate: row.paperDate,
-      startTime: row.startTime || null,
-      endTime: row.endTime || null,
-      venue: row.venue || null,
-    }));
-}
-
-export function firstClassFromDrafts(drafts = []) {
-  const classes = [
-    ...new Set((drafts || []).map((d) => d.className).filter(Boolean)),
-  ].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
-  return classes[0] || "";
-}
-
-/**
- * Per-class / per-subject exam paper date editor used by Records → Exams.
- * Class selection comes first; subject dates are shown for that class only.
- */
 export default function ExamPaperScheduleEditor({
   drafts,
   onChange,
@@ -73,6 +21,8 @@ export default function ExamPaperScheduleEditor({
   onSelectedClassChange,
 }) {
   const [classDate, setClassDate] = useState("");
+  const [classStartTime, setClassStartTime] = useState("");
+  const [classEndTime, setClassEndTime] = useState("");
   const [allClassesDate, setAllClassesDate] = useState("");
 
   const classOptions = useMemo(
@@ -96,13 +46,20 @@ export default function ExamPaperScheduleEditor({
   }, [drafts, selectedClass]);
 
   const datedCount = (drafts || []).filter((d) => d.paperDate).length;
+  const timedCount = (drafts || []).filter(
+    (d) => d.paperDate && String(d.startTime || "").trim()
+  ).length;
   const classDatedCount = classRows.filter((d) => d.paperDate).length;
+  const classTimedCount = classRows.filter(
+    (d) => d.paperDate && String(d.startTime || "").trim()
+  ).length;
 
   const classStatus = useMemo(() => {
     return classOptions.map((className) => {
       const rows = (drafts || []).filter((d) => String(d.className) === String(className));
       const dated = rows.filter((d) => d.paperDate).length;
-      return { className, total: rows.length, dated };
+      const timed = rows.filter((d) => d.paperDate && String(d.startTime || "").trim()).length;
+      return { className, total: rows.length, dated, timed };
     });
   }, [classOptions, drafts]);
 
@@ -113,19 +70,29 @@ export default function ExamPaperScheduleEditor({
   }
 
   function applyToSelectedClass() {
-    if (!classDate || !selectedClass) return;
+    if (!selectedClass) return;
+    if (!classDate && !classStartTime && !classEndTime) return;
     onChange(
-      (drafts || []).map((row) =>
-        String(row.className) === String(selectedClass)
-          ? { ...row, paperDate: classDate }
-          : row
-      )
+      (drafts || []).map((row) => {
+        if (String(row.className) !== String(selectedClass)) return row;
+        return {
+          ...row,
+          ...(classDate ? { paperDate: classDate } : {}),
+          ...(classStartTime ? { startTime: classStartTime } : {}),
+          ...(classEndTime ? { endTime: classEndTime } : {}),
+        };
+      })
     );
   }
 
   function applyToAllClasses() {
     if (!allClassesDate) return;
     onChange((drafts || []).map((row) => ({ ...row, paperDate: allClassesDate })));
+  }
+
+  function copySelectedClassToAll() {
+    if (!selectedClass) return;
+    onChange(copyClassScheduleToAll(drafts, selectedClass));
   }
 
   function clearSelectedClass() {
@@ -153,9 +120,11 @@ export default function ExamPaperScheduleEditor({
       <div>
         <h4 className="font-medium text-ink-800">Paper dates by class &amp; subject</h4>
         <p className="text-xs text-ink-700/55 mt-0.5">
-          Choose a class first, then set subject dates for that class. Switch classes to schedule
-          the rest.
-          {datedCount ? ` ${datedCount} of ${drafts.length} papers dated overall.` : " No papers dated yet."}
+          Choose a class, set each subject’s date and start time, then copy that timetable to other
+          classes if they share the same papers. Hall tickets need a start time on every paper.
+          {datedCount
+            ? ` ${datedCount} of ${drafts.length} dated · ${timedCount} with start times.`
+            : " No papers dated yet."}
         </p>
       </div>
 
@@ -179,7 +148,7 @@ export default function ExamPaperScheduleEditor({
               const status = classStatus.find((s) => s.className === c);
               const label =
                 status && status.dated
-                  ? `Class ${c} (${status.dated}/${status.total} dated)`
+                  ? `Class ${c} (${status.timed}/${status.total} timed)`
                   : `Class ${c}`;
               return (
                 <option key={c} value={c}>
@@ -202,10 +171,11 @@ export default function ExamPaperScheduleEditor({
                 }
                 disabled={disabled}
                 onClick={() => onSelectedClassChange?.(s.className)}
+                title={`${s.dated} dated · ${s.timed} with start times`}
               >
                 {s.className}
                 <span className="ml-1 opacity-70">
-                  {s.dated}/{s.total}
+                  {s.timed}/{s.total}
                 </span>
               </button>
             ))}
@@ -217,19 +187,36 @@ export default function ExamPaperScheduleEditor({
         <>
           <div className="flex flex-wrap gap-2 items-end">
             <div>
-              <label className="label">Apply one date to class {selectedClass}</label>
-              <div className="flex gap-2">
+              <label className="label">Apply to class {selectedClass}</label>
+              <div className="flex flex-wrap gap-2">
                 <input
                   type="date"
                   className="field"
                   value={classDate}
                   disabled={disabled}
                   onChange={(e) => setClassDate(e.target.value)}
+                  aria-label={`Date to apply to class ${selectedClass}`}
+                />
+                <input
+                  type="time"
+                  className="field w-[7.5rem]"
+                  value={classStartTime}
+                  disabled={disabled}
+                  onChange={(e) => setClassStartTime(e.target.value)}
+                  aria-label={`Start time to apply to class ${selectedClass}`}
+                />
+                <input
+                  type="time"
+                  className="field w-[7.5rem]"
+                  value={classEndTime}
+                  disabled={disabled}
+                  onChange={(e) => setClassEndTime(e.target.value)}
+                  aria-label={`End time to apply to class ${selectedClass}`}
                 />
                 <button
                   type="button"
                   className="btn-ghost"
-                  disabled={disabled || !classDate}
+                  disabled={disabled || (!classDate && !classStartTime && !classEndTime)}
                   onClick={applyToSelectedClass}
                 >
                   Apply to class
@@ -256,6 +243,17 @@ export default function ExamPaperScheduleEditor({
                 </button>
               </div>
             </div>
+            {classOptions.length > 1 ? (
+              <button
+                type="button"
+                className="btn-ghost"
+                disabled={disabled || classTimedCount === 0}
+                onClick={copySelectedClassToAll}
+                title="Copy this class’s dates and times onto matching subjects in every other class"
+              >
+                Copy class {selectedClass} timetable to all classes
+              </button>
+            ) : null}
             <button type="button" className="btn-ghost" disabled={disabled} onClick={clearSelectedClass}>
               Clear class {selectedClass}
             </button>
@@ -265,7 +263,7 @@ export default function ExamPaperScheduleEditor({
             <div className="text-xs font-semibold uppercase tracking-wide text-ink-700/50 mb-1.5">
               Class {selectedClass} subjects
               {classDatedCount
-                ? ` · ${classDatedCount} of ${classRows.length} dated`
+                ? ` · ${classDatedCount} of ${classRows.length} dated · ${classTimedCount} timed`
                 : " · none dated yet"}
             </div>
             <div className="max-h-80 overflow-auto">

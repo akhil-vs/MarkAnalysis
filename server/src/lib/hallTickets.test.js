@@ -72,6 +72,72 @@ describe("hallTickets helpers", () => {
     assert.equal(String(eng.paperDate), String(exam.date));
   });
 
+  it("resolvePaperRows keeps school-wide times when class row only has a date", () => {
+    const rows = resolvePaperRows({
+      subjects: [{ id: "bio-10", name: "Biology", maxMarks: 100, isElective: false }],
+      schedules: [
+        {
+          subjectId: "bio-10",
+          className: null,
+          paperDate: "2026-10-04T00:00:00.000Z",
+          startTime: "08:00",
+          endTime: "09:00",
+          venue: "Lab",
+        },
+        {
+          subjectId: "bio-10",
+          className: "10",
+          paperDate: "2026-10-05T00:00:00.000Z",
+          startTime: null,
+          endTime: null,
+          venue: null,
+        },
+      ],
+      exam: { date: "2026-10-01T00:00:00.000Z" },
+      className: "10",
+    });
+    assert.equal(rows[0].paperDate, "2026-10-05T00:00:00.000Z");
+    assert.equal(rows[0].startTime, "08:00");
+    assert.equal(rows[0].endTime, "09:00");
+    assert.equal(rows[0].venue, "Lab");
+  });
+
+  it("resolvePaperRows reuses another class timetable by subject name", () => {
+    const rows = resolvePaperRows({
+      subjects: [
+        { id: "bio-10", name: "Biology", maxMarks: 100, isElective: false },
+        { id: "chem-10", name: "Chemistry", maxMarks: 100, isElective: false },
+      ],
+      schedules: [
+        {
+          subjectId: "bio-9",
+          className: "9",
+          paperDate: "2026-10-04T00:00:00.000Z",
+          startTime: "08:00",
+          endTime: "09:00",
+          subject: { name: "Biology" },
+        },
+        {
+          subjectId: "chem-9",
+          className: "9",
+          paperDate: "2026-10-06T00:00:00.000Z",
+          startTime: "08:00",
+          endTime: "09:00",
+          subject: { name: "Chemistry" },
+        },
+      ],
+      exam: { date: "2026-10-01T00:00:00.000Z" },
+      className: "10",
+    });
+    assert.equal(rows.length, 2);
+    assert.equal(rows[0].subjectName, "Biology");
+    assert.equal(rows[0].startTime, "08:00");
+    assert.equal(String(rows[0].paperDate), "2026-10-04T00:00:00.000Z");
+    assert.equal(rows[1].subjectName, "Chemistry");
+    assert.equal(rows[1].startTime, "08:00");
+    assert.equal(papersHaveDateAndTime(rows), true);
+  });
+
   it("filters elective papers per student", () => {
     const papers = [
       { subjectId: "core", subjectName: "Math", isElective: false },
