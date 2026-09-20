@@ -71,19 +71,19 @@ npm run test:api
 
 CI runs the same flow in the `api-integration` job (Postgres 16 service).
 
-### User-manual automation
+### Full-application E2E (Playwright)
 
-End-to-end API workflows mapped to `docs/user-manuals/` (principal, co-ordinator, teacher checklists). Writes HTML, JSON, and Markdown reports under `reports/`:
+Browser workflows for every role manual (principal, co-ordinator, teacher) plus the cross-role marks cycle:
 
 ```bash
-# DB already prepared & seeded:
-npm run test:manual-automation
+# API + Vite are started automatically if not already running
+npm run test:e2e
 
-# Or prepare + wipe-seed + run:
-npm run test:manual-automation:prepare
+# API automation + E2E together
+npm run test:app
 ```
 
-Open `reports/manual-automation-report.html` after the run.
+HTML report: `reports/playwright-html/index.html` (also `reports/playwright-report.json`).
 
 ### Deploy auth config (Vercel / production)
 
