@@ -29,7 +29,7 @@ Keep structure accurate so registers, hall tickets, analytics, and promotion sta
 
 | Tab | What to do |
 |---|---|
-| **Classes** | Maintain class–section rows and class teachers. |
+| **Classes** | Add a class with several divisions at once; assign class teachers per division. |
 | **Subjects** | Subjects and **Max marks (mark entry)**; electives and enrolments. |
 | **Students** | Roll list; photos for hall tickets. |
 | **Exams** | Exam calendar; per-class / per-subject paper dates; **Max marks [consolidation]**; **Lock for consolidation**. |

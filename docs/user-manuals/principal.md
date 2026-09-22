@@ -37,7 +37,7 @@ Work through these once per academic year (and whenever structure changes).
 
 | Tab | What to do |
 |---|---|
-| **Classes** | Create class–section rows; assign a **class teacher** where needed. |
+| **Classes** | Create a class with several divisions at once; assign a **class teacher** per division. |
 | **Subjects** | Add subjects; set **Max marks (mark entry)**; mark electives and enrol students as required. |
 | **Students** | Add or import the roll; upload photos for hall tickets. |
 | **Exams** | Create exams; set paper dates (same date for all, or per class/subject); set **Max marks [consolidation]**; **Lock for consolidation** when ready. |
