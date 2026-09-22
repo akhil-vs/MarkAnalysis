@@ -13,7 +13,7 @@ import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { ExamSelect } from "../components/ExamSelect.jsx";
-import { LoadingState } from "../components/Spinner.jsx";
+import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { YearComparison } from "../components/AnalysisPanels.jsx";
 import {
   BarTrack,
@@ -24,10 +24,158 @@ import {
   RankRow,
   greeting,
 } from "../components/DashboardKit.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
 import { paths } from "../lib/nav.js";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
+
+function todayYmd() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function TeacherLeaveRequest({ userId }) {
+  const toast = useToast();
+  const [startDate, setStartDate] = useState(todayYmd());
+  const [endDate, setEndDate] = useState(todayYmd());
+  const [reason, setReason] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [mine, setMine] = useState(null);
+
+  async function loadMine() {
+    const from = todayYmd();
+    const end = new Date();
+    end.setDate(end.getDate() + 60);
+    const to = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, "0")}-${String(end.getDate()).padStart(2, "0")}`;
+    try {
+      const rows = await api(
+        `/api/timetable/leaves?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&status=ALL`
+      );
+      setMine(
+        (rows || []).filter((l) => l.status === "PENDING" || l.status === "ACTIVE").slice(0, 6)
+      );
+    } catch {
+      setMine([]);
+    }
+  }
+
+  useEffect(() => {
+    loadMine();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per mount
+  }, [userId]);
+
+  async function submit(e) {
+    e.preventDefault();
+    setSaving(true);
+    try {
+      await api("/api/timetable/leaves", {
+        method: "POST",
+        body: {
+          teacherId: userId,
+          startDate,
+          endDate,
+          reason: reason || undefined,
+          suggestCovers: false,
+        },
+      });
+      toast.success("Leave request submitted for approval");
+      setReason("");
+      await loadMine();
+    } catch (err) {
+      toast.error(err.message || "Could not submit leave");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function cancelPending(leaveId) {
+    try {
+      await api(`/api/timetable/leaves/${leaveId}`, { method: "DELETE" });
+      toast.success("Request cancelled");
+      await loadMine();
+    } catch (err) {
+      toast.error(err.message || "Could not cancel");
+    }
+  }
+
+  return (
+    <Panel className="mb-5" title="My leave">
+      <p className="text-sm text-ink-700/70 mb-3">
+        Request leave for approval. Once approved, it appears on school timetables and notifies the
+        principal, vice principal, supervisors, and coordinators.
+      </p>
+      <form onSubmit={submit} className="grid sm:grid-cols-2 gap-3 max-w-xl mb-4">
+        <label className="block">
+          <span className="label">Start</span>
+          <input
+            type="date"
+            className="field"
+            required
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+        </label>
+        <label className="block">
+          <span className="label">End</span>
+          <input
+            type="date"
+            className="field"
+            required
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
+        </label>
+        <label className="block sm:col-span-2">
+          <span className="label">Reason (optional)</span>
+          <input
+            className="field"
+            value={reason}
+            onChange={(e) => setReason(e.target.value)}
+            placeholder="Sick leave, personal, training…"
+          />
+        </label>
+        <div className="sm:col-span-2">
+          <button type="submit" className="btn-primary" disabled={saving}>
+            <BusyLabel busy={saving} idle="Request leave" busyText="Submitting…" />
+          </button>
+        </div>
+      </form>
+      {mine === null && <p className="text-sm text-ink-700/55">Loading your leave…</p>}
+      {mine && !mine.length && <EmptyNote>No pending or upcoming leave.</EmptyNote>}
+      {mine && mine.length > 0 && (
+        <ul className="space-y-2 text-sm">
+          {mine.map((leave) => (
+            <li
+              key={leave.id}
+              className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-ink-900/10 px-3 py-2"
+            >
+              <div>
+                <span className="font-medium">
+                  {leave.startDate}
+                  {leave.endDate !== leave.startDate ? ` → ${leave.endDate}` : ""}
+                </span>
+                <span className="ml-2 text-ink-700/55">
+                  {leave.status === "PENDING" ? "Awaiting approval" : "Approved"}
+                  {leave.reason ? ` · ${leave.reason}` : ""}
+                </span>
+              </div>
+              {leave.status === "PENDING" && (
+                <button
+                  type="button"
+                  className="btn-ghost text-xs"
+                  onClick={() => cancelPending(leave.id)}
+                >
+                  Cancel
+                </button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </Panel>
+  );
+}
 
 export default function TeacherDashboard() {
   const { user, assignments, classTeacherOf, optimistic } = useAuth();
@@ -189,6 +337,8 @@ export default function TeacherDashboard() {
           </div>
         </Panel>
       )}
+
+      <TeacherLeaveRequest userId={user.id} />
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
         <Metric label="Your average" value={data.kpis?.average != null ? `${data.kpis.average}%` : "—"} />

@@ -100,16 +100,17 @@ Teachers on leave are **not free** for substitute duty that day.
 
 ## Who can do what
 
-| Action | Principal | Exam coordinator | Teacher |
-|---|---|---|---|
-| Put teacher on leave | Yes | Yes (if `timetables` feature) | No |
-| Cancel leave | Yes | Yes | No |
-| Assign / change substitute | Yes | Yes | No |
-| Auto-suggest substitutes | Yes | Yes | View own cover only |
-| See leave on own timetable | — | — | Yes (own day/week) |
+| Action | Principal | Exam coordinator (default) | Custom roles with `leaveApproval` / `assignSubstitutes` | Teacher |
+|---|---|---|---|---|
+| Request own leave | — | — | — | Yes (pending until approved) |
+| Approve / reject leave | Yes | Yes (`leaveApproval`) | Yes | No |
+| Put teacher on leave (active immediately) | Yes | Yes (`leaveApproval`) | Yes | No |
+| Cancel leave | Yes | Yes (`leaveApproval`) | Yes | Own pending only |
+| Assign / change substitute | Yes | Yes (`assignSubstitutes`) | Yes | No |
+| Auto-suggest substitutes | Yes | Yes (`assignSubstitutes`) | Yes | View own cover only |
+| See leave on own timetable | — | — | — | Yes (once approved / ACTIVE) |
 
-Use existing `requireLeadership()` + `requireFeature("timetables")`.
-
+Grant **Leave approval** and **Assign substitutes** under Staff → Role access (e.g. Vice Principal, Supervisor, Coordinator titles). Leave requests notify principal, exam coordinators, matching role titles, and anyone with leave approval.
 ---
 
 ## UX (leadership)
@@ -295,7 +296,7 @@ Ship A → B → C in that order. A alone already makes leave visible; B makes o
 ## Non-goals (v1)
 
 - Payroll / HR leave balances
-- Self-service leave requests by teachers (can add later as request → principal approve)
+- Self-service leave requests by teachers (shipped: request → approve via `leaveApproval`; ACTIVE leave overlays timetables)
 - Permanently reassigning the weekly template (use existing timetable edit for that)
 - Auto-publishing covers without leadership confirmation
 

@@ -24,11 +24,11 @@ import {
   teacherOnLeaveForPeriod,
 } from "../lib/teacherLeave.js";
 import { leaveAppliesToPeriod, leaveCoversDate } from "../lib/substituteScore.js";
+import { canManageTimetableOps } from "../lib/leaveAccess.js";
 
 export const timetableRouter = Router();
 timetableRouter.use(auth);
 timetableRouter.use(requireSchoolTenant);
-timetableRouter.use(requireFeature("timetables"));
 timetableRouter.use(async (_req, _res, next) => {
   try {
     await ensureTimetableSchema();
@@ -37,7 +37,21 @@ timetableRouter.use(async (_req, _res, next) => {
     next(err);
   }
 });
+// Leave + substitutes: teachers may request own leave; approvers/assigners use role features.
 timetableRouter.use(teacherLeaveRouter);
+// Daily board, free finder, and template edits need timetable or leave-ops access.
+timetableRouter.use(requireFeature("timetables", "leaveApproval", "assignSubstitutes"));
+
+function requireTimetableOps() {
+  return async (req, res, next) => {
+    try {
+      if (await canManageTimetableOps(req)) return next();
+      return res.status(403).json({ error: "Forbidden" });
+    } catch (err) {
+      next(err);
+    }
+  };
+}
 
 const ENTRY_INCLUDE = {
   period: true,
@@ -107,9 +121,10 @@ function serializeEntry(entry) {
   };
 }
 
-function canViewTeacher(req, teacherId) {
+async function canViewTeacher(req, teacherId) {
   if (isLeadership(req.user.role)) return true;
-  return req.user.userId === teacherId;
+  if (req.user.userId === teacherId) return true;
+  return canManageTimetableOps(req);
 }
 
 async function loadTeacherOr404(teacherId, res) {
@@ -211,7 +226,7 @@ timetableRouter.put("/periods", requireLeadership(), async (req, res) => {
   res.json(periods);
 });
 
-timetableRouter.get("/teachers", requireLeadership(), async (_req, res) => {
+timetableRouter.get("/teachers", requireTimetableOps(), async (_req, res) => {
   const teachers = await prisma.user.findMany({
     where: { role: "TEACHER", status: "ACTIVE" },
     orderBy: { name: "asc" },
@@ -240,7 +255,7 @@ timetableRouter.get("/teachers", requireLeadership(), async (_req, res) => {
 });
 
 /** School-wide daily board: every active teacher × periods for one calendar day. */
-timetableRouter.get("/day", requireLeadership(), async (req, res) => {
+timetableRouter.get("/day", requireTimetableOps(), async (req, res) => {
   const date = parseDateParam(req.query.date);
   if (!date) return res.status(400).json({ error: "date must be YYYY-MM-DD" });
 
@@ -392,7 +407,7 @@ timetableRouter.get("/day", requireLeadership(), async (req, res) => {
 });
 
 /** Active teachers with no timetable entry for a given day + teaching period. */
-timetableRouter.get("/free", requireLeadership(), async (req, res) => {
+timetableRouter.get("/free", requireTimetableOps(), async (req, res) => {
   const periodId = String(req.query.periodId || "").trim();
   if (!periodId) return res.status(400).json({ error: "periodId is required" });
 
@@ -503,7 +518,7 @@ timetableRouter.get("/free", requireLeadership(), async (req, res) => {
 
 timetableRouter.get("/teachers/:userId", async (req, res) => {
   const { userId } = req.params;
-  if (!canViewTeacher(req, userId)) {
+  if (!(await canViewTeacher(req, userId))) {
     return res.status(403).json({ error: "Forbidden" });
   }
 

@@ -32,6 +32,8 @@ export const FEATURE_GROUPS = [
       { id: "staff", label: "Staff" },
       { id: "records", label: "School records" },
       { id: "timetables", label: "Timetables" },
+      { id: "leaveApproval", label: "Leave approval" },
+      { id: "assignSubstitutes", label: "Assign substitutes" },
       { id: "schoolProfile", label: "School profile" },
       { id: "boardOps", label: "Board ops" },
       { id: "cpd", label: "CPD" },
@@ -48,6 +50,21 @@ export function hasFeature(features, featureId) {
   if (!featureId || ALWAYS_ON_FEATURES.includes(featureId)) return true;
   if (!Array.isArray(features)) return true; // until session loads features, don't blank the UI
   return features.includes(featureId);
+}
+
+/** True when any listed catalog feature is enabled (or features not loaded yet). */
+export function hasAnyFeature(features, featureIds) {
+  const ids = (featureIds || []).filter(Boolean);
+  if (!ids.length) return true;
+  if (!Array.isArray(features)) return true;
+  return ids.some((id) => hasFeature(features, id));
+}
+
+/** Timetables page + leave ops: full grid, leave approval, or substitute assignment. */
+export const TIMETABLE_ACCESS_FEATURES = ["timetables", "leaveApproval", "assignSubstitutes"];
+
+export function hasTimetableAccess(features) {
+  return hasAnyFeature(features, TIMETABLE_ACCESS_FEATURES);
 }
 
 /** Nav item id → feature id (same id for catalog features). */

@@ -177,5 +177,14 @@ describe("effectiveFeatureMap", () => {
     const map = effectiveFeatureMap("PRINCIPAL", {});
     assert.equal(map.staff, true);
     assert.equal(map.boardOps, true);
+    assert.equal(map.leaveApproval, true);
+    assert.equal(map.assignSubstitutes, true);
+  });
+
+  it("defaults leave approval features for coordinator but not teacher", () => {
+    assert.equal(DEFAULT_FEATURES_BY_BASE_ROLE.EXAM_COORDINATOR.leaveApproval, true);
+    assert.equal(DEFAULT_FEATURES_BY_BASE_ROLE.EXAM_COORDINATOR.assignSubstitutes, true);
+    assert.equal(DEFAULT_FEATURES_BY_BASE_ROLE.TEACHER.leaveApproval, false);
+    assert.equal(DEFAULT_FEATURES_BY_BASE_ROLE.TEACHER.assignSubstitutes, false);
   });
 });

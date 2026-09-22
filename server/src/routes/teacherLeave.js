@@ -1,9 +1,16 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { ensureTeacherLeaveSchema } from "../lib/ensureSchema.js";
-import { requireLeadership, publicUser } from "../middleware/auth.js";
+import { publicUser } from "../middleware/auth.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { createNotification, notifyUsers } from "../lib/notifications.js";
+import {
+  canAccessLeaveApis,
+  canApproveLeave,
+  canAssignSubstitutes,
+  notifyLeaveStakeholders,
+  timetableLink,
+} from "../lib/leaveAccess.js";
 import { getSchoolProfile } from "../lib/school.js";
 import { ensureDefaultPeriods } from "../lib/periods.js";
 import {
@@ -37,12 +44,16 @@ teacherLeaveRouter.use(async (_req, _res, next) => {
   }
 });
 
-function timetableLink(dateYmd, mode = "daily") {
-  const params = new URLSearchParams();
-  params.set("mode", mode);
-  if (dateYmd) params.set("date", dateYmd);
-  return `/timetables?${params.toString()}`;
-}
+teacherLeaveRouter.use(async (req, res, next) => {
+  try {
+    if (!(await canAccessLeaveApis(req))) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    next();
+  } catch (err) {
+    next(err);
+  }
+});
 
 function parseLeaveBody(body) {
   const teacherId = String(body?.teacherId || "").trim();
@@ -66,11 +77,11 @@ function parseLeaveBody(body) {
   return { teacherId, startDate, endDate, leaveType, reason, periodIds: leaveType === "PARTIAL" ? periodIds : null };
 }
 
-async function assertNoOverlap(teacherId, startDate, endDate, { excludeId } = {}) {
+async function assertNoOverlap(teacherId, startDate, endDate, { excludeId, statuses = ["ACTIVE", "PENDING"] } = {}) {
   const existing = await prisma.teacherLeave.findMany({
     where: {
       teacherId,
-      status: "ACTIVE",
+      status: { in: statuses },
       startDate: { lte: endDate },
       endDate: { gte: startDate },
       ...(excludeId ? { id: { not: excludeId } } : {}),
@@ -78,18 +89,32 @@ async function assertNoOverlap(teacherId, startDate, endDate, { excludeId } = {}
   });
   if (existing.length) {
     const err = new Error(
-      `Teacher already has active leave overlapping ${existing[0].startDate}–${existing[0].endDate}`
+      `Teacher already has ${existing[0].status === "PENDING" ? "a pending" : "active"} leave overlapping ${existing[0].startDate}–${existing[0].endDate}`
     );
     err.status = 409;
     throw err;
   }
 }
 
-teacherLeaveRouter.get("/leaves", requireLeadership(), async (req, res) => {
+function leaveDateLabel(startDate, endDate) {
+  return startDate === endDate ? startDate : `${startDate} to ${endDate}`;
+}
+
+async function requireSubstituteAssigner(req, res) {
+  if (!(await canAssignSubstitutes(req))) {
+    res.status(403).json({ error: "Assign substitutes permission required" });
+    return false;
+  }
+  return true;
+}
+
+teacherLeaveRouter.get("/leaves", async (req, res) => {
   const from = String(req.query.from || req.query.date || "").trim();
   const to = String(req.query.to || req.query.date || from).trim();
   const teacherId = String(req.query.teacherId || "").trim() || null;
   const status = String(req.query.status || "ACTIVE").trim().toUpperCase();
+  const approver = await canApproveLeave(req);
+  const assigner = await canAssignSubstitutes(req);
 
   if (!from || !parseYmd(from) || !parseYmd(to)) {
     return res.status(400).json({ error: "from/to (or date) must be YYYY-MM-DD" });
@@ -100,7 +125,13 @@ teacherLeaveRouter.get("/leaves", requireLeadership(), async (req, res) => {
     endDate: { gte: from },
   };
   if (status !== "ALL") where.status = status;
-  if (teacherId) where.teacherId = teacherId;
+
+  if (approver || assigner) {
+    if (teacherId) where.teacherId = teacherId;
+  } else {
+    // Teachers without approval rights only see their own leave.
+    where.teacherId = req.user.userId;
+  }
 
   const leaves = await prisma.teacherLeave.findMany({
     where,
@@ -110,14 +141,25 @@ teacherLeaveRouter.get("/leaves", requireLeadership(), async (req, res) => {
   res.json(leaves.map(serializeLeave));
 });
 
-teacherLeaveRouter.post("/leaves", requireLeadership(), async (req, res) => {
+teacherLeaveRouter.post("/leaves", async (req, res) => {
   const parsed = parseLeaveBody(req.body || {});
   if (parsed.error) return res.status(400).json({ error: parsed.error });
+
+  const approver = await canApproveLeave(req);
+  const isSelf = parsed.teacherId === req.user.userId;
+
+  if (!approver) {
+    if (!isSelf || req.user.role !== "TEACHER") {
+      return res.status(403).json({ error: "You can only request leave for yourself" });
+    }
+  }
 
   const teacher = await prisma.user.findUnique({ where: { id: parsed.teacherId } });
   if (!teacher || teacher.role !== "TEACHER") {
     return res.status(400).json({ error: "Invalid teacher" });
   }
+
+  const initialStatus = approver ? "ACTIVE" : "PENDING";
 
   try {
     await assertNoOverlap(parsed.teacherId, parsed.startDate, parsed.endDate);
@@ -133,11 +175,46 @@ teacherLeaveRouter.post("/leaves", requireLeadership(), async (req, res) => {
       leaveType: parsed.leaveType,
       periodIds: parsed.periodIds,
       reason: parsed.reason,
-      status: "ACTIVE",
+      status: initialStatus,
       createdById: req.user.userId,
     },
     include: LEAVE_INCLUDE,
   });
+
+  const dateLabel = leaveDateLabel(parsed.startDate, parsed.endDate);
+
+  if (initialStatus === "PENDING") {
+    await logActivity({
+      actorId: req.user.userId,
+      action: "TEACHER_LEAVE_REQUESTED",
+      summary: `${teacher.name} requested leave ${parsed.startDate}–${parsed.endDate}`,
+      meta: {
+        leaveId: leave.id,
+        teacherId: teacher.id,
+        teacherName: teacher.name,
+        startDate: parsed.startDate,
+        endDate: parsed.endDate,
+        leaveType: parsed.leaveType,
+        status: "PENDING",
+      },
+    });
+
+    await notifyLeaveStakeholders(
+      {
+        type: "STAFF_NOTICE",
+        title: "Leave request pending approval",
+        body: `${teacher.name} requested leave for ${dateLabel}${parsed.reason ? ` (${parsed.reason})` : ""}.`,
+        link: timetableLink(parsed.startDate, "leave"),
+        meta: { leaveId: leave.id, teacherId: teacher.id, status: "PENDING" },
+      },
+      { excludeUserId: req.user.userId }
+    );
+
+    return res.status(201).json({
+      leave: serializeLeave(leave),
+      plan: null,
+    });
+  }
 
   await logActivity({
     actorId: req.user.userId,
@@ -165,12 +242,22 @@ teacherLeaveRouter.post("/leaves", requireLeadership(), async (req, res) => {
     meta: { leaveId: leave.id, startDate: parsed.startDate, endDate: parsed.endDate },
   });
 
+  await notifyLeaveStakeholders(
+    {
+      type: "STAFF_NOTICE",
+      title: "Teacher leave recorded",
+      body: `${teacher.name} is on leave for ${dateLabel}. Timetables show vacated periods until covers are assigned.`,
+      link: timetableLink(parsed.startDate, "leave"),
+      meta: { leaveId: leave.id, teacherId: teacher.id, status: "ACTIVE" },
+    },
+    { excludeUserId: req.user.userId }
+  );
+
   let plan = null;
-  if (req.body?.suggestCovers !== false) {
+  if (req.body?.suggestCovers !== false && (await canAssignSubstitutes(req))) {
     try {
       plan = await buildPlanForLeave(leave);
     } catch (err) {
-      // Leave is already saved; cover planning can be retried from the UI.
       plan = {
         leave: serializeLeave(leave),
         vacatedCount: 0,
@@ -189,18 +276,30 @@ teacherLeaveRouter.post("/leaves", requireLeadership(), async (req, res) => {
   });
 });
 
-teacherLeaveRouter.patch("/leaves/:id", requireLeadership(), async (req, res) => {
+teacherLeaveRouter.patch("/leaves/:id", async (req, res) => {
   const existing = await prisma.teacherLeave.findUnique({
     where: { id: req.params.id },
     include: LEAVE_INCLUDE,
   });
   if (!existing) return res.status(404).json({ error: "Leave not found" });
 
+  const approver = await canApproveLeave(req);
+  const isOwner = existing.teacherId === req.user.userId;
+  const nextStatusRaw = req.body?.status != null ? String(req.body.status).trim().toUpperCase() : null;
+
+  // Teachers may cancel their own pending request only.
+  if (!approver) {
+    if (!isOwner) return res.status(403).json({ error: "Forbidden" });
+    if (nextStatusRaw !== "CANCELLED" || existing.status !== "PENDING") {
+      return res.status(403).json({ error: "You can only cancel your own pending leave request" });
+    }
+  }
+
   const data = {};
-  if (req.body?.reason !== undefined) {
+  if (req.body?.reason !== undefined && approver) {
     data.reason = req.body.reason == null || req.body.reason === "" ? null : String(req.body.reason).trim();
   }
-  if (req.body?.startDate || req.body?.endDate || req.body?.leaveType || req.body?.periodIds) {
+  if (approver && (req.body?.startDate || req.body?.endDate || req.body?.leaveType || req.body?.periodIds)) {
     const parsed = parseLeaveBody({
       teacherId: existing.teacherId,
       startDate: req.body.startDate ?? existing.startDate,
@@ -222,12 +321,11 @@ teacherLeaveRouter.patch("/leaves/:id", requireLeadership(), async (req, res) =>
     data.leaveType = parsed.leaveType;
     data.periodIds = parsed.periodIds;
   }
-  if (req.body?.status != null) {
-    const status = String(req.body.status).trim().toUpperCase();
-    if (status !== "ACTIVE" && status !== "CANCELLED") {
-      return res.status(400).json({ error: "status must be ACTIVE or CANCELLED" });
+  if (nextStatusRaw) {
+    if (!["ACTIVE", "CANCELLED", "REJECTED", "PENDING"].includes(nextStatusRaw)) {
+      return res.status(400).json({ error: "status must be ACTIVE, PENDING, REJECTED, or CANCELLED" });
     }
-    data.status = status;
+    data.status = nextStatusRaw;
   }
 
   const updated = await prisma.teacherLeave.update({
@@ -236,42 +334,127 @@ teacherLeaveRouter.patch("/leaves/:id", requireLeadership(), async (req, res) =>
     include: LEAVE_INCLUDE,
   });
 
-  if (data.status === "CANCELLED" && existing.status === "ACTIVE") {
-    await prisma.timetableSubstitution.deleteMany({ where: { leaveId: existing.id } });
+  const dateLabel = leaveDateLabel(updated.startDate, updated.endDate);
+  const teacherName = existing.teacher?.name || "teacher";
+
+  if (data.status === "ACTIVE" && existing.status === "PENDING") {
     await logActivity({
       actorId: req.user.userId,
-      action: "TEACHER_LEAVE_CANCELLED",
-      summary: `Cancelled leave for ${existing.teacher?.name || "teacher"} (${existing.startDate}–${existing.endDate})`,
+      action: "TEACHER_LEAVE_APPROVED",
+      summary: `Approved leave for ${teacherName} (${updated.startDate}–${updated.endDate})`,
       meta: { leaveId: existing.id, teacherId: existing.teacherId },
     });
     if (existing.teacherId) {
       await createNotification({
         userId: existing.teacherId,
         type: "STAFF_NOTICE",
-        title: "Leave cancelled",
-        body: `Your leave for ${existing.startDate}–${existing.endDate} was cancelled.`,
+        title: "Leave approved",
+        body: `Your leave for ${dateLabel} was approved and is now shown on timetables.`,
+        link: timetableLink(updated.startDate, "daily"),
+        meta: { leaveId: existing.id, status: "ACTIVE" },
+      });
+    }
+    await notifyLeaveStakeholders(
+      {
+        type: "STAFF_NOTICE",
+        title: "Leave approved",
+        body: `${teacherName}'s leave for ${dateLabel} was approved. Vacated periods appear on the timetable until covers are assigned.`,
+        link: timetableLink(updated.startDate, "leave"),
+        meta: { leaveId: existing.id, teacherId: existing.teacherId, status: "ACTIVE" },
+      },
+      { excludeUserId: req.user.userId }
+    );
+  } else if (data.status === "REJECTED" && existing.status === "PENDING") {
+    await logActivity({
+      actorId: req.user.userId,
+      action: "TEACHER_LEAVE_REJECTED",
+      summary: `Rejected leave for ${teacherName} (${existing.startDate}–${existing.endDate})`,
+      meta: { leaveId: existing.id, teacherId: existing.teacherId },
+    });
+    if (existing.teacherId) {
+      await createNotification({
+        userId: existing.teacherId,
+        type: "STAFF_NOTICE",
+        title: "Leave request rejected",
+        body: `Your leave request for ${dateLabel} was rejected.`,
+        link: timetableLink(existing.startDate, "leave"),
+        meta: { leaveId: existing.id, status: "REJECTED" },
+      });
+    }
+  } else if (data.status === "CANCELLED" && (existing.status === "ACTIVE" || existing.status === "PENDING")) {
+    if (existing.status === "ACTIVE") {
+      await prisma.timetableSubstitution.deleteMany({ where: { leaveId: existing.id } });
+    }
+    await logActivity({
+      actorId: req.user.userId,
+      action: "TEACHER_LEAVE_CANCELLED",
+      summary: `Cancelled leave for ${teacherName} (${existing.startDate}–${existing.endDate})`,
+      meta: { leaveId: existing.id, teacherId: existing.teacherId },
+    });
+    if (existing.teacherId && existing.teacherId !== req.user.userId) {
+      await createNotification({
+        userId: existing.teacherId,
+        type: "STAFF_NOTICE",
+        title: existing.status === "PENDING" ? "Leave request cancelled" : "Leave cancelled",
+        body: `Your leave for ${dateLabel} was cancelled.`,
         link: timetableLink(existing.startDate, "daily"),
         meta: { leaveId: existing.id },
       });
     }
+    if (existing.status === "ACTIVE") {
+      await notifyLeaveStakeholders(
+        {
+          type: "STAFF_NOTICE",
+          title: "Leave cancelled",
+          body: `${teacherName}'s leave for ${dateLabel} was cancelled.`,
+          link: timetableLink(existing.startDate, "leave"),
+          meta: { leaveId: existing.id, teacherId: existing.teacherId, status: "CANCELLED" },
+        },
+        { excludeUserId: req.user.userId }
+      );
+    }
   }
 
-  res.json(serializeLeave(updated));
+  let plan = null;
+  if (
+    data.status === "ACTIVE" &&
+    existing.status === "PENDING" &&
+    req.body?.suggestCovers !== false &&
+    (await canAssignSubstitutes(req))
+  ) {
+    try {
+      plan = await buildPlanForLeave(updated);
+    } catch (err) {
+      plan = { planError: err.message || "Could not build cover suggestions" };
+    }
+  }
+
+  res.json(plan ? { leave: serializeLeave(updated), plan } : serializeLeave(updated));
 });
 
-teacherLeaveRouter.delete("/leaves/:id", requireLeadership(), async (req, res) => {
+teacherLeaveRouter.delete("/leaves/:id", async (req, res) => {
   const existing = await prisma.teacherLeave.findUnique({
     where: { id: req.params.id },
     include: LEAVE_INCLUDE,
   });
   if (!existing) return res.status(404).json({ error: "Leave not found" });
 
-  if (existing.status === "ACTIVE") {
+  const approver = await canApproveLeave(req);
+  const isOwner = existing.teacherId === req.user.userId;
+  if (!approver) {
+    if (!isOwner || existing.status !== "PENDING") {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+  }
+
+  if (existing.status === "ACTIVE" || existing.status === "PENDING") {
     await prisma.teacherLeave.update({
       where: { id: existing.id },
       data: { status: "CANCELLED" },
     });
-    await prisma.timetableSubstitution.deleteMany({ where: { leaveId: existing.id } });
+    if (existing.status === "ACTIVE") {
+      await prisma.timetableSubstitution.deleteMany({ where: { leaveId: existing.id } });
+    }
     await logActivity({
       actorId: req.user.userId,
       action: "TEACHER_LEAVE_CANCELLED",
@@ -283,7 +466,8 @@ teacherLeaveRouter.delete("/leaves/:id", requireLeadership(), async (req, res) =
   res.json({ ok: true });
 });
 
-teacherLeaveRouter.get("/leaves/:id/plan", requireLeadership(), async (req, res) => {
+teacherLeaveRouter.get("/leaves/:id/plan", async (req, res) => {
+  if (!(await requireSubstituteAssigner(req, res))) return;
   const leave = await prisma.teacherLeave.findUnique({
     where: { id: req.params.id },
     include: LEAVE_INCLUDE,
@@ -295,7 +479,8 @@ teacherLeaveRouter.get("/leaves/:id/plan", requireLeadership(), async (req, res)
   res.json(plan);
 });
 
-teacherLeaveRouter.get("/substitutes/suggest", requireLeadership(), async (req, res) => {
+teacherLeaveRouter.get("/substitutes/suggest", async (req, res) => {
+  if (!(await requireSubstituteAssigner(req, res))) return;
   const date = String(req.query.date || "").trim();
   const periodId = String(req.query.periodId || "").trim();
   const classSectionId = String(req.query.classSectionId || "").trim();
@@ -323,7 +508,25 @@ teacherLeaveRouter.get("/substitutes/suggest", requireLeadership(), async (req, 
   }
 });
 
-teacherLeaveRouter.get("/substitutes", requireLeadership(), async (req, res) => {
+teacherLeaveRouter.get("/substitutes", async (req, res) => {
+  const assigner = await canAssignSubstitutes(req);
+  const approver = await canApproveLeave(req);
+  if (!assigner && !approver) {
+    // Teachers may see covers that affect them (as original or substitute).
+    const date = String(req.query.date || "").trim();
+    const from = String(req.query.from || date).trim();
+    const to = String(req.query.to || date || from).trim();
+    if (!from || !parseYmd(from) || !parseYmd(to)) {
+      return res.status(400).json({ error: "date or from/to must be YYYY-MM-DD" });
+    }
+    const dates = eachDateInclusive(from, to);
+    const rows = await listSubstitutionsForDates(dates);
+    const mine = rows.filter(
+      (r) => r.originalTeacherId === req.user.userId || r.substituteTeacherId === req.user.userId
+    );
+    return res.json(mine.map(serializeSubstitution));
+  }
+
   const date = String(req.query.date || "").trim();
   const from = String(req.query.from || date).trim();
   const to = String(req.query.to || date || from).trim();
@@ -335,7 +538,8 @@ teacherLeaveRouter.get("/substitutes", requireLeadership(), async (req, res) => 
   res.json(rows.map(serializeSubstitution));
 });
 
-teacherLeaveRouter.post("/substitutes", requireLeadership(), async (req, res) => {
+teacherLeaveRouter.post("/substitutes", async (req, res) => {
+  if (!(await requireSubstituteAssigner(req, res))) return;
   const items = Array.isArray(req.body?.substitutions)
     ? req.body.substitutions
     : req.body?.date
@@ -371,7 +575,8 @@ teacherLeaveRouter.post("/substitutes", requireLeadership(), async (req, res) =>
   });
 });
 
-teacherLeaveRouter.delete("/substitutes/:id", requireLeadership(), async (req, res) => {
+teacherLeaveRouter.delete("/substitutes/:id", async (req, res) => {
+  if (!(await requireSubstituteAssigner(req, res))) return;
   const existing = await prisma.timetableSubstitution.findUnique({
     where: { id: req.params.id },
     include: SUB_INCLUDE,

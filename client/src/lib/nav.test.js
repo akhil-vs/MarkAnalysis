@@ -70,6 +70,8 @@ describe("navGroupsForRole", () => {
     "staff",
     "records",
     "timetables",
+    "leaveApproval",
+    "assignSubstitutes",
     "schoolProfile",
     "profile",
     "help",
