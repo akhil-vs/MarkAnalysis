@@ -95,7 +95,7 @@ export const PAGE_HELP = {
   hallTickets: {
     title: "What's on this page",
     about: "Class hall tickets for a selected exam: student identity and photo, paper schedule, venue, and instructions. Five tickets print on each A4 page. Principals and exam coordinators create and edit batches; teachers can view and download for their classes.",
-    useful: "Pick an exam, then a class and division. Preview loads on the right; use Download PDF (or the PDF button beside each division) to print. Create/save a batch to store title, venue, and instructions. Upload student photos under Student photos (or Records → Students), and set paper dates under Records → Exams.",
+    useful: "Pick an exam, then a class and division. Preview loads on the right; use Download PDF (or the PDF button beside each division) to print. Create/save a batch to store title, venue, and instructions. Upload student photos under Student photos (or Records → Students). Paper dates and start times come from Records → Exams — if one class timetable is done, leadership can copy it to the other classes.",
   },
   studentPhotos: {
     title: "What's on this page",

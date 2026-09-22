@@ -90,7 +90,7 @@ Leadership can preview incomplete lists; class teachers cannot.
 
 ## 5. Hall tickets
 
-`Marks → Hall tickets` — teachers can **view and download** tickets for their classes. Principals and co-ordinators create and edit batch details (venue, instructions, schedule). If a PDF will not download, paper date/time may still be missing under Records → Exams.
+`Marks → Hall tickets` — teachers can **view and download** tickets for their classes. Principals and co-ordinators create and edit batch details (venue, instructions, schedule). If a PDF will not download, ask leadership to set each paper’s date and start time under Records → Exams (or copy a completed class timetable onto the other classes).
 
 ---
 

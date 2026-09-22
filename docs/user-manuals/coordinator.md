@@ -104,7 +104,7 @@ On an open register, leadership can **Moderate** marks with a recorded reason (g
 
 ### 3.7 Hall tickets (`Marks → Hall tickets`)
 
-Create and edit batches (title, venue, instructions), preview, and download PDF (five per A4). Ensure paper schedule dates and student photos exist under Records.
+Create and edit batches (title, venue, instructions), preview, and download PDF (five per A4). Ensure paper schedule dates **and start times** exist under Records → Exams for every class that needs tickets (or fill one class and use **Copy class timetable to all classes**).
 
 ### 3.8 Audit log (`Marks → Audit log`)
 

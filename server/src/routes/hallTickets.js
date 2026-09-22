@@ -58,11 +58,8 @@ async function buildPreviewBundle({ exam, classSection, issue, includePhotoBytes
       orderBy: { name: "asc" },
     }),
     prisma.examPaperSchedule.findMany({
-      where: {
-        examId: exam.id,
-        OR: [{ className: null }, { className: classSection.className }],
-      },
-      include: { subject: true },
+      where: { examId: exam.id },
+      include: { subject: { select: { id: true, name: true, className: true } } },
       orderBy: { paperDate: "asc" },
     }),
     prisma.studentSubjectEnrollment.findMany({
@@ -146,13 +143,8 @@ hallTicketsRouter.get("/", async (req, res) => {
           orderBy: { name: "asc" },
         }),
         prisma.examPaperSchedule.findMany({
-          where: {
-            examId,
-            OR: [
-              { className: null },
-              ...(classNames.length ? [{ className: { in: classNames } }] : []),
-            ],
-          },
+          where: { examId },
+          include: { subject: { select: { id: true, name: true, className: true } } },
         }),
       ]);
       const subjectsByClass = new Map();

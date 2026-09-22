@@ -114,9 +114,60 @@ function formatTimeRange(start, end) {
   return a || b || "—";
 }
 
+function scheduleClassName(row) {
+  if (row?.className == null || row.className === "") return null;
+  return String(row.className);
+}
+
+function subjectNameKey(name) {
+  return String(name || "")
+    .trim()
+    .toLowerCase();
+}
+
+function scheduleSubjectName(row) {
+  return row?.subject?.name || row?.subjectName || null;
+}
+
+/** Prefer rows that have a start time, then earlier paper dates. */
+function preferSchedule(a, b) {
+  if (!a) return b;
+  if (!b) return a;
+  const aTimed = Boolean(String(a.startTime || "").trim());
+  const bTimed = Boolean(String(b.startTime || "").trim());
+  if (aTimed !== bTimed) return aTimed ? a : b;
+  const ta = a.paperDate ? new Date(a.paperDate).getTime() : Number.POSITIVE_INFINITY;
+  const tb = b.paperDate ? new Date(b.paperDate).getTime() : Number.POSITIVE_INFINITY;
+  if (ta !== tb) return ta <= tb ? a : b;
+  return a;
+}
+
+/**
+ * Merge class-specific fields over school-wide, keeping times/venue from the
+ * broader row when the specific row left them blank (common after “apply date”).
+ */
+export function mergeScheduleRows(specific, schoolWide) {
+  if (!specific && !schoolWide) return null;
+  if (!specific) return schoolWide;
+  if (!schoolWide) return specific;
+  return {
+    ...schoolWide,
+    ...specific,
+    paperDate: specific.paperDate || schoolWide.paperDate || null,
+    startTime: specific.startTime || schoolWide.startTime || null,
+    endTime: specific.endTime || schoolWide.endTime || null,
+    venue: specific.venue || schoolWide.venue || null,
+    maxMarks: specific.maxMarks ?? schoolWide.maxMarks ?? null,
+    className: scheduleClassName(specific) ?? scheduleClassName(schoolWide),
+  };
+}
+
 /**
  * Resolve paper rows for a class: class-specific schedule wins over school-wide
- * (null className). Falls back to subjects with the exam window date.
+ * (null className). When this class has no row yet, reuse another class’s
+ * schedule for the same subject name (coordinators often fill one class’s
+ * timetable and expect hall tickets for peer classes to follow it). Falls back
+ * to the exam window date when nothing matches.
  */
 export function resolvePaperRows({
   subjects = [],
@@ -125,24 +176,57 @@ export function resolvePaperRows({
   className,
   defaultVenue = null,
 }) {
-  const bySubject = new Map();
+  const specificBySubjectId = new Map();
+  const schoolWideBySubjectId = new Map();
+  const bySubjectNameForClass = new Map();
+  const schoolWideBySubjectName = new Map();
+  const anyBySubjectName = new Map();
+
   for (const row of schedules || []) {
     if (!row?.subjectId) continue;
-    const applies =
-      row.className == null ||
-      row.className === "" ||
-      String(row.className) === String(className);
-    if (!applies) continue;
-    const existing = bySubject.get(row.subjectId);
-    const isSpecific = row.className != null && row.className !== "";
-    if (!existing || (isSpecific && !(existing.className != null && existing.className !== ""))) {
-      bySubject.set(row.subjectId, row);
+    const rowClass = scheduleClassName(row);
+    const nameKey = subjectNameKey(scheduleSubjectName(row));
+
+    if (rowClass == null) {
+      schoolWideBySubjectId.set(
+        row.subjectId,
+        preferSchedule(schoolWideBySubjectId.get(row.subjectId), row)
+      );
+      if (nameKey) {
+        schoolWideBySubjectName.set(
+          nameKey,
+          preferSchedule(schoolWideBySubjectName.get(nameKey), row)
+        );
+      }
+    } else if (String(rowClass) === String(className)) {
+      specificBySubjectId.set(
+        row.subjectId,
+        preferSchedule(specificBySubjectId.get(row.subjectId), row)
+      );
+      if (nameKey) {
+        bySubjectNameForClass.set(
+          nameKey,
+          preferSchedule(bySubjectNameForClass.get(nameKey), row)
+        );
+      }
+    } else if (nameKey) {
+      anyBySubjectName.set(nameKey, preferSchedule(anyBySubjectName.get(nameKey), row));
     }
   }
 
   const rows = [];
   for (const subject of subjects || []) {
-    const sched = bySubject.get(subject.id);
+    const nameKey = subjectNameKey(subject.name);
+    const sched =
+      mergeScheduleRows(
+        specificBySubjectId.get(subject.id),
+        schoolWideBySubjectId.get(subject.id)
+      ) ||
+      bySubjectNameForClass.get(nameKey) ||
+      schoolWideBySubjectName.get(nameKey) ||
+      anyBySubjectName.get(nameKey) ||
+      null;
+
     rows.push({
       subjectId: subject.id,
       subjectName: subject.name,
