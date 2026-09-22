@@ -115,7 +115,7 @@ export const PAGE_HELP = {
   records: {
     title: "What's on this page",
     about: "School structure: classes, subjects (entry max marks), students, the exam calendar with per-class / per-subject paper dates and consolidation max marks, and year-end promotion.",
-    useful: "When scheduling an exam, set the same date for every paper or different dates per class and subject. Keep this current so registers, hall tickets, analytics, and promotion lineage stay accurate.",
+    useful: "On Classes, enter the class once and add every division with optional class teachers in one step (Fill A–D for a quick start). When scheduling an exam, set the same date for every paper or different dates per class and subject. Keep this current so registers, hall tickets, analytics, and promotion lineage stay accurate.",
   },
   timetables: {
     title: "What's on this page",

@@ -27,6 +27,13 @@ import {
   rejectNegativeKey,
   requiredText,
 } from "../lib/formValidation.js";
+import {
+  QUICK_SECTIONS,
+  applyQuickSections,
+  buildBatchClassPayload,
+  emptyDivisionRow,
+  emptyMultiClassForm,
+} from "../lib/classDivisions.js";
 
 const TABS = ["Classes", "Subjects", "Students", "Exams", "Promote"];
 
@@ -74,7 +81,7 @@ export default function Manage() {
   );
 }
 
-function emptyClassForm() {
+function emptyEditClassForm() {
   return { className: "10", section: "", classTeacherId: "" };
 }
 
@@ -94,7 +101,8 @@ function ClassesTab() {
   const [rows, setRows] = useState([]);
   const confirm = useConfirm();
   const [teachers, setTeachers] = useState([]);
-  const [form, setForm] = useState(emptyClassForm());
+  const [createForm, setCreateForm] = useState(() => emptyMultiClassForm());
+  const [editForm, setEditForm] = useState(emptyEditClassForm());
   const [editingId, setEditingId] = useState(null);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
@@ -103,6 +111,10 @@ function ClassesTab() {
   const classOptions = useMemo(
     () => [...new Set(rows.map((r) => r.className).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })),
     [rows]
+  );
+  const teacherOptions = useMemo(
+    () => teachers.map((t) => ({ id: t.id, name: t.name })),
+    [teachers]
   );
 
   async function load() {
@@ -125,7 +137,7 @@ function ClassesTab() {
 
   function startEdit(row) {
     setEditingId(row.id);
-    setForm({
+    setEditForm({
       className: row.className,
       section: row.section,
       classTeacherId: row.classTeacherId || "",
@@ -134,13 +146,70 @@ function ClassesTab() {
 
   function cancelEdit() {
     setEditingId(null);
-    setForm(emptyClassForm());
+    setEditForm(emptyEditClassForm());
   }
 
-  async function save(e) {
+  function resetCreateForm() {
+    setCreateForm(emptyMultiClassForm(createForm.className || "10"));
+  }
+
+  function updateDivision(key, patch) {
+    setCreateForm((prev) => ({
+      ...prev,
+      divisions: prev.divisions.map((row) => (row.key === key ? { ...row, ...patch } : row)),
+    }));
+  }
+
+  function addDivisionRow() {
+    setCreateForm((prev) => ({
+      ...prev,
+      divisions: [...prev.divisions, emptyDivisionRow()],
+    }));
+  }
+
+  function removeDivisionRow(key) {
+    setCreateForm((prev) => {
+      const next = prev.divisions.filter((row) => row.key !== key);
+      return { ...prev, divisions: next.length ? next : [emptyDivisionRow()] };
+    });
+  }
+
+  function fillQuickSections() {
+    setCreateForm((prev) => ({
+      ...prev,
+      divisions: applyQuickSections(prev.divisions, QUICK_SECTIONS),
+    }));
+  }
+
+  async function saveCreate(e) {
     e.preventDefault();
-    const name = requiredText(form.className, "Class");
-    const section = requiredText(form.section, "Section");
+    const built = buildBatchClassPayload(createForm.className, createForm.divisions);
+    if (!built.ok) {
+      toast.error(built.error);
+      return;
+    }
+    setBusy(true);
+    try {
+      const created = await api("/api/classes/batch", { method: "POST", body: built.payload });
+      const count = Array.isArray(created) ? created.length : built.payload.divisions.length;
+      toast.success(
+        count === 1
+          ? `Created ${built.payload.className}-${built.payload.divisions[0].section}.`
+          : `Created ${count} divisions for class ${built.payload.className}.`
+      );
+      resetCreateForm();
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function saveEdit(e) {
+    e.preventDefault();
+    const name = requiredText(editForm.className, "Class");
+    const section = requiredText(editForm.section, "Section");
     const err = firstError(name, section);
     if (err) {
       toast.error(err);
@@ -148,13 +217,8 @@ function ClassesTab() {
     }
     setBusy(true);
     try {
-      if (editingId) {
-        await api(`/api/classes/${editingId}`, { method: "PATCH", body: form });
-        toast.success("Class updated.");
-      } else {
-        await api("/api/classes", { method: "POST", body: form });
-        toast.success("Class created.");
-      }
+      await api(`/api/classes/${editingId}`, { method: "PATCH", body: editForm });
+      toast.success("Class updated.");
       cancelEdit();
       await load();
     } catch (err) {
@@ -186,23 +250,142 @@ function ClassesTab() {
   }
 
   return (
-    <div className="grid lg:grid-cols-3 gap-4">
-      <form className="card p-4 space-y-3" onSubmit={save}>
-        <h3 className="font-serif text-lg">{editingId ? "Edit class section" : "Add class section"}</h3>
-        <input className="field" placeholder="Class" value={form.className} onChange={(e) => setForm({ ...form, className: e.target.value })} required disabled={busy} />
-        <input className="field" placeholder="Section" value={form.section} onChange={(e) => setForm({ ...form, section: e.target.value })} required disabled={busy} />
-        <select className="field" value={form.classTeacherId} onChange={(e) => setForm({ ...form, classTeacherId: e.target.value })} disabled={busy}>
-          <option value="">Class teacher (optional)</option>
-          {teachers.map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
-        </select>
-        <div className="flex gap-2">
-          <button className="btn-primary" disabled={busy}>
-            <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
-          </button>
-          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
-        </div>
-      </form>
-      <div className="lg:col-span-2 card">
+    <div className="space-y-4">
+      {editingId ? (
+        <form className="card p-4 space-y-3 max-w-xl" onSubmit={saveEdit}>
+          <h3 className="font-serif text-lg">Edit class section</h3>
+          <input
+            className="field"
+            placeholder="Class"
+            value={editForm.className}
+            onChange={(e) => setEditForm({ ...editForm, className: e.target.value })}
+            required
+            disabled={busy}
+          />
+          <input
+            className="field"
+            placeholder="Section"
+            value={editForm.section}
+            onChange={(e) => setEditForm({ ...editForm, section: e.target.value })}
+            required
+            disabled={busy}
+          />
+          <select
+            className="field"
+            value={editForm.classTeacherId}
+            onChange={(e) => setEditForm({ ...editForm, classTeacherId: e.target.value })}
+            disabled={busy}
+          >
+            <option value="">Class teacher (optional)</option>
+            {teacherOptions.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          <div className="flex gap-2">
+            <button className="btn-primary" disabled={busy}>
+              <BusyLabel busy={busy} idle="Save changes" busyText="Saving…" />
+            </button>
+            <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>
+          </div>
+        </form>
+      ) : (
+        <form className="card p-4 space-y-3" onSubmit={saveCreate}>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <h3 className="font-serif text-lg">Add class with divisions</h3>
+              <p className="text-sm text-ink-700/60 mt-0.5">
+                Enter the class once, then add every division and optional class teacher in one step.
+              </p>
+            </div>
+            <button type="button" className="btn-ghost shrink-0" onClick={fillQuickSections} disabled={busy}>
+              Fill A–D
+            </button>
+          </div>
+          <div className="max-w-xs">
+            <label className="block text-xs font-medium text-ink-700/70 mb-1" htmlFor="batch-class-name">
+              Class
+            </label>
+            <input
+              id="batch-class-name"
+              className="field"
+              placeholder="e.g. 10"
+              value={createForm.className}
+              onChange={(e) => setCreateForm({ ...createForm, className: e.target.value })}
+              required
+              disabled={busy}
+            />
+          </div>
+          <div className="overflow-x-auto -mx-1 px-1">
+            <table className="table min-w-[28rem]">
+              <thead>
+                <tr>
+                  <th scope="col">Division</th>
+                  <th scope="col">Class teacher</th>
+                  <th scope="col" className="w-24"></th>
+                </tr>
+              </thead>
+              <tbody>
+                {createForm.divisions.map((row, index) => (
+                  <tr key={row.key}>
+                    <td>
+                      <input
+                        className="field"
+                        placeholder="e.g. A"
+                        value={row.section}
+                        onChange={(e) => updateDivision(row.key, { section: e.target.value })}
+                        aria-label={`Division ${index + 1}`}
+                        disabled={busy}
+                      />
+                    </td>
+                    <td>
+                      <select
+                        className="field"
+                        value={row.classTeacherId}
+                        onChange={(e) => updateDivision(row.key, { classTeacherId: e.target.value })}
+                        aria-label={`Class teacher for division ${index + 1}`}
+                        disabled={busy}
+                      >
+                        <option value="">Optional</option>
+                        {teacherOptions.map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => removeDivisionRow(row.key)}
+                        disabled={busy || createForm.divisions.length <= 1}
+                      >
+                        Remove
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-ghost" onClick={addDivisionRow} disabled={busy}>
+              Add division
+            </button>
+            <button className="btn-primary" disabled={busy}>
+              <BusyLabel
+                busy={busy}
+                idle={
+                  createForm.divisions.filter((d) => String(d.section || "").trim()).length > 1
+                    ? "Create all"
+                    : "Create"
+                }
+                busyText="Creating…"
+              />
+            </button>
+          </div>
+        </form>
+      )}
+
+      <div className="card">
         <div className="p-3 border-b border-ink-900/10">
           <TableToolbar
             q={table.q}
