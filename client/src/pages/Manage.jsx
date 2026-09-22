@@ -1495,11 +1495,19 @@ function emptyExamForm() {
     academicYear: "",
     marksEntryDeadline: "",
     consolidationMaxMarks: 100,
+    includedClassNames: [],
   };
 }
 
 function examSearchText(r) {
-  return searchHaystack(r.name, r.term, r.type, r.academicYear, r.consolidationMaxMarks);
+  return searchHaystack(
+    r.name,
+    r.term,
+    r.type,
+    r.academicYear,
+    r.consolidationMaxMarks,
+    ...(Array.isArray(r.includedClassNames) ? r.includedClassNames : [])
+  );
 }
 
 function examIsLocked(row) {
@@ -1516,6 +1524,18 @@ function formatExamDateRange(row) {
   return `${a} – ${b}`;
 }
 
+function formatExamClasses(row) {
+  const names = Array.isArray(row?.includedClassNames) ? row.includedClassNames : [];
+  if (!names.length) return "—";
+  return names.join(", ");
+}
+
+function subjectsForExamClasses(subjects = [], classNames = []) {
+  const set = new Set((classNames || []).map((c) => String(c)));
+  if (!set.size) return [];
+  return (subjects || []).filter((s) => set.has(String(s.className || "")));
+}
+
 const EXAM_FILTERS = [
   { key: "type", match: (r, v) => r.type === v },
   { key: "academicYear", match: (r, v) => String(r.academicYear || "") === v },
@@ -1524,6 +1544,7 @@ const EXAM_FILTERS = [
 function ExamsTab() {
   const [rows, setRows] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [classSections, setClassSections] = useState([]);
   const confirm = useConfirm();
   const [form, setForm] = useState(emptyExamForm());
   const [paperDrafts, setPaperDrafts] = useState([]);
@@ -1539,6 +1560,15 @@ function ExamsTab() {
     () => [...new Set(rows.map((r) => r.academicYear).filter(Boolean))].sort().reverse(),
     [rows]
   );
+  const availableClassNames = useMemo(() => {
+    const fromSections = uniqueClassNames(classSections);
+    const fromSubjects = [
+      ...new Set((subjects || []).map((s) => s.className).filter(Boolean)),
+    ];
+    return [...new Set([...fromSections, ...fromSubjects])].sort((a, b) =>
+      String(a).localeCompare(String(b), undefined, { numeric: true })
+    );
+  }, [classSections, subjects]);
   const editingRow = editingId ? rows.find((r) => r.id === editingId) : null;
   const consolidationLocked = examIsLocked(editingRow);
   const datedPapers = useMemo(
@@ -1546,21 +1576,38 @@ function ExamsTab() {
     [paperDrafts]
   );
 
+  function applyIncludedClasses(nextClasses, { papers = null } = {}) {
+    const sorted = [...new Set((nextClasses || []).map((c) => String(c).trim()).filter(Boolean))].sort(
+      (a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })
+    );
+    setForm((prev) => ({ ...prev, includedClassNames: sorted }));
+    setPaperDrafts((prev) => {
+      const scopedSubjects = subjectsForExamClasses(subjects, sorted);
+      const source = papers != null ? papers : prev;
+      return buildPaperDrafts(scopedSubjects, source);
+    });
+    setPaperClass((prev) => {
+      if (sorted.includes(prev)) return prev;
+      return sorted[0] || "";
+    });
+  }
+
   async function load() {
     setLoading(true);
     try {
-      const [exams, subjectList, classSections] = await Promise.all([
+      const [exams, subjectList, classes] = await Promise.all([
         api("/api/exams"),
         api("/api/subjects"),
         api("/api/classes"),
       ]);
       setRows(exams);
-      const activeSubjects = subjectsForActiveClasses(subjectList || [], classSections || []);
+      setClassSections(classes || []);
+      const activeSubjects = subjectsForActiveClasses(subjectList || [], classes || []);
       setSubjects(activeSubjects);
       if (!editingId) {
-        const drafts = buildPaperDrafts(activeSubjects, []);
-        setPaperDrafts(drafts);
-        setPaperClass((prev) => prev || firstClassFromDrafts(drafts));
+        // Paper drafts stay empty until the coordinator picks included classes.
+        setPaperDrafts([]);
+        setPaperClass("");
       }
     } finally {
       setLoading(false);
@@ -1573,6 +1620,10 @@ function ExamsTab() {
   async function startEdit(row) {
     setEditingId(row.id);
     setFormError("");
+    const included =
+      Array.isArray(row.includedClassNames) && row.includedClassNames.length
+        ? row.includedClassNames
+        : [];
     setForm({
       name: row.name,
       term: row.term,
@@ -1583,16 +1634,40 @@ function ExamsTab() {
         ? new Date(row.marksEntryDeadline).toISOString().slice(0, 10)
         : "",
       consolidationMaxMarks: row.consolidationMaxMarks ?? row.consolidation?.consolidationMaxMarks ?? 100,
+      includedClassNames: included,
     });
     setBusy(true);
     try {
       const data = await api(`/api/exams/${row.id}/papers`);
-      const drafts = buildPaperDrafts(subjects, data.papers || []);
+      const papers = data.papers || [];
+      const classes =
+        included.length
+          ? included
+          : [
+              ...new Set(
+                papers.map((p) => p.className).filter(Boolean)
+              ),
+            ].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true }));
+      const scopedSubjects = subjectsForExamClasses(subjects, classes);
+      // Legacy exams with no stored classes: show all subject classes so edit remains usable.
+      const useSubjects = classes.length ? scopedSubjects : subjects;
+      const drafts = buildPaperDrafts(useSubjects, papers);
+      setForm((prev) => ({
+        ...prev,
+        includedClassNames: classes.length
+          ? classes
+          : uniqueClassNames(
+              (subjects || []).map((s) => ({ className: s.className }))
+            ),
+      }));
       setPaperDrafts(drafts);
       setPaperClass(firstClassFromDrafts(drafts));
     } catch (err) {
       toast.error(err.message || "Could not load paper schedule");
-      const drafts = buildPaperDrafts(subjects, row.paperSchedules || []);
+      const drafts = buildPaperDrafts(
+        subjectsForExamClasses(subjects, included.length ? included : availableClassNames),
+        row.paperSchedules || []
+      );
       setPaperDrafts(drafts);
       setPaperClass(firstClassFromDrafts(drafts));
     } finally {
@@ -1604,9 +1679,27 @@ function ExamsTab() {
     setEditingId(null);
     setFormError("");
     setForm(emptyExamForm());
-    const drafts = buildPaperDrafts(subjects, []);
-    setPaperDrafts(drafts);
-    setPaperClass(firstClassFromDrafts(drafts));
+    setPaperDrafts([]);
+    setPaperClass("");
+  }
+
+  function toggleIncludedClass(className) {
+    const name = String(className);
+    const current = form.includedClassNames || [];
+    const next = current.includes(name)
+      ? current.filter((c) => c !== name)
+      : [...current, name].sort((a, b) =>
+          String(a).localeCompare(String(b), undefined, { numeric: true })
+        );
+    applyIncludedClasses(next);
+  }
+
+  function selectAllClasses() {
+    applyIncludedClasses(availableClassNames);
+  }
+
+  function clearAllClasses() {
+    applyIncludedClasses([], { papers: [] });
   }
 
   async function save(e) {
@@ -1617,6 +1710,13 @@ function ExamsTab() {
     const consolidationMaxMarks = consolidationLocked && editingId
       ? { value: form.consolidationMaxMarks }
       : parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]");
+    const included = form.includedClassNames || [];
+    if (!included.length) {
+      const msg = "Select at least one class for this exam.";
+      setFormError(msg);
+      toast.error(msg);
+      return;
+    }
     const hasWindowDate = Boolean(form.date);
     const hasPapers = datedPapers.length > 0;
     if (!hasWindowDate && !hasPapers) {
@@ -1637,6 +1737,7 @@ function ExamsTab() {
       type: form.type,
       academicYear: year.value,
       marksEntryDeadline: form.marksEntryDeadline || null,
+      includedClassNames: included,
       papers: datedPapers,
     };
     if (hasWindowDate) body.date = form.date;
@@ -1650,15 +1751,15 @@ function ExamsTab() {
         await api(`/api/exams/${editingId}`, { method: "PATCH", body });
         toast.success(
           datedPapers.length
-            ? `Exam updated · ${datedPapers.length} paper date${datedPapers.length === 1 ? "" : "s"}.`
-            : "Exam updated."
+            ? `Exam updated · ${included.length} class${included.length === 1 ? "" : "es"} · ${datedPapers.length} paper date${datedPapers.length === 1 ? "" : "s"}.`
+            : `Exam updated · ${included.length} class${included.length === 1 ? "" : "es"}.`
         );
       } else {
         await api("/api/exams", { method: "POST", body });
         toast.success(
           datedPapers.length
-            ? `Exam scheduled · ${datedPapers.length} paper date${datedPapers.length === 1 ? "" : "s"}.`
-            : "Exam scheduled."
+            ? `Exam scheduled · ${included.length} class${included.length === 1 ? "" : "es"} · ${datedPapers.length} paper date${datedPapers.length === 1 ? "" : "s"}.`
+            : `Exam scheduled · ${included.length} class${included.length === 1 ? "" : "es"}.`
         );
       }
       cancelEdit();
@@ -1840,12 +1941,84 @@ function ExamsTab() {
           </div>
         </div>
 
+        <div className="rounded-md border border-ink-900/10 p-3 space-y-2">
+          <div className="flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <h4 className="font-medium text-ink-800">Classes in this exam</h4>
+              <p className="text-xs text-ink-700/55 mt-0.5">
+                Choose which classes sit under this exam. You can change the list later when editing.
+                Paper dates only appear for the classes you select.
+              </p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                className="btn-ghost text-xs"
+                disabled={busy || !availableClassNames.length}
+                onClick={selectAllClasses}
+              >
+                Select all
+              </button>
+              <button
+                type="button"
+                className="btn-ghost text-xs"
+                disabled={busy || !(form.includedClassNames || []).length}
+                onClick={clearAllClasses}
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+          {availableClassNames.length === 0 ? (
+            <p className="text-sm text-ink-700/60">
+              Add classes under Records → Classes (and subjects for those classes) before scheduling an exam.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {availableClassNames.map((className) => {
+                const selected = (form.includedClassNames || []).includes(className);
+                return (
+                  <button
+                    key={className}
+                    type="button"
+                    className={
+                      selected
+                        ? "btn-primary text-xs px-2.5 py-1"
+                        : "btn-ghost text-xs px-2.5 py-1"
+                    }
+                    disabled={busy}
+                    aria-pressed={selected}
+                    onClick={() => toggleIncludedClass(className)}
+                  >
+                    Class {className}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+          {(form.includedClassNames || []).length > 0 ? (
+            <p className="text-xs text-ink-700/55">
+              {(form.includedClassNames || []).length} class
+              {(form.includedClassNames || []).length === 1 ? "" : "es"} selected
+              {" · "}
+              {(form.includedClassNames || []).join(", ")}
+            </p>
+          ) : null}
+        </div>
+
         <ExamPaperScheduleEditor
           drafts={paperDrafts}
           onChange={setPaperDrafts}
-          disabled={busy}
+          disabled={busy || !(form.includedClassNames || []).length}
           selectedClass={paperClass}
           onSelectedClassChange={setPaperClass}
+          emptyMessage={
+            !(form.includedClassNames || []).length
+              ? "Select at least one class above to set paper dates for that class’s subjects."
+              : availableClassNames.length && !(subjects || []).length
+                ? "Add subjects under Records → Subjects for the selected classes, then set paper dates here."
+                : null
+          }
         />
 
         {formError && <FieldError message={formError} />}
@@ -1909,6 +2082,7 @@ function ExamsTab() {
                   <th>Year</th>
                   <th>Term</th>
                   <th>Type</th>
+                  <th>Classes</th>
                   <th>CML max</th>
                   <th>Papers</th>
                   <th>Dates</th>
@@ -1923,6 +2097,7 @@ function ExamsTab() {
                     <td>{r.academicYear || "—"}</td>
                     <td>{r.term}</td>
                     <td>{r.type}</td>
+                    <td>{formatExamClasses(r)}</td>
                     <td>
                       {r.consolidationMaxMarks ?? r.consolidation?.consolidationMaxMarks ?? "—"}
                       {examIsLocked(r) ? (

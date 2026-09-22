@@ -328,6 +328,8 @@ model Exam {
   date                    DateTime
   type                    ExamType
   marksEntryDeadline      DateTime?
+  /// Class names included in this exam (e.g. ["9","10"]); editable after create.
+  includedClassNames      Json?
   /// Ceiling used for this exam’s consolidated mark-list totals and percentages.
   consolidationMaxMarks   Int       @default(100)
   consolidationLocked     Boolean   @default(false)

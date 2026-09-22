@@ -4,7 +4,7 @@ import { auth, requireRole } from "../middleware/auth.js";
 import { parseDeadlineInput } from "../lib/markAccess.js";
 import { academicYearFromDate } from "../lib/stats.js";
 import { logActivity } from "../lib/activityAudit.js";
-import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
+import { ensureConsolidationSchema, ensureExamIncludedClassesColumn } from "../lib/ensureSchema.js";
 import { parsePositiveInt } from "../lib/numbers.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 import {
@@ -21,6 +21,11 @@ import {
   paperScheduleSummary,
   saveExamPapers,
 } from "../lib/examPapers.js";
+import {
+  parseIncludedClassNames,
+  prunePapersOutsideClasses,
+  resolveIncludedClassNames,
+} from "../lib/examIncludedClasses.js";
 
 export const examsRouter = Router();
 examsRouter.use(auth);
@@ -40,6 +45,7 @@ function examJson(exam) {
   const summary = paperScheduleSummary(paperSchedules || []);
   return {
     ...rest,
+    includedClassNames: resolveIncludedClassNames(exam, paperSchedules),
     paperCount: summary.paperCount,
     firstPaperDate: summary.firstPaperDate,
     lastPaperDate: summary.lastPaperDate,
@@ -75,6 +81,7 @@ function resolveExamDate({ date, papers }) {
 
 examsRouter.get("/", async (_req, res) => {
   await ensureConsolidationSchema();
+  await ensureExamIncludedClassesColumn();
   const exams = await prisma.exam.findMany({
     orderBy: { date: "asc" },
     include: examListInclude,
@@ -149,11 +156,23 @@ examsRouter.delete("/:id/papers/:paperId", requireRole("PRINCIPAL", "EXAM_COORDI
 });
 
 examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, term, date, type, marksEntryDeadline, academicYear, consolidationMaxMarks, papers } =
-    req.body || {};
+  const {
+    name,
+    term,
+    date,
+    type,
+    marksEntryDeadline,
+    academicYear,
+    consolidationMaxMarks,
+    papers,
+    includedClassNames,
+  } = req.body || {};
   if (!name || !term || !type) {
     return res.status(400).json({ error: "Name, term, and type are required" });
   }
+  const classes = parseIncludedClassNames(includedClassNames, { required: true });
+  if (classes.error) return res.status(400).json({ error: classes.error });
+
   const resolvedDate = resolveExamDate({ date, papers });
   if (resolvedDate.error) return res.status(400).json({ error: resolvedDate.error });
 
@@ -168,6 +187,7 @@ examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
   if (consol.error) return res.status(400).json({ error: consol.error });
 
   await ensureConsolidationSchema();
+  await ensureExamIncludedClassesColumn();
   const created = await prisma.exam.create({
     data: {
       name,
@@ -177,6 +197,7 @@ examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
       type,
       tenantId: req.tenantId,
       marksEntryDeadline: deadline,
+      includedClassNames: classes.value,
       ...(consol.value != null ? { consolidationMaxMarks: consol.value } : {}),
     },
     include: examListInclude,
@@ -184,10 +205,15 @@ examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
 
   let paperResult = null;
   if (Array.isArray(papers) && papers.length) {
+    const allowed = new Set(classes.value);
+    const scopedPapers = papers.filter((p) => {
+      const cn = p?.className == null ? "" : String(p.className).trim();
+      return cn && allowed.has(cn);
+    });
     paperResult = await saveExamPapers({
       tenantId: req.tenantId,
       examId: created.id,
-      papers,
+      papers: scopedPapers,
       mode: "replace",
     });
     if (paperResult.error) {
@@ -217,6 +243,7 @@ examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
       academicYear: fresh.academicYear,
       type: fresh.type,
       consolidationMaxMarks: fresh.consolidationMaxMarks,
+      includedClassNames: classes.value,
       paperCount: paperResult?.summary?.paperCount ?? 0,
     },
   });
@@ -225,9 +252,19 @@ examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
 });
 
 examsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
-  const { name, term, date, type, marksEntryDeadline, academicYear, consolidationMaxMarks, papers } =
-    req.body || {};
+  const {
+    name,
+    term,
+    date,
+    type,
+    marksEntryDeadline,
+    academicYear,
+    consolidationMaxMarks,
+    papers,
+    includedClassNames,
+  } = req.body || {};
   await ensureConsolidationSchema();
+  await ensureExamIncludedClassesColumn();
   const existing = await getExamWithConsolidation(req.params.id);
   if (!existing) return res.status(404).json({ error: "Exam not found" });
 
@@ -257,16 +294,42 @@ examsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
     data.consolidationMaxMarks = consol.value;
   }
 
+  let nextClasses = null;
+  if (includedClassNames !== undefined) {
+    const parsed = parseIncludedClassNames(includedClassNames, { required: true });
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    data.includedClassNames = parsed.value;
+    nextClasses = parsed.value;
+  }
+
   await prisma.exam.update({
     where: { id: req.params.id },
     data,
   });
 
+  if (nextClasses) {
+    await prunePapersOutsideClasses(prisma, req.params.id, nextClasses);
+  }
+
   if (Array.isArray(papers)) {
+    const allowedList =
+      nextClasses ||
+      resolveIncludedClassNames(
+        { includedClassNames: data.includedClassNames ?? existing.includedClassNames },
+        []
+      );
+    const allowed = new Set(allowedList || []);
+    const scopedPapers =
+      allowed.size > 0
+        ? papers.filter((p) => {
+            const cn = p?.className == null ? "" : String(p.className).trim();
+            return cn && allowed.has(cn);
+          })
+        : papers;
     const paperResult = await saveExamPapers({
       tenantId: req.tenantId,
       examId: req.params.id,
-      papers,
+      papers: scopedPapers,
       mode: "replace",
     });
     if (paperResult.error) return res.status(400).json({ error: paperResult.error });
@@ -292,6 +355,7 @@ examsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
       academicYear: updated.academicYear,
       type: updated.type,
       consolidationMaxMarks: updated.consolidationMaxMarks,
+      includedClassNames: resolveIncludedClassNames(updated),
       paperCount: updated.paperSchedules?.length || 0,
     },
   });

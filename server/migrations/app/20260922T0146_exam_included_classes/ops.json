@@ -1,0 +1,44 @@
+[
+  {
+    "id": "column.public.Exam.includedClassNames",
+    "label": "Add column \"includedClassNames\" to \"Exam\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "includedClassNames",
+        "table": "Exam"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"includedClassNames\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Exam",
+          "includedClassNames"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"includedClassNames\"",
+        "sql": "ALTER TABLE \"public\".\"Exam\" ADD COLUMN \"includedClassNames\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"includedClassNames\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Exam",
+          "includedClassNames"
+        ]
+      }
+    ]
+  }
+]

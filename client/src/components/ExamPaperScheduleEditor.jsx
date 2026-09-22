@@ -21,6 +21,7 @@ export default function ExamPaperScheduleEditor({
   disabled = false,
   selectedClass = "",
   onSelectedClassChange,
+  emptyMessage = null,
 }) {
   const [classDate, setClassDate] = useState("");
   const [classStartTime, setClassStartTime] = useState("");
@@ -111,8 +112,8 @@ export default function ExamPaperScheduleEditor({
   if (!(drafts || []).length) {
     return (
       <div className="rounded-md border border-ink-900/10 bg-cream/40 p-3 text-sm text-ink-700/70">
-        Add subjects under Records → Subjects first. Choose a class here, then set each subject’s
-        exam date — same day or different days.
+        {emptyMessage ||
+          "Add subjects under Records → Subjects first. Choose a class here, then set each subject’s exam date — same day or different days."}
       </div>
     );
   }

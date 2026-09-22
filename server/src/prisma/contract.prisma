@@ -374,6 +374,8 @@ model Exam {
   date                    TimestamptzString
   type                    pg.enum(ExamType)
   marksEntryDeadline      TimestamptzString?
+  /// Class names included in this exam (e.g. ["9","10"]); editable after create.
+  includedClassNames      Jsonb?
   /// Ceiling used for this exam’s consolidated mark-list totals and percentages.
   consolidationMaxMarks   Int       @default(100)
   consolidationLocked     Boolean   @default(false)
