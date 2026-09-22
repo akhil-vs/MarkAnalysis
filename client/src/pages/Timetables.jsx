@@ -535,7 +535,8 @@ function DailyBoard({ date, onDateChange, onPutOnLeave }) {
                         {" · "}
                         {formatTaughtHours(teacher.taughtMinutes)}
                         {(teacher.extraCount > 0 || teacher.extraMinutes > 0) && (
-                          <span className="ml-1 font-medium text-sky-700">
+                          <span className="ml-1.5 font-medium text-sky-700">
+                            {" "}
                             +{teacher.extraCount} extra · {formatTaughtHours(teacher.extraMinutes)}
                           </span>
                         )}
