@@ -108,8 +108,16 @@
       "model": "TeacherAssignment",
       "namespace": "public"
     },
+    "TeacherLeave": {
+      "model": "TeacherLeave",
+      "namespace": "public"
+    },
     "TimetableEntry": {
       "model": "TimetableEntry",
+      "namespace": "public"
+    },
+    "TimetableSubstitution": {
+      "model": "TimetableSubstitution",
       "namespace": "public"
     },
     "User": {
@@ -569,6 +577,21 @@
                 },
                 "to": {
                   "model": "TimetableEntry",
+                  "namespace": "public"
+                }
+              },
+              "timetableSubstitutions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "classSectionId"
+                  ]
+                },
+                "to": {
+                  "model": "TimetableSubstitution",
                   "namespace": "public"
                 }
               }
@@ -3000,6 +3023,21 @@
                   "namespace": "public"
                 }
               },
+              "substitutions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "periodId"
+                  ]
+                },
+                "to": {
+                  "model": "TimetableSubstitution",
+                  "namespace": "public"
+                }
+              },
               "tenant": {
                 "cardinality": "N:1",
                 "nullable": false,
@@ -4393,6 +4431,21 @@
                   "namespace": "public"
                 }
               },
+              "teacherLeaves": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "TeacherLeave",
+                  "namespace": "public"
+                }
+              },
               "timetableEntries": {
                 "cardinality": "1:N",
                 "on": {
@@ -4405,6 +4458,21 @@
                 },
                 "to": {
                   "model": "TimetableEntry",
+                  "namespace": "public"
+                }
+              },
+              "timetableSubstitutions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "TimetableSubstitution",
                   "namespace": "public"
                 }
               },
@@ -5095,6 +5163,21 @@
                   "model": "TimetableEntry",
                   "namespace": "public"
                 }
+              },
+              "timetableSubstitutions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "subjectId"
+                  ]
+                },
+                "to": {
+                  "model": "TimetableSubstitution",
+                  "namespace": "public"
+                }
               }
             },
             "storage": {
@@ -5339,6 +5422,201 @@
               "table": "TeacherAssignment"
             }
           },
+          "TeacherLeave": {
+            "fields": {
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdById": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "endDate": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "leaveType": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "periodIds": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
+              "reason": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "startDate": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "teacherId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "createdBy": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "createdById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "substitutions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "leaveId"
+                  ]
+                },
+                "to": {
+                  "model": "TimetableSubstitution",
+                  "namespace": "public"
+                }
+              },
+              "teacher": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "teacherId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "createdById": {
+                  "column": "createdById"
+                },
+                "endDate": {
+                  "column": "endDate"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "leaveType": {
+                  "column": "leaveType"
+                },
+                "periodIds": {
+                  "column": "periodIds"
+                },
+                "reason": {
+                  "column": "reason"
+                },
+                "startDate": {
+                  "column": "startDate"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "teacherId": {
+                  "column": "teacherId"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                }
+              },
+              "namespaceId": "public",
+              "table": "TeacherLeave"
+            }
+          },
           "TimetableEntry": {
             "fields": {
               "classSectionId": {
@@ -5509,6 +5787,276 @@
               },
               "namespaceId": "public",
               "table": "TimetableEntry"
+            }
+          },
+          "TimetableSubstitution": {
+            "fields": {
+              "assignedById": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "classSectionId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "date": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "leaveId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "originalTeacherId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "periodId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceTimetableEntryId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "subjectId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "substituteTeacherId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "assignedBy": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "assignedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "classSection": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "classSectionId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "ClassSection",
+                  "namespace": "public"
+                }
+              },
+              "leave": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "leaveId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "TeacherLeave",
+                  "namespace": "public"
+                }
+              },
+              "originalTeacher": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "originalTeacherId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "period": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "periodId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Period",
+                  "namespace": "public"
+                }
+              },
+              "subject": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "subjectId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "Subject",
+                  "namespace": "public"
+                }
+              },
+              "substituteTeacher": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "substituteTeacherId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "assignedById": {
+                  "column": "assignedById"
+                },
+                "classSectionId": {
+                  "column": "classSectionId"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "date": {
+                  "column": "date"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "leaveId": {
+                  "column": "leaveId"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "originalTeacherId": {
+                  "column": "originalTeacherId"
+                },
+                "periodId": {
+                  "column": "periodId"
+                },
+                "sourceTimetableEntryId": {
+                  "column": "sourceTimetableEntryId"
+                },
+                "subjectId": {
+                  "column": "subjectId"
+                },
+                "substituteTeacherId": {
+                  "column": "substituteTeacherId"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "TimetableSubstitution"
             }
           },
           "User": {
@@ -5709,6 +6257,21 @@
                   "namespace": "public"
                 }
               },
+              "coverSubstitutions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "substituteTeacherId"
+                  ]
+                },
+                "to": {
+                  "model": "TimetableSubstitution",
+                  "namespace": "public"
+                }
+              },
               "cpdAppraisalsAsAppraiser": {
                 "cardinality": "1:N",
                 "on": {
@@ -5874,6 +6437,21 @@
                   "namespace": "public"
                 }
               },
+              "leavesCreated": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "createdById"
+                  ]
+                },
+                "to": {
+                  "model": "TeacherLeave",
+                  "namespace": "public"
+                }
+              },
               "markEntryRequests": {
                 "cardinality": "1:N",
                 "on": {
@@ -5901,6 +6479,21 @@
                 },
                 "to": {
                   "model": "Notification",
+                  "namespace": "public"
+                }
+              },
+              "originalSubstitutions": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "originalTeacherId"
+                  ]
+                },
+                "to": {
+                  "model": "TimetableSubstitution",
                   "namespace": "public"
                 }
               },
@@ -5991,6 +6584,36 @@
                 },
                 "to": {
                   "model": "MarkEntryAccessRequest",
+                  "namespace": "public"
+                }
+              },
+              "substitutionsAssigned": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "assignedById"
+                  ]
+                },
+                "to": {
+                  "model": "TimetableSubstitution",
+                  "namespace": "public"
+                }
+              },
+              "teacherLeaves": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "teacherId"
+                  ]
+                },
+                "to": {
+                  "model": "TeacherLeave",
                   "namespace": "public"
                 }
               },
@@ -6122,7 +6745,11 @@
                 "CPD_UPDATED",
                 "HALL_TICKET_CREATED",
                 "HALL_TICKET_UPDATED",
-                "HALL_TICKET_DELETED"
+                "HALL_TICKET_DELETED",
+                "TEACHER_LEAVE_CREATED",
+                "TEACHER_LEAVE_CANCELLED",
+                "SUBSTITUTE_ASSIGNED",
+                "SUBSTITUTE_REMOVED"
               ],
               "typeName": "AuditAction"
             },
@@ -10528,6 +11155,187 @@
                 }
               ]
             },
+            "TeacherLeave": {
+              "columns": {
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "createdById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "endDate": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "leaveType": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "FULL_DAY"
+                  },
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "periodIds": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
+                "reason": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "startDate": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "status": {
+                  "codecId": "pg/text@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "ACTIVE"
+                  },
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "teacherId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TeacherLeave"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "teacherId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TeacherLeave"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "createdById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TeacherLeave"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "createdById"
+                  ],
+                  "name": "TeacherLeave_createdById_idx_8bf640ed",
+                  "prefix": "TeacherLeave_createdById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "teacherId"
+                  ],
+                  "name": "TeacherLeave_teacherId_idx_bc266660",
+                  "prefix": "TeacherLeave_teacherId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "TeacherLeave_tenantId_idx_c93ed4f1",
+                  "prefix": "TeacherLeave_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "startDate",
+                    "endDate"
+                  ],
+                  "name": "TeacherLeave_tenantId_startDate_endDate_idx_2287641b",
+                  "prefix": "TeacherLeave_tenantId_startDate_endDate_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "teacherId",
+                    "status"
+                  ],
+                  "name": "TeacherLeave_tenantId_teacherId_status_idx_da3a2517",
+                  "prefix": "TeacherLeave_tenantId_teacherId_status_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
+            },
             "TimetableEntry": {
               "columns": {
                 "classSectionId": {
@@ -10741,6 +11549,333 @@
                 }
               ]
             },
+            "TimetableSubstitution": {
+              "columns": {
+                "assignedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "classSectionId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "date": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "leaveId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "originalTeacherId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "periodId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "sourceTimetableEntryId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "subjectId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "substituteTeacherId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TimetableSubstitution"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "leaveId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TimetableSubstitution"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TeacherLeave"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "periodId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TimetableSubstitution"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Period"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "classSectionId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TimetableSubstitution"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "ClassSection"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "subjectId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TimetableSubstitution"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "Subject"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "originalTeacherId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TimetableSubstitution"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "substituteTeacherId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TimetableSubstitution"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                },
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "assignedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "TimetableSubstitution"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "tenantId",
+                    "date"
+                  ],
+                  "name": "TimetableSub_date_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "originalTeacherId",
+                    "date"
+                  ],
+                  "name": "TimetableSub_orig_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "substituteTeacherId",
+                    "date"
+                  ],
+                  "name": "TimetableSub_sub_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "TimetableSub_tenant_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "assignedById"
+                  ],
+                  "name": "TimetableSubstitution_assignedById_idx_f5db02c3",
+                  "prefix": "TimetableSubstitution_assignedById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "classSectionId"
+                  ],
+                  "name": "TimetableSubstitution_classSectionId_idx_095a6e92",
+                  "prefix": "TimetableSubstitution_classSectionId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "leaveId"
+                  ],
+                  "name": "TimetableSubstitution_leaveId_idx_20b3ea91",
+                  "prefix": "TimetableSubstitution_leaveId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "originalTeacherId"
+                  ],
+                  "name": "TimetableSubstitution_originalTeacherId_idx_512accfb",
+                  "prefix": "TimetableSubstitution_originalTeacherId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "periodId"
+                  ],
+                  "name": "TimetableSubstitution_periodId_idx_f0176b8a",
+                  "prefix": "TimetableSubstitution_periodId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "subjectId"
+                  ],
+                  "name": "TimetableSubstitution_subjectId_idx_84df2a1d",
+                  "prefix": "TimetableSubstitution_subjectId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "substituteTeacherId"
+                  ],
+                  "name": "TimetableSubstitution_substituteTeacherId_idx_fbb6e921",
+                  "prefix": "TimetableSubstitution_substituteTeacherId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "tenantId",
+                    "date",
+                    "periodId",
+                    "classSectionId"
+                  ],
+                  "name": "TimetableSub_slot_key"
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "date",
+                    "periodId",
+                    "substituteTeacherId"
+                  ],
+                  "name": "TimetableSub_teacher_key"
+                }
+              ]
+            },
             "User": {
               "columns": {
                 "createdAt": {
@@ -10936,7 +12071,11 @@
                 "CPD_UPDATED",
                 "HALL_TICKET_CREATED",
                 "HALL_TICKET_UPDATED",
-                "HALL_TICKET_DELETED"
+                "HALL_TICKET_DELETED",
+                "TEACHER_LEAVE_CREATED",
+                "TEACHER_LEAVE_CANCELLED",
+                "SUBSTITUTE_ASSIGNED",
+                "SUBSTITUTE_REMOVED"
               ]
             },
             "BoardPackStatus": {
@@ -11081,10 +12220,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "d5a473f72d3c3c660dba065cdd41420abba059d9188aa67e05c0596c847c20bf"
+    "storageHash": "23d160461fc4c2aa31d5d32af678ff210e7b7f12cc3808f0297481a8f13598ea"
   },
   "execution": {
-    "executionHash": "cd7d2b42273f46e02099d82e6a8972f083ae667a2fe46667009fa5a6c2202b75",
+    "executionHash": "a72b23d74a7c00bedc01aae8e1333dfa214b3303b25cb40bff7c9ec558b8b035",
     "mutations": {
       "defaults": [
         {
@@ -11486,7 +12625,44 @@
           "ref": {
             "column": "id",
             "namespace": "public",
+            "table": "TeacherLeave"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updatedAt",
+            "namespace": "public",
+            "table": "TeacherLeave"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
             "table": "TimetableEntry"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "TimetableSubstitution"
           }
         },
         {

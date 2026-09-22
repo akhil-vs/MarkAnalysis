@@ -50,6 +50,7 @@ When scheduling an exam, choose which **classes** are included (editable later),
 - Teacher cards → Daily / Weekly; add or remove periods.
 - **Daily board** — all teachers for one day.
 - **Find free** — who is free in a chosen period.
+- **Leave & cover** — mark leave, accept balanced substitute suggestions, or assign cover from uncovered cells.
 - Working week and bell times are set under **School profile**.
 
 ### 2.4 School profile (`School setup → School profile`)

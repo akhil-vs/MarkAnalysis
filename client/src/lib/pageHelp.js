@@ -119,8 +119,8 @@ export const PAGE_HELP = {
   },
   timetables: {
     title: "What's on this page",
-    about: "Teacher schedules, the all-staff daily board, and a free-period finder.",
-    useful: "Open a teacher to add, edit, or remove periods; use the daily board and free finder to see coverage. The daily board shows each teacher’s period count and total teaching hours for the day. Set the working week and bell timings under School profile.",
+    about: "Teacher schedules, the all-staff daily board, a free-period finder, and leave with balanced substitute cover.",
+    useful: "Open a teacher to add, edit, or remove periods; use the daily board and free finder to see coverage. Put a teacher on leave under Leave & cover — the board shows uncovered slots and ranked substitute suggestions that balance free periods and weekly load. Set the working week and bell timings under School profile.",
   },
   schoolProfile: {
     title: "What's on this page",

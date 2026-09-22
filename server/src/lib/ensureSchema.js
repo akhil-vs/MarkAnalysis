@@ -49,6 +49,10 @@ const ACTIVITY_ACTIONS = [
   "HALL_TICKET_CREATED",
   "HALL_TICKET_UPDATED",
   "HALL_TICKET_DELETED",
+  "TEACHER_LEAVE_CREATED",
+  "TEACHER_LEAVE_CANCELLED",
+  "SUBSTITUTE_ASSIGNED",
+  "SUBSTITUTE_REMOVED",
 ];
 
 const ACTIVITY_STATEMENTS = [
@@ -1488,6 +1492,114 @@ export async function ensureExamIncludedClassesColumn() {
   await recordMigration(EXAM_INCLUDED_CLASSES_MIGRATION, EXAM_INCLUDED_CLASSES_CHECKSUM);
 }
 
+const TEACHER_LEAVE_MIGRATION = "20260922024500_teacher_leave_substitutes";
+const TEACHER_LEAVE_CHECKSUM = "teacher-leave-substitutes-catchup-v1";
+
+const TEACHER_LEAVE_AUDIT_ACTIONS = [
+  "TEACHER_LEAVE_CREATED",
+  "TEACHER_LEAVE_CANCELLED",
+  "SUBSTITUTE_ASSIGNED",
+  "SUBSTITUTE_REMOVED",
+];
+
+const TEACHER_LEAVE_TABLE_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "TeacherLeave" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "teacherId" TEXT NOT NULL,
+    "startDate" TEXT NOT NULL,
+    "endDate" TEXT NOT NULL,
+    "leaveType" TEXT NOT NULL DEFAULT 'FULL_DAY',
+    "periodIds" JSONB,
+    "reason" TEXT,
+    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "createdById" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "TeacherLeave_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "TeacherLeave_tenant_teacher_status_idx"
+    ON "TeacherLeave" ("tenantId", "teacherId", "status")`,
+  `CREATE INDEX IF NOT EXISTS "TeacherLeave_tenant_dates_idx"
+    ON "TeacherLeave" ("tenantId", "startDate", "endDate")`,
+  `CREATE INDEX IF NOT EXISTS "TeacherLeave_tenantId_idx"
+    ON "TeacherLeave" ("tenantId")`,
+  `CREATE TABLE IF NOT EXISTS "TimetableSubstitution" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "leaveId" TEXT,
+    "date" TEXT NOT NULL,
+    "periodId" TEXT NOT NULL,
+    "classSectionId" TEXT NOT NULL,
+    "subjectId" TEXT NOT NULL,
+    "originalTeacherId" TEXT NOT NULL,
+    "substituteTeacherId" TEXT NOT NULL,
+    "sourceTimetableEntryId" TEXT,
+    "assignedById" TEXT NOT NULL,
+    "notes" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "TimetableSubstitution_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "TimetableSub_slot_key"
+    ON "TimetableSubstitution" ("tenantId", "date", "periodId", "classSectionId")`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "TimetableSub_teacher_key"
+    ON "TimetableSubstitution" ("tenantId", "date", "periodId", "substituteTeacherId")`,
+  `CREATE INDEX IF NOT EXISTS "TimetableSub_date_idx"
+    ON "TimetableSubstitution" ("tenantId", "date")`,
+  `CREATE INDEX IF NOT EXISTS "TimetableSub_sub_idx"
+    ON "TimetableSubstitution" ("tenantId", "substituteTeacherId", "date")`,
+  `CREATE INDEX IF NOT EXISTS "TimetableSub_orig_idx"
+    ON "TimetableSubstitution" ("tenantId", "originalTeacherId", "date")`,
+  `CREATE INDEX IF NOT EXISTS "TimetableSub_tenant_idx"
+    ON "TimetableSubstitution" ("tenantId")`,
+];
+
+const TEACHER_LEAVE_FK_STATEMENTS = [
+  `ALTER TABLE "TeacherLeave" ADD CONSTRAINT "TeacherLeave_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "TeacherLeave" ADD CONSTRAINT "TeacherLeave_teacherId_fkey" FOREIGN KEY ("teacherId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "TeacherLeave" ADD CONSTRAINT "TeacherLeave_createdById_fkey" FOREIGN KEY ("createdById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "TimetableSubstitution" ADD CONSTRAINT "TimetableSub_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "TimetableSubstitution" ADD CONSTRAINT "TimetableSub_leaveId_fkey" FOREIGN KEY ("leaveId") REFERENCES "TeacherLeave"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+  `ALTER TABLE "TimetableSubstitution" ADD CONSTRAINT "TimetableSub_periodId_fkey" FOREIGN KEY ("periodId") REFERENCES "Period"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "TimetableSubstitution" ADD CONSTRAINT "TimetableSub_classSectionId_fkey" FOREIGN KEY ("classSectionId") REFERENCES "ClassSection"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "TimetableSubstitution" ADD CONSTRAINT "TimetableSub_subjectId_fkey" FOREIGN KEY ("subjectId") REFERENCES "Subject"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "TimetableSubstitution" ADD CONSTRAINT "TimetableSub_originalTeacherId_fkey" FOREIGN KEY ("originalTeacherId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "TimetableSubstitution" ADD CONSTRAINT "TimetableSub_substituteTeacherId_fkey" FOREIGN KEY ("substituteTeacherId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+  `ALTER TABLE "TimetableSubstitution" ADD CONSTRAINT "TimetableSub_assignedById_fkey" FOREIGN KEY ("assignedById") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+];
+
+/**
+ * Teacher leave overlay + dated substitutions for timetable cover.
+ * Safe to call repeatedly; used by timetable API and ensurePendingSchema.
+ */
+export async function ensureTeacherLeaveSchema() {
+  const hasLeave = await tableExists("TeacherLeave");
+  const hasSub = await tableExists("TimetableSubstitution");
+  if (hasLeave && hasSub) {
+    const missingActions = await missingEnumLabels("AuditAction", TEACHER_LEAVE_AUDIT_ACTIONS);
+    if (missingActions.length) {
+      for (const value of missingActions) {
+        await applyStatements([`ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS '${value}'`]);
+      }
+    }
+    await recordMigration(TEACHER_LEAVE_MIGRATION, TEACHER_LEAVE_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(TEACHER_LEAVE_TABLE_STATEMENTS);
+  for (const value of TEACHER_LEAVE_AUDIT_ACTIONS) {
+    await applyStatements([`ALTER TYPE "AuditAction" ADD VALUE IF NOT EXISTS '${value}'`]);
+  }
+  for (const stmt of TEACHER_LEAVE_FK_STATEMENTS) {
+    try {
+      await applyStatements([stmt]);
+    } catch {
+      // Constraint may already exist from a prior partial catch-up.
+    }
+  }
+  await recordMigration(TEACHER_LEAVE_MIGRATION, TEACHER_LEAVE_CHECKSUM);
+}
+
 export const CATCHUP_MIGRATION_NAMES = [
   TIMETABLE_MIGRATION,
   MULTI_CLASS_PERIOD_MIGRATION,
@@ -1589,6 +1701,7 @@ export async function ensurePendingSchema() {
         await ensureHallTicketsSchema();
         await ensureSubjectPoolSchema();
         await ensureExamIncludedClassesColumn();
+        await ensureTeacherLeaveSchema();
         return { skipped: true, reason: "migrations-present" };
       }
       // Auth pieces first so concurrent login can finish while the rest runs.
@@ -1616,6 +1729,7 @@ export async function ensurePendingSchema() {
         ensureHallTicketsSchema(),
         ensureSubjectPoolSchema(),
         ensureExamIncludedClassesColumn(),
+        ensureTeacherLeaveSchema(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.

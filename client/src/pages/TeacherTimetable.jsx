@@ -90,6 +90,15 @@ function EntryCell({ entries, onEdit, onAdd, editingId, adding }) {
         {list.map((entry) => {
           const body = (
             <>
+              {(entry.isCover || entry.isUncovered || entry.coveredBy) && (
+                <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-700/55">
+                  {entry.isUncovered
+                    ? "Needs cover"
+                    : entry.isCover
+                      ? "Cover"
+                      : "On leave · covered"}
+                </div>
+              )}
               {!sharedSubject && (
                 <div className="text-sm font-medium leading-snug truncate">{entry.subject?.name}</div>
               )}
@@ -97,6 +106,12 @@ function EntryCell({ entries, onEdit, onAdd, editingId, adding }) {
                 {entry.classSection?.label}
                 {entry.room ? ` · ${entry.room}` : ""}
               </div>
+              {entry.isCover && entry.originalTeacher && (
+                <div className="text-[11px] text-ink-700/50 truncate">for {entry.originalTeacher.name}</div>
+              )}
+              {entry.coveredBy && (
+                <div className="text-[11px] text-ink-700/50 truncate">→ {entry.coveredBy.name}</div>
+              )}
             </>
           );
           if (!onEdit) {

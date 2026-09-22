@@ -41,6 +41,10 @@ export const ACTION_LABELS = {
   HALL_TICKET_CREATED: "Hall tickets created",
   HALL_TICKET_UPDATED: "Hall tickets updated",
   HALL_TICKET_DELETED: "Hall tickets removed",
+  TEACHER_LEAVE_CREATED: "Teacher leave recorded",
+  TEACHER_LEAVE_CANCELLED: "Teacher leave cancelled",
+  SUBSTITUTE_ASSIGNED: "Substitute assigned",
+  SUBSTITUTE_REMOVED: "Substitute removed",
 };
 
 const ROLE_LABELS = {

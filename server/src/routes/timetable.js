@@ -13,6 +13,17 @@ import { auth, isLeadership, publicUser, requireLeadership, requireFeature } fro
 import { getSchoolProfile } from "../lib/school.js";
 import { DAY_NAMES, isWorkingDay, publicWorkingDays } from "../lib/workingDays.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
+import { teacherLeaveRouter } from "./teacherLeave.js";
+import { ensureTeacherLeaveSchema } from "../lib/ensureSchema.js";
+import {
+  buildDayLeaveMaps,
+  listActiveLeavesForRange,
+  listSubstitutionsForDates,
+  serializeLeave,
+  serializeSubstitution,
+  teacherOnLeaveForPeriod,
+} from "../lib/teacherLeave.js";
+import { leaveAppliesToPeriod, leaveCoversDate } from "../lib/substituteScore.js";
 
 export const timetableRouter = Router();
 timetableRouter.use(auth);
@@ -26,6 +37,7 @@ timetableRouter.use(async (_req, _res, next) => {
     next(err);
   }
 });
+timetableRouter.use(teacherLeaveRouter);
 
 const ENTRY_INCLUDE = {
   period: true,
@@ -233,7 +245,10 @@ timetableRouter.get("/day", requireLeadership(), async (req, res) => {
   if (!date) return res.status(400).json({ error: "date must be YYYY-MM-DD" });
 
   const dayOfWeek = isoWeekday(date);
-  const [periods, teachers, entries] = await Promise.all([
+  const dateYmd = ymd(date);
+  await ensureTeacherLeaveSchema();
+
+  const [periods, teachers, entries, leaves, substitutions] = await Promise.all([
     ensureDefaultPeriods(),
     prisma.user.findMany({
       where: { role: "TEACHER", status: "ACTIVE" },
@@ -245,30 +260,116 @@ timetableRouter.get("/day", requireLeadership(), async (req, res) => {
       include: ENTRY_INCLUDE,
       orderBy: [{ period: { sortOrder: "asc" } }],
     }),
+    listActiveLeavesForRange(dateYmd, dateYmd),
+    listSubstitutionsForDates([dateYmd]),
   ]);
 
+  const { leavesByTeacher, onLeaveIds, subBySlot, subBySubstitute } = buildDayLeaveMaps(
+    dateYmd,
+    leaves,
+    substitutions
+  );
+
   const byTeacher = new Map();
+  const uncovered = [];
+
   for (const entry of entries) {
+    const leave = teacherOnLeaveForPeriod(leavesByTeacher, entry.teacherId, entry.periodId);
+    const serialized = serializeEntry(entry);
+
+    if (leave) {
+      const cover = subBySlot.get(`${entry.periodId}:${entry.classSectionId}`);
+      if (cover) {
+        // Show on substitute's row as a cover slot; also keep a note on original.
+        const coverEntry = {
+          ...serialized,
+          id: `cover:${cover.id}`,
+          isCover: true,
+          isUncovered: false,
+          onLeave: true,
+          leave: serializeLeave(leave),
+          substitution: serializeSubstitution(cover),
+          teacher: cover.substituteTeacher ? publicUser(cover.substituteTeacher) : null,
+          originalTeacher: entry.teacher ? publicUser(entry.teacher) : null,
+        };
+        if (!byTeacher.has(cover.substituteTeacherId)) byTeacher.set(cover.substituteTeacherId, {});
+        const subPeriods = byTeacher.get(cover.substituteTeacherId);
+        if (!subPeriods[entry.periodId]) subPeriods[entry.periodId] = [];
+        subPeriods[entry.periodId].push(coverEntry);
+
+        if (!byTeacher.has(entry.teacherId)) byTeacher.set(entry.teacherId, {});
+        const origPeriods = byTeacher.get(entry.teacherId);
+        if (!origPeriods[entry.periodId]) origPeriods[entry.periodId] = [];
+        origPeriods[entry.periodId].push({
+          ...serialized,
+          isCover: false,
+          isUncovered: false,
+          onLeave: true,
+          coveredBy: cover.substituteTeacher ? publicUser(cover.substituteTeacher) : null,
+          leave: serializeLeave(leave),
+          substitution: serializeSubstitution(cover),
+        });
+      } else {
+        const uncoveredEntry = {
+          ...serialized,
+          isCover: false,
+          isUncovered: true,
+          onLeave: true,
+          leave: serializeLeave(leave),
+        };
+        if (!byTeacher.has(entry.teacherId)) byTeacher.set(entry.teacherId, {});
+        const periodsMap = byTeacher.get(entry.teacherId);
+        if (!periodsMap[entry.periodId]) periodsMap[entry.periodId] = [];
+        periodsMap[entry.periodId].push(uncoveredEntry);
+        uncovered.push({
+          date: dateYmd,
+          periodId: entry.periodId,
+          classSectionId: entry.classSectionId,
+          subjectId: entry.subjectId,
+          originalTeacherId: entry.teacherId,
+          sourceTimetableEntryId: entry.id,
+          entry: uncoveredEntry,
+        });
+      }
+      continue;
+    }
+
     if (!byTeacher.has(entry.teacherId)) byTeacher.set(entry.teacherId, {});
-    const periods = byTeacher.get(entry.teacherId);
-    if (!periods[entry.periodId]) periods[entry.periodId] = [];
-    periods[entry.periodId].push(serializeEntry(entry));
+    const periodsMap = byTeacher.get(entry.teacherId);
+    if (!periodsMap[entry.periodId]) periodsMap[entry.periodId] = [];
+    periodsMap[entry.periodId].push({ ...serialized, isCover: false, isUncovered: false, onLeave: false });
   }
 
   res.json({
-    date: ymd(date),
+    date: dateYmd,
     dayOfWeek,
     dayName: DAY_NAMES[dayOfWeek],
     periods,
     dayNames: DAY_NAMES,
+    leaves: leaves.map(serializeLeave),
+    substitutions: substitutions.map(serializeSubstitution),
+    uncovered,
+    summary: {
+      onLeaveCount: onLeaveIds.size,
+      uncoveredCount: uncovered.length,
+      coverCount: substitutions.length,
+    },
     teachers: teachers.map((t) => {
       const entriesByPeriodId = byTeacher.get(t.id) || {};
-      const taughtPeriodIds = Object.keys(entriesByPeriodId);
+      const leaveList = leavesByTeacher.get(t.id) || [];
+      // Count periods where the teacher actually teaches today (own slots or covers).
+      const activePeriodIds = Object.keys(entriesByPeriodId).filter((periodId) => {
+        const list = entriesByPeriodId[periodId] || [];
+        return list.some((e) => e.isCover || (!e.onLeave && !e.isUncovered));
+      });
       return {
         ...publicUser(t),
+        onLeave: onLeaveIds.has(t.id),
+        leaves: leaveList.map(serializeLeave),
         entriesByPeriodId,
-        taughtCount: taughtPeriodIds.length,
-        taughtMinutes: sumPeriodMinutes(periods, taughtPeriodIds),
+        taughtCount: activePeriodIds.length,
+        taughtMinutes: sumPeriodMinutes(periods, activePeriodIds),
+        coverPeriodIds: [...(subBySubstitute.get(t.id) || [])],
       };
     }),
   });
@@ -291,7 +392,9 @@ timetableRouter.get("/free", requireLeadership(), async (req, res) => {
     return res.status(400).json({ error: "Provide date (YYYY-MM-DD) or dayOfWeek (1–7)" });
   }
 
-  const [periods, period, teachers, busyEntries] = await Promise.all([
+  await ensureTeacherLeaveSchema();
+
+  const [periods, period, teachers, busyEntries, leaves, substitutions] = await Promise.all([
     ensureDefaultPeriods(),
     prisma.period.findUnique({ where: { id: periodId } }),
     prisma.user.findMany({
@@ -303,6 +406,8 @@ timetableRouter.get("/free", requireLeadership(), async (req, res) => {
       where: { dayOfWeek, periodId },
       include: ENTRY_INCLUDE,
     }),
+    dateYmd ? listActiveLeavesForRange(dateYmd, dateYmd) : Promise.resolve([]),
+    dateYmd ? listSubstitutionsForDates([dateYmd]) : Promise.resolve([]),
   ]);
 
   if (!period) return res.status(404).json({ error: "Period not found" });
@@ -310,20 +415,45 @@ timetableRouter.get("/free", requireLeadership(), async (req, res) => {
     return res.status(400).json({ error: "Break periods have no teaching assignments; choose a teaching period" });
   }
 
+  const onLeaveIds = new Set();
+  for (const leave of leaves) {
+    if (dateYmd && leaveCoversDate(leave, dateYmd) && leaveAppliesToPeriod(leave, periodId)) {
+      onLeaveIds.add(leave.teacherId);
+    }
+  }
+
+  const coverByTeacher = new Map();
+  for (const sub of substitutions) {
+    if (sub.periodId !== periodId) continue;
+    if (!coverByTeacher.has(sub.substituteTeacherId)) coverByTeacher.set(sub.substituteTeacherId, []);
+    coverByTeacher.get(sub.substituteTeacherId).push(serializeSubstitution(sub));
+  }
+
   const busyByTeacher = new Map();
   for (const entry of busyEntries) {
+    // Template teaching does not count if teacher is on leave for this period.
+    if (onLeaveIds.has(entry.teacherId)) continue;
     if (!busyByTeacher.has(entry.teacherId)) busyByTeacher.set(entry.teacherId, []);
     busyByTeacher.get(entry.teacherId).push(serializeEntry(entry));
   }
+
   const free = [];
   const busy = [];
+  const onLeave = [];
   for (const t of teachers) {
+    if (onLeaveIds.has(t.id)) {
+      onLeave.push(publicUser(t));
+      continue;
+    }
+    const covers = coverByTeacher.get(t.id);
     const teacherEntries = busyByTeacher.get(t.id);
-    if (teacherEntries?.length) {
+    if (covers?.length || teacherEntries?.length) {
       busy.push({
         ...publicUser(t),
-        entries: teacherEntries,
-        entry: teacherEntries[0],
+        entries: teacherEntries || [],
+        entry: teacherEntries?.[0] || null,
+        covers: covers || [],
+        isCover: Boolean(covers?.length),
       });
     } else {
       free.push(publicUser(t));
@@ -345,7 +475,13 @@ timetableRouter.get("/free", requireLeadership(), async (req, res) => {
     periods,
     free,
     busy,
-    summary: { freeCount: free.length, busyCount: busy.length, teacherCount: teachers.length },
+    onLeave,
+    summary: {
+      freeCount: free.length,
+      busyCount: busy.length,
+      onLeaveCount: onLeave.length,
+      teacherCount: teachers.length,
+    },
   });
 });
 
@@ -422,11 +558,74 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
 
   if (view === "daily") {
     const dayOfWeek = isoWeekday(date);
+    const dateYmd = ymd(date);
+    await ensureTeacherLeaveSchema();
+    const [leaves, substitutions] = await Promise.all([
+      listActiveLeavesForRange(dateYmd, dateYmd),
+      listSubstitutionsForDates([dateYmd]),
+    ]);
+    const myLeaves = leaves.filter((l) => l.teacherId === userId && leaveCoversDate(l, dateYmd));
+    const myCovers = substitutions.filter((s) => s.substituteTeacherId === userId);
+    const myOriginalCovers = substitutions.filter((s) => s.originalTeacherId === userId);
+
+    const dayEntries = (byDay[dayOfWeek] || []).map((entry) => {
+      const leave = myLeaves.find((l) => leaveAppliesToPeriod(l, entry.periodId));
+      if (!leave) return { ...entry, onLeave: false, isUncovered: false, isCover: false };
+      const cover = myOriginalCovers.find(
+        (s) => s.periodId === entry.periodId && s.classSectionId === entry.classSection?.id
+      );
+      return {
+        ...entry,
+        onLeave: true,
+        isUncovered: !cover,
+        isCover: false,
+        leave: serializeLeave(leave),
+        coveredBy: cover?.substituteTeacher ? publicUser(cover.substituteTeacher) : null,
+        substitution: cover ? serializeSubstitution(cover) : null,
+      };
+    });
+
+    const coverEntries = myCovers.map((sub) => ({
+      id: `cover:${sub.id}`,
+      dayOfWeek,
+      dayName: DAY_NAMES[dayOfWeek],
+      room: null,
+      period: sub.period
+        ? {
+            id: sub.period.id,
+            name: sub.period.name,
+            sortOrder: sub.period.sortOrder,
+            startTime: sub.period.startTime,
+            endTime: sub.period.endTime,
+            isBreak: sub.period.isBreak,
+          }
+        : null,
+      subject: sub.subject
+        ? { id: sub.subject.id, name: sub.subject.name, className: sub.subject.className }
+        : null,
+      classSection: sub.classSection
+        ? {
+            id: sub.classSection.id,
+            className: sub.classSection.className,
+            section: sub.classSection.section,
+            label: `${sub.classSection.className}-${sub.classSection.section}`,
+          }
+        : null,
+      teacher: publicUser(teacher),
+      isCover: true,
+      onLeave: false,
+      isUncovered: false,
+      originalTeacher: sub.originalTeacher ? publicUser(sub.originalTeacher) : null,
+      substitution: serializeSubstitution(sub),
+    }));
+
     return res.json({
       ...base,
       dayOfWeek,
       dayName: DAY_NAMES[dayOfWeek],
-      entries: byDay[dayOfWeek] || [],
+      onLeave: myLeaves.length > 0,
+      leaves: myLeaves.map(serializeLeave),
+      entries: [...dayEntries, ...coverEntries],
     });
   }
 

@@ -55,6 +55,7 @@ Work through these once per academic year (and whenever structure changes).
 - Browse teachers → open **Daily** or **Weekly** views; add or remove periods.
 - Use the **daily board** for every teacher on one day.
 - Use **Find free** to see who is free in a given period.
+- Use **Leave & cover** (or **Put on leave** on a teacher card / daily board) to mark absences. Vacated periods show as **Needs cover** on the daily board. Accept ranked substitute suggestions (balanced by free periods and weekly load) or assign cover from an uncovered cell.
 
 ---
 

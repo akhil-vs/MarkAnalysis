@@ -133,6 +133,8 @@ model School {
   cpdCertificates       CpdCertificate[]
   emailOutbox           EmailOutbox[]
   hallTicketIssues      HallTicketIssue[]
+  teacherLeaves         TeacherLeave[]
+  timetableSubstitutions TimetableSubstitution[]
   @@map("School")
 }
 
@@ -186,6 +188,11 @@ model User {
   cpdAppraisalsAsAppraiser CpdAppraisal[]      @relation("CpdAppraisalAppraiser")
   cpdCertificates    CpdCertificate[]          @relation("CpdCertTeacher")
   cpdCertificatesIssued CpdCertificate[]       @relation("CpdCertIssuer")
+  teacherLeaves      TeacherLeave[]            @relation("TeacherOnLeave")
+  leavesCreated      TeacherLeave[]            @relation("LeaveCreator")
+  originalSubstitutions TimetableSubstitution[] @relation("OriginalTeacher")
+  coverSubstitutions TimetableSubstitution[]   @relation("SubstituteTeacher")
+  substitutionsAssigned TimetableSubstitution[] @relation("SubstitutionAssigner")
 
   @@unique([tenantId, schoolId])
   @@index([tenantId])
@@ -224,6 +231,7 @@ model ClassSection {
   timetableEntries  TimetableEntry[]
   reportCardReleases ReportCardRelease[]
   hallTicketIssues  HallTicketIssue[]
+  timetableSubstitutions TimetableSubstitution[]
 
   @@unique([tenantId, className, section])
   @@index([tenantId])
@@ -270,6 +278,7 @@ model Subject {
   enrollments       StudentSubjectEnrollment[]
   paperSchedules    ExamPaperSchedule[]
   revaluationRequests RevaluationRequest[]
+  timetableSubstitutions TimetableSubstitution[]
 
   @@unique([tenantId, name, className])
   @@index([tenantId])
@@ -509,6 +518,10 @@ native_enum AuditAction {
   HALL_TICKET_CREATED = "HALL_TICKET_CREATED"
   HALL_TICKET_UPDATED = "HALL_TICKET_UPDATED"
   HALL_TICKET_DELETED = "HALL_TICKET_DELETED"
+  TEACHER_LEAVE_CREATED = "TEACHER_LEAVE_CREATED"
+  TEACHER_LEAVE_CANCELLED = "TEACHER_LEAVE_CANCELLED"
+  SUBSTITUTE_ASSIGNED = "SUBSTITUTE_ASSIGNED"
+  SUBSTITUTE_REMOVED = "SUBSTITUTE_REMOVED"
 }
 
 /// Operational audit trail (approvals, access reviews, staff/exam changes).
@@ -583,6 +596,7 @@ model Period {
 
   tenant  School           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   entries TimetableEntry[]
+  substitutions TimetableSubstitution[]
 
   @@unique([tenantId, sortOrder])
   @@index([tenantId])
@@ -615,6 +629,72 @@ model TimetableEntry {
   @@index([dayOfWeek, periodId])
   @@index([tenantId])
   @@map("TimetableEntry")
+}
+
+/// Calendar leave overlay: does not mutate the weekly TimetableEntry template.
+model TeacherLeave {
+  id          String @id @default(cuid(2))
+  tenantId    String
+  teacherId   String
+  /// Inclusive calendar day YYYY-MM-DD.
+  startDate   String
+  /// Inclusive calendar day YYYY-MM-DD.
+  endDate     String
+  /// FULL_DAY | PARTIAL
+  leaveType   String @default("FULL_DAY")
+  /// When leaveType is PARTIAL, optional period id list (JSON array of strings).
+  periodIds   Jsonb?
+  reason      String?
+  /// ACTIVE | CANCELLED
+  status      String @default("ACTIVE")
+  createdById String
+  createdAt   TimestamptzString @default(now())
+  updatedAt   temporal.updatedAtString()
+
+  tenant          School                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  teacher         User                    @relation("TeacherOnLeave", fields: [teacherId], references: [id], onDelete: Cascade)
+  createdBy       User                    @relation("LeaveCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  substitutions   TimetableSubstitution[]
+
+  @@index([tenantId, teacherId, status])
+  @@index([tenantId, startDate, endDate])
+  @@index([tenantId])
+  @@map("TeacherLeave")
+}
+
+/// Dated cover for a vacated class period while a teacher is on leave (or ad-hoc).
+model TimetableSubstitution {
+  id                     String  @id @default(cuid(2))
+  tenantId               String
+  leaveId                String?
+  /// Calendar day YYYY-MM-DD being covered.
+  date                   String
+  periodId               String
+  classSectionId         String
+  subjectId              String
+  originalTeacherId      String
+  substituteTeacherId    String
+  sourceTimetableEntryId String?
+  assignedById           String
+  notes                  String?
+  createdAt              TimestamptzString @default(now())
+
+  tenant            School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  leave             TeacherLeave? @relation(fields: [leaveId], references: [id], onDelete: SetNull)
+  period            Period       @relation(fields: [periodId], references: [id], onDelete: Cascade)
+  classSection      ClassSection @relation(fields: [classSectionId], references: [id], onDelete: Cascade)
+  subject           Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  originalTeacher   User         @relation("OriginalTeacher", fields: [originalTeacherId], references: [id], onDelete: Cascade)
+  substituteTeacher User         @relation("SubstituteTeacher", fields: [substituteTeacherId], references: [id], onDelete: Cascade)
+  assignedBy        User         @relation("SubstitutionAssigner", fields: [assignedById], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, date, periodId, classSectionId], map: "TimetableSub_slot_key")
+  @@unique([tenantId, date, periodId, substituteTeacherId], map: "TimetableSub_teacher_key")
+  @@index([tenantId, date], map: "TimetableSub_date_idx")
+  @@index([tenantId, substituteTeacherId, date], map: "TimetableSub_sub_idx")
+  @@index([tenantId, originalTeacherId, date], map: "TimetableSub_orig_idx")
+  @@index([tenantId], map: "TimetableSub_tenant_idx")
+  @@map("TimetableSubstitution")
 }
 
 native_enum ReportCardStatus {

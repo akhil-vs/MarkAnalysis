@@ -32,7 +32,9 @@ const MODEL_NAMES = [
   "Subject",
   "SubjectPoolItem",
   "TeacherAssignment",
+  "TeacherLeave",
   "TimetableEntry",
+  "TimetableSubstitution",
   "User",
 ];
 
