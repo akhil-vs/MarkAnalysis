@@ -259,6 +259,14 @@ export async function suggestSubstitutesForSlot({
     coverPeriodIdsByTeacher.get(sub.substituteTeacherId).add(sub.periodId);
   }
 
+  const sessionCoverCountByTeacher = new Map();
+  for (const sub of daySubs) {
+    sessionCoverCountByTeacher.set(
+      sub.substituteTeacherId,
+      (sessionCoverCountByTeacher.get(sub.substituteTeacherId) || 0) + 1
+    );
+  }
+
   const dayLoadByTeacher = new Map();
   for (const t of teachers) {
     const busy = busyPeriodIdsByTeacher.get(t.id)?.size || 0;
@@ -293,6 +301,7 @@ export async function suggestSubstitutesForSlot({
     weekLoadByTeacher,
     medianWeekLoad,
     recentCoverCountByTeacher: recentSubs,
+    sessionCoverCountByTeacher,
     subjectTeacherIds,
     classTeacherIds,
     orderedTeachingPeriodIds,
@@ -442,6 +451,23 @@ export async function planCoversForSlots(slots, { policy } = {}) {
         weekLoadByTeacher.set(tid, (weekLoadByTeacher.get(tid) || 0) + 1);
       }
 
+      // Covers already taken this day (saved + in this plan) — used to spread across teachers.
+      const sessionCoverCountByTeacher = new Map();
+      for (const sub of existingSubs) {
+        if (sub.date !== dateYmd) continue;
+        sessionCoverCountByTeacher.set(
+          sub.substituteTeacherId,
+          (sessionCoverCountByTeacher.get(sub.substituteTeacherId) || 0) + 1
+        );
+      }
+      for (const row of assignments) {
+        if (row.slot.date !== dateYmd) continue;
+        sessionCoverCountByTeacher.set(
+          row.substituteTeacherId,
+          (sessionCoverCountByTeacher.get(row.substituteTeacherId) || 0) + 1
+        );
+      }
+
       for (const t of teachers) {
         const busy = busyPeriodIdsByTeacher.get(t.id)?.size || 0;
         const covers = coverPeriodIdsByTeacher.get(t.id)?.size || 0;
@@ -467,6 +493,7 @@ export async function planCoversForSlots(slots, { policy } = {}) {
         weekLoadByTeacher,
         medianWeekLoad: median([...weekLoadByTeacher.values()]),
         recentCoverCountByTeacher: recentByDate.get(dateYmd) || new Map(),
+        sessionCoverCountByTeacher,
         subjectTeacherIds,
         classTeacherIds,
         orderedTeachingPeriodIds: periods.map((p) => p.id),

@@ -251,12 +251,11 @@ async function seedSchool(school) {
   }
 
   for (const [, list] of assignmentsByTeacher) {
+    // Pack onto earlier weekdays first so a single leave day often vacates
+    // several periods (better cover-planner demos and fairer substitute spread).
     list.forEach((assignment, index) => {
-      const preferredDay = (index % 5) + 1;
       const periodStart = index % teachingPeriods.length;
-      if (tryPlace(assignment, preferredDay, periodStart)) return;
       for (let day = 1; day <= 5; day++) {
-        if (day === preferredDay) continue;
         if (tryPlace(assignment, day, periodStart)) return;
       }
     });

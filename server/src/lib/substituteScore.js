@@ -8,6 +8,12 @@ export const DEFAULT_LEAVE_POLICY = Object.freeze({
   maxPeriodsPerDay: null,
   /** Prefer at least this many free teaching periods remaining after cover. */
   minFreePeriodsPerDay: 1,
+  /**
+   * Prefer spreading covers: a substitute should not take more than this many
+   * vacated periods on the same day. Extra covers are only used if nobody else
+   * is eligible for the remaining slots.
+   */
+  maxCoversPerTeacherPerDay: 1,
   preferSubjectMatch: true,
   requireSubjectMatch: false,
   /** Look-back window for recent-cover fairness. */
@@ -24,15 +30,16 @@ export function mergeLeavePolicy(overrides = {}) {
  * @param {object} args.slot - { periodId, subjectId, classSectionId, originalTeacherId }
  * @param {object} args.context
  * @param {Set<string>} args.context.onLeaveIds
- * @param {Set<string>} args.context.busyPeriodIdsByTeacher - Map teacherId -> Set(periodId)
- * @param {Set<string>} args.context.coverPeriodIdsByTeacher - Map teacherId -> Set(periodId) already assigned that day
- * @param {Map<string, number>} args.context.dayLoadByTeacher - teaching periods that day (template - leave + covers)
+ * @param {Map<string, Set<string>>|object} args.context.busyPeriodIdsByTeacher
+ * @param {Map<string, Set<string>>|object} args.context.coverPeriodIdsByTeacher
+ * @param {Map<string, number>} args.context.dayLoadByTeacher
  * @param {Map<string, number>} args.context.weekLoadByTeacher
  * @param {number} args.context.medianWeekLoad
  * @param {Map<string, number>} args.context.recentCoverCountByTeacher
- * @param {Set<string>} args.context.subjectTeacherIds - teachers who teach this subject
- * @param {Set<string>} args.context.classTeacherIds - teachers who teach this class
- * @param {string[]} args.context.orderedTeachingPeriodIds - sorted by sortOrder for streak calc
+ * @param {Map<string, number>} [args.context.sessionCoverCountByTeacher] - covers already picked in this plan (same day)
+ * @param {Set<string>} args.context.subjectTeacherIds
+ * @param {Set<string>} args.context.classTeacherIds
+ * @param {string[]} args.context.orderedTeachingPeriodIds
  * @param {number} args.context.teachingPeriodCount
  * @param {object} [args.policy]
  */
@@ -72,6 +79,12 @@ export function scoreSubstituteCandidate({ candidate, slot, context, policy: pol
     return { eligible: false, score: -Infinity, reasons: [`exceeds max ${maxPerDay} periods/day`] };
   }
 
+  const sessionCovers = Number(context.sessionCoverCountByTeacher?.get(teacherId) || 0);
+  const maxCoversPerDay =
+    policy.maxCoversPerTeacherPerDay != null && Number.isFinite(Number(policy.maxCoversPerTeacherPerDay))
+      ? Math.max(1, Number(policy.maxCoversPerTeacherPerDay))
+      : 1;
+
   let score = 0;
   const freeRemaining = Math.max(0, teachingCount - dayLoad);
   score += Math.min(freeRemaining, teachingCount) * 3;
@@ -110,7 +123,23 @@ export function scoreSubstituteCandidate({ candidate, slot, context, policy: pol
     reasons.push(`recent covers ×${recent} (−${(recent * 1.5).toFixed(1)})`);
   }
 
-  return { eligible: true, score, reasons, dayLoadAfter: dayLoad, weekLoadAfter: weekLoad, freeRemaining };
+  // Strongly prefer spreading: each prior cover this plan/day is heavily penalised.
+  if (sessionCovers > 0) {
+    const spreadPenalty = sessionCovers * 30;
+    score -= spreadPenalty;
+    reasons.push(`already covering ×${sessionCovers} (−${spreadPenalty})`);
+  }
+
+  return {
+    eligible: true,
+    score,
+    reasons,
+    dayLoadAfter: dayLoad,
+    weekLoadAfter: weekLoad,
+    freeRemaining,
+    sessionCovers,
+    withinSpreadCap: sessionCovers < maxCoversPerDay,
+  };
 }
 
 function createsLongStreak(orderedPeriodIds, occupiedSet, newPeriodId, threshold) {
@@ -130,18 +159,23 @@ function createsLongStreak(orderedPeriodIds, occupiedSet, newPeriodId, threshold
 
 /**
  * Greedy plan: assign best candidate per vacated slot, updating loads between slots.
+ * Prefers a different substitute for each period (maxCoversPerTeacherPerDay), and only
+ * reuses someone when no other eligible teacher is free.
  * @returns {{ assignments: Array<{ slot, substituteTeacherId, score, reasons }>, uncovered: object[] }}
  */
-export function planSubstitutesGreedy({ slots, candidates, buildContext, policy } = {}) {
+export function planSubstitutesGreedy({ slots, candidates, buildContext, policy: policyIn } = {}) {
+  const policy = mergeLeavePolicy(policyIn);
   const assignments = [];
   const uncovered = [];
   if (!Array.isArray(slots) || !slots.length) return { assignments, uncovered };
 
-  // Mutable session state seeded from initial context.
-  let session = buildContext({ assignments });
+  const maxCoversPerDay =
+    policy.maxCoversPerTeacherPerDay != null && Number.isFinite(Number(policy.maxCoversPerTeacherPerDay))
+      ? Math.max(1, Number(policy.maxCoversPerTeacherPerDay))
+      : 1;
 
   for (const slot of slots) {
-    session = buildContext({ assignments });
+    const session = buildContext({ assignments });
     const ranked = [];
     for (const candidate of candidates || []) {
       const result = scoreSubstituteCandidate({ candidate, slot, context: session, policy });
@@ -149,15 +183,13 @@ export function planSubstitutesGreedy({ slots, candidates, buildContext, policy 
         ranked.push({ candidate, ...result });
       }
     }
-    ranked.sort((a, b) => {
-      if (b.score !== a.score) return b.score - a.score;
-      const aWeek = a.weekLoadAfter ?? 0;
-      const bWeek = b.weekLoadAfter ?? 0;
-      if (aWeek !== bWeek) return aWeek - bWeek;
-      return String(a.candidate.name || "").localeCompare(String(b.candidate.name || ""));
-    });
+    ranked.sort(compareRankedCandidates);
 
-    const best = ranked[0];
+    // Prefer teachers who have not already been given a cover this day in the plan.
+    const preferred = ranked.filter((r) => r.withinSpreadCap !== false);
+    const pool = preferred.length ? preferred : ranked;
+
+    const best = pool[0];
     if (!best) {
       uncovered.push(slot);
       continue;
@@ -168,16 +200,32 @@ export function planSubstitutesGreedy({ slots, candidates, buildContext, policy 
       substituteTeacher: best.candidate,
       score: best.score,
       reasons: best.reasons,
-      alternatives: ranked.slice(1, 6).map((r) => ({
-        id: r.candidate.id,
-        name: r.candidate.name,
-        score: r.score,
-        reasons: r.reasons,
-      })),
+      alternatives: ranked
+        .filter((r) => r.candidate.id !== best.candidate.id)
+        .slice(0, 6)
+        .map((r) => ({
+          id: r.candidate.id,
+          name: r.candidate.name,
+          score: r.score,
+          reasons: r.reasons,
+          withinSpreadCap: r.withinSpreadCap,
+        })),
     });
   }
 
-  return { assignments, uncovered };
+  return { assignments, uncovered, policy: { maxCoversPerTeacherPerDay: maxCoversPerDay } };
+}
+
+function compareRankedCandidates(a, b) {
+  // Prefer within spread cap first, then score, then lighter week load, then name.
+  const aCap = a.withinSpreadCap === false ? 1 : 0;
+  const bCap = b.withinSpreadCap === false ? 1 : 0;
+  if (aCap !== bCap) return aCap - bCap;
+  if (b.score !== a.score) return b.score - a.score;
+  const aWeek = a.weekLoadAfter ?? 0;
+  const bWeek = b.weekLoadAfter ?? 0;
+  if (aWeek !== bWeek) return aWeek - bWeek;
+  return String(a.candidate.name || "").localeCompare(String(b.candidate.name || ""));
 }
 
 /** Median of numbers; empty → 0. */

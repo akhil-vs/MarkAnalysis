@@ -120,24 +120,27 @@ describe("substituteScore", () => {
     const { assignments, uncovered } = planSubstitutesGreedy({
       slots,
       candidates,
-      policy: { maxPeriodsPerDay: 6, minFreePeriodsPerDay: 0 },
+      policy: { maxPeriodsPerDay: 6, minFreePeriodsPerDay: 0, maxCoversPerTeacherPerDay: 1 },
       buildContext: ({ assignments: done }) => {
         const coverPeriodIdsByTeacher = new Map();
         const dayLoadByTeacher = new Map(dayLoad);
         const weekLoadByTeacher = new Map(weekLoad);
+        const sessionCoverCountByTeacher = new Map();
         for (const row of done) {
           const tid = row.substituteTeacherId;
           if (!coverPeriodIdsByTeacher.has(tid)) coverPeriodIdsByTeacher.set(tid, new Set());
           coverPeriodIdsByTeacher.get(tid).add(row.slot.periodId);
           dayLoadByTeacher.set(tid, (dayLoadByTeacher.get(tid) || 0) + 1);
           weekLoadByTeacher.set(tid, (weekLoadByTeacher.get(tid) || 0) + 1);
+          sessionCoverCountByTeacher.set(tid, (sessionCoverCountByTeacher.get(tid) || 0) + 1);
         }
         return baseContext({
           dayLoadByTeacher,
           weekLoadByTeacher,
           coverPeriodIdsByTeacher,
+          sessionCoverCountByTeacher,
           recentCoverCountByTeacher: covers,
-          subjectTeacherIds: new Set(),
+          subjectTeacherIds: new Set(["a"]), // A would otherwise win every slot
           classTeacherIds: new Set(),
           medianWeekLoad: 10,
         });
@@ -147,7 +150,44 @@ describe("substituteScore", () => {
     assert.equal(uncovered.length, 0);
     assert.equal(assignments.length, 3);
     const used = new Set(assignments.map((a) => a.substituteTeacherId));
-    assert.ok(used.size >= 2, "should spread across at least two teachers");
+    assert.equal(used.size, 3, "each vacated period should get a different substitute");
+  });
+
+  it("only reuses a substitute when nobody else is free", () => {
+    const slots = [
+      { ...slot, periodId: "p1", id: "s1" },
+      { ...slot, periodId: "p2", id: "s2" },
+    ];
+    const candidates = [{ id: "a", name: "A" }];
+    const { assignments, uncovered } = planSubstitutesGreedy({
+      slots,
+      candidates,
+      policy: { maxPeriodsPerDay: 6, minFreePeriodsPerDay: 0, maxCoversPerTeacherPerDay: 1 },
+      buildContext: ({ assignments: done }) => {
+        const coverPeriodIdsByTeacher = new Map();
+        const sessionCoverCountByTeacher = new Map();
+        for (const row of done) {
+          const tid = row.substituteTeacherId;
+          if (!coverPeriodIdsByTeacher.has(tid)) coverPeriodIdsByTeacher.set(tid, new Set());
+          coverPeriodIdsByTeacher.get(tid).add(row.slot.periodId);
+          sessionCoverCountByTeacher.set(tid, (sessionCoverCountByTeacher.get(tid) || 0) + 1);
+        }
+        return baseContext({
+          dayLoadByTeacher: new Map([["a", 0]]),
+          weekLoadByTeacher: new Map([["a", 5]]),
+          coverPeriodIdsByTeacher,
+          sessionCoverCountByTeacher,
+          subjectTeacherIds: new Set(),
+          classTeacherIds: new Set(),
+          medianWeekLoad: 5,
+          teachingPeriodCount: 6,
+        });
+      },
+    });
+    assert.equal(uncovered.length, 0);
+    assert.equal(assignments.length, 2);
+    assert.equal(assignments[0].substituteTeacherId, "a");
+    assert.equal(assignments[1].substituteTeacherId, "a");
   });
 
   it("helpers: dates, leave coverage, median", () => {
