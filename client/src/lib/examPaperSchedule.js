@@ -14,16 +14,44 @@ function subjectNameKey(name) {
 }
 
 /**
+ * Keep subjects whose className still has at least one Records → Classes section.
+ * Subjects are keyed by class name string (not FK), so deleting a class section can
+ * leave orphan subject rows — those must not appear in the exam paper scheduler.
+ */
+export function subjectsForActiveClasses(subjects = [], classSections = []) {
+  const active = new Set(
+    (classSections || []).map((row) => row?.className).filter((name) => name != null && String(name).trim() !== "")
+  );
+  if (!active.size) return [];
+  return (subjects || []).filter((subject) => active.has(subject?.className));
+}
+
+/**
  * Build editable draft rows from subjects + existing paper schedules.
  * One row per subject (subjects are already scoped to a class name).
+ * Pass classSections (or allowedClassNames) so orphaned subject class names are omitted.
  */
-export function buildPaperDrafts(subjects = [], schedules = []) {
+export function buildPaperDrafts(subjects = [], schedules = [], options = {}) {
   const bySubject = new Map();
   for (const row of schedules || []) {
     if (!row?.subjectId) continue;
     bySubject.set(row.subjectId, row);
   }
-  return (subjects || [])
+  const allowed =
+    options.allowedClassNames != null
+      ? new Set(
+          [...options.allowedClassNames].filter((name) => name != null && String(name).trim() !== "")
+        )
+      : options.classSections
+        ? new Set(
+            (options.classSections || [])
+              .map((row) => row?.className)
+              .filter((name) => name != null && String(name).trim() !== "")
+          )
+        : null;
+  const scopedSubjects =
+    allowed == null ? subjects || [] : (subjects || []).filter((subject) => allowed.has(subject?.className));
+  return scopedSubjects
     .slice()
     .sort((a, b) => {
       const c = String(a.className).localeCompare(String(b.className), undefined, { numeric: true });

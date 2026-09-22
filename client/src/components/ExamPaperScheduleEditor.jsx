@@ -4,6 +4,7 @@ import {
   copyClassScheduleToAll,
   firstClassFromDrafts,
   papersPayloadFromDrafts,
+  subjectsForActiveClasses,
 } from "../lib/examPaperSchedule.js";
 
 export {
@@ -11,6 +12,7 @@ export {
   copyClassScheduleToAll,
   firstClassFromDrafts,
   papersPayloadFromDrafts,
+  subjectsForActiveClasses,
 };
 
 export default function ExamPaperScheduleEditor({

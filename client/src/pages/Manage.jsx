@@ -15,6 +15,7 @@ import ExamPaperScheduleEditor, {
   buildPaperDrafts,
   firstClassFromDrafts,
   papersPayloadFromDrafts,
+  subjectsForActiveClasses,
 } from "../components/ExamPaperScheduleEditor.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -1548,11 +1549,16 @@ function ExamsTab() {
   async function load() {
     setLoading(true);
     try {
-      const [exams, subjectList] = await Promise.all([api("/api/exams"), api("/api/subjects")]);
+      const [exams, subjectList, classSections] = await Promise.all([
+        api("/api/exams"),
+        api("/api/subjects"),
+        api("/api/classes"),
+      ]);
       setRows(exams);
-      setSubjects(subjectList || []);
+      const activeSubjects = subjectsForActiveClasses(subjectList || [], classSections || []);
+      setSubjects(activeSubjects);
       if (!editingId) {
-        const drafts = buildPaperDrafts(subjectList || [], []);
+        const drafts = buildPaperDrafts(activeSubjects, []);
         setPaperDrafts(drafts);
         setPaperClass((prev) => prev || firstClassFromDrafts(drafts));
       }

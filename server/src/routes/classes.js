@@ -135,6 +135,33 @@ classesRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async 
 });
 
 classesRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+  const existing = await prisma.classSection.findUnique({ where: { id: req.params.id } });
+  if (!existing) return res.status(404).json({ error: "Class section not found" });
+
   await prisma.classSection.delete({ where: { id: req.params.id } });
-  res.json({ ok: true });
+
+  // Subjects are keyed by className (not FK). When the last section for a class
+  // is removed, drop unused subject rows so Exams does not list ghost classes.
+  const remaining = await prisma.classSection.count({ where: { className: existing.className } });
+  let removedSubjects = 0;
+  if (remaining === 0) {
+    const orphans = await prisma.subject.findMany({ where: { className: existing.className } });
+    for (const subject of orphans) {
+      const [markCount, assignmentCount, timetableCount, enrollmentCount, scheduleCount] =
+        await Promise.all([
+          prisma.mark.count({ where: { subjectId: subject.id } }),
+          prisma.teacherAssignment.count({ where: { subjectId: subject.id } }),
+          prisma.timetableEntry.count({ where: { subjectId: subject.id } }),
+          prisma.studentSubjectEnrollment.count({ where: { subjectId: subject.id } }),
+          prisma.examPaperSchedule.count({ where: { subjectId: subject.id } }),
+        ]);
+      if (markCount || assignmentCount || timetableCount || enrollmentCount || scheduleCount) {
+        continue;
+      }
+      await prisma.subject.delete({ where: { id: subject.id } });
+      removedSubjects += 1;
+    }
+  }
+
+  res.json({ ok: true, removedSubjects });
 });

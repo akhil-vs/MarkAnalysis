@@ -4,6 +4,7 @@ import {
   buildPaperDrafts,
   copyClassScheduleToAll,
   papersPayloadFromDrafts,
+  subjectsForActiveClasses,
 } from "./examPaperSchedule.js";
 
 describe("examPaperSchedule helpers", () => {
@@ -74,5 +75,42 @@ describe("examPaperSchedule helpers", () => {
     assert.equal(drafts[0].paperDate, "2026-10-01");
     assert.equal(drafts[0].startTime, "09:30");
     assert.equal(drafts[0].endTime, "11:00");
+  });
+
+  it("subjectsForActiveClasses drops orphan class names", () => {
+    const subjects = [
+      { id: "1", name: "Math", className: "9" },
+      { id: "2", name: "English", className: "10" },
+      { id: "3", name: "Hindi", className: "VI" },
+      { id: "4", name: "Science", className: "VIII" },
+    ];
+    const active = subjectsForActiveClasses(subjects, [{ className: "9", section: "A" }]);
+    assert.deepEqual(
+      active.map((s) => s.className),
+      ["9"]
+    );
+  });
+
+  it("buildPaperDrafts can restrict to active class sections", () => {
+    const drafts = buildPaperDrafts(
+      [
+        { id: "s1", name: "Math", className: "9" },
+        { id: "s2", name: "Math", className: "10" },
+        { id: "s3", name: "Hindi", className: "VI" },
+      ],
+      [],
+      { classSections: [{ className: "9" }] }
+    );
+    assert.equal(drafts.length, 1);
+    assert.equal(drafts[0].className, "9");
+  });
+
+  it("buildPaperDrafts with empty allowedClassNames yields no rows", () => {
+    const drafts = buildPaperDrafts(
+      [{ id: "s1", name: "Math", className: "9" }],
+      [],
+      { allowedClassNames: [] }
+    );
+    assert.equal(drafts.length, 0);
   });
 });
