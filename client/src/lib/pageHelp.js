@@ -120,7 +120,7 @@ export const PAGE_HELP = {
   timetables: {
     title: "What's on this page",
     about: "Teacher schedules, the all-staff daily board, and a free-period finder.",
-    useful: "Open a teacher to add, edit, or remove periods; use the daily board and free finder to see coverage. Set the working week and bell timings under School profile.",
+    useful: "Open a teacher to add, edit, or remove periods; use the daily board and free finder to see coverage. The daily board shows each teacher’s period count and total teaching hours for the day. Set the working week and bell timings under School profile.",
   },
   schoolProfile: {
     title: "What's on this page",

@@ -5,6 +5,7 @@ import {
   isValidPeriodTime,
   listPeriodsWithCounts,
   parseTimeToMinutes,
+  sumPeriodMinutes,
 } from "../lib/periods.js";
 import { prisma } from "../lib/prisma.js";
 import { ensureTimetableSchema } from "../lib/ensureSchema.js";
@@ -262,10 +263,12 @@ timetableRouter.get("/day", requireLeadership(), async (req, res) => {
     dayNames: DAY_NAMES,
     teachers: teachers.map((t) => {
       const entriesByPeriodId = byTeacher.get(t.id) || {};
+      const taughtPeriodIds = Object.keys(entriesByPeriodId);
       return {
         ...publicUser(t),
         entriesByPeriodId,
-        taughtCount: Object.keys(entriesByPeriodId).length,
+        taughtCount: taughtPeriodIds.length,
+        taughtMinutes: sumPeriodMinutes(periods, taughtPeriodIds),
       };
     }),
   });

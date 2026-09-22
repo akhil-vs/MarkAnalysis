@@ -29,6 +29,27 @@ export function isValidPeriodTime(value) {
   return parseTimeToMinutes(value) != null;
 }
 
+/** Duration of a period in minutes; returns 0 if times are missing or invalid. */
+export function periodDurationMinutes(period) {
+  const start = parseTimeToMinutes(period?.startTime);
+  const end = parseTimeToMinutes(period?.endTime);
+  if (start == null || end == null || end <= start) return 0;
+  return end - start;
+}
+
+/** Sum teaching minutes for the given period ids (unique ids only). */
+export function sumPeriodMinutes(periods, periodIds) {
+  if (!periods?.length || !periodIds?.length) return 0;
+  const byId = new Map(periods.map((p) => [p.id, p]));
+  let total = 0;
+  for (const id of new Set(periodIds)) {
+    const period = byId.get(id);
+    if (!period || period.isBreak) continue;
+    total += periodDurationMinutes(period);
+  }
+  return total;
+}
+
 /** List periods with teaching-slot counts for leadership editing. */
 export async function listPeriodsWithCounts() {
   return cachedTenantLoad(CacheKeys.PERIODS_WITH_COUNTS, async () => {
