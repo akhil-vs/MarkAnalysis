@@ -24,6 +24,7 @@ test.describe("Principal manual — complete application workflow", () => {
     await goNav(page, "School profile");
     await expect(page).toHaveURL(/\/school/);
     await expectPageTitle(page, "School profile");
+    await page.locator("main").getByRole("tab", { name: /Modules & Security/i }).click();
     await expect(page.locator("main")).toContainText(/join code|DEMO-JOIN/i);
   });
 
