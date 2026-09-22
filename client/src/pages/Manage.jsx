@@ -443,12 +443,12 @@ function ClassesTab() {
   );
 }
 
-function emptySubjectForm(className = "") {
-  return { name: "", className, maxMarks: 100, practicalMaxMarks: "", isElective: false, enrolledStudentIds: [] };
+function emptyPoolForm() {
+  return { name: "", maxMarks: 100, practicalMaxMarks: "", isElective: false };
 }
 
-function subjectSearchText(r) {
-  return searchHaystack(r.name, r.className, r.maxMarks, r.isElective ? "elective" : "");
+function poolSearchText(r) {
+  return searchHaystack(r.name, r.maxMarks, r.isElective ? "elective" : "");
 }
 
 function uniqueClassNames(sections = []) {
@@ -457,57 +457,78 @@ function uniqueClassNames(sections = []) {
   );
 }
 
-const SUBJECT_FILTERS = [{ key: "className", match: (r, v) => String(r.className) === v }];
-
 function SubjectsTab() {
-  const [rows, setRows] = useState([]);
+  const [pool, setPool] = useState([]);
   const [classSections, setClassSections] = useState([]);
+  const [classSubjects, setClassSubjects] = useState([]);
+  const [selectedPoolIds, setSelectedPoolIds] = useState([]);
+  const [assignClassName, setAssignClassName] = useState("");
   const [classStudents, setClassStudents] = useState([]);
   const confirm = useConfirm();
-  const [form, setForm] = useState(emptySubjectForm());
+  const [poolForm, setPoolForm] = useState(emptyPoolForm());
   const [formError, setFormError] = useState("");
-  const [editingId, setEditingId] = useState(null);
+  const [editingPoolId, setEditingPoolId] = useState(null);
+  const [electiveSubject, setElectiveSubject] = useState(null);
+  const [enrolledStudentIds, setEnrolledStudentIds] = useState([]);
   const toast = useToast();
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
-  const table = useTableSearch(rows, { getSearchText: subjectSearchText, filterDefs: SUBJECT_FILTERS });
+  const [assignBusy, setAssignBusy] = useState(false);
+  const table = useTableSearch(pool, { getSearchText: poolSearchText });
   const classOptions = useMemo(() => uniqueClassNames(classSections), [classSections]);
-  const formClassOptions = useMemo(() => {
-    if (!form.className || classOptions.includes(form.className)) return classOptions;
-    return [...classOptions, form.className].sort((a, b) =>
-      String(a).localeCompare(String(b), undefined, { numeric: true })
-    );
-  }, [classOptions, form.className]);
 
   const enrollmentCandidates = useMemo(() => {
-    if (!form.isElective || !form.className) return [];
+    if (!electiveSubject?.className) return [];
     return classStudents
-      .filter((s) => s.classSection?.className === form.className && s.status !== "PROMOTED")
+      .filter((s) => s.classSection?.className === electiveSubject.className && s.status !== "PROMOTED")
       .slice()
       .sort((a, b) => String(a.rollNo).localeCompare(String(b.rollNo), undefined, { numeric: true }));
-  }, [classStudents, form.className, form.isElective]);
+  }, [classStudents, electiveSubject]);
 
   async function load() {
     setLoading(true);
     try {
-      const [subjects, classes] = await Promise.all([
-        api("/api/subjects"),
+      const [poolItems, classes] = await Promise.all([
+        api("/api/subjects/pool"),
         api("/api/classes"),
       ]);
-      setRows(subjects);
+      setPool(Array.isArray(poolItems) ? poolItems : []);
       setClassSections(classes);
       const options = uniqueClassNames(classes);
-      setForm((f) => {
-        if (f.className && options.includes(f.className)) return f;
-        return { ...f, className: options[0] || "" };
+      setAssignClassName((current) => {
+        if (current && options.includes(current)) return current;
+        return options[0] || "";
       });
     } finally {
       setLoading(false);
     }
   }
+
   useEffect(() => {
     load().catch((err) => toast.error(err.message || "Could not load subjects"));
   }, []);
+
+  async function loadClassSelection(className) {
+    if (!className) {
+      setClassSubjects([]);
+      setSelectedPoolIds([]);
+      return;
+    }
+    const data = await api(`/api/subjects/for-class/${encodeURIComponent(className)}`);
+    setClassSubjects(data?.subjects || []);
+    setSelectedPoolIds(data?.selectedPoolIds || []);
+  }
+
+  useEffect(() => {
+    if (!assignClassName) {
+      setClassSubjects([]);
+      setSelectedPoolIds([]);
+      return;
+    }
+    loadClassSelection(assignClassName).catch((err) =>
+      toast.error(err.message || "Could not load class subjects")
+    );
+  }, [assignClassName, pool]);
 
   async function loadClassStudents(className) {
     if (!className) {
@@ -532,60 +553,28 @@ function SubjectsTab() {
     setClassStudents(merged);
   }
 
-  async function startEdit(row) {
-    setEditingId(row.id);
+  function startEditPool(row) {
+    setEditingPoolId(row.id);
     setFormError("");
-    setForm({
+    setPoolForm({
       name: row.name,
-      className: row.className,
       maxMarks: row.maxMarks,
       isElective: Boolean(row.isElective),
-      enrolledStudentIds: [],
       practicalMaxMarks: row.practicalMaxMarks ?? "",
     });
-    if (row.isElective) {
-      try {
-        const [enrollments] = await Promise.all([
-          api(`/api/subjects/${row.id}/enrollments`),
-          loadClassStudents(row.className),
-        ]);
-        setForm((f) => ({
-          ...f,
-          enrolledStudentIds: enrollments?.studentIds || [],
-        }));
-      } catch (err) {
-        toast.error(err.message || "Could not load enrollments");
-      }
-    } else {
-      setClassStudents([]);
-    }
   }
 
-  function cancelEdit() {
-    setEditingId(null);
+  function cancelEditPool() {
+    setEditingPoolId(null);
     setFormError("");
-    setClassStudents([]);
-    setForm(emptySubjectForm(classOptions[0] || ""));
+    setPoolForm(emptyPoolForm());
   }
 
-  function toggleEnrollment(studentId) {
-    setForm((f) => {
-      const set = new Set(f.enrolledStudentIds || []);
-      if (set.has(studentId)) set.delete(studentId);
-      else set.add(studentId);
-      return { ...f, enrolledStudentIds: [...set] };
-    });
-  }
-
-  async function save(e) {
+  async function savePool(e) {
     e.preventDefault();
-    if (!form.className) {
-      toast.error("Create a class first, then choose it here.");
-      return;
-    }
-    const name = requiredText(form.name, "Subject name");
-    const maxMarks = parsePositiveInt(form.maxMarks, "Max marks");
-    const practicalRaw = form.practicalMaxMarks;
+    const name = requiredText(poolForm.name, "Subject name");
+    const maxMarks = parsePositiveInt(poolForm.maxMarks, "Max marks");
+    const practicalRaw = poolForm.practicalMaxMarks;
     const practicalMaxMarks =
       practicalRaw === "" || practicalRaw == null
         ? { value: null }
@@ -601,27 +590,18 @@ function SubjectsTab() {
     try {
       const body = {
         name: name.value,
-        className: form.className,
         maxMarks: maxMarks.value,
-        isElective: Boolean(form.isElective),
+        isElective: Boolean(poolForm.isElective),
         practicalMaxMarks: practicalMaxMarks.value,
       };
-      let subjectId = editingId;
-      if (editingId) {
-        await api(`/api/subjects/${editingId}`, { method: "PATCH", body });
-        toast.success("Subject updated.");
+      if (editingPoolId) {
+        await api(`/api/subjects/pool/${editingPoolId}`, { method: "PATCH", body });
+        toast.success("Pool subject updated.");
       } else {
-        const created = await api("/api/subjects", { method: "POST", body });
-        subjectId = created?.id;
-        toast.success("Subject created.");
+        await api("/api/subjects/pool", { method: "POST", body });
+        toast.success("Added to subject pool.");
       }
-      if (form.isElective && subjectId) {
-        await api(`/api/subjects/${subjectId}/enrollments`, {
-          method: "PUT",
-          body: { studentIds: form.enrolledStudentIds || [] },
-        });
-      }
-      cancelEdit();
+      cancelEditPool();
       await load();
     } catch (err) {
       toast.error(err.message);
@@ -630,19 +610,96 @@ function SubjectsTab() {
     }
   }
 
-  async function remove(row) {
+  async function removePool(row) {
     if (!(await confirm({
-      title: "Delete subject?",
-      message: `Delete ${row.name} for class ${row.className}? Related marks and assignments will be removed.`,
-      confirmLabel: "Delete",
+      title: "Remove from pool?",
+      message: `Remove ${row.name} from the subject pool? Class selections already using it stay in place until you change them.`,
+      confirmLabel: "Remove",
       tone: "danger",
     }))) return;
     setBusy(true);
     try {
-      await api(`/api/subjects/${row.id}`, { method: "DELETE" });
-      toast.success("Subject deleted.");
-      if (editingId === row.id) cancelEdit();
+      await api(`/api/subjects/pool/${row.id}`, { method: "DELETE" });
+      toast.success("Removed from pool.");
+      if (editingPoolId === row.id) cancelEditPool();
       await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function togglePoolSelection(poolItemId) {
+    setSelectedPoolIds((ids) => {
+      const set = new Set(ids);
+      if (set.has(poolItemId)) set.delete(poolItemId);
+      else set.add(poolItemId);
+      return [...set];
+    });
+  }
+
+  async function saveClassSelection() {
+    if (!assignClassName) {
+      toast.error("Create a class first, then choose subjects for it.");
+      return;
+    }
+    setAssignBusy(true);
+    try {
+      const result = await api(`/api/subjects/for-class/${encodeURIComponent(assignClassName)}`, {
+        method: "PUT",
+        body: { poolItemIds: selectedPoolIds },
+      });
+      setClassSubjects(result?.subjects || []);
+      const kept = result?.keptWithData?.length || 0;
+      if (kept) {
+        toast.success(
+          `Saved for class ${assignClassName}. ${kept} subject(s) kept because they already have marks or assignments.`
+        );
+      } else {
+        toast.success(`Subjects saved for class ${assignClassName} (all divisions).`);
+      }
+      await loadClassSelection(assignClassName);
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setAssignBusy(false);
+    }
+  }
+
+  async function openElectiveEnrollments(subject) {
+    setElectiveSubject(subject);
+    setEnrolledStudentIds([]);
+    try {
+      const [enrollments] = await Promise.all([
+        api(`/api/subjects/${subject.id}/enrollments`),
+        loadClassStudents(subject.className),
+      ]);
+      setEnrolledStudentIds(enrollments?.studentIds || []);
+    } catch (err) {
+      toast.error(err.message || "Could not load enrollments");
+    }
+  }
+
+  function toggleEnrollment(studentId) {
+    setEnrolledStudentIds((ids) => {
+      const set = new Set(ids);
+      if (set.has(studentId)) set.delete(studentId);
+      else set.add(studentId);
+      return [...set];
+    });
+  }
+
+  async function saveEnrollments() {
+    if (!electiveSubject) return;
+    setBusy(true);
+    try {
+      await api(`/api/subjects/${electiveSubject.id}/enrollments`, {
+        method: "PUT",
+        body: { studentIds: enrolledStudentIds },
+      });
+      toast.success("Elective enrollments saved.");
+      setElectiveSubject(null);
     } catch (err) {
       toast.error(err.message);
     } finally {
@@ -651,120 +708,283 @@ function SubjectsTab() {
   }
 
   return (
-    <div className="grid lg:grid-cols-3 gap-4">
-      <form className="card p-4 space-y-3" onSubmit={save}>
-        <h3 className="font-serif text-lg">{editingId ? "Edit subject" : "Add subject"}</h3>
-        <div>
-          <label className="label">Subject name</label>
-          <input
-            className={fieldClass(!form.name.trim() && formError)}
-            placeholder="e.g. Mathematics"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-            required
-            disabled={busy}
-          />
-        </div>
-        <div>
-          <label className="label">Class</label>
-          <select
-            className="field"
-            value={form.className}
-            onChange={(e) => {
-              const className = e.target.value;
-              setForm({ ...form, className, enrolledStudentIds: [] });
-              if (form.isElective) loadClassStudents(className);
-            }}
-            required
-            disabled={busy || formClassOptions.length === 0}
-            aria-label="Select class"
-          >
-            {formClassOptions.length === 0 ? (
-              <option value="">No classes yet</option>
-            ) : (
-              formClassOptions.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))
-            )}
-          </select>
-          <p className="mt-1 text-xs text-ink-700/55">
-            Choose from classes already created (without section).
+    <div className="space-y-4">
+      <div className="grid lg:grid-cols-3 gap-4">
+        <form className="card p-4 space-y-3" onSubmit={savePool}>
+          <h3 className="font-serif text-lg">{editingPoolId ? "Edit pool subject" : "Add to subject pool"}</h3>
+          <p className="text-xs text-ink-700/55">
+            Pool subjects are shared across the school. Pick them for each class below — one set covers every division.
           </p>
-        </div>
-        <div>
-          <label className="label">Max marks</label>
-          <input
-            className={fieldClass(formError && parsePositiveInt(form.maxMarks, "Max marks").error)}
-            type="number"
-            min={1}
-            step={1}
-            inputMode="numeric"
-            placeholder="Max marks"
-            value={form.maxMarks}
-            onKeyDown={rejectNegativeKey}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                maxMarks: acceptNonNegativeInput(e.target.value, form.maxMarks, { integer: true }),
-              })
-            }
-            required
-            disabled={busy}
-          />
-          <p className="mt-1 text-xs text-ink-700/55">
-            Theory ceiling for mark entry. Must be 1 or more. Consolidation max is set per exam.
-          </p>
-        </div>
-        <div>
-          <label className="label">Practical max (optional)</label>
-          <input
-            className={fieldClass(
-              formError &&
-                form.practicalMaxMarks !== "" &&
-                form.practicalMaxMarks != null &&
-                parsePositiveInt(form.practicalMaxMarks, "Practical max marks").error
-            )}
-            type="number"
-            min={1}
-            step={1}
-            inputMode="numeric"
-            placeholder="Leave blank for theory-only"
-            value={form.practicalMaxMarks}
-            onKeyDown={rejectNegativeKey}
-            onChange={(e) =>
-              setForm({
-                ...form,
-                practicalMaxMarks: acceptNonNegativeInput(e.target.value, form.practicalMaxMarks, {
-                  integer: true,
-                  allowEmpty: true,
-                }),
-              })
-            }
-            disabled={busy}
-          />
-          <p className="mt-1 text-xs text-ink-700/55">
-            When set, Marks Entry collects theory and practical separately (totals add up).
-          </p>
-        </div>
-        <label className="flex items-center gap-2 text-sm text-ink-800">
-          <input
-            type="checkbox"
-            checked={Boolean(form.isElective)}
-            disabled={busy}
-            onChange={(e) => {
-              const isElective = e.target.checked;
-              setForm((f) => ({ ...f, isElective, enrolledStudentIds: isElective ? f.enrolledStudentIds : [] }));
-              if (isElective) loadClassStudents(form.className);
-              else setClassStudents([]);
-            }}
-          />
-          Elective (enroll selected students only)
-        </label>
-        {form.isElective && (
-          <div className="rounded-md border border-ink-900/10 p-3 space-y-2 max-h-56 overflow-y-auto">
-            <p className="text-xs font-medium text-ink-700/70">
-              Enrolled students{editingId ? "" : " (saved after create)"}
+          <div>
+            <label className="label">Subject name</label>
+            <input
+              className={fieldClass(!poolForm.name.trim() && formError)}
+              placeholder="e.g. Mathematics"
+              value={poolForm.name}
+              onChange={(e) => setPoolForm({ ...poolForm, name: e.target.value })}
+              required
+              disabled={busy}
+            />
+          </div>
+          <div>
+            <label className="label">Max marks</label>
+            <input
+              className={fieldClass(formError && parsePositiveInt(poolForm.maxMarks, "Max marks").error)}
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              placeholder="Max marks"
+              value={poolForm.maxMarks}
+              onKeyDown={rejectNegativeKey}
+              onChange={(e) =>
+                setPoolForm({
+                  ...poolForm,
+                  maxMarks: acceptNonNegativeInput(e.target.value, poolForm.maxMarks, { integer: true }),
+                })
+              }
+              required
+              disabled={busy}
+            />
+            <p className="mt-1 text-xs text-ink-700/55">
+              Theory ceiling for mark entry. Must be 1 or more.
             </p>
+          </div>
+          <div>
+            <label className="label">Practical max (optional)</label>
+            <input
+              className={fieldClass(
+                formError &&
+                  poolForm.practicalMaxMarks !== "" &&
+                  poolForm.practicalMaxMarks != null &&
+                  parsePositiveInt(poolForm.practicalMaxMarks, "Practical max marks").error
+              )}
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              placeholder="Leave blank for theory-only"
+              value={poolForm.practicalMaxMarks}
+              onKeyDown={rejectNegativeKey}
+              onChange={(e) =>
+                setPoolForm({
+                  ...poolForm,
+                  practicalMaxMarks: acceptNonNegativeInput(e.target.value, poolForm.practicalMaxMarks, {
+                    integer: true,
+                    allowEmpty: true,
+                  }),
+                })
+              }
+              disabled={busy}
+            />
+          </div>
+          <label className="flex items-center gap-2 text-sm text-ink-800">
+            <input
+              type="checkbox"
+              checked={Boolean(poolForm.isElective)}
+              disabled={busy}
+              onChange={(e) => setPoolForm({ ...poolForm, isElective: e.target.checked })}
+            />
+            Elective (enroll selected students only)
+          </label>
+          {formError && <FieldError message={formError} />}
+          <div className="flex gap-2">
+            <button className="btn-primary" disabled={busy}>
+              <BusyLabel
+                busy={busy}
+                idle={editingPoolId ? "Save changes" : "Add to pool"}
+                busyText={editingPoolId ? "Saving…" : "Adding…"}
+              />
+            </button>
+            {editingPoolId && (
+              <button type="button" className="btn-ghost" onClick={cancelEditPool} disabled={busy}>
+                Cancel
+              </button>
+            )}
+          </div>
+        </form>
+
+        <div className="lg:col-span-2 card">
+          <div className="p-3 border-b border-ink-900/10">
+            <TableToolbar
+              q={table.q}
+              setQ={table.setQ}
+              placeholder="Search pool subjects"
+              matched={table.matched}
+              total={table.total}
+            />
+          </div>
+          <PaginatedTable
+            items={table.filtered}
+            resetKey={table.resetKey}
+            empty="No subjects in the pool yet. Add one on the left."
+            busy={busy || loading}
+            busyLabel={loading ? "Loading pool…" : "Updating pool…"}
+          >
+            {(page) => (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Max marks</th>
+                    <th>Practical</th>
+                    <th>Elective</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {page.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.name}</td>
+                      <td>{r.maxMarks}</td>
+                      <td>{r.practicalMaxMarks ?? "—"}</td>
+                      <td>{r.isElective ? "Yes" : "—"}</td>
+                      <td className="whitespace-nowrap space-x-2">
+                        <button type="button" className="btn-ghost" onClick={() => startEditPool(r)} disabled={busy}>
+                          Edit
+                        </button>
+                        <button type="button" className="btn-ghost" onClick={() => removePool(r)} disabled={busy}>
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </PaginatedTable>
+        </div>
+      </div>
+
+      <div className="card p-4 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-end gap-3 justify-between">
+          <div className="space-y-1 min-w-0">
+            <h3 className="font-serif text-lg">Subjects for a class</h3>
+            <p className="text-xs text-ink-700/55">
+              Select from the pool. The same subjects apply to every division of this class.
+            </p>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+            <div>
+              <label className="label">Class</label>
+              <select
+                className="field min-w-[10rem]"
+                value={assignClassName}
+                onChange={(e) => setAssignClassName(e.target.value)}
+                disabled={assignBusy || classOptions.length === 0}
+                aria-label="Select class for subject assignment"
+              >
+                {classOptions.length === 0 ? (
+                  <option value="">No classes yet</option>
+                ) : (
+                  classOptions.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))
+                )}
+              </select>
+            </div>
+            <button
+              type="button"
+              className="btn-primary"
+              disabled={assignBusy || classOptions.length === 0 || pool.length === 0}
+              onClick={saveClassSelection}
+            >
+              <BusyLabel busy={assignBusy} idle="Save selection" busyText="Saving…" />
+            </button>
+          </div>
+        </div>
+
+        {classOptions.length === 0 ? (
+          <p className="text-sm text-clay-600">Add a class under Classes before selecting subjects.</p>
+        ) : pool.length === 0 ? (
+          <p className="text-sm text-ink-700/60">Add subjects to the pool first, then select them for this class.</p>
+        ) : (
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-2">
+            {pool.map((item) => {
+              const checked = selectedPoolIds.includes(item.id);
+              return (
+                <label
+                  key={item.id}
+                  className={`flex items-start gap-2 rounded-md border px-3 py-2 text-sm ${
+                    checked ? "border-ink-900/25 bg-ink-900/[0.03]" : "border-ink-900/10"
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={checked}
+                    disabled={assignBusy}
+                    onChange={() => togglePoolSelection(item.id)}
+                  />
+                  <span className="min-w-0">
+                    <span className="font-medium text-ink-900 block truncate">{item.name}</span>
+                    <span className="text-xs text-ink-700/55">
+                      Max {item.maxMarks}
+                      {item.practicalMaxMarks != null ? ` · Prac ${item.practicalMaxMarks}` : ""}
+                      {item.isElective ? " · Elective" : ""}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+        )}
+
+        {classSubjects.length > 0 && (
+          <div className="border-t border-ink-900/10 pt-3 space-y-2">
+            <p className="text-xs font-medium text-ink-700/70">
+              Currently on class {assignClassName}
+            </p>
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Subject</th>
+                    <th>Max marks</th>
+                    <th>Practical</th>
+                    <th>Elective</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {classSubjects.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.name}</td>
+                      <td>{r.maxMarks}</td>
+                      <td>{r.practicalMaxMarks ?? "—"}</td>
+                      <td>{r.isElective ? "Yes" : "—"}</td>
+                      <td>
+                        {r.isElective ? (
+                          <button
+                            type="button"
+                            className="btn-ghost"
+                            disabled={busy}
+                            onClick={() => openElectiveEnrollments(r)}
+                          >
+                            Enrollments
+                          </button>
+                        ) : (
+                          "—"
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {electiveSubject && (
+          <div className="rounded-md border border-ink-900/10 p-3 space-y-2 max-h-64 overflow-y-auto">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-sm font-medium">
+                Enrollments · {electiveSubject.name} (class {electiveSubject.className})
+              </p>
+              <button type="button" className="btn-ghost" disabled={busy} onClick={() => setElectiveSubject(null)}>
+                Close
+              </button>
+            </div>
             {enrollmentCandidates.length === 0 ? (
               <p className="text-xs text-ink-700/55">No students in this class yet.</p>
             ) : (
@@ -772,7 +992,7 @@ function SubjectsTab() {
                 <label key={student.id} className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
-                    checked={(form.enrolledStudentIds || []).includes(student.id)}
+                    checked={enrolledStudentIds.includes(student.id)}
                     disabled={busy}
                     onChange={() => toggleEnrollment(student.id)}
                   />
@@ -784,72 +1004,11 @@ function SubjectsTab() {
                 </label>
               ))
             )}
+            <button type="button" className="btn-primary" disabled={busy} onClick={saveEnrollments}>
+              <BusyLabel busy={busy} idle="Save enrollments" busyText="Saving…" />
+            </button>
           </div>
         )}
-        {formError && <FieldError message={formError} />}
-        {classOptions.length === 0 && (
-          <p className="text-sm text-clay-600">Add a class section under Classes before creating subjects.</p>
-        )}
-        <div className="flex gap-2">
-          <button className="btn-primary" disabled={busy || classOptions.length === 0}>
-            <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
-          </button>
-          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
-        </div>
-      </form>
-      <div className="lg:col-span-2 card">
-        <div className="p-3 border-b border-ink-900/10">
-          <TableToolbar
-            q={table.q}
-            setQ={table.setQ}
-            placeholder="Search subject or class"
-            matched={table.matched}
-            total={table.total}
-          >
-            <select
-              className="field-filter"
-              value={table.filters.className || ""}
-              onChange={(e) => table.setFilter("className", e.target.value)}
-              aria-label="Filter by class"
-            >
-              <option value="">All classes</option>
-              {classOptions.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </TableToolbar>
-        </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No subjects yet." busy={busy || loading} busyLabel={loading ? "Loading subjects…" : "Updating subjects…"}>
-          {(page) => (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Subject</th>
-                  <th>Class</th>
-                  <th>Max marks</th>
-                  <th>Practical</th>
-                  <th>Elective</th>
-                  <th></th>
-                </tr>
-              </thead>
-              <tbody>
-                {page.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.name}</td>
-                    <td>{r.className}</td>
-                    <td>{r.maxMarks}</td>
-                    <td>{r.practicalMaxMarks ?? "—"}</td>
-                    <td>{r.isElective ? "Yes" : "—"}</td>
-                    <td className="whitespace-nowrap space-x-2">
-                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
-                      <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </PaginatedTable>
       </div>
     </div>
   );

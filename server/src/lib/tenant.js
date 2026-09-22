@@ -6,6 +6,7 @@ export const TENANT_MODELS = new Set([
   "User",
   "ClassSection",
   "Subject",
+  "SubjectPoolItem",
   "Student",
   "StudentSubjectEnrollment",
   "TeacherAssignment",

@@ -63,6 +63,7 @@ async function main() {
     await prisma.student.deleteMany();
     await prisma.exam.deleteMany();
     await prisma.subject.deleteMany();
+    await prisma.subjectPoolItem.deleteMany();
     await prisma.classSection.deleteMany();
     await prisma.portalAccessLink.deleteMany();
     await prisma.refreshToken.deleteMany();
@@ -178,6 +179,9 @@ async function seedSchool(school) {
   const byClassSection = Object.fromEntries(sections.map((s) => [`${s.className}-${s.section}`, s]));
 
   const subjectNames = ["Mathematics", "Physics", "Chemistry", "English", "Biology"];
+  await prisma.subjectPoolItem.createMany({
+    data: subjectNames.map((name) => ({ name, maxMarks: 100 })),
+  });
   const subjects = await prisma.subject.createManyAndReturn({
     data: ["9", "10"].flatMap((className) =>
       subjectNames.map((name) => ({ name, className, maxMarks: 100 }))

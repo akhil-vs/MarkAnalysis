@@ -100,6 +100,10 @@
       "model": "Subject",
       "namespace": "public"
     },
+    "SubjectPoolItem": {
+      "model": "SubjectPoolItem",
+      "namespace": "public"
+    },
     "TeacherAssignment": {
       "model": "TeacherAssignment",
       "namespace": "public"
@@ -4349,6 +4353,21 @@
                   "namespace": "public"
                 }
               },
+              "subjectPoolItems": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "tenantId"
+                  ]
+                },
+                "to": {
+                  "model": "SubjectPoolItem",
+                  "namespace": "public"
+                }
+              },
               "subjects": {
                 "cardinality": "1:N",
                 "on": {
@@ -5094,6 +5113,94 @@
               },
               "namespaceId": "public",
               "table": "Subject"
+            }
+          },
+          "SubjectPoolItem": {
+            "fields": {
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "isElective": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/bool@1",
+                  "kind": "scalar"
+                }
+              },
+              "maxMarks": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "name": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "practicalMaxMarks": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/int4@1",
+                  "kind": "scalar"
+                }
+              },
+              "tenantId": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "tenant": {
+                "cardinality": "N:1",
+                "nullable": false,
+                "on": {
+                  "localFields": [
+                    "tenantId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "id": {
+                  "column": "id"
+                },
+                "isElective": {
+                  "column": "isElective"
+                },
+                "maxMarks": {
+                  "column": "maxMarks"
+                },
+                "name": {
+                  "column": "name"
+                },
+                "practicalMaxMarks": {
+                  "column": "practicalMaxMarks"
+                },
+                "tenantId": {
+                  "column": "tenantId"
+                }
+              },
+              "namespaceId": "public",
+              "table": "SubjectPoolItem"
             }
           },
           "TeacherAssignment": {
@@ -10179,6 +10286,86 @@
                 }
               ]
             },
+            "SubjectPoolItem": {
+              "columns": {
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "isElective": {
+                  "codecId": "pg/bool@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": false
+                  },
+                  "nativeType": "bool",
+                  "nullable": false
+                },
+                "maxMarks": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": false
+                },
+                "name": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "practicalMaxMarks": {
+                  "codecId": "pg/int4@1",
+                  "nativeType": "int4",
+                  "nullable": true
+                },
+                "tenantId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "cascade",
+                  "source": {
+                    "columns": [
+                      "tenantId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "SubjectPoolItem"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "tenantId"
+                  ],
+                  "name": "SubjectPoolItem_tenantId_idx_c93ed4f1",
+                  "prefix": "SubjectPoolItem_tenantId_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": [
+                {
+                  "columns": [
+                    "tenantId",
+                    "name"
+                  ]
+                }
+              ]
+            },
             "TeacherAssignment": {
               "columns": {
                 "classSectionId": {
@@ -10879,10 +11066,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "176eac814fef73ddfd3eb82de454156e0944a581824b660335ec52309b70bd4a"
+    "storageHash": "46d359e0d2a6125ed5181e4b2aff1177b4aa4e0819dd8f649a77081ae72bc578"
   },
   "execution": {
-    "executionHash": "36db68f0be4277ccf9e3f1a5d5d903a939bef25a1ead4471ce6c7b948ddd8e44",
+    "executionHash": "cd7d2b42273f46e02099d82e6a8972f083ae667a2fe46667009fa5a6c2202b75",
     "mutations": {
       "defaults": [
         {
@@ -11252,6 +11439,17 @@
             "column": "id",
             "namespace": "public",
             "table": "Subject"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "SubjectPoolItem"
           }
         },
         {
