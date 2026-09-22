@@ -46,6 +46,17 @@ function freeTeacherSearchText(t) {
   return searchHaystack(t.name, t.email, t.schoolId);
 }
 
+/** Format teaching minutes as compact hours for the daily board (e.g. 2h 15m). */
+function formatTaughtHours(minutes) {
+  const total = Math.max(0, Math.round(Number(minutes) || 0));
+  if (total === 0) return "0h";
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
 function ModeTabs({ mode, onChange }) {
   return (
     <div className="flex flex-wrap gap-2">
@@ -333,6 +344,8 @@ function DailyBoard({ date, onDateChange }) {
                       </Link>
                       <div className="text-[11px] text-ink-700/50">
                         {teacher.taughtCount} period{teacher.taughtCount === 1 ? "" : "s"}
+                        {" · "}
+                        {formatTaughtHours(teacher.taughtMinutes)}
                       </div>
                     </td>
                     {(data.periods || []).map((period) => (

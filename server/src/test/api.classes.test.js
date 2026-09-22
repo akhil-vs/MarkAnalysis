@@ -117,4 +117,43 @@ describe("API classes batch create", () => {
     });
     assert.equal(res.status, 403);
   });
+
+  it("deleting the last section removes unused subjects for that class name", async (t) => {
+    if (!server) return t.skip("DATABASE_URL not set");
+    const login = await loginAs(server, { email: "principal@school.edu" });
+    assert.equal(login.status, 200, login.text);
+
+    const stamp = Date.now().toString(36).slice(-5);
+    const className = `D${stamp}`;
+    const created = await server.request("/api/classes/batch", {
+      method: "POST",
+      jar: login.jar,
+      body: { className, divisions: [{ section: "A" }] },
+    });
+    assert.equal(created.status, 201, created.text);
+    const classId = created.json[0].id;
+    createdIds.push(classId);
+
+    const subject = await server.request("/api/subjects", {
+      method: "POST",
+      jar: login.jar,
+      body: { name: `Cleanup-${stamp}`, className, maxMarks: 100 },
+    });
+    assert.equal(subject.status, 201, subject.text);
+    const subjectId = subject.json.id;
+
+    const removed = await server.request(`/api/classes/${classId}`, {
+      method: "DELETE",
+      jar: login.jar,
+    });
+    assert.equal(removed.status, 200, removed.text);
+    assert.equal(removed.json.ok, true);
+    assert.equal(removed.json.removedSubjects, 1);
+    createdIds.splice(createdIds.indexOf(classId), 1);
+
+    const gone = await runWithoutTenant(() =>
+      prisma.subject.findUnique({ where: { id: subjectId } })
+    );
+    assert.equal(gone, null);
+  });
 });

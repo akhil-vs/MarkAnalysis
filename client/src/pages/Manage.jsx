@@ -15,6 +15,7 @@ import ExamPaperScheduleEditor, {
   buildPaperDrafts,
   firstClassFromDrafts,
   papersPayloadFromDrafts,
+  subjectsForActiveClasses,
 } from "../components/ExamPaperScheduleEditor.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -1600,9 +1601,11 @@ function ExamsTab() {
         api("/api/classes"),
       ]);
       setRows(exams);
-      setSubjects(subjectList || []);
       setClassSections(classes || []);
+      const activeSubjects = subjectsForActiveClasses(subjectList || [], classes || []);
+      setSubjects(activeSubjects);
       if (!editingId) {
+        // Paper drafts stay empty until the coordinator picks included classes.
         setPaperDrafts([]);
         setPaperClass("");
       }

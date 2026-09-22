@@ -182,10 +182,16 @@ describe("User manual automation", () => {
       assert.equal(periods.status, 200, periods.text);
       const teachers = await server.request("/api/timetable/teachers", { jar: jars.principal });
       assert.equal(teachers.status, 200, teachers.text);
-      const day = await server.request("/api/timetable/day?dayOfWeek=1", {
+      const today = new Date();
+      const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`;
+      const day = await server.request(`/api/timetable/day?date=${ymd}`, {
         jar: jars.principal,
       });
       assert.equal(day.status, 200, day.text);
+      const board = JSON.parse(day.text);
+      assert.ok(Array.isArray(board.teachers));
+      assert.ok(board.teachers.every((t) => typeof t.taughtCount === "number"));
+      assert.ok(board.teachers.every((t) => typeof t.taughtMinutes === "number"));
     });
 
     it("principal cannot enter or submit marks (manual §10)", async (t) => {
