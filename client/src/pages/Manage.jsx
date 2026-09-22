@@ -34,6 +34,8 @@ import {
   emptyDivisionRow,
   emptyMultiClassForm,
 } from "../lib/classDivisions.js";
+import { classSectionStatus, exportClassesCsv } from "../lib/classRecordPresentation.js";
+import ClassRecordsTable from "../components/ClassRecordsTable.jsx";
 
 const TABS = ["Classes", "Subjects", "Students", "Exams", "Promote"];
 
@@ -46,6 +48,10 @@ function initialTab(params) {
 export default function Manage() {
   const [params, setParams] = useSearchParams();
   const [tab, setTab] = useState(() => initialTab(params));
+
+  useEffect(() => {
+    setTab(initialTab(params));
+  }, [params]);
 
   function selectTab(next) {
     setTab(next);
@@ -95,6 +101,10 @@ const CLASS_FILTERS = [
     key: "teacher",
     match: (r, v) => (v === "assigned" ? Boolean(r.classTeacherId) : !r.classTeacherId),
   },
+  {
+    key: "status",
+    match: (r, v) => classSectionStatus(r).key === v,
+  },
 ];
 
 function ClassesTab() {
@@ -108,10 +118,6 @@ function ClassesTab() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const table = useTableSearch(rows, { getSearchText: classSearchText, filterDefs: CLASS_FILTERS });
-  const classOptions = useMemo(
-    () => [...new Set(rows.map((r) => r.className).filter(Boolean))].sort((a, b) => String(a).localeCompare(String(b), undefined, { numeric: true })),
-    [rows]
-  );
   const teacherOptions = useMemo(
     () => teachers.map((t) => ({ id: t.id, name: t.name })),
     [teachers]
@@ -385,60 +391,20 @@ function ClassesTab() {
         </form>
       )}
 
-      <div className="card">
-        <div className="p-3 border-b border-ink-900/10">
-          <TableToolbar
-            q={table.q}
-            setQ={table.setQ}
-            placeholder="Search class, section, or teacher"
-            matched={table.matched}
-            total={table.total}
-          >
-            <select
-              className="field-filter"
-              value={table.filters.className || ""}
-              onChange={(e) => table.setFilter("className", e.target.value)}
-              aria-label="Filter by class"
-            >
-              <option value="">All classes</option>
-              {classOptions.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            <select
-              className="field-filter"
-              value={table.filters.teacher || ""}
-              onChange={(e) => table.setFilter("teacher", e.target.value)}
-              aria-label="Filter by class teacher"
-            >
-              <option value="">All teachers</option>
-              <option value="assigned">Has class teacher</option>
-              <option value="unassigned">No class teacher</option>
-            </select>
-          </TableToolbar>
-        </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No classes yet." busy={busy || loading} busyLabel={loading ? "Loading classes…" : "Updating classes…"}>
-          {(page) => (
-            <table className="table">
-              <thead><tr><th>Class</th><th>Section</th><th>Teacher</th><th>Students</th><th></th></tr></thead>
-              <tbody>
-                {page.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.className}</td>
-                    <td>{r.section}</td>
-                    <td>{r.classTeacher?.name || "—"}</td>
-                    <td>{r._count?.students ?? 0}</td>
-                    <td className="whitespace-nowrap space-x-2">
-                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
-                      <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
-        </PaginatedTable>
-      </div>
+      <ClassRecordsTable
+        rows={table.filtered}
+        allRows={rows}
+        table={table}
+        busy={busy}
+        loading={loading}
+        onEdit={startEdit}
+        onDelete={remove}
+        onExport={() => exportClassesCsv(table.filtered)}
+        onPresetNeedsFaculty={() => {
+          table.setFilter("teacher", "unassigned");
+          table.setFilter("status", "needs_faculty");
+        }}
+      />
     </div>
   );
 }
@@ -887,6 +853,7 @@ const STUDENT_FILTERS = [
 ];
 
 function StudentsTab() {
+  const [params] = useSearchParams();
   const { user, features } = useAuth();
   const canIssuePortal = user?.role === "PRINCIPAL" || user?.role === "EXAM_COORDINATOR";
   const canManagePhotos = hasFeature(features, "studentPhotos");
@@ -907,6 +874,13 @@ function StudentsTab() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const table = useTableSearch(rows, { getSearchText: studentSearchText, filterDefs: STUDENT_FILTERS });
+
+  useEffect(() => {
+    const fromUrl = params.get("classSectionId") || "";
+    if (!fromUrl) return;
+    table.setFilter("classSectionId", fromUrl);
+    setClassSectionId(fromUrl);
+  }, [params]);
 
   async function load() {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
