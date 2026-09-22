@@ -357,19 +357,35 @@ timetableRouter.get("/day", requireLeadership(), async (req, res) => {
     teachers: teachers.map((t) => {
       const entriesByPeriodId = byTeacher.get(t.id) || {};
       const leaveList = leavesByTeacher.get(t.id) || [];
-      // Count periods where the teacher actually teaches today (own slots or covers).
-      const activePeriodIds = Object.keys(entriesByPeriodId).filter((periodId) => {
+      const ownPeriodIds = Object.keys(entriesByPeriodId).filter((periodId) => {
         const list = entriesByPeriodId[periodId] || [];
-        return list.some((e) => e.isCover || (!e.onLeave && !e.isUncovered));
+        // Own template teaching that is not on leave (covered slots still count as leavee's "own" display,
+        // but load hours for the leavee exclude uncovered/leave rows).
+        return list.some((e) => !e.isCover && !e.onLeave && !e.isUncovered);
       });
+      const coverPeriodIds = [...(subBySubstitute.get(t.id) || [])];
+      // Periods where this teacher is covering someone else.
+      const extraPeriodIds = Object.keys(entriesByPeriodId).filter((periodId) => {
+        const list = entriesByPeriodId[periodId] || [];
+        return list.some((e) => e.isCover);
+      });
+      const ownMinutes = sumPeriodMinutes(periods, ownPeriodIds);
+      const extraMinutes = sumPeriodMinutes(periods, extraPeriodIds);
       return {
         ...publicUser(t),
         onLeave: onLeaveIds.has(t.id),
         leaves: leaveList.map(serializeLeave),
         entriesByPeriodId,
-        taughtCount: activePeriodIds.length,
-        taughtMinutes: sumPeriodMinutes(periods, activePeriodIds),
-        coverPeriodIds: [...(subBySubstitute.get(t.id) || [])],
+        /** Own scheduled teaching today (excludes leave and covers given). */
+        taughtCount: ownPeriodIds.length,
+        taughtMinutes: ownMinutes,
+        /** Cover periods assigned today — shown as extra hours on the daily board. */
+        extraCount: extraPeriodIds.length,
+        extraMinutes,
+        /** Total load including covers. */
+        totalCount: ownPeriodIds.length + extraPeriodIds.length,
+        totalMinutes: ownMinutes + extraMinutes,
+        coverPeriodIds,
       };
     }),
   });
@@ -619,6 +635,14 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
       substitution: serializeSubstitution(sub),
     }));
 
+    const ownPeriodIds = dayEntries
+      .filter((e) => !e.onLeave && !e.isUncovered)
+      .map((e) => e.period?.id)
+      .filter(Boolean);
+    const extraPeriodIds = coverEntries.map((e) => e.period?.id).filter(Boolean);
+    const ownMinutes = sumPeriodMinutes(periods, ownPeriodIds);
+    const extraMinutes = sumPeriodMinutes(periods, extraPeriodIds);
+
     return res.json({
       ...base,
       dayOfWeek,
@@ -626,6 +650,12 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
       onLeave: myLeaves.length > 0,
       leaves: myLeaves.map(serializeLeave),
       entries: [...dayEntries, ...coverEntries],
+      taughtCount: ownPeriodIds.length,
+      taughtMinutes: ownMinutes,
+      extraCount: extraPeriodIds.length,
+      extraMinutes,
+      totalCount: ownPeriodIds.length + extraPeriodIds.length,
+      totalMinutes: ownMinutes + extraMinutes,
     });
   }
 
