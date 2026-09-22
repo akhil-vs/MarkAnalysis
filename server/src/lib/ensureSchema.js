@@ -1422,6 +1422,51 @@ export async function ensureHallTicketsSchema() {
   await recordMigration(HALL_TICKETS_MIGRATION, HALL_TICKETS_CHECKSUM);
 }
 
+const SUBJECT_POOL_MIGRATION = "20260922003600_subject_pool";
+const SUBJECT_POOL_CHECKSUM = "subject-pool-catchup-v1";
+
+const SUBJECT_POOL_TABLE_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "SubjectPoolItem" (
+    "id" TEXT NOT NULL,
+    "tenantId" TEXT NOT NULL,
+    "name" TEXT NOT NULL,
+    "maxMarks" INTEGER NOT NULL,
+    "isElective" BOOLEAN NOT NULL DEFAULT false,
+    "practicalMaxMarks" INTEGER,
+    CONSTRAINT "SubjectPoolItem_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "SubjectPoolItem_tenantId_name_key"
+    ON "SubjectPoolItem" ("tenantId", "name")`,
+  `CREATE INDEX IF NOT EXISTS "SubjectPoolItem_tenantId_idx"
+    ON "SubjectPoolItem" ("tenantId")`,
+];
+
+const SUBJECT_POOL_FK_STATEMENTS = [
+  `ALTER TABLE "SubjectPoolItem" ADD CONSTRAINT "SubjectPoolItem_tenantId_fkey" FOREIGN KEY ("tenantId") REFERENCES "School"("id") ON DELETE CASCADE ON UPDATE CASCADE`,
+];
+
+/**
+ * School-wide subject pool (catalogue with marks) for class selection.
+ * Safe to call repeatedly; used by subjects API and ensurePendingSchema.
+ */
+export async function ensureSubjectPoolSchema() {
+  const hasTable = await tableExists("SubjectPoolItem");
+  if (hasTable) {
+    await recordMigration(SUBJECT_POOL_MIGRATION, SUBJECT_POOL_CHECKSUM);
+    return;
+  }
+
+  await applyStatements(SUBJECT_POOL_TABLE_STATEMENTS);
+  for (const stmt of SUBJECT_POOL_FK_STATEMENTS) {
+    try {
+      await applyStatements([stmt]);
+    } catch {
+      // Constraint may already exist from a prior partial catch-up.
+    }
+  }
+  await recordMigration(SUBJECT_POOL_MIGRATION, SUBJECT_POOL_CHECKSUM);
+}
+
 export const CATCHUP_MIGRATION_NAMES = [
   TIMETABLE_MIGRATION,
   MULTI_CLASS_PERIOD_MIGRATION,
@@ -1521,6 +1566,7 @@ export async function ensurePendingSchema() {
         await ensureRoleFeatureAccessColumn();
         await ensureOptionalModulesColumn();
         await ensureHallTicketsSchema();
+        await ensureSubjectPoolSchema();
         return { skipped: true, reason: "migrations-present" };
       }
       // Auth pieces first so concurrent login can finish while the rest runs.
@@ -1546,6 +1592,7 @@ export async function ensurePendingSchema() {
         ensureRoleFeatureAccessColumn(),
         ensureOptionalModulesColumn(),
         ensureHallTicketsSchema(),
+        ensureSubjectPoolSchema(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -1652,6 +1699,9 @@ export const __test = {
   HALL_TICKETS_CHECKSUM,
   HALL_TICKETS_STUDENT_STATEMENTS,
   HALL_TICKETS_TABLE_STATEMENTS,
+  SUBJECT_POOL_MIGRATION,
+  SUBJECT_POOL_CHECKSUM,
+  SUBJECT_POOL_TABLE_STATEMENTS,
   ensureMfaUserColumns,
   ensureSchoolDigestColumns,
   ensureStudentGuardianEmail,
@@ -1659,5 +1709,6 @@ export const __test = {
   ensureRoleFeatureAccessColumn,
   ensureOptionalModulesColumn,
   ensureHallTicketsSchema,
+  ensureSubjectPoolSchema,
   resetAuthSchemaEnsure,
 };

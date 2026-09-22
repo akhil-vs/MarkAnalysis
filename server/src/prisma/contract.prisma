@@ -110,6 +110,7 @@ model School {
   users                 User[]
   classSections         ClassSection[]
   subjects              Subject[]
+  subjectPoolItems      SubjectPoolItem[]
   students              Student[]
   exams                 Exam[]
   periods               Period[]
@@ -227,6 +228,26 @@ model ClassSection {
   @@unique([tenantId, className, section])
   @@index([tenantId])
   @@map("ClassSection")
+}
+
+/// School-wide subject catalogue (name + marks). Classes select from this pool;
+/// selections apply to every division of that class name.
+model SubjectPoolItem {
+  id                String  @id @default(cuid(2))
+  tenantId          String
+  name              String
+  /// Theory ceiling copied onto class subjects when selected.
+  maxMarks          Int
+  /// When true, class subjects created from this pool item are elective.
+  isElective        Boolean @default(false)
+  /// When set, class subjects also collect practical marks.
+  practicalMaxMarks Int?
+
+  tenant School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, name])
+  @@index([tenantId])
+  @@map("SubjectPoolItem")
 }
 
 model Subject {

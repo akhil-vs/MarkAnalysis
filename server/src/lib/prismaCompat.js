@@ -30,6 +30,7 @@ const MODEL_NAMES = [
   "Student",
   "StudentSubjectEnrollment",
   "Subject",
+  "SubjectPoolItem",
   "TeacherAssignment",
   "TimetableEntry",
   "User",

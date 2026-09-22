@@ -240,6 +240,11 @@ describe("ensureSchema bootstrap", () => {
       __test.HALL_TICKETS_STUDENT_STATEMENTS.some((s) => s.includes("photoBytes")),
       "catch-up must add Student photo columns for hall tickets"
     );
+    assert.equal(typeof __test.ensureSubjectPoolSchema, "function");
+    assert.ok(
+      __test.SUBJECT_POOL_TABLE_STATEMENTS.some((s) => s.includes("SubjectPoolItem")),
+      "catch-up must create SubjectPoolItem for the school subject catalogue"
+    );
     assert.equal(typeof __test.resetAuthSchemaEnsure, "function");
     assert.equal(new Set(__test.CATCHUP_MIGRATION_NAMES).size, __test.CATCHUP_MIGRATION_NAMES.length);
     for (const name of __test.AUTH_CATCHUP_MIGRATION_NAMES) {
