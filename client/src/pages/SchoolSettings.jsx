@@ -44,6 +44,53 @@ const EMPTY = {
   emailDigestsEnabled: false,
 };
 
+const TABS = [
+  { id: "identity", label: "Identity & Affiliation", hint: "Sec 01–02" },
+  { id: "campus", label: "Campus & Contact", hint: "Sec 03–04" },
+  { id: "modules", label: "Modules & Security", hint: "Sec 05" },
+  { id: "grading", label: "Grading Framework", hint: "Sec 06" },
+  { id: "schedule", label: "Bell Schedule & Timings", hint: "Sec 07" },
+];
+
+function tabFromLocation() {
+  if (typeof window === "undefined") return "identity";
+  if (window.location.hash === "#school-schedule") return "schedule";
+  const params = new URLSearchParams(window.location.search);
+  const raw = (params.get("tab") || "").toLowerCase();
+  const match = TABS.find((t) => t.id === raw);
+  return match?.id || "identity";
+}
+
+function ProfileTabBar({ tab, onChange }) {
+  return (
+    <div
+      className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1 scrollbar-thin"
+      role="tablist"
+      aria-label="School profile sections"
+    >
+      {TABS.map((t, index) => {
+        const active = tab === t.id;
+        return (
+          <button
+            key={t.id}
+            type="button"
+            role="tab"
+            aria-selected={active}
+            id={`school-profile-tab-${t.id}`}
+            className={`${active ? "btn-primary" : "btn-ghost"} shrink-0 text-left`}
+            onClick={() => onChange(t.id)}
+          >
+            <span className="block text-[10px] font-medium uppercase tracking-wide opacity-70">
+              {String(index + 1).padStart(2, "0")} · {t.hint}
+            </span>
+            <span className="block text-sm leading-tight">{t.label}</span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 const DEFAULT_OPTIONAL_MODULES = { boardOps: false, cpd: false };
 
 const DEFAULT_BANDS = [
@@ -218,6 +265,7 @@ export default function SchoolSettings() {
   const [weights, setWeights] = useState({ UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 });
 
   const [formError, setFormError] = useState("");
+  const [tab, setTab] = useState(tabFromLocation);
 
   function applySchool(s) {
     setForm(profileFromApi(s));
@@ -239,12 +287,31 @@ export default function SchoolSettings() {
 
   useEffect(() => {
     if (typeof window === "undefined") return undefined;
-    if (window.location.hash !== "#school-schedule") return undefined;
-    const t = window.setTimeout(() => {
-      document.getElementById("school-schedule")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    }, 80);
-    return () => window.clearTimeout(t);
+    function syncFromLocation() {
+      setTab(tabFromLocation());
+    }
+    window.addEventListener("hashchange", syncFromLocation);
+    window.addEventListener("popstate", syncFromLocation);
+    return () => {
+      window.removeEventListener("hashchange", syncFromLocation);
+      window.removeEventListener("popstate", syncFromLocation);
+    };
   }, []);
+
+  function selectTab(next) {
+    setTab(next);
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    if (next === "schedule") {
+      url.searchParams.delete("tab");
+      url.hash = "school-schedule";
+    } else {
+      url.hash = "";
+      if (next === "identity") url.searchParams.delete("tab");
+      else url.searchParams.set("tab", next);
+    }
+    window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+  }
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -274,6 +341,9 @@ export default function SchoolSettings() {
     if (err) {
       setFormError(err);
       toast.error(err);
+      if (name.error || year.error) selectTab("identity");
+      else if (email.error || phone.error || altPhone.error || website.error) selectTab("campus");
+      else selectTab("grading");
       return;
     }
     setFormError("");
@@ -336,391 +406,413 @@ export default function SchoolSettings() {
         title={NAV_TITLES.schoolProfile}
         subtitle="School identity, letterhead, working week, bell schedule, and grading used across reports and timetables"
       />
-      <form className="card p-5 max-w-3xl space-y-5 mb-6" onSubmit={onSubmit}>
-        <section className="space-y-3">
-          <h3 className="font-serif text-xl">Identity</h3>
-          <p className="text-sm text-ink-700/65">
-            Name, crest, and address print as the header on every downloadable PDF and Excel document.
-          </p>
-          <LogoCard
-            hasLogo={hasLogo}
-            nonce={logoNonce}
-            onChange={(s) => {
-              setHasLogo(Boolean(s.hasLogo));
-              setLogoNonce((n) => n + 1);
-            }}
-          />
-          <div>
-            <label className="label">School name</label>
-            <input
-              className={fieldClass(formError && !form.name.trim())}
-              required
-              value={form.name}
-              onChange={(e) => set("name", e.target.value)}
-            />
-          </div>
-          {form.slug && (
-            <div>
-              <label className="label">School code</label>
-              <input className="field font-mono bg-ink-900/5" value={form.slug} readOnly />
-              <p className="mt-1 text-xs text-ink-700/55">
-                Staff use this code when they request an account. Platform admins can change it.
-              </p>
-            </div>
-          )}
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">Short name</label>
-              <input
-                className="field"
-                value={form.shortName}
-                onChange={(e) => set("shortName", e.target.value)}
-                placeholder="GPS"
-              />
-            </div>
-            <div>
-              <label className="label">Motto / tagline</label>
-              <input
-                className="field"
-                value={form.motto}
-                onChange={(e) => set("motto", e.target.value)}
-                placeholder="Learn. Lead. Serve."
-              />
-            </div>
-          </div>
-          <div>
-            <label className="label">Principal</label>
-            <input
-              className="field"
-              value={form.principalName}
-              onChange={(e) => set("principalName", e.target.value)}
-            />
-          </div>
-        </section>
+      <ProfileTabBar tab={tab} onChange={selectTab} />
 
-        <section className="space-y-3 pt-4 border-t border-ink-900/10">
-          <h3 className="font-serif text-xl">Affiliation</h3>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">Board</label>
-              <input className="field" value={form.board} onChange={(e) => set("board", e.target.value)} placeholder="CBSE" />
-            </div>
-            <div>
-              <label className="label">Affiliation no.</label>
-              <input className="field" value={form.affiliationNo} onChange={(e) => set("affiliationNo", e.target.value)} />
-            </div>
-            <div>
-              <label className="label">UDISE code</label>
-              <input className="field" value={form.udiseCode} onChange={(e) => set("udiseCode", e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Recognition no.</label>
-              <input className="field" value={form.recognitionNo} onChange={(e) => set("recognitionNo", e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Established year</label>
-              <input
-                className="field"
-                type="number"
-                min={1800}
-                max={new Date().getFullYear()}
-                value={form.establishedYear}
-                onKeyDown={rejectNegativeKey}
-                onChange={(e) => set("establishedYear", acceptNonNegativeInput(e.target.value, form.establishedYear, { integer: true }))}
-              />
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-3 pt-4 border-t border-ink-900/10">
-          <h3 className="font-serif text-xl">Address</h3>
-          <div>
-            <label className="label">Street / campus</label>
-            <textarea
-              className="field min-h-[4.5rem] h-auto"
-              rows={2}
-              value={form.address}
-              onChange={(e) => set("address", e.target.value)}
-              placeholder="12 Lake View Road"
-            />
-          </div>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">City</label>
-              <input className="field" value={form.city} onChange={(e) => set("city", e.target.value)} />
-            </div>
-            <div>
-              <label className="label">District</label>
-              <input className="field" value={form.district} onChange={(e) => set("district", e.target.value)} />
-            </div>
-            <div>
-              <label className="label">State</label>
-              <input className="field" value={form.state} onChange={(e) => set("state", e.target.value)} />
-            </div>
-            <div>
-              <label className="label">PIN / zip</label>
-              <input className="field" value={form.pincode} onChange={(e) => set("pincode", e.target.value)} />
-            </div>
-          </div>
-        </section>
-
-        <section className="space-y-3 pt-4 border-t border-ink-900/10">
-          <h3 className="font-serif text-xl">Contact</h3>
-          <div className="grid sm:grid-cols-2 gap-3">
-            <div>
-              <label className="label">Phone</label>
-              <input
-                className="field"
-                type="tel"
-                inputMode="tel"
-                value={form.phone}
-                onChange={(e) => set("phone", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label">Alternate phone</label>
-              <input
-                className="field"
-                type="tel"
-                inputMode="tel"
-                value={form.alternatePhone}
-                onChange={(e) => set("alternatePhone", e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="label">Email</label>
-              <input className="field" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
-            </div>
-            <div>
-              <label className="label">Website</label>
-              <input
-                className="field"
-                type="url"
-                value={form.website}
-                onChange={(e) => set("website", e.target.value)}
-                placeholder="https://school.edu"
-              />
-            </div>
-            <div className="sm:col-span-2 rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={Boolean(form.emailDigestsEnabled)}
-                  onChange={(e) => set("emailDigestsEnabled", e.target.checked)}
+      {tab === "schedule" ? (
+        <div className="max-w-4xl">
+          <SchoolScheduleEditor />
+        </div>
+      ) : (
+        <form className="card p-5 max-w-3xl space-y-5 mb-6" onSubmit={onSubmit}>
+          {tab === "identity" && (
+            <>
+              <section className="space-y-3" role="tabpanel" aria-labelledby="school-profile-tab-identity">
+                <h3 className="font-serif text-xl">Identity</h3>
+                <p className="text-sm text-ink-700/65">
+                  Name, crest, and address print as the header on every downloadable PDF and Excel document.
+                </p>
+                <LogoCard
+                  hasLogo={hasLogo}
+                  nonce={logoNonce}
+                  onChange={(s) => {
+                    setHasLogo(Boolean(s.hasLogo));
+                    setLogoNonce((n) => n + 1);
+                  }}
                 />
-                Email daily operations digests (pending sign-ups, late entry, deadlines)
-              </label>
-              <div>
-                <label className="label">Digest override email</label>
-                <input
-                  className="field"
-                  type="email"
-                  value={form.digestEmail}
-                  onChange={(e) => set("digestEmail", e.target.value)}
-                  placeholder="Falls back to school email / leadership accounts"
-                />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {user?.role === "PRINCIPAL" ? (
-          <section className="space-y-3 pt-4 border-t border-ink-900/10">
-            <h3 className="font-serif text-xl">Optional modules</h3>
-            <p className="text-sm text-ink-700/65">
-              Board ops and CPD are hidden by default. Turn them on when your school is ready to use
-              them. Staff still need the matching permission under Staff → Role access.
-            </p>
-            <div className="rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={Boolean(optionalModules.boardOps)}
-                  onChange={(e) =>
-                    setOptionalModules((m) => ({ ...m, boardOps: e.target.checked }))
-                  }
-                />
-                <span>
-                  <span className="font-medium text-ink-900">Show Board ops</span>
-                  <span className="block text-ink-700/60">
-                    Exam calendar, report-card release, revaluation, and board upload packs.
-                  </span>
-                </span>
-              </label>
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  className="mt-0.5"
-                  checked={Boolean(optionalModules.cpd)}
-                  onChange={(e) => setOptionalModules((m) => ({ ...m, cpd: e.target.checked }))}
-                />
-                <span>
-                  <span className="font-medium text-ink-900">Show CPD</span>
-                  <span className="block text-ink-700/60">
-                    Training plans, classroom observations, appraisals, and certificates.
-                  </span>
-                </span>
-              </label>
-            </div>
-          </section>
-        ) : null}
-
-        {joinCode ? (
-          <div className="rounded-xl border border-ink-900/10 bg-paper p-3">
-            <div className="text-xs font-medium uppercase tracking-wide text-ink-700/55">Staff join code</div>
-            <div className="mt-1 flex flex-wrap items-center gap-2">
-              <code className="font-mono text-lg tracking-widest">{joinCode}</code>
-              {user?.role === "PRINCIPAL" && (
-                <button type="button" className="btn-ghost text-xs" onClick={rotateJoinCode}>
-                  Rotate code
-                </button>
-              )}
-            </div>
-            <p className="mt-1 text-xs text-ink-700/60">
-              Teachers and coordinators enter this code when they request an account.
-            </p>
-          </div>
-        ) : null}
-
-        <div className="pt-4 border-t border-ink-900/10">
-          <h3 className="font-serif text-xl mb-2">Analytics grading</h3>
-          <p className="text-sm text-ink-700/65 mb-3">
-            These thresholds drive pass rates, distinction lists, letter grades, and weighted annual composites across Insights. Values cannot be negative.
-          </p>
-          <div className="grid sm:grid-cols-2 gap-3 mb-3">
-            <div>
-              <label className="label">Pass percent</label>
-              <input
-                className="field"
-                type="number"
-                min={0}
-                max={100}
-                step={0.5}
-                required
-                value={passPercent}
-                onKeyDown={rejectNegativeKey}
-                onChange={(e) => setPassPercent(acceptNonNegativeInput(e.target.value, passPercent))}
-              />
-            </div>
-            <div>
-              <label className="label">Distinction minimum %</label>
-              <input
-                className="field"
-                type="number"
-                min={0}
-                max={100}
-                step={0.5}
-                required
-                value={distinctionMin}
-                onKeyDown={rejectNegativeKey}
-                onChange={(e) => setDistinctionMin(acceptNonNegativeInput(e.target.value, distinctionMin))}
-              />
-            </div>
-          </div>
-          <div className="mb-3">
-            <label className="label">Grade bands (high → low)</label>
-            <div className="space-y-2">
-              {bands.map((b, i) => (
-                <div key={i} className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="label">School name</label>
+                  <input
+                    className={fieldClass(formError && !form.name.trim())}
+                    required
+                    value={form.name}
+                    onChange={(e) => set("name", e.target.value)}
+                  />
+                </div>
+                {form.slug && (
+                  <div>
+                    <label className="label">School code</label>
+                    <input className="field font-mono bg-ink-900/5" value={form.slug} readOnly />
+                    <p className="mt-1 text-xs text-ink-700/55">
+                      Staff use this code when they request an account. Platform admins can change it.
+                    </p>
+                  </div>
+                )}
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Short name</label>
+                    <input
+                      className="field"
+                      value={form.shortName}
+                      onChange={(e) => set("shortName", e.target.value)}
+                      placeholder="GPS"
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Motto / tagline</label>
+                    <input
+                      className="field"
+                      value={form.motto}
+                      onChange={(e) => set("motto", e.target.value)}
+                      placeholder="Learn. Lead. Serve."
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="label">Principal</label>
                   <input
                     className="field"
-                    value={b.grade}
-                    onChange={(e) => updateBand(i, "grade", e.target.value)}
-                    placeholder="Grade"
-                    required
+                    value={form.principalName}
+                    onChange={(e) => set("principalName", e.target.value)}
                   />
+                </div>
+              </section>
+
+              <section className="space-y-3 pt-4 border-t border-ink-900/10">
+                <h3 className="font-serif text-xl">Affiliation</h3>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Board</label>
+                    <input className="field" value={form.board} onChange={(e) => set("board", e.target.value)} placeholder="CBSE" />
+                  </div>
+                  <div>
+                    <label className="label">Affiliation no.</label>
+                    <input className="field" value={form.affiliationNo} onChange={(e) => set("affiliationNo", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="label">UDISE code</label>
+                    <input className="field" value={form.udiseCode} onChange={(e) => set("udiseCode", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="label">Recognition no.</label>
+                    <input className="field" value={form.recognitionNo} onChange={(e) => set("recognitionNo", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="label">Established year</label>
+                    <input
+                      className="field"
+                      type="number"
+                      min={1800}
+                      max={new Date().getFullYear()}
+                      value={form.establishedYear}
+                      onKeyDown={rejectNegativeKey}
+                      onChange={(e) => set("establishedYear", acceptNonNegativeInput(e.target.value, form.establishedYear, { integer: true }))}
+                    />
+                  </div>
+                </div>
+              </section>
+            </>
+          )}
+
+          {tab === "campus" && (
+            <div role="tabpanel" aria-labelledby="school-profile-tab-campus" className="space-y-5">
+              <section className="space-y-3">
+                <h3 className="font-serif text-xl">Address</h3>
+                <div>
+                  <label className="label">Street / campus</label>
+                  <textarea
+                    className="field min-h-[4.5rem] h-auto"
+                    rows={2}
+                    value={form.address}
+                    onChange={(e) => set("address", e.target.value)}
+                    placeholder="12 Lake View Road"
+                  />
+                </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">City</label>
+                    <input className="field" value={form.city} onChange={(e) => set("city", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="label">District</label>
+                    <input className="field" value={form.district} onChange={(e) => set("district", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="label">State</label>
+                    <input className="field" value={form.state} onChange={(e) => set("state", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="label">PIN / zip</label>
+                    <input className="field" value={form.pincode} onChange={(e) => set("pincode", e.target.value)} />
+                  </div>
+                </div>
+              </section>
+
+              <section className="space-y-3 pt-4 border-t border-ink-900/10">
+                <h3 className="font-serif text-xl">Contact</h3>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="label">Phone</label>
+                    <input
+                      className="field"
+                      type="tel"
+                      inputMode="tel"
+                      value={form.phone}
+                      onChange={(e) => set("phone", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Alternate phone</label>
+                    <input
+                      className="field"
+                      type="tel"
+                      inputMode="tel"
+                      value={form.alternatePhone}
+                      onChange={(e) => set("alternatePhone", e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="label">Email</label>
+                    <input className="field" type="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
+                  </div>
+                  <div>
+                    <label className="label">Website</label>
+                    <input
+                      className="field"
+                      type="url"
+                      value={form.website}
+                      onChange={(e) => set("website", e.target.value)}
+                      placeholder="https://school.edu"
+                    />
+                  </div>
+                  <div className="sm:col-span-2 rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
+                    <label className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(form.emailDigestsEnabled)}
+                        onChange={(e) => set("emailDigestsEnabled", e.target.checked)}
+                      />
+                      Email daily operations digests (pending sign-ups, late entry, deadlines)
+                    </label>
+                    <div>
+                      <label className="label">Digest override email</label>
+                      <input
+                        className="field"
+                        type="email"
+                        value={form.digestEmail}
+                        onChange={(e) => set("digestEmail", e.target.value)}
+                        placeholder="Falls back to school email / leadership accounts"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </section>
+            </div>
+          )}
+
+          {tab === "modules" && (
+            <div role="tabpanel" aria-labelledby="school-profile-tab-modules" className="space-y-5">
+              {user?.role === "PRINCIPAL" ? (
+                <section className="space-y-3">
+                  <h3 className="font-serif text-xl">Optional modules</h3>
+                  <p className="text-sm text-ink-700/65">
+                    Board ops and CPD are hidden by default. Turn them on when your school is ready to use
+                    them. Staff still need the matching permission under Staff → Role access.
+                  </p>
+                  <div className="rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={Boolean(optionalModules.boardOps)}
+                        onChange={(e) =>
+                          setOptionalModules((m) => ({ ...m, boardOps: e.target.checked }))
+                        }
+                      />
+                      <span>
+                        <span className="font-medium text-ink-900">Show Board ops</span>
+                        <span className="block text-ink-700/60">
+                          Exam calendar, report-card release, revaluation, and board upload packs.
+                        </span>
+                      </span>
+                    </label>
+                    <label className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={Boolean(optionalModules.cpd)}
+                        onChange={(e) => setOptionalModules((m) => ({ ...m, cpd: e.target.checked }))}
+                      />
+                      <span>
+                        <span className="font-medium text-ink-900">Show CPD</span>
+                        <span className="block text-ink-700/60">
+                          Training plans, classroom observations, appraisals, and certificates.
+                        </span>
+                      </span>
+                    </label>
+                  </div>
+                </section>
+              ) : null}
+
+              {joinCode ? (
+                <div className="rounded-xl border border-ink-900/10 bg-paper p-3">
+                  <div className="text-xs font-medium uppercase tracking-wide text-ink-700/55">Staff join code</div>
+                  <div className="mt-1 flex flex-wrap items-center gap-2">
+                    <code className="font-mono text-lg tracking-widest">{joinCode}</code>
+                    {user?.role === "PRINCIPAL" && (
+                      <button type="button" className="btn-ghost text-xs" onClick={rotateJoinCode}>
+                        Rotate code
+                      </button>
+                    )}
+                  </div>
+                  <p className="mt-1 text-xs text-ink-700/60">
+                    Teachers and coordinators enter this code when they request an account.
+                  </p>
+                </div>
+              ) : (
+                <p className="text-sm text-ink-700/65">No staff join code is available for this school yet.</p>
+              )}
+            </div>
+          )}
+
+          {tab === "grading" && (
+            <div role="tabpanel" aria-labelledby="school-profile-tab-grading">
+              <h3 className="font-serif text-xl mb-2">Analytics grading</h3>
+              <p className="text-sm text-ink-700/65 mb-3">
+                These thresholds drive pass rates, distinction lists, letter grades, and weighted annual composites across Insights. Values cannot be negative.
+              </p>
+              <div className="grid sm:grid-cols-2 gap-3 mb-3">
+                <div>
+                  <label className="label">Pass percent</label>
                   <input
                     className="field"
                     type="number"
                     min={0}
                     max={100}
+                    step={0.5}
                     required
-                    value={b.min}
+                    value={passPercent}
                     onKeyDown={rejectNegativeKey}
-                    onChange={(e) =>
-                      updateBand(i, "min", acceptNonNegativeInput(e.target.value, b.min))
-                    }
-                    placeholder="Min %"
+                    onChange={(e) => setPassPercent(acceptNonNegativeInput(e.target.value, passPercent))}
                   />
                 </div>
-              ))}
+                <div>
+                  <label className="label">Distinction minimum %</label>
+                  <input
+                    className="field"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    required
+                    value={distinctionMin}
+                    onKeyDown={rejectNegativeKey}
+                    onChange={(e) => setDistinctionMin(acceptNonNegativeInput(e.target.value, distinctionMin))}
+                  />
+                </div>
+              </div>
+              <div className="mb-3">
+                <label className="label">Grade bands (high → low)</label>
+                <div className="space-y-2">
+                  {bands.map((b, i) => (
+                    <div key={i} className="grid grid-cols-2 gap-2">
+                      <input
+                        className="field"
+                        value={b.grade}
+                        onChange={(e) => updateBand(i, "grade", e.target.value)}
+                        placeholder="Grade"
+                        required
+                      />
+                      <input
+                        className="field"
+                        type="number"
+                        min={0}
+                        max={100}
+                        required
+                        value={b.min}
+                        onKeyDown={rejectNegativeKey}
+                        onChange={(e) =>
+                          updateBand(i, "min", acceptNonNegativeInput(e.target.value, b.min))
+                        }
+                        placeholder="Min %"
+                      />
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="label">Annual exam weights</label>
+                <div className="grid sm:grid-cols-3 gap-2">
+                  <div>
+                    <div className="text-[11px] text-ink-700/55 mb-1">Unit test</div>
+                    <input
+                      className="field"
+                      type="number"
+                      min={0}
+                      step={0.05}
+                      required
+                      value={weights.UNIT_TEST}
+                      onKeyDown={rejectNegativeKey}
+                      onChange={(e) =>
+                        setWeights((w) => ({
+                          ...w,
+                          UNIT_TEST: acceptNonNegativeInput(e.target.value, w.UNIT_TEST),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-ink-700/55 mb-1">Mid term</div>
+                    <input
+                      className="field"
+                      type="number"
+                      min={0}
+                      step={0.05}
+                      required
+                      value={weights.MID_TERM}
+                      onKeyDown={rejectNegativeKey}
+                      onChange={(e) =>
+                        setWeights((w) => ({
+                          ...w,
+                          MID_TERM: acceptNonNegativeInput(e.target.value, w.MID_TERM),
+                        }))
+                      }
+                    />
+                  </div>
+                  <div>
+                    <div className="text-[11px] text-ink-700/55 mb-1">Final</div>
+                    <input
+                      className="field"
+                      type="number"
+                      min={0}
+                      step={0.05}
+                      required
+                      value={weights.FINAL}
+                      onKeyDown={rejectNegativeKey}
+                      onChange={(e) =>
+                        setWeights((w) => ({
+                          ...w,
+                          FINAL: acceptNonNegativeInput(e.target.value, w.FINAL),
+                        }))
+                      }
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
+          )}
+
+          {formError && <FieldError message={formError} />}
+
+          <div className="flex flex-wrap gap-2 pt-2 border-t border-ink-900/10">
+            <button className="btn-primary">Save profile</button>
+            {tab === "grading" && (
+              <button type="button" className="btn-ghost" onClick={resetGrading}>
+                Reset grading defaults
+              </button>
+            )}
           </div>
-          <div>
-            <label className="label">Annual exam weights</label>
-            <div className="grid sm:grid-cols-3 gap-2">
-              <div>
-                <div className="text-[11px] text-ink-700/55 mb-1">Unit test</div>
-                <input
-                  className="field"
-                  type="number"
-                  min={0}
-                  step={0.05}
-                  required
-                  value={weights.UNIT_TEST}
-                  onKeyDown={rejectNegativeKey}
-                  onChange={(e) =>
-                    setWeights((w) => ({
-                      ...w,
-                      UNIT_TEST: acceptNonNegativeInput(e.target.value, w.UNIT_TEST),
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <div className="text-[11px] text-ink-700/55 mb-1">Mid term</div>
-                <input
-                  className="field"
-                  type="number"
-                  min={0}
-                  step={0.05}
-                  required
-                  value={weights.MID_TERM}
-                  onKeyDown={rejectNegativeKey}
-                  onChange={(e) =>
-                    setWeights((w) => ({
-                      ...w,
-                      MID_TERM: acceptNonNegativeInput(e.target.value, w.MID_TERM),
-                    }))
-                  }
-                />
-              </div>
-              <div>
-                <div className="text-[11px] text-ink-700/55 mb-1">Final</div>
-                <input
-                  className="field"
-                  type="number"
-                  min={0}
-                  step={0.05}
-                  required
-                  value={weights.FINAL}
-                  onKeyDown={rejectNegativeKey}
-                  onChange={(e) =>
-                    setWeights((w) => ({
-                      ...w,
-                      FINAL: acceptNonNegativeInput(e.target.value, w.FINAL),
-                    }))
-                  }
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {formError && <FieldError message={formError} />}
-
-        <div className="flex flex-wrap gap-2 pt-2">
-          <button className="btn-primary">Save profile</button>
-          <button type="button" className="btn-ghost" onClick={resetGrading}>
-            Reset grading defaults
-          </button>
-        </div>
-      </form>
-
-      <div className="max-w-4xl">
-        <SchoolScheduleEditor />
-      </div>
+        </form>
+      )}
     </div>
   );
 }
