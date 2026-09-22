@@ -35,7 +35,7 @@ Keep structure accurate so registers, hall tickets, analytics, and promotion sta
 | **Exams** | Exam calendar; per-class / per-subject paper dates; **Max marks [consolidation]**; **Lock for consolidation**. |
 | **Promote** | Year-end promotion to the next section. |
 
-When scheduling an exam you can set one date for every paper or different dates per class and subject.
+When scheduling an exam, choose which **classes** are included (editable later), then set one date for every paper or different dates per class and subject.
 
 ### 2.2 Staff (`School setup → Staff`)
 

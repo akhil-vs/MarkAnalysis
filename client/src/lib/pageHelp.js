@@ -114,7 +114,7 @@ export const PAGE_HELP = {
   },
   records: {
     title: "What's on this page",
-    about: "School structure: classes with divisions, a shared subject pool with marks, subjects selected per class (covering every division), students, the exam calendar with per-class / per-subject paper dates and consolidation max marks, and year-end promotion.",
+    about: "School structure: classes with divisions, a shared subject pool with marks, subjects selected per class (covering every division), students, the exam calendar (pick included classes, then per-class / per-subject paper dates) and consolidation max marks, and year-end promotion.",
     useful: "On Classes, enter the class once and add every division with optional class teachers in one step (Fill A–D for a quick start). On Subjects, add papers to the pool with max marks, then select which ones each class uses. When scheduling an exam, set the same date for every paper or different dates per class and subject.",
   },
   timetables: {

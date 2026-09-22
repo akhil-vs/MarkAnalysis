@@ -245,6 +245,11 @@ describe("ensureSchema bootstrap", () => {
       __test.SUBJECT_POOL_TABLE_STATEMENTS.some((s) => s.includes("SubjectPoolItem")),
       "catch-up must create SubjectPoolItem for the school subject catalogue"
     );
+    assert.equal(typeof __test.ensureExamIncludedClassesColumn, "function");
+    assert.ok(
+      __test.EXAM_INCLUDED_CLASSES_STATEMENTS.some((s) => s.includes("includedClassNames")),
+      "catch-up must add Exam.includedClassNames for exam class selection"
+    );
     assert.equal(typeof __test.resetAuthSchemaEnsure, "function");
     assert.equal(new Set(__test.CATCHUP_MIGRATION_NAMES).size, __test.CATCHUP_MIGRATION_NAMES.length);
     for (const name of __test.AUTH_CATCHUP_MIGRATION_NAMES) {

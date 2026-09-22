@@ -1530,6 +1530,13 @@
                   "kind": "scalar"
                 }
               },
+              "includedClassNames": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
               "marksEntryDeadline": {
                 "nullable": true,
                 "type": {
@@ -1745,6 +1752,9 @@
                 },
                 "id": {
                   "column": "id"
+                },
+                "includedClassNames": {
+                  "column": "includedClassNames"
                 },
                 "marksEntryDeadline": {
                   "column": "marksEntryDeadline"
@@ -7538,6 +7548,11 @@
                   "nativeType": "text",
                   "nullable": false
                 },
+                "includedClassNames": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
                 "marksEntryDeadline": {
                   "codecId": "pg/timestamptz-string@1",
                   "nativeType": "timestamptz",
@@ -11066,7 +11081,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "46d359e0d2a6125ed5181e4b2aff1177b4aa4e0819dd8f649a77081ae72bc578"
+    "storageHash": "d5a473f72d3c3c660dba065cdd41420abba059d9188aa67e05c0596c847c20bf"
   },
   "execution": {
     "executionHash": "cd7d2b42273f46e02099d82e6a8972f083ae667a2fe46667009fa5a6c2202b75",

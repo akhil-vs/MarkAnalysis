@@ -1467,6 +1467,27 @@ export async function ensureSubjectPoolSchema() {
   await recordMigration(SUBJECT_POOL_MIGRATION, SUBJECT_POOL_CHECKSUM);
 }
 
+const EXAM_INCLUDED_CLASSES_MIGRATION = "20260922014100_exam_included_classes";
+const EXAM_INCLUDED_CLASSES_CHECKSUM = "exam-included-classes-catchup-v1";
+
+const EXAM_INCLUDED_CLASSES_STATEMENTS = [
+  `ALTER TABLE "Exam" ADD COLUMN IF NOT EXISTS "includedClassNames" JSONB`,
+];
+
+/**
+ * Per-exam included class names (principal / coordinator scope for the schedule).
+ * Safe to call repeatedly; used by exams API and ensurePendingSchema.
+ */
+export async function ensureExamIncludedClassesColumn() {
+  const hasColumn = await columnExists("Exam", "includedClassNames");
+  if (hasColumn) {
+    await recordMigration(EXAM_INCLUDED_CLASSES_MIGRATION, EXAM_INCLUDED_CLASSES_CHECKSUM);
+    return;
+  }
+  await applyStatements(EXAM_INCLUDED_CLASSES_STATEMENTS);
+  await recordMigration(EXAM_INCLUDED_CLASSES_MIGRATION, EXAM_INCLUDED_CLASSES_CHECKSUM);
+}
+
 export const CATCHUP_MIGRATION_NAMES = [
   TIMETABLE_MIGRATION,
   MULTI_CLASS_PERIOD_MIGRATION,
@@ -1567,6 +1588,7 @@ export async function ensurePendingSchema() {
         await ensureOptionalModulesColumn();
         await ensureHallTicketsSchema();
         await ensureSubjectPoolSchema();
+        await ensureExamIncludedClassesColumn();
         return { skipped: true, reason: "migrations-present" };
       }
       // Auth pieces first so concurrent login can finish while the rest runs.
@@ -1593,6 +1615,7 @@ export async function ensurePendingSchema() {
         ensureOptionalModulesColumn(),
         ensureHallTicketsSchema(),
         ensureSubjectPoolSchema(),
+        ensureExamIncludedClassesColumn(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.
@@ -1710,5 +1733,9 @@ export const __test = {
   ensureOptionalModulesColumn,
   ensureHallTicketsSchema,
   ensureSubjectPoolSchema,
+  ensureExamIncludedClassesColumn,
+  EXAM_INCLUDED_CLASSES_MIGRATION,
+  EXAM_INCLUDED_CLASSES_CHECKSUM,
+  EXAM_INCLUDED_CLASSES_STATEMENTS,
   resetAuthSchemaEnsure,
 };
