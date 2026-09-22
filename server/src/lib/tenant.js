@@ -19,6 +19,8 @@ export const TENANT_MODELS = new Set([
   "ActivityAudit",
   "Period",
   "TimetableEntry",
+  "TeacherLeave",
+  "TimetableSubstitution",
   "ExamPaperSchedule",
   "ReportCardRelease",
   "RevaluationRequest",
@@ -28,6 +30,7 @@ export const TENANT_MODELS = new Set([
   "CpdAppraisal",
   "CpdCertificate",
   "EmailOutbox",
+  "HallTicketIssue",
 ]);
 
 const UNIQUE_READS = new Set(["findUnique", "findUniqueOrThrow"]);

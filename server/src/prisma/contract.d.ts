@@ -34,9 +34,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'d5a473f72d3c3c660dba065cdd41420abba059d9188aa67e05c0596c847c20bf'>;
+  StorageHashBase<'23d160461fc4c2aa31d5d32af678ff210e7b7f12cc3808f0297481a8f13598ea'>;
 export type ExecutionHash =
-  ExecutionHashBase<'cd7d2b42273f46e02099d82e6a8972f083ae667a2fe46667009fa5a6c2202b75'>;
+  ExecutionHashBase<'a72b23d74a7c00bedc01aae8e1333dfa214b3303b25cb40bff7c9ec558b8b035'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -282,7 +282,11 @@ export type FieldOutputTypes = {
         | 'CPD_UPDATED'
         | 'HALL_TICKET_CREATED'
         | 'HALL_TICKET_UPDATED'
-        | 'HALL_TICKET_DELETED';
+        | 'HALL_TICKET_DELETED'
+        | 'TEACHER_LEAVE_CREATED'
+        | 'TEACHER_LEAVE_CANCELLED'
+        | 'SUBSTITUTE_ASSIGNED'
+        | 'SUBSTITUTE_REMOVED';
       readonly summary: CodecTypes['pg/text@1']['output'];
       readonly examId: CodecTypes['pg/text@1']['output'] | null;
       readonly meta: CodecTypes['pg/jsonb@1']['output'] | null;
@@ -635,6 +639,20 @@ export type FieldOutputTypes = {
       readonly classSectionId: CodecTypes['pg/text@1']['output'];
       readonly subjectId: CodecTypes['pg/text@1']['output'];
     };
+    readonly TeacherLeave: {
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly tenantId: CodecTypes['pg/text@1']['output'];
+      readonly teacherId: CodecTypes['pg/text@1']['output'];
+      readonly startDate: CodecTypes['pg/text@1']['output'];
+      readonly endDate: CodecTypes['pg/text@1']['output'];
+      readonly leaveType: CodecTypes['pg/text@1']['output'];
+      readonly periodIds: CodecTypes['pg/jsonb@1']['output'] | null;
+      readonly reason: CodecTypes['pg/text@1']['output'] | null;
+      readonly status: CodecTypes['pg/text@1']['output'];
+      readonly createdById: CodecTypes['pg/text@1']['output'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
     readonly TimetableEntry: {
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly tenantId: CodecTypes['pg/text@1']['output'];
@@ -644,6 +662,21 @@ export type FieldOutputTypes = {
       readonly periodId: CodecTypes['pg/text@1']['output'];
       readonly dayOfWeek: CodecTypes['pg/int4@1']['output'];
       readonly room: CodecTypes['pg/text@1']['output'] | null;
+    };
+    readonly TimetableSubstitution: {
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly tenantId: CodecTypes['pg/text@1']['output'];
+      readonly leaveId: CodecTypes['pg/text@1']['output'] | null;
+      readonly date: CodecTypes['pg/text@1']['output'];
+      readonly periodId: CodecTypes['pg/text@1']['output'];
+      readonly classSectionId: CodecTypes['pg/text@1']['output'];
+      readonly subjectId: CodecTypes['pg/text@1']['output'];
+      readonly originalTeacherId: CodecTypes['pg/text@1']['output'];
+      readonly substituteTeacherId: CodecTypes['pg/text@1']['output'];
+      readonly sourceTimetableEntryId: CodecTypes['pg/text@1']['output'] | null;
+      readonly assignedById: CodecTypes['pg/text@1']['output'];
+      readonly notes: CodecTypes['pg/text@1']['output'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
     };
     readonly User: {
       readonly id: CodecTypes['pg/text@1']['output'];
@@ -705,7 +738,11 @@ export type FieldInputTypes = {
         | 'CPD_UPDATED'
         | 'HALL_TICKET_CREATED'
         | 'HALL_TICKET_UPDATED'
-        | 'HALL_TICKET_DELETED';
+        | 'HALL_TICKET_DELETED'
+        | 'TEACHER_LEAVE_CREATED'
+        | 'TEACHER_LEAVE_CANCELLED'
+        | 'SUBSTITUTE_ASSIGNED'
+        | 'SUBSTITUTE_REMOVED';
       readonly summary: CodecTypes['pg/text@1']['input'];
       readonly examId: CodecTypes['pg/text@1']['input'] | null;
       readonly meta: CodecTypes['pg/jsonb@1']['input'] | null;
@@ -1058,6 +1095,20 @@ export type FieldInputTypes = {
       readonly classSectionId: CodecTypes['pg/text@1']['input'];
       readonly subjectId: CodecTypes['pg/text@1']['input'];
     };
+    readonly TeacherLeave: {
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly tenantId: CodecTypes['pg/text@1']['input'];
+      readonly teacherId: CodecTypes['pg/text@1']['input'];
+      readonly startDate: CodecTypes['pg/text@1']['input'];
+      readonly endDate: CodecTypes['pg/text@1']['input'];
+      readonly leaveType: CodecTypes['pg/text@1']['input'];
+      readonly periodIds: CodecTypes['pg/jsonb@1']['input'] | null;
+      readonly reason: CodecTypes['pg/text@1']['input'] | null;
+      readonly status: CodecTypes['pg/text@1']['input'];
+      readonly createdById: CodecTypes['pg/text@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
     readonly TimetableEntry: {
       readonly id: CodecTypes['pg/text@1']['input'];
       readonly tenantId: CodecTypes['pg/text@1']['input'];
@@ -1067,6 +1118,21 @@ export type FieldInputTypes = {
       readonly periodId: CodecTypes['pg/text@1']['input'];
       readonly dayOfWeek: CodecTypes['pg/int4@1']['input'];
       readonly room: CodecTypes['pg/text@1']['input'] | null;
+    };
+    readonly TimetableSubstitution: {
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly tenantId: CodecTypes['pg/text@1']['input'];
+      readonly leaveId: CodecTypes['pg/text@1']['input'] | null;
+      readonly date: CodecTypes['pg/text@1']['input'];
+      readonly periodId: CodecTypes['pg/text@1']['input'];
+      readonly classSectionId: CodecTypes['pg/text@1']['input'];
+      readonly subjectId: CodecTypes['pg/text@1']['input'];
+      readonly originalTeacherId: CodecTypes['pg/text@1']['input'];
+      readonly substituteTeacherId: CodecTypes['pg/text@1']['input'];
+      readonly sourceTimetableEntryId: CodecTypes['pg/text@1']['input'] | null;
+      readonly assignedById: CodecTypes['pg/text@1']['input'];
+      readonly notes: CodecTypes['pg/text@1']['input'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
     };
     readonly User: {
       readonly id: CodecTypes['pg/text@1']['input'];
@@ -1125,7 +1191,11 @@ export type StorageColumnTypes = {
         | 'CPD_UPDATED'
         | 'HALL_TICKET_CREATED'
         | 'HALL_TICKET_UPDATED'
-        | 'HALL_TICKET_DELETED';
+        | 'HALL_TICKET_DELETED'
+        | 'TEACHER_LEAVE_CREATED'
+        | 'TEACHER_LEAVE_CANCELLED'
+        | 'SUBSTITUTE_ASSIGNED'
+        | 'SUBSTITUTE_REMOVED';
       readonly actorId: CodecTypes['pg/text@1']['output'];
       readonly examId: CodecTypes['pg/text@1']['output'] | null;
       readonly id: CodecTypes['pg/text@1']['output'];
@@ -1481,6 +1551,20 @@ export type StorageColumnTypes = {
       readonly tenantId: CodecTypes['pg/text@1']['output'];
       readonly userId: CodecTypes['pg/text@1']['output'];
     };
+    readonly TeacherLeave: {
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly createdById: CodecTypes['pg/text@1']['output'];
+      readonly endDate: CodecTypes['pg/text@1']['output'];
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly leaveType: CodecTypes['pg/text@1']['output'];
+      readonly periodIds: CodecTypes['pg/jsonb@1']['output'] | null;
+      readonly reason: CodecTypes['pg/text@1']['output'] | null;
+      readonly startDate: CodecTypes['pg/text@1']['output'];
+      readonly status: CodecTypes['pg/text@1']['output'];
+      readonly teacherId: CodecTypes['pg/text@1']['output'];
+      readonly tenantId: CodecTypes['pg/text@1']['output'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
     readonly TimetableEntry: {
       readonly classSectionId: CodecTypes['pg/text@1']['output'];
       readonly dayOfWeek: CodecTypes['pg/int4@1']['output'];
@@ -1489,6 +1573,21 @@ export type StorageColumnTypes = {
       readonly room: CodecTypes['pg/text@1']['output'] | null;
       readonly subjectId: CodecTypes['pg/text@1']['output'];
       readonly teacherId: CodecTypes['pg/text@1']['output'];
+      readonly tenantId: CodecTypes['pg/text@1']['output'];
+    };
+    readonly TimetableSubstitution: {
+      readonly assignedById: CodecTypes['pg/text@1']['output'];
+      readonly classSectionId: CodecTypes['pg/text@1']['output'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly date: CodecTypes['pg/text@1']['output'];
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly leaveId: CodecTypes['pg/text@1']['output'] | null;
+      readonly notes: CodecTypes['pg/text@1']['output'] | null;
+      readonly originalTeacherId: CodecTypes['pg/text@1']['output'];
+      readonly periodId: CodecTypes['pg/text@1']['output'];
+      readonly sourceTimetableEntryId: CodecTypes['pg/text@1']['output'] | null;
+      readonly subjectId: CodecTypes['pg/text@1']['output'];
+      readonly substituteTeacherId: CodecTypes['pg/text@1']['output'];
       readonly tenantId: CodecTypes['pg/text@1']['output'];
     };
     readonly User: {
@@ -1548,7 +1647,11 @@ export type StorageColumnInputTypes = {
         | 'CPD_UPDATED'
         | 'HALL_TICKET_CREATED'
         | 'HALL_TICKET_UPDATED'
-        | 'HALL_TICKET_DELETED';
+        | 'HALL_TICKET_DELETED'
+        | 'TEACHER_LEAVE_CREATED'
+        | 'TEACHER_LEAVE_CANCELLED'
+        | 'SUBSTITUTE_ASSIGNED'
+        | 'SUBSTITUTE_REMOVED';
       readonly actorId: CodecTypes['pg/text@1']['input'];
       readonly examId: CodecTypes['pg/text@1']['input'] | null;
       readonly id: CodecTypes['pg/text@1']['input'];
@@ -1904,6 +2007,20 @@ export type StorageColumnInputTypes = {
       readonly tenantId: CodecTypes['pg/text@1']['input'];
       readonly userId: CodecTypes['pg/text@1']['input'];
     };
+    readonly TeacherLeave: {
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly createdById: CodecTypes['pg/text@1']['input'];
+      readonly endDate: CodecTypes['pg/text@1']['input'];
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly leaveType: CodecTypes['pg/text@1']['input'];
+      readonly periodIds: CodecTypes['pg/jsonb@1']['input'] | null;
+      readonly reason: CodecTypes['pg/text@1']['input'] | null;
+      readonly startDate: CodecTypes['pg/text@1']['input'];
+      readonly status: CodecTypes['pg/text@1']['input'];
+      readonly teacherId: CodecTypes['pg/text@1']['input'];
+      readonly tenantId: CodecTypes['pg/text@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+    };
     readonly TimetableEntry: {
       readonly classSectionId: CodecTypes['pg/text@1']['input'];
       readonly dayOfWeek: CodecTypes['pg/int4@1']['input'];
@@ -1912,6 +2029,21 @@ export type StorageColumnInputTypes = {
       readonly room: CodecTypes['pg/text@1']['input'] | null;
       readonly subjectId: CodecTypes['pg/text@1']['input'];
       readonly teacherId: CodecTypes['pg/text@1']['input'];
+      readonly tenantId: CodecTypes['pg/text@1']['input'];
+    };
+    readonly TimetableSubstitution: {
+      readonly assignedById: CodecTypes['pg/text@1']['input'];
+      readonly classSectionId: CodecTypes['pg/text@1']['input'];
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly date: CodecTypes['pg/text@1']['input'];
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly leaveId: CodecTypes['pg/text@1']['input'] | null;
+      readonly notes: CodecTypes['pg/text@1']['input'] | null;
+      readonly originalTeacherId: CodecTypes['pg/text@1']['input'];
+      readonly periodId: CodecTypes['pg/text@1']['input'];
+      readonly sourceTimetableEntryId: CodecTypes['pg/text@1']['input'] | null;
+      readonly subjectId: CodecTypes['pg/text@1']['input'];
+      readonly substituteTeacherId: CodecTypes['pg/text@1']['input'];
       readonly tenantId: CodecTypes['pg/text@1']['input'];
     };
     readonly User: {
@@ -1995,7 +2127,9 @@ export namespace Models {
     subjectEnrollments: public_StudentSubjectEnrollment[];
     subjectPoolItems: public_SubjectPoolItem[];
     subjects: public_Subject[];
+    teacherLeaves: public_TeacherLeave[];
     timetableEntries: public_TimetableEntry[];
+    timetableSubstitutions: public_TimetableSubstitution[];
     users: public_User[];
     readonly [RelationKeys]?:
       | 'activityAudits'
@@ -2022,7 +2156,9 @@ export namespace Models {
       | 'subjectEnrollments'
       | 'subjectPoolItems'
       | 'subjects'
+      | 'teacherLeaves'
       | 'timetableEntries'
+      | 'timetableSubstitutions'
       | 'users';
   };
   export type public_User = {
@@ -2046,6 +2182,7 @@ export namespace Models {
     boardPacksCreated: public_BoardPack[];
     classTeacherOf: public_ClassSection[];
     consolidationLocks: public_Exam[];
+    coverSubstitutions: public_TimetableSubstitution[];
     cpdAppraisalsAsAppraiser: public_CpdAppraisal[];
     cpdAppraisalsAsTeacher: public_CpdAppraisal[];
     cpdCertificates: public_CpdCertificate[];
@@ -2057,14 +2194,18 @@ export namespace Models {
     enteredMarks: public_Mark[];
     hallTicketsCreated: public_HallTicketIssue[];
     hallTicketsUpdated: public_HallTicketIssue[];
+    leavesCreated: public_TeacherLeave[];
     markEntryRequests: public_MarkEntryAccessRequest[];
     notifications: public_Notification[];
+    originalSubstitutions: public_TimetableSubstitution[];
     portalLinks: public_PortalAccessLink[];
     refreshTokens: public_RefreshToken[];
     reportCardSigned: public_ReportCardRelease[];
     revaluationsRequested: public_RevaluationRequest[];
     revaluationsReviewed: public_RevaluationRequest[];
     reviewedMarkEntryRequests: public_MarkEntryAccessRequest[];
+    substitutionsAssigned: public_TimetableSubstitution[];
+    teacherLeaves: public_TeacherLeave[];
     tenant: public_School | null;
     timetableEntries: public_TimetableEntry[];
     readonly [RelationKeys]?:
@@ -2074,6 +2215,7 @@ export namespace Models {
       | 'boardPacksCreated'
       | 'classTeacherOf'
       | 'consolidationLocks'
+      | 'coverSubstitutions'
       | 'cpdAppraisalsAsAppraiser'
       | 'cpdAppraisalsAsTeacher'
       | 'cpdCertificates'
@@ -2085,14 +2227,18 @@ export namespace Models {
       | 'enteredMarks'
       | 'hallTicketsCreated'
       | 'hallTicketsUpdated'
+      | 'leavesCreated'
       | 'markEntryRequests'
       | 'notifications'
+      | 'originalSubstitutions'
       | 'portalLinks'
       | 'refreshTokens'
       | 'reportCardSigned'
       | 'revaluationsRequested'
       | 'revaluationsReviewed'
       | 'reviewedMarkEntryRequests'
+      | 'substitutionsAssigned'
+      | 'teacherLeaves'
       | 'tenant'
       | 'timetableEntries';
   };
@@ -2121,6 +2267,7 @@ export namespace Models {
     students: public_Student[];
     tenant: public_School;
     timetableEntries: public_TimetableEntry[];
+    timetableSubstitutions: public_TimetableSubstitution[];
     readonly [RelationKeys]?:
       | 'assignments'
       | 'classTeacher'
@@ -2129,7 +2276,8 @@ export namespace Models {
       | 'reportCardReleases'
       | 'students'
       | 'tenant'
-      | 'timetableEntries';
+      | 'timetableEntries'
+      | 'timetableSubstitutions';
   };
   export type public_SubjectPoolItem = {
     id: CodecTypes['pg/text@1']['output'];
@@ -2157,6 +2305,7 @@ export namespace Models {
     revaluationRequests: public_RevaluationRequest[];
     tenant: public_School;
     timetableEntries: public_TimetableEntry[];
+    timetableSubstitutions: public_TimetableSubstitution[];
     readonly [RelationKeys]?:
       | 'assignments'
       | 'enrollments'
@@ -2165,7 +2314,8 @@ export namespace Models {
       | 'paperSchedules'
       | 'revaluationRequests'
       | 'tenant'
-      | 'timetableEntries';
+      | 'timetableEntries'
+      | 'timetableSubstitutions';
   };
   export type public_StudentSubjectEnrollment = {
     id: CodecTypes['pg/text@1']['output'];
@@ -2370,7 +2520,11 @@ export namespace Models {
       | 'CPD_UPDATED'
       | 'HALL_TICKET_CREATED'
       | 'HALL_TICKET_UPDATED'
-      | 'HALL_TICKET_DELETED';
+      | 'HALL_TICKET_DELETED'
+      | 'TEACHER_LEAVE_CREATED'
+      | 'TEACHER_LEAVE_CANCELLED'
+      | 'SUBSTITUTE_ASSIGNED'
+      | 'SUBSTITUTE_REMOVED';
     summary: CodecTypes['pg/text@1']['output'];
     examId: CodecTypes['pg/text@1']['output'] | null;
     meta: CodecTypes['pg/jsonb@1']['output'] | null;
@@ -2418,8 +2572,9 @@ export namespace Models {
     endTime: CodecTypes['pg/text@1']['output'];
     isBreak: CodecTypes['pg/bool@1']['output'];
     entries: public_TimetableEntry[];
+    substitutions: public_TimetableSubstitution[];
     tenant: public_School;
-    readonly [RelationKeys]?: 'entries' | 'tenant';
+    readonly [RelationKeys]?: 'entries' | 'substitutions' | 'tenant';
   };
   export type public_TimetableEntry = {
     id: CodecTypes['pg/text@1']['output'];
@@ -2436,6 +2591,57 @@ export namespace Models {
     teacher: public_User;
     tenant: public_School;
     readonly [RelationKeys]?: 'classSection' | 'period' | 'subject' | 'teacher' | 'tenant';
+  };
+  export type public_TeacherLeave = {
+    id: CodecTypes['pg/text@1']['output'];
+    tenantId: CodecTypes['pg/text@1']['output'];
+    teacherId: CodecTypes['pg/text@1']['output'];
+    startDate: CodecTypes['pg/text@1']['output'];
+    endDate: CodecTypes['pg/text@1']['output'];
+    leaveType: CodecTypes['pg/text@1']['output'];
+    periodIds: CodecTypes['pg/jsonb@1']['output'] | null;
+    reason: CodecTypes['pg/text@1']['output'] | null;
+    status: CodecTypes['pg/text@1']['output'];
+    createdById: CodecTypes['pg/text@1']['output'];
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    createdBy: public_User;
+    substitutions: public_TimetableSubstitution[];
+    teacher: public_User;
+    tenant: public_School;
+    readonly [RelationKeys]?: 'createdBy' | 'substitutions' | 'teacher' | 'tenant';
+  };
+  export type public_TimetableSubstitution = {
+    id: CodecTypes['pg/text@1']['output'];
+    tenantId: CodecTypes['pg/text@1']['output'];
+    leaveId: CodecTypes['pg/text@1']['output'] | null;
+    date: CodecTypes['pg/text@1']['output'];
+    periodId: CodecTypes['pg/text@1']['output'];
+    classSectionId: CodecTypes['pg/text@1']['output'];
+    subjectId: CodecTypes['pg/text@1']['output'];
+    originalTeacherId: CodecTypes['pg/text@1']['output'];
+    substituteTeacherId: CodecTypes['pg/text@1']['output'];
+    sourceTimetableEntryId: CodecTypes['pg/text@1']['output'] | null;
+    assignedById: CodecTypes['pg/text@1']['output'];
+    notes: CodecTypes['pg/text@1']['output'] | null;
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    assignedBy: public_User;
+    classSection: public_ClassSection;
+    leave: public_TeacherLeave | null;
+    originalTeacher: public_User;
+    period: public_Period;
+    subject: public_Subject;
+    substituteTeacher: public_User;
+    tenant: public_School;
+    readonly [RelationKeys]?:
+      | 'assignedBy'
+      | 'classSection'
+      | 'leave'
+      | 'originalTeacher'
+      | 'period'
+      | 'subject'
+      | 'substituteTeacher'
+      | 'tenant';
   };
   export type public_HallTicketIssue = {
     id: CodecTypes['pg/text@1']['output'];
@@ -2649,6 +2855,8 @@ export declare const models: {
     Notification: Models.public_Notification;
     Period: Models.public_Period;
     TimetableEntry: Models.public_TimetableEntry;
+    TeacherLeave: Models.public_TeacherLeave;
+    TimetableSubstitution: Models.public_TimetableSubstitution;
     HallTicketIssue: Models.public_HallTicketIssue;
     ExamPaperSchedule: Models.public_ExamPaperSchedule;
     ReportCardRelease: Models.public_ReportCardRelease;
@@ -5971,6 +6179,151 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly TeacherLeave: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly tenantId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly teacherId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly startDate: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly endDate: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly leaveType: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'FULL_DAY'>;
+                  };
+                };
+                readonly periodIds: {
+                  readonly nativeType: 'jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                };
+                readonly reason: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly status: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/text@1', 'ACTIVE'>;
+                  };
+                };
+                readonly createdById: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly createdAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly updatedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'TeacherLeave_tenantId_teacherId_status_idx_da3a2517';
+                  readonly prefix: 'TeacherLeave_tenantId_teacherId_status_idx';
+                  readonly columns: readonly ['tenantId', 'teacherId', 'status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherLeave_tenantId_startDate_endDate_idx_2287641b';
+                  readonly prefix: 'TeacherLeave_tenantId_startDate_endDate_idx';
+                  readonly columns: readonly ['tenantId', 'startDate', 'endDate'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherLeave_tenantId_idx_c93ed4f1';
+                  readonly prefix: 'TeacherLeave_tenantId_idx';
+                  readonly columns: readonly ['tenantId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherLeave_teacherId_idx_bc266660';
+                  readonly prefix: 'TeacherLeave_teacherId_idx';
+                  readonly columns: readonly ['teacherId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherLeave_createdById_idx_8bf640ed';
+                  readonly prefix: 'TeacherLeave_createdById_idx';
+                  readonly columns: readonly ['createdById'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TeacherLeave';
+                    readonly columns: readonly ['tenantId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'School';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TeacherLeave';
+                    readonly columns: readonly ['teacherId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TeacherLeave';
+                    readonly columns: readonly ['createdById'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly TimetableEntry: {
               columns: {
                 readonly id: {
@@ -6133,6 +6486,254 @@ type ContractBase = Omit<
                 },
               ];
             };
+            readonly TimetableSubstitution: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly tenantId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly leaveId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly date: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly periodId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly classSectionId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly subjectId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly originalTeacherId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly substituteTeacherId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly sourceTimetableEntryId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly assignedById: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly notes: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly createdAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [
+                {
+                  readonly columns: readonly ['tenantId', 'date', 'periodId', 'classSectionId'];
+                  readonly name: 'TimetableSub_slot_key';
+                },
+                {
+                  readonly columns: readonly [
+                    'tenantId',
+                    'date',
+                    'periodId',
+                    'substituteTeacherId',
+                  ];
+                  readonly name: 'TimetableSub_teacher_key';
+                },
+              ];
+              indexes: readonly [
+                {
+                  readonly name: 'TimetableSub_date_idx';
+                  readonly columns: readonly ['tenantId', 'date'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TimetableSub_sub_idx';
+                  readonly columns: readonly ['tenantId', 'substituteTeacherId', 'date'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TimetableSub_orig_idx';
+                  readonly columns: readonly ['tenantId', 'originalTeacherId', 'date'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TimetableSub_tenant_idx';
+                  readonly columns: readonly ['tenantId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TimetableSubstitution_leaveId_idx_20b3ea91';
+                  readonly prefix: 'TimetableSubstitution_leaveId_idx';
+                  readonly columns: readonly ['leaveId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TimetableSubstitution_periodId_idx_f0176b8a';
+                  readonly prefix: 'TimetableSubstitution_periodId_idx';
+                  readonly columns: readonly ['periodId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TimetableSubstitution_classSectionId_idx_095a6e92';
+                  readonly prefix: 'TimetableSubstitution_classSectionId_idx';
+                  readonly columns: readonly ['classSectionId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TimetableSubstitution_subjectId_idx_84df2a1d';
+                  readonly prefix: 'TimetableSubstitution_subjectId_idx';
+                  readonly columns: readonly ['subjectId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TimetableSubstitution_originalTeacherId_idx_512accfb';
+                  readonly prefix: 'TimetableSubstitution_originalTeacherId_idx';
+                  readonly columns: readonly ['originalTeacherId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TimetableSubstitution_substituteTeacherId_idx_fbb6e921';
+                  readonly prefix: 'TimetableSubstitution_substituteTeacherId_idx';
+                  readonly columns: readonly ['substituteTeacherId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TimetableSubstitution_assignedById_idx_f5db02c3';
+                  readonly prefix: 'TimetableSubstitution_assignedById_idx';
+                  readonly columns: readonly ['assignedById'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TimetableSubstitution';
+                    readonly columns: readonly ['tenantId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'School';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TimetableSubstitution';
+                    readonly columns: readonly ['leaveId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TeacherLeave';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TimetableSubstitution';
+                    readonly columns: readonly ['periodId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Period';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TimetableSubstitution';
+                    readonly columns: readonly ['classSectionId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'ClassSection';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TimetableSubstitution';
+                    readonly columns: readonly ['subjectId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'Subject';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TimetableSubstitution';
+                    readonly columns: readonly ['originalTeacherId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TimetableSubstitution';
+                    readonly columns: readonly ['substituteTeacherId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'TimetableSubstitution';
+                    readonly columns: readonly ['assignedById'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
             readonly User: {
               columns: {
                 readonly id: {
@@ -6290,6 +6891,10 @@ type ContractBase = Omit<
                 'HALL_TICKET_CREATED',
                 'HALL_TICKET_UPDATED',
                 'HALL_TICKET_DELETED',
+                'TEACHER_LEAVE_CREATED',
+                'TEACHER_LEAVE_CANCELLED',
+                'SUBSTITUTE_ASSIGNED',
+                'SUBSTITUTE_REMOVED',
               ];
             };
             readonly BoardPackStatus: {
@@ -6431,6 +7036,14 @@ type ContractBase = Omit<
     readonly TimetableEntry: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'TimetableEntry';
+    };
+    readonly TeacherLeave: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'TeacherLeave';
+    };
+    readonly TimetableSubstitution: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'TimetableSubstitution';
     };
     readonly HallTicketIssue: {
       readonly namespace: 'public' & NamespaceId;
@@ -6760,6 +7373,17 @@ type ContractBase = Omit<
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'TimetableEntry';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['classSectionId'];
+                };
+              };
+              readonly timetableSubstitutions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimetableSubstitution';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -8280,6 +8904,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['periodId'];
                 };
               };
+              readonly substitutions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimetableSubstitution';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['periodId'];
+                };
+              };
               readonly tenant: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -9191,10 +9826,32 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['tenantId'];
                 };
               };
+              readonly teacherLeaves: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TeacherLeave';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['tenantId'];
+                };
+              };
               readonly timetableEntries: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
                   readonly model: 'TimetableEntry';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['tenantId'];
+                };
+              };
+              readonly timetableSubstitutions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimetableSubstitution';
                 };
                 readonly cardinality: '1:N';
                 readonly on: {
@@ -9619,6 +10276,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['subjectId'];
                 };
               };
+              readonly timetableSubstitutions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimetableSubstitution';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['subjectId'];
+                };
+              };
             };
             readonly storage: {
               readonly table: 'Subject';
@@ -9770,6 +10438,125 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly TeacherLeave: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly tenantId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly teacherId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly startDate: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly endDate: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly leaveType: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly periodIds: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly reason: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdById: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly createdBy: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['createdById'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly substitutions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimetableSubstitution';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['leaveId'];
+                };
+              };
+              readonly teacher: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['teacherId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly tenant: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'School';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['tenantId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'TeacherLeave';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly tenantId: { readonly column: 'tenantId' };
+                readonly teacherId: { readonly column: 'teacherId' };
+                readonly startDate: { readonly column: 'startDate' };
+                readonly endDate: { readonly column: 'endDate' };
+                readonly leaveType: { readonly column: 'leaveType' };
+                readonly periodIds: { readonly column: 'periodIds' };
+                readonly reason: { readonly column: 'reason' };
+                readonly status: { readonly column: 'status' };
+                readonly createdById: { readonly column: 'createdById' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+              };
+            };
+          };
           readonly TimetableEntry: {
             readonly fields: {
               readonly id: {
@@ -9876,6 +10663,173 @@ type ContractBase = Omit<
                 readonly periodId: { readonly column: 'periodId' };
                 readonly dayOfWeek: { readonly column: 'dayOfWeek' };
                 readonly room: { readonly column: 'room' };
+              };
+            };
+          };
+          readonly TimetableSubstitution: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly tenantId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly leaveId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly date: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly periodId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly classSectionId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly subjectId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly originalTeacherId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly substituteTeacherId: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sourceTimetableEntryId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly assignedById: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly notes: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly assignedBy: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['assignedById'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly classSection: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'ClassSection';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['classSectionId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly leave: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TeacherLeave';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['leaveId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly originalTeacher: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['originalTeacherId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly period: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Period';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['periodId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly subject: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'Subject';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['subjectId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly substituteTeacher: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['substituteTeacherId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly tenant: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'School';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: false;
+                readonly on: {
+                  readonly localFields: readonly ['tenantId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'TimetableSubstitution';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly tenantId: { readonly column: 'tenantId' };
+                readonly leaveId: { readonly column: 'leaveId' };
+                readonly date: { readonly column: 'date' };
+                readonly periodId: { readonly column: 'periodId' };
+                readonly classSectionId: { readonly column: 'classSectionId' };
+                readonly subjectId: { readonly column: 'subjectId' };
+                readonly originalTeacherId: { readonly column: 'originalTeacherId' };
+                readonly substituteTeacherId: { readonly column: 'substituteTeacherId' };
+                readonly sourceTimetableEntryId: { readonly column: 'sourceTimetableEntryId' };
+                readonly assignedById: { readonly column: 'assignedById' };
+                readonly notes: { readonly column: 'notes' };
+                readonly createdAt: { readonly column: 'createdAt' };
               };
             };
           };
@@ -10013,6 +10967,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['consolidationLockedById'];
                 };
               };
+              readonly coverSubstitutions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimetableSubstitution';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['substituteTeacherId'];
+                };
+              };
               readonly cpdAppraisalsAsAppraiser: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -10131,6 +11096,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['updatedById'];
                 };
               };
+              readonly leavesCreated: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TeacherLeave';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['createdById'];
+                };
+              };
               readonly markEntryRequests: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -10151,6 +11127,17 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['userId'];
+                };
+              };
+              readonly originalSubstitutions: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimetableSubstitution';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['originalTeacherId'];
                 };
               };
               readonly portalLinks: {
@@ -10217,6 +11204,28 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['reviewedById'];
+                };
+              };
+              readonly substitutionsAssigned: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TimetableSubstitution';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['assignedById'];
+                };
+              };
+              readonly teacherLeaves: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'TeacherLeave';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['teacherId'];
                 };
               };
               readonly tenant: {
@@ -10565,7 +11574,32 @@ type ContractBase = Omit<
         {
           readonly ref: {
             readonly namespace: 'public';
+            readonly table: 'TeacherLeave';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'cuid2' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'TeacherLeave';
+            readonly column: 'updatedAt';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
+          readonly onUpdate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
             readonly table: 'TimetableEntry';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'cuid2' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'TimetableSubstitution';
             readonly column: 'id';
           };
           readonly onCreate: { readonly kind: 'generator'; readonly id: 'cuid2' };

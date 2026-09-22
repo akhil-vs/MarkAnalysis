@@ -6,7 +6,7 @@ Remaining work that would make this suitable for a live school:
 
 ## Domain / school operations
 
-- **Teacher leave + balanced substitutes** (principal / coordinator mark leave so the daily board shows uncovered periods; assign covers; auto-suggest substitutes by free-period headroom + weekly hour balance — design: `docs/design/teacher-leave-substitutes.md`)
+- ~~**Teacher leave + balanced substitutes**~~ (principal / coordinator mark leave; daily board shows uncovered/cover; ranked substitute suggestions by free-period headroom + weekly balance — design: `docs/design/teacher-leave-substitutes.md`)
 - ~~**Theory + practical / IA** split papers and weighted components~~ (optional `practicalMaxMarks`; Marks Entry theory+practical cells)
 - ~~**Weighted annual result** across unit / mid / final~~ (School profile exam weights + analytics insights)
 - ~~**Configurable grade bands** and pass percent (board-specific)~~ (School profile Analytics grading)

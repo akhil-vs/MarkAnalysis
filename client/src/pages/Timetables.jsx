@@ -3,8 +3,9 @@ import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
-import { InlineLoading, LoadingState } from "../components/Spinner.jsx";
+import { BusyLabel, InlineLoading, LoadingState } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { useToast } from "../components/Toast.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
@@ -12,6 +13,7 @@ const MODES = [
   { id: "teachers", label: "Teachers" },
   { id: "daily", label: "Daily board" },
   { id: "free", label: "Find free" },
+  { id: "leave", label: "Leave & cover" },
 ];
 
 function todayYmd() {
@@ -97,7 +99,7 @@ function DateNav({ date, dayName, onChange }) {
   );
 }
 
-function SlotCell({ entries }) {
+function SlotCell({ entries, onAssignCover }) {
   const list = Array.isArray(entries) ? entries : entries ? [entries] : [];
   if (!list.length) {
     return (
@@ -107,35 +109,53 @@ function SlotCell({ entries }) {
     );
   }
 
-  const subjectNames = [...new Set(list.map((e) => e.subject?.name).filter(Boolean))];
-  const sharedSubject = subjectNames.length === 1 ? subjectNames[0] : null;
-  const multi = list.length > 1;
-
   return (
-    <div className="min-h-[3.25rem] rounded-lg border border-ink-900/10 bg-white px-2 py-1.5">
-      {sharedSubject && (
-        <div className="text-sm font-medium leading-snug">{sharedSubject}</div>
-      )}
-      <div
-        className={`${sharedSubject ? "mt-0.5" : ""} ${multi ? "grid gap-x-2 gap-y-1" : ""}`}
-        style={
-          multi
-            ? { gridTemplateColumns: `repeat(${list.length}, minmax(0, 1fr))` }
-            : undefined
-        }
-      >
-        {list.map((entry) => (
-          <div key={entry.id} className="min-w-0">
-            {!sharedSubject && (
-              <div className="text-sm font-medium leading-snug truncate">{entry.subject?.name}</div>
+    <div className="space-y-1">
+      {list.map((entry) => {
+        const uncovered = entry.isUncovered;
+        const cover = entry.isCover;
+        const onLeave = entry.onLeave && !cover;
+        let shell =
+          "min-h-[3.25rem] rounded-lg border px-2 py-1.5";
+        if (uncovered) shell += " border-clay-500/40 bg-clay-500/10";
+        else if (cover) shell += " border-sky-600/30 bg-sky-500/10";
+        else if (onLeave && entry.coveredBy) shell += " border-ink-900/10 bg-ink-900/[0.04] opacity-70";
+        else shell += " border-ink-900/10 bg-white";
+
+        return (
+          <div key={entry.id} className={shell}>
+            {(uncovered || cover || entry.coveredBy) && (
+              <div className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-ink-700/55">
+                {uncovered ? "Needs cover" : cover ? "Cover" : "On leave · covered"}
+              </div>
             )}
+            <div className="text-sm font-medium leading-snug truncate">{entry.subject?.name}</div>
             <div className="text-xs text-ink-700/65 truncate">
               {entry.classSection?.label}
               {entry.room ? ` · ${entry.room}` : ""}
             </div>
+            {cover && entry.originalTeacher && (
+              <div className="mt-0.5 text-[11px] text-ink-700/55 truncate">
+                for {entry.originalTeacher.name}
+              </div>
+            )}
+            {entry.coveredBy && (
+              <div className="mt-0.5 text-[11px] text-ink-700/55 truncate">
+                → {entry.coveredBy.name}
+              </div>
+            )}
+            {uncovered && onAssignCover && (
+              <button
+                type="button"
+                className="mt-1 text-[11px] font-medium text-clay-600 hover:underline"
+                onClick={() => onAssignCover(entry)}
+              >
+                Assign cover
+              </button>
+            )}
           </div>
-        ))}
-      </div>
+        );
+      })}
     </div>
   );
 }
@@ -143,13 +163,13 @@ function SlotCell({ entries }) {
 export default function Timetables() {
   const [searchParams, setSearchParams] = useSearchParams();
   const rawMode = searchParams.get("mode");
-  // Bell schedule moved to School profile — keep old Periods links working
   if (rawMode === "periods") {
     return <Navigate to="/school#school-schedule" replace />;
   }
   const mode = MODES.some((m) => m.id === rawMode) ? rawMode : "teachers";
   const date = searchParams.get("date") || todayYmd();
   const periodId = searchParams.get("periodId") || "";
+  const leaveTeacherId = searchParams.get("leaveTeacher") || "";
 
   function setMode(next) {
     const params = new URLSearchParams(searchParams);
@@ -174,24 +194,42 @@ export default function Timetables() {
     setSearchParams(params);
   }
 
+  function openLeaveForTeacher(teacherId) {
+    const params = new URLSearchParams(searchParams);
+    params.set("mode", "leave");
+    params.set("date", date);
+    if (teacherId) params.set("leaveTeacher", teacherId);
+    else params.delete("leaveTeacher");
+    setSearchParams(params);
+  }
+
   return (
     <div>
       <PageHeader
         title={NAV_TITLES.timetables}
-        subtitle="Browse teachers, the daily board, and free periods. Edit the school week and bell schedule under School profile."
+        subtitle="Browse teachers, the daily board, free periods, and leave cover. Edit the school week and bell schedule under School profile."
         actions={<ModeTabs mode={mode} onChange={setMode} />}
       />
 
-      {mode === "teachers" && <TeachersList />}
-      {mode === "daily" && <DailyBoard date={date} onDateChange={setDate} />}
+      {mode === "teachers" && <TeachersList onPutOnLeave={openLeaveForTeacher} />}
+      {mode === "daily" && (
+        <DailyBoard date={date} onDateChange={setDate} onPutOnLeave={openLeaveForTeacher} />
+      )}
       {mode === "free" && (
         <FreeFinder date={date} periodId={periodId} onDateChange={setDate} onPeriodChange={setPeriodId} />
+      )}
+      {mode === "leave" && (
+        <LeaveCoverPanel
+          date={date}
+          onDateChange={setDate}
+          initialTeacherId={leaveTeacherId}
+        />
       )}
     </div>
   );
 }
 
-function TeachersList() {
+function TeachersList({ onPutOnLeave }) {
   const [teachers, setTeachers] = useState(null);
   const [error, setError] = useState("");
   const table = useTableSearch(teachers || [], { getSearchText: teacherSearchText });
@@ -233,12 +271,10 @@ function TeachersList() {
           const subjects = [...new Set((t.assignments || []).map((a) => a.subject?.name).filter(Boolean))];
           const classes = [...new Set((t.assignments || []).map((a) => a.classSection?.label).filter(Boolean))];
           return (
-            <Link
-              key={t.id}
-              to={`/timetables/teachers/${t.id}`}
-              className="card p-4 hover:border-clay-500 transition-colors"
-            >
-              <div className="font-serif text-2xl leading-tight">{t.name}</div>
+            <div key={t.id} className="card p-4">
+              <Link to={`/timetables/teachers/${t.id}`} className="block hover:text-clay-600">
+                <div className="font-serif text-2xl leading-tight">{t.name}</div>
+              </Link>
               <div className="mt-1 text-sm text-ink-700/60">
                 {subjects.slice(0, 3).join(" · ") || "No subjects"}
                 {subjects.length > 3 ? ` +${subjects.length - 3}` : ""}
@@ -252,7 +288,15 @@ function TeachersList() {
                   {t.entryCount} periods/week
                 </div>
               </div>
-            </Link>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <Link to={`/timetables/teachers/${t.id}`} className="btn-ghost text-xs">
+                  Open timetable
+                </Link>
+                <button type="button" className="btn-ghost text-xs" onClick={() => onPutOnLeave(t.id)}>
+                  Put on leave
+                </button>
+              </div>
+            </div>
           );
         })}
         {!table.filtered.length && <EmptyNote>No teachers match your search.</EmptyNote>}
@@ -261,10 +305,143 @@ function TeachersList() {
   );
 }
 
-function DailyBoard({ date, onDateChange }) {
+function AssignCoverModal({ slot, date, onClose, onSaved }) {
+  const toast = useToast();
+  const [candidates, setCandidates] = useState(null);
+  const [selectedId, setSelectedId] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!slot) return undefined;
+    let cancelled = false;
+    const params = new URLSearchParams({
+      date,
+      periodId: slot.period?.id || slot.periodId,
+      classSectionId: slot.classSection?.id || slot.classSectionId,
+      subjectId: slot.subject?.id || slot.subjectId,
+      originalTeacherId: slot.teacher?.id || slot.originalTeacherId,
+    });
+    api(`/api/timetable/substitutes/suggest?${params}`)
+      .then((res) => {
+        if (cancelled) return;
+        setCandidates(res.candidates || []);
+        setSelectedId(res.candidates?.[0]?.id || "");
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || "Could not rank substitutes");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [slot, date]);
+
+  async function save() {
+    if (!selectedId) return;
+    setSaving(true);
+    setError("");
+    try {
+      await api("/api/timetable/substitutes", {
+        method: "POST",
+        body: {
+          date,
+          periodId: slot.period?.id || slot.periodId,
+          classSectionId: slot.classSection?.id || slot.classSectionId,
+          subjectId: slot.subject?.id || slot.subjectId,
+          originalTeacherId: slot.teacher?.id || slot.originalTeacherId,
+          substituteTeacherId: selectedId,
+          sourceTimetableEntryId: slot.id?.startsWith?.("cover:") ? undefined : slot.id,
+          leaveId: slot.leave?.id,
+        },
+      });
+      toast.success("Cover assigned");
+      onSaved?.();
+      onClose?.();
+    } catch (err) {
+      setError(err.message || "Could not assign cover");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (!slot) return null;
+
+  return (
+    <div className="fixed inset-0 z-40 flex items-end sm:items-center justify-center bg-ink-900/40 p-3">
+      <div className="card w-full max-w-lg p-4 sm:p-5 shadow-lg">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h3 className="font-serif text-2xl leading-tight">Assign cover</h3>
+            <p className="mt-1 text-sm text-ink-700/65">
+              {slot.subject?.name} · {slot.classSection?.label} · {date}
+            </p>
+          </div>
+          <button type="button" className="btn-ghost" onClick={onClose}>
+            Close
+          </button>
+        </div>
+
+        {error && <p className="mt-3 text-sm text-clay-600">{error}</p>}
+        {!candidates && !error && <InlineLoading label="Ranking free teachers…" className="mt-4" />}
+
+        {candidates && (
+          <div className="mt-4 max-h-72 overflow-y-auto space-y-2">
+            {!candidates.length && <EmptyNote>No eligible substitutes for this period.</EmptyNote>}
+            {candidates.map((c) => (
+              <label
+                key={c.id}
+                className={`flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2 ${
+                  selectedId === c.id ? "border-clay-500 bg-clay-500/5" : "border-ink-900/10"
+                }`}
+              >
+                <input
+                  type="radio"
+                  className="mt-1"
+                  name="substitute"
+                  checked={selectedId === c.id}
+                  onChange={() => setSelectedId(c.id)}
+                />
+                <div className="min-w-0 flex-1">
+                  <div className="font-medium">{c.name}</div>
+                  <div className="text-xs text-ink-700/60">
+                    Score {c.score?.toFixed?.(1) ?? c.score}
+                    {c.freeRemaining != null ? ` · ${c.freeRemaining} free left` : ""}
+                  </div>
+                  {c.reasons?.length > 0 && (
+                    <div className="mt-0.5 text-[11px] text-ink-700/50 truncate">
+                      {c.reasons.slice(0, 3).join(" · ")}
+                    </div>
+                  )}
+                </div>
+              </label>
+            ))}
+          </div>
+        )}
+
+        <div className="mt-4 flex justify-end gap-2">
+          <button type="button" className="btn-ghost" onClick={onClose}>
+            Cancel
+          </button>
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={!selectedId || saving}
+            onClick={save}
+          >
+            <BusyLabel busy={saving} idle="Save cover" busyText="Saving…" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DailyBoard({ date, onDateChange, onPutOnLeave }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
+  const [assignSlot, setAssignSlot] = useState(null);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -283,7 +460,7 @@ function DailyBoard({ date, onDateChange }) {
     return () => {
       cancelled = true;
     };
-  }, [date]);
+  }, [date, reloadKey]);
 
   const teachingPeriods = useMemo(
     () => (data?.periods || []).filter((p) => !p.isBreak),
@@ -305,6 +482,16 @@ function DailyBoard({ date, onDateChange }) {
         <DateNav date={date} dayName={data?.dayName} onChange={onDateChange} />
         <TableToolbar q={q} setQ={setQ} placeholder="Filter teachers…" />
       </div>
+
+      {data?.summary && (
+        <p className="mb-3 text-sm text-ink-700/65">
+          {data.summary.onLeaveCount} on leave
+          {" · "}
+          <span className="text-clay-600">{data.summary.uncoveredCount} need cover</span>
+          {" · "}
+          {data.summary.coverCount} covers assigned
+        </p>
+      )}
 
       {!data && <InlineLoading label="Loading daily board…" className="p-2" />}
 
@@ -343,10 +530,20 @@ function DailyBoard({ date, onDateChange }) {
                         {teacher.name}
                       </Link>
                       <div className="text-[11px] text-ink-700/50">
+                        {teacher.onLeave && <span className="text-clay-600 font-medium">Leave · </span>}
                         {teacher.taughtCount} period{teacher.taughtCount === 1 ? "" : "s"}
                         {" · "}
                         {formatTaughtHours(teacher.taughtMinutes)}
                       </div>
+                      {!teacher.onLeave && (
+                        <button
+                          type="button"
+                          className="mt-1 text-[11px] text-ink-700/55 hover:text-clay-600"
+                          onClick={() => onPutOnLeave(teacher.id)}
+                        >
+                          Put on leave
+                        </button>
+                      )}
                     </td>
                     {(data.periods || []).map((period) => (
                       <td key={`${teacher.id}-${period.id}`} className="align-top">
@@ -355,7 +552,10 @@ function DailyBoard({ date, onDateChange }) {
                             {period.name}
                           </div>
                         ) : (
-                          <SlotCell entries={teacher.entriesByPeriodId?.[period.id]} />
+                          <SlotCell
+                            entries={teacher.entriesByPeriodId?.[period.id]}
+                            onAssignCover={(entry) => setAssignSlot(entry)}
+                          />
                         )}
                       </td>
                     ))}
@@ -370,6 +570,15 @@ function DailyBoard({ date, onDateChange }) {
             )}
           </div>
         </>
+      )}
+
+      {assignSlot && (
+        <AssignCoverModal
+          slot={assignSlot}
+          date={date}
+          onClose={() => setAssignSlot(null)}
+          onSaved={() => setReloadKey((k) => k + 1)}
+        />
       )}
     </div>
   );
@@ -404,7 +613,6 @@ function FreeFinder({ date, periodId, onDateChange, onPeriodChange }) {
     return () => {
       cancelled = true;
     };
-    // Only seed period once periods load; avoid looping on onPeriodChange identity
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -468,6 +676,12 @@ function FreeFinder({ date, periodId, onDateChange, onPeriodChange }) {
             <span className="font-medium text-moss-600">{result.summary.freeCount} free</span>
             {" · "}
             <span className="text-ink-700/80">{result.summary.busyCount} teaching</span>
+            {result.summary.onLeaveCount > 0 && (
+              <>
+                {" · "}
+                <span className="text-clay-600">{result.summary.onLeaveCount} on leave</span>
+              </>
+            )}
           </p>
 
           <section>
@@ -495,6 +709,19 @@ function FreeFinder({ date, periodId, onDateChange, onPeriodChange }) {
             )}
           </section>
 
+          {result.onLeave?.length > 0 && (
+            <section>
+              <h3 className="font-serif text-xl mb-2">On leave</h3>
+              <div className="flex flex-wrap gap-2">
+                {result.onLeave.map((t) => (
+                  <span key={t.id} className="rounded-lg bg-clay-500/10 px-3 py-1.5 text-sm text-clay-600">
+                    {t.name}
+                  </span>
+                ))}
+              </div>
+            </section>
+          )}
+
           <section>
             <h3 className="font-serif text-xl mb-2">Teaching this period</h3>
             {!result.busy.length ? (
@@ -513,7 +740,23 @@ function FreeFinder({ date, periodId, onDateChange, onPeriodChange }) {
                   <tbody>
                     {result.busy.flatMap((t) => {
                       const entries = t.entries?.length ? t.entries : t.entry ? [t.entry] : [];
-                      return entries.map((entry) => (
+                      const coverRows = (t.covers || []).map((c) => (
+                        <tr key={`cover-${c.id}`}>
+                          <td>
+                            <Link
+                              to={`/timetables/teachers/${t.id}?view=daily&date=${date}`}
+                              className="hover:text-clay-600"
+                            >
+                              {t.name}
+                            </Link>
+                            <div className="text-[11px] text-sky-700">Cover</div>
+                          </td>
+                          <td>{c.subject?.name || "—"}</td>
+                          <td>{c.classSection?.label || "—"}</td>
+                          <td>—</td>
+                        </tr>
+                      ));
+                      const teachingRows = entries.map((entry) => (
                         <tr key={entry.id || `${t.id}-${entry.subject?.id}-${entry.classSection?.id}`}>
                           <td>
                             <Link
@@ -528,6 +771,7 @@ function FreeFinder({ date, periodId, onDateChange, onPeriodChange }) {
                           <td>{entry.room || "—"}</td>
                         </tr>
                       ));
+                      return [...coverRows, ...teachingRows];
                     })}
                   </tbody>
                 </table>
@@ -536,6 +780,379 @@ function FreeFinder({ date, periodId, onDateChange, onPeriodChange }) {
           </section>
         </div>
       )}
+    </div>
+  );
+}
+
+function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
+  const toast = useToast();
+  const [teachers, setTeachers] = useState([]);
+  const [leaves, setLeaves] = useState(null);
+  const [form, setForm] = useState({
+    teacherId: initialTeacherId || "",
+    startDate: date,
+    endDate: date,
+    reason: "",
+    suggestCovers: true,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [plan, setPlan] = useState(null);
+  const [selectedSubs, setSelectedSubs] = useState({});
+  const [accepting, setAccepting] = useState(false);
+  const [reloadKey, setReloadKey] = useState(0);
+
+  useEffect(() => {
+    setForm((f) => ({
+      ...f,
+      teacherId: initialTeacherId || f.teacherId,
+      startDate: date,
+      endDate: f.endDate || date,
+    }));
+  }, [initialTeacherId, date]);
+
+  useEffect(() => {
+    api("/api/timetable/teachers")
+      .then(setTeachers)
+      .catch(() => setTeachers([]));
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const from = shiftDate(date, -7);
+    const to = shiftDate(date, 21);
+    api(`/api/timetable/leaves?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
+      .then((rows) => {
+        if (!cancelled) setLeaves(rows);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(err.message || "Could not load leaves");
+          setLeaves([]);
+        }
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [date, reloadKey]);
+
+  async function submitLeave(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const res = await api("/api/timetable/leaves", {
+        method: "POST",
+        body: {
+          teacherId: form.teacherId,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          reason: form.reason || undefined,
+          suggestCovers: form.suggestCovers,
+        },
+      });
+      toast.success("Leave recorded");
+      setPlan(res.plan || null);
+      if (res.plan?.suggestions?.length) {
+        const defaults = {};
+        for (const s of res.plan.suggestions) {
+          const key = `${s.date}:${s.periodId}:${s.classSectionId}`;
+          defaults[key] = s.suggestedSubstitute?.id || "";
+        }
+        setSelectedSubs(defaults);
+      }
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setError(err.message || "Could not record leave");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function cancelLeave(leaveId) {
+    try {
+      await api(`/api/timetable/leaves/${leaveId}`, { method: "DELETE" });
+      toast.success("Leave cancelled");
+      if (plan?.leave?.id === leaveId) setPlan(null);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      toast.error(err.message || "Could not cancel leave");
+    }
+  }
+
+  async function loadPlan(leaveId) {
+    setError("");
+    try {
+      const res = await api(`/api/timetable/leaves/${leaveId}/plan`);
+      setPlan(res);
+      const defaults = {};
+      for (const s of res.suggestions || []) {
+        const key = `${s.date}:${s.periodId}:${s.classSectionId}`;
+        defaults[key] = s.suggestedSubstitute?.id || "";
+      }
+      setSelectedSubs(defaults);
+    } catch (err) {
+      setError(err.message || "Could not build cover plan");
+    }
+  }
+
+  async function acceptSuggestions() {
+    if (!plan?.suggestions?.length) return;
+    const substitutions = plan.suggestions
+      .map((s) => {
+        const key = `${s.date}:${s.periodId}:${s.classSectionId}`;
+        const substituteTeacherId = selectedSubs[key];
+        if (!substituteTeacherId) return null;
+        return {
+          date: s.date,
+          periodId: s.periodId,
+          classSectionId: s.classSectionId,
+          subjectId: s.subjectId,
+          originalTeacherId: s.originalTeacherId,
+          substituteTeacherId,
+          sourceTimetableEntryId: s.sourceTimetableEntryId,
+          leaveId: s.leaveId,
+        };
+      })
+      .filter(Boolean);
+
+    if (!substitutions.length) {
+      setError("Select at least one substitute");
+      return;
+    }
+
+    setAccepting(true);
+    setError("");
+    try {
+      await api("/api/timetable/substitutes", {
+        method: "POST",
+        body: { substitutions },
+      });
+      toast.success(`Assigned ${substitutions.length} cover${substitutions.length === 1 ? "" : "s"}`);
+      setPlan(null);
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setError(err.message || "Could not save covers");
+    } finally {
+      setAccepting(false);
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+      <DateNav date={date} onChange={onDateChange} />
+
+      <form onSubmit={submitLeave} className="card p-4 sm:p-5 space-y-3 max-w-xl">
+        <h3 className="font-serif text-2xl">Put a teacher on leave</h3>
+        <p className="text-sm text-ink-700/65">
+          Leave overlays the weekly timetable for those dates. Optional auto-suggest picks balanced
+          substitutes without overloading anyone.
+        </p>
+        {error && <p className="text-sm text-clay-600">{error}</p>}
+        <label className="block">
+          <span className="label">Teacher</span>
+          <select
+            className="field"
+            required
+            value={form.teacherId}
+            onChange={(e) => setForm({ ...form, teacherId: e.target.value })}
+          >
+            <option value="">Select teacher</option>
+            {teachers.map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <div className="grid sm:grid-cols-2 gap-3">
+          <label className="block">
+            <span className="label">Start</span>
+            <input
+              type="date"
+              className="field"
+              required
+              value={form.startDate}
+              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+            />
+          </label>
+          <label className="block">
+            <span className="label">End</span>
+            <input
+              type="date"
+              className="field"
+              required
+              value={form.endDate}
+              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+            />
+          </label>
+        </div>
+        <label className="block">
+          <span className="label">Reason (optional)</span>
+          <input
+            className="field"
+            value={form.reason}
+            onChange={(e) => setForm({ ...form, reason: e.target.value })}
+            placeholder="Sick leave, training, …"
+          />
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.suggestCovers}
+            onChange={(e) => setForm({ ...form, suggestCovers: e.target.checked })}
+          />
+          Suggest balanced covers for vacated periods
+        </label>
+        <button type="submit" className="btn-primary" disabled={saving || !form.teacherId}>
+          <BusyLabel busy={saving} idle="Save leave" busyText="Saving…" />
+        </button>
+      </form>
+
+      {plan && (
+        <div className="card p-4 sm:p-5 space-y-3">
+          <div className="flex flex-wrap items-start justify-between gap-2">
+            <div>
+              <h3 className="font-serif text-2xl">Cover planner</h3>
+              <p className="text-sm text-ink-700/65">
+                {plan.leave?.teacher?.name} · {plan.vacatedCount} vacated
+                {plan.alreadyCoveredCount ? ` · ${plan.alreadyCoveredCount} already covered` : ""}
+              </p>
+            </div>
+            <button type="button" className="btn-ghost" onClick={() => setPlan(null)}>
+              Dismiss
+            </button>
+          </div>
+
+          {!plan.suggestions?.length && !plan.uncovered?.length && (
+            <EmptyNote>No teaching periods to cover in this leave range.</EmptyNote>
+          )}
+
+          {plan.suggestions?.length > 0 && (
+            <div className="overflow-x-auto">
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Period</th>
+                    <th>Class</th>
+                    <th>Subject</th>
+                    <th>Suggested substitute</th>
+                    <th>Score</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {plan.suggestions.map((s) => {
+                    const key = `${s.date}:${s.periodId}:${s.classSectionId}`;
+                    const options = [
+                      s.suggestedSubstitute,
+                      ...(s.alternatives || []).map((a) => ({ id: a.id, name: a.name, score: a.score })),
+                    ].filter(Boolean);
+                    const seen = new Set();
+                    const unique = options.filter((o) => {
+                      if (!o?.id || seen.has(o.id)) return false;
+                      seen.add(o.id);
+                      return true;
+                    });
+                    return (
+                      <tr key={key}>
+                        <td>
+                          {s.date}
+                          <div className="text-[11px] text-ink-700/50">{s.dayName}</div>
+                        </td>
+                        <td>{s.period?.name || "—"}</td>
+                        <td>{s.classSection?.label || "—"}</td>
+                        <td>{s.subject?.name || "—"}</td>
+                        <td>
+                          <select
+                            className="field"
+                            value={selectedSubs[key] || ""}
+                            onChange={(e) =>
+                              setSelectedSubs((prev) => ({ ...prev, [key]: e.target.value }))
+                            }
+                          >
+                            <option value="">Skip</option>
+                            {unique.map((o) => (
+                              <option key={o.id} value={o.id}>
+                                {o.name}
+                                {o.score != null ? ` (${Number(o.score).toFixed(1)})` : ""}
+                              </option>
+                            ))}
+                          </select>
+                        </td>
+                        <td className="text-xs text-ink-700/60">
+                          {s.score != null ? Number(s.score).toFixed(1) : "—"}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {plan.uncovered?.length > 0 && (
+            <p className="text-sm text-clay-600">
+              {plan.uncovered.length} slot{plan.uncovered.length === 1 ? "" : "s"} could not be
+              auto-suggested — assign manually from the daily board.
+            </p>
+          )}
+
+          {plan.suggestions?.length > 0 && (
+            <button type="button" className="btn-primary" disabled={accepting} onClick={acceptSuggestions}>
+              <BusyLabel busy={accepting} idle="Accept selected covers" busyText="Saving…" />
+            </button>
+          )}
+        </div>
+      )}
+
+      <div>
+        <h3 className="font-serif text-2xl mb-2">Active leave nearby</h3>
+        {!leaves && <InlineLoading label="Loading leaves…" />}
+        {leaves && !leaves.length && <EmptyNote>No active leave in this window.</EmptyNote>}
+        {leaves && leaves.length > 0 && (
+          <div className="card overflow-x-auto">
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>Teacher</th>
+                  <th>Dates</th>
+                  <th>Reason</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {leaves.map((leave) => (
+                  <tr key={leave.id}>
+                    <td>{leave.teacher?.name || "—"}</td>
+                    <td>
+                      {leave.startDate}
+                      {leave.endDate !== leave.startDate ? ` → ${leave.endDate}` : ""}
+                    </td>
+                    <td>{leave.reason || "—"}</td>
+                    <td className="text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        className="btn-ghost text-xs"
+                        onClick={() => loadPlan(leave.id)}
+                      >
+                        Plan covers
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost text-xs text-clay-600"
+                        onClick={() => cancelLeave(leave.id)}
+                      >
+                        Cancel
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

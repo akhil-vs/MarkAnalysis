@@ -1,6 +1,6 @@
 # Design: Teacher leave + balanced substitute coverage
 
-Status: **proposed**  
+Status: **implemented** (Phases A–C)  
 Audience: Principal / academic supervisor (leadership)  
 Depends on: existing weekly `TimetableEntry` template, periods, working days, `/api/timetable/free` + daily board
 
