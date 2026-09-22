@@ -534,6 +534,12 @@ function DailyBoard({ date, onDateChange, onPutOnLeave }) {
                         {teacher.taughtCount} period{teacher.taughtCount === 1 ? "" : "s"}
                         {" · "}
                         {formatTaughtHours(teacher.taughtMinutes)}
+                        {(teacher.extraCount > 0 || teacher.extraMinutes > 0) && (
+                          <span className="ml-1.5 font-medium text-sky-700">
+                            {" "}
+                            +{teacher.extraCount} extra · {formatTaughtHours(teacher.extraMinutes)}
+                          </span>
+                        )}
                       </div>
                       {!teacher.onLeave && (
                         <button
@@ -945,8 +951,9 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
       <form onSubmit={submitLeave} className="card p-4 sm:p-5 space-y-3 max-w-xl">
         <h3 className="font-serif text-2xl">Put a teacher on leave</h3>
         <p className="text-sm text-ink-700/65">
-          Leave overlays the weekly timetable for those dates. Optional auto-suggest picks balanced
-          substitutes without overloading anyone.
+          Leave overlays the weekly timetable for those dates. Auto-suggest picks a{" "}
+          <span className="font-medium text-ink-800">different free teacher for each vacated period</span>{" "}
+          so the load stays balanced.
         </p>
         {error && <p className="text-sm text-clay-600">{error}</p>}
         <label className="block">
@@ -1002,7 +1009,7 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
             checked={form.suggestCovers}
             onChange={(e) => setForm({ ...form, suggestCovers: e.target.checked })}
           />
-          Suggest balanced covers for vacated periods
+          Suggest a different free teacher for each vacated period
         </label>
         <button type="submit" className="btn-primary" disabled={saving || !form.teacherId}>
           <BusyLabel busy={saving} idle="Save leave" busyText="Saving…" />

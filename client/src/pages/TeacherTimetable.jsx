@@ -33,6 +33,16 @@ function shiftDate(ymd, days) {
   return `${yy}-${mm}-${dd}`;
 }
 
+function formatMinutes(minutes) {
+  const total = Math.max(0, Math.round(Number(minutes) || 0));
+  if (total === 0) return "0h";
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  if (h === 0) return `${m}m`;
+  if (m === 0) return `${h}h`;
+  return `${h}h ${m}m`;
+}
+
 function emptyForm(defaults = {}) {
   return {
     classSectionId: "",
@@ -377,6 +387,17 @@ export default function TeacherTimetable() {
             />
             <button type="button" className="btn-ghost" onClick={() => setDate(shiftDate(date, 1))}>Next day</button>
             <span className="text-sm text-ink-700/65">{data.dayName}</span>
+            {(data.taughtCount != null || data.extraCount > 0) && (
+              <span className="text-sm text-ink-700/65">
+                · {data.taughtCount || 0} period{(data.taughtCount || 0) === 1 ? "" : "s"}
+                {data.taughtMinutes != null ? ` · ${formatMinutes(data.taughtMinutes)}` : ""}
+                {data.extraCount > 0 && (
+                  <span className="ml-1 font-medium text-sky-700">
+                    +{data.extraCount} extra · {formatMinutes(data.extraMinutes)}
+                  </span>
+                )}
+              </span>
+            )}
           </>
         )}
         {view === "weekly" && (

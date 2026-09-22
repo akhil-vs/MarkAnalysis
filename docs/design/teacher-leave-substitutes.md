@@ -201,7 +201,7 @@ Then rank descending. Break ties by lower weekly load, then name.
 | **Pure optimization (ILP/min-cost flow over all slots)** | Best math, but opaque and heavy for v1; good as Phase 3 |
 | **Hard filters + weighted score + human confirm (this plan)** | Transparent, fast, fair enough, fits existing find-free UX; principal stays in control |
 
-**Phase 1–2:** greedy per-slot scoring with session-aware load updates (when assigning many slots for one leave, recompute after each pick so the same person is not auto-filled for every period).
+**Phase 1–2:** greedy per-slot scoring with session-aware load updates (when assigning many slots for one leave, recompute after each pick so the same person is not auto-filled for every period). Default policy: **at most one cover period per substitute per day**; only reuse someone if no other eligible teacher is free.
 
 **Phase 3 (optional):** global assignment for a leave day as a min-cost matching:
 
