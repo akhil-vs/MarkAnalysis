@@ -1,12 +1,14 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { auth, getTeacherClassIds, requireRole } from "../middleware/auth.js";
+import { auth, getTeacherClassIds, requireFeature, requireRole } from "../middleware/auth.js";
 import { compareClassNames } from "../lib/stats.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const classesRouter = Router();
 classesRouter.use(auth);
 classesRouter.use(requireSchoolTenant);
+
+const requireRecordsWrite = [requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("records")];
 
 function sortClasses(classes) {
   return [...classes].sort((a, b) => {
@@ -38,7 +40,7 @@ classesRouter.get("/", async (req, res) => {
  * Create many divisions for one class in a single request.
  * Body: { className, divisions: [{ section, classTeacherId? }] }
  */
-classesRouter.post("/batch", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+classesRouter.post("/batch", ...requireRecordsWrite, async (req, res) => {
   const className = String(req.body?.className || "").trim();
   const rawDivisions = Array.isArray(req.body?.divisions) ? req.body.divisions : null;
   if (!className) {
@@ -110,7 +112,7 @@ classesRouter.post("/batch", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
   res.status(201).json(sortClasses(created));
 });
 
-classesRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+classesRouter.post("/", ...requireRecordsWrite, async (req, res) => {
   const { className, section, classTeacherId } = req.body || {};
   if (!className || !section) {
     return res.status(400).json({ error: "Class and section are required" });
@@ -121,7 +123,7 @@ classesRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req
   res.status(201).json(created);
 });
 
-classesRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+classesRouter.patch("/:id", ...requireRecordsWrite, async (req, res) => {
   const { className, section, classTeacherId } = req.body || {};
   const updated = await prisma.classSection.update({
     where: { id: req.params.id },
@@ -134,7 +136,7 @@ classesRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async 
   res.json(updated);
 });
 
-classesRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+classesRouter.delete("/:id", ...requireRecordsWrite, async (req, res) => {
   const existing = await prisma.classSection.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Class section not found" });
 

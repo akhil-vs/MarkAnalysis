@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { auth, isLeadership, requireRole } from "../middleware/auth.js";
+import { auth, isLeadership, requireFeature, requireRole } from "../middleware/auth.js";
+import { requireSchoolTenant } from "../lib/tenant.js";
 import { isPastDeadline } from "../lib/markAccess.js";
 import {
   notifyLateEntryRequested,
@@ -9,12 +10,12 @@ import {
   notifyEditReviewed,
 } from "../lib/notifications.js";
 import { logActivity } from "../lib/activityAudit.js";
-import { requireSchoolTenant } from "../lib/tenant.js";
 import { invalidateInsightsCache } from "../lib/insightsCache.js";
 
 export const markAccessRouter = Router();
 markAccessRouter.use(auth);
 markAccessRouter.use(requireSchoolTenant);
+markAccessRouter.use(requireFeature("accessRequests", "marks"));
 
 async function decorateRequest(row) {
   const classSection = await prisma.classSection.findUnique({
@@ -132,26 +133,24 @@ markAccessRouter.post("/", async (req, res) => {
     }
   }
 
-  // Avoid compound unique inputs — stale Prisma clients may not know about kind yet.
+  // One row per register × kind so LATE_ENTRY and EDIT can coexist.
   const existing = await prisma.markEntryAccessRequest.findFirst({
     where: {
       examId,
       teacherId: req.user.userId,
       classSectionId,
       subjectId,
+      kind,
     },
   });
 
   if (existing?.status === "PENDING") {
     return res.status(409).json({
-      error:
-        existing.kind === kind || !existing.kind
-          ? "Request already pending approval"
-          : `A ${existing.kind === "EDIT" ? "edit" : "late entry"} request is already pending for this register`,
+      error: "Request already pending approval",
     });
   }
 
-  if (existing?.status === "APPROVED" && (existing.kind === kind || (!existing.kind && kind === "LATE_ENTRY"))) {
+  if (existing?.status === "APPROVED") {
     return res.json(existing);
   }
 

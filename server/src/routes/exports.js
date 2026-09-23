@@ -6,7 +6,7 @@ import { gradeFromPercent, mean, percentOf, round1 } from "../lib/grades.js";
 import { formatMarkCell, isScoredMark } from "../lib/markCodes.js";
 import { getSchoolLetterhead } from "../lib/school.js";
 import { studentWhereForExam } from "../lib/studentScope.js";
-import { auth, isLeadership, requireRole, teacherIsClassTeacher, teacherCanAccess } from "../middleware/auth.js";
+import { auth, isLeadership, requireFeature, requireRole, teacherIsClassTeacher, teacherCanAccess } from "../middleware/auth.js";
 import {
   buildClassConsolidated,
   buildConsolidatedStatus,
@@ -24,6 +24,7 @@ import { requireSchoolTenant } from "../lib/tenant.js";
 export const exportsRouter = Router();
 exportsRouter.use(auth);
 exportsRouter.use(requireSchoolTenant);
+exportsRouter.use(requireFeature("consolidated", "analysis", "analysisStudents", "marks"));
 
 function pct(mark) {
   if (!isScoredMark(mark)) return null;
