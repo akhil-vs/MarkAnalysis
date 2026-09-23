@@ -25,6 +25,11 @@ import {
 } from "../lib/teacherLeave.js";
 import { leaveAppliesToPeriod, leaveCoversDate } from "../lib/substituteScore.js";
 import { canManageTimetableOps } from "../lib/leaveAccess.js";
+import {
+  assertHoursRange,
+  buildTeacherHoursHistory,
+  defaultHoursRange,
+} from "../lib/teacherHours.js";
 
 export const timetableRouter = Router();
 timetableRouter.use(auth);
@@ -513,6 +518,52 @@ timetableRouter.get("/free", requireTimetableOps(), async (req, res) => {
       onLeaveCount: onLeave.length,
       teacherCount: teachers.length,
     },
+  });
+});
+
+timetableRouter.get("/teachers/:userId/hours", async (req, res) => {
+  const { userId } = req.params;
+  if (!(await canViewTeacher(req, userId))) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  const teacher = await loadTeacherOr404(userId, res);
+  if (!teacher) return;
+
+  const today = ymd(new Date());
+  const fallback = defaultHoursRange(today);
+  const fromYmd = String(req.query.from || fallback.from).trim();
+  const toYmd = String(req.query.to || fallback.to).trim();
+  const range = assertHoursRange(fromYmd, toYmd);
+  if (range.error) return res.status(400).json({ error: range.error });
+
+  await ensureTeacherLeaveSchema();
+  const [periods, entries, school, leaves, substitutions] = await Promise.all([
+    ensureDefaultPeriods(),
+    prisma.timetableEntry.findMany({
+      where: { teacherId: userId },
+      include: ENTRY_INCLUDE,
+      orderBy: [{ dayOfWeek: "asc" }, { period: { sortOrder: "asc" } }],
+    }),
+    getSchoolProfile(),
+    listActiveLeavesForRange(range.from, range.to),
+    listSubstitutionsForDates(range.dates),
+  ]);
+
+  const history = buildTeacherHoursHistory({
+    teacherId: userId,
+    fromYmd: range.from,
+    toYmd: range.to,
+    workingDays: publicWorkingDays(school),
+    periods,
+    entries,
+    leaves: leaves.filter((leave) => leave.teacherId === userId),
+    substitutions,
+  });
+
+  res.json({
+    teacher: publicUser(teacher),
+    ...history,
   });
 });
 

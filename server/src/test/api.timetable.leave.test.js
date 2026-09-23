@@ -251,4 +251,29 @@ describe("API timetable leave + substitutes", () => {
     assert.equal(reopen.status, 400, reopen.text);
     assert.match(reopen.json?.error || "", /Cannot change leave status/i);
   });
+
+  it("returns teacher hours history for the default window", async (t) => {
+    if (!server || !tenantId) return t.skip("DATABASE_URL not set");
+
+    const principal = await loginAs(server, { email: "principal@school.edu" });
+    assert.equal(principal.status, 200, principal.text);
+
+    const teachersRes = await server.request("/api/timetable/teachers", { jar: principal.jar });
+    assert.equal(teachersRes.status, 200, teachersRes.text);
+    const teacher = (teachersRes.json || []).find((row) => (row.entryCount || 0) > 0);
+    assert.ok(teacher, "need a teacher with timetable slots");
+
+    const bad = await server.request(`/api/timetable/teachers/${teacher.id}/hours?from=2026-09-23&to=2026-09-01`, {
+      jar: principal.jar,
+    });
+    assert.equal(bad.status, 400, bad.text);
+
+    const hours = await server.request(`/api/timetable/teachers/${teacher.id}/hours`, { jar: principal.jar });
+    assert.equal(hours.status, 200, hours.text);
+    assert.equal(hours.json?.teacher?.id, teacher.id);
+    assert.ok(Array.isArray(hours.json?.days));
+    assert.ok(hours.json?.summary);
+    assert.equal(typeof hours.json.summary.taughtMinutes, "number");
+    assert.equal(typeof hours.json.summary.extraMinutes, "number");
+  });
 });

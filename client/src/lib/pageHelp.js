@@ -120,7 +120,7 @@ export const PAGE_HELP = {
   timetables: {
     title: "What's on this page",
     about: "Teacher schedules, the all-staff daily board, a free-period finder, and leave with balanced substitute cover.",
-    useful: "Teachers request leave from their dashboard; roles with Leave approval confirm it under Leave & cover so vacated periods show on the daily board. Assign substitutes (role access) to place ranked cover. Cover periods appear as extra hours on the substitute’s daily board row. Enable Leave approval and Assign substitutes under Staff → Role access for vice principals, supervisors, and coordinators.",
+    useful: "Expand a teacher on the Teachers tab to open their weekly timetable, put them on leave, or review hrs history (own teaching plus extra cover hours). Teachers request leave from their dashboard; roles with Leave approval confirm it under Leave & cover so vacated periods show on the daily board. Assign substitutes (role access) to place ranked cover. Cover periods appear as extra hours on the substitute’s daily board row. Enable Leave approval and Assign substitutes under Staff → Role access for vice principals, supervisors, and coordinators.",
   },
   schoolProfile: {
     title: "What's on this page",
