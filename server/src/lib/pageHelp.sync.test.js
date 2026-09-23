@@ -42,6 +42,31 @@ test("nested analysis routes inherit the menu page help", () => {
   assert.equal(helpForPath("/analysis/deep").title, PAGE_HELP.analysisDeep.title);
 });
 
+test("platform school detail uses delete-data help, not the schools list copy", () => {
+  const list = helpForPath("/platform/schools", "PLATFORM_ADMIN");
+  const detail = helpForPath("/platform/schools/abc123", "PLATFORM_ADMIN");
+  assert.equal(helpIdForPath("/platform/schools/abc123"), "platformSchools");
+  assert.equal(list.title, PAGE_HELP.platformSchools.title);
+  assert.equal(detail.title, PAGE_HELP.platformSchoolDetail.title);
+  assert.match(detail.about, /Delete school data/);
+  assert.notEqual(list.about, detail.about);
+});
+
+test("page help mentions current timetable, records, and leave UI", () => {
+  assert.match(PAGE_HELP.timetables.about, /accordion/i);
+  assert.match(PAGE_HELP.timetables.about, /click and drag/i);
+  assert.match(PAGE_HELP.timetables.useful, /Hrs history/);
+  assert.match(PAGE_HELP.timetables.useful, /My leave/);
+  assert.match(PAGE_HELP.schoolProfile.about, /Identity & Affiliation/);
+  assert.match(PAGE_HELP.schoolProfile.about, /Modules & Security/);
+  assert.match(PAGE_HELP.records.about, /Classes in this exam/);
+  assert.match(PAGE_HELP.records.about, /practical max/i);
+  assert.match(PAGE_HELP.marks.about, /Theory \(Th\)/);
+  assert.match(PAGE_HELP.dashboardTeacher.about, /My leave/);
+  assert.match(PAGE_HELP.platformDashboard.about, /Live ops/);
+  assert.match(PAGE_HELP.staff.about, /Role access/);
+});
+
 test("each deep insight tab explains what it is and how it is useful", () => {
   const tabs = ["outcomes", "readiness", "division", "improvement", "promotion", "teachers", "weighted"];
   for (const id of tabs) {

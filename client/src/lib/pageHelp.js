@@ -19,8 +19,8 @@ export const PAGE_HELP = {
   },
   dashboardTeacher: {
     title: "What's on this page",
-    about: "Your papers for the current exam — register status, section strength, notices, and students to watch.",
-    useful: "See which of your classes still need marks, and which students need follow-up, without leaving your desk.",
+    about: "Your papers for the current exam — register status, section strength, notices, students to watch, and My leave to request dates for approval.",
+    useful: "See which of your classes still need marks, and which students need follow-up, without leaving your desk. Request leave here so leadership can approve it and arrange cover.",
   },
   analysis: {
     title: "What's on this page",
@@ -69,8 +69,8 @@ export const PAGE_HELP = {
   },
   marks: {
     title: "What's on this page",
-    about: "The mark register: enter marks by class and subject, save a draft, then submit for leadership approval. Use AB, EX, or WH for absent, exempt, or withheld.",
-    useful: "This is the official paper. Drafts stay private; only approved marks feed analytics, ranks, and consolidated lists.",
+    about: "The mark register: enter marks by class and subject, save a draft, then submit for leadership approval. Use AB, EX, or WH for absent, exempt, or withheld. Papers with a practical max show Theory (Th) and Practical (Pr) columns — codes apply to theory only. Elective papers skip students who are not enrolled.",
+    useful: "This is the official paper. Drafts stay private; only approved marks feed analytics, ranks, and consolidated lists. For split papers, enter both theory and practical numbers. A dash means the student is not enrolled in that elective.",
   },
   marksPrincipal: {
     title: "What's on this page",
@@ -94,8 +94,8 @@ export const PAGE_HELP = {
   },
   hallTickets: {
     title: "What's on this page",
-    about: "Class hall tickets for a selected exam: student identity and photo, paper schedule, venue, and instructions. Five tickets print on each A4 page. Principals and exam coordinators create and edit batches; teachers can view and download for their classes.",
-    useful: "Pick an exam, then a class and division. Preview loads on the right; use Download PDF (or the PDF button beside each division) to print. Create/save a batch to store title, venue, and instructions. Upload student photos under Student photos (or Records → Students). Paper dates and start times come from Records → Exams — if one class timetable is done, leadership can copy it to the other classes.",
+    about: "Class hall tickets for a selected exam: student identity and photo, paper schedule, venue, and instructions. Five tickets print on each A4 page (Download PDF (5 / A4)). Principals and exam coordinators create and edit batches; teachers can view and download for their classes.",
+    useful: "Pick an exam, then a class and division. Preview loads on the right with a With photo count. Use Download PDF (5 / A4) or the PDF button beside each division to print. Create/save a batch to store title, venue, and instructions, and tick Print student photos when available. Upload photos under Student photos (or Records → Students). Paper dates and start times come from Records → Exams — if one class timetable is done, leadership can copy it to the other classes.",
   },
   studentPhotos: {
     title: "What's on this page",
@@ -109,23 +109,23 @@ export const PAGE_HELP = {
   },
   staff: {
     title: "What's on this page",
-    about: "Staff accounts: add or bulk-import users, activate pending sign-ups, manage role feature access, assign classes and subjects, and open a teacher’s timetable.",
-    useful: "Teachers cannot enter marks until they are active and assigned to a paper. Download the spreadsheet template (Name, Email, School ID, Password, Role), fill it as CSV or Excel, then use Bulk Import. Keep assignments in step with the timetable.",
+    about: "Staff accounts in an expandable directory: add or bulk-import users, activate pending sign-ups, manage Role access (including Timetables, Leave approval, and Assign substitutes), assign classes and subjects, transfer classes to a replacement, and open a teacher’s timetable.",
+    useful: "Expand a staff row for assignments and actions. Teachers cannot enter marks until they are active and assigned to a paper. Download the spreadsheet template (Name, Email, School ID, Password, Role), fill it as CSV or Excel, then use Bulk Import. Use Role access to grant leave approval or substitute assignment to vice principals, supervisors, or coordinators. Keep assignments in step with the timetable.",
   },
   records: {
     title: "What's on this page",
-    about: "School structure: classes with divisions, a shared subject pool with marks, subjects selected per class (covering every division), students, the exam calendar (pick included classes, then per-class / per-subject paper dates) and consolidation max marks, and year-end promotion.",
-    useful: "On Classes, enter the class once and add every division with optional class teachers in one step (Fill A–D for a quick start). On Subjects, add papers to the pool with max marks, then select which ones each class uses. When scheduling an exam, set the same date for every paper or different dates per class and subject.",
+    about: "School structure: a directory of registered class sections (expand a grade to manage divisions and class teachers), a shared subject pool with theory max marks, optional practical max, and electives, subjects selected per class, students, the exam calendar (choose Classes in this exam, then per-class / per-subject paper dates) and consolidation max marks, and year-end promotion.",
+    useful: "On Classes, enter the class once and add every division with optional class teachers in one step (Fill A–D for a quick start), then use Registered class sections to search and filter. On Subjects, add papers to the pool with max marks (and Practical max if needed; tick Elective to enroll selected students only), then select which ones each class uses. When scheduling an exam, pick the classes that sit under it, then set the same date for every paper or different dates per class and subject.",
   },
   timetables: {
     title: "What's on this page",
-    about: "Teacher schedules, the all-staff daily board, a free-period finder, and leave with balanced substitute cover. Expand a teacher for the weekly grid, leave, or hours history (classes, taught hours, and extra cover hours by day).",
-    useful: "Expand a teacher on the Teachers tab to open their weekly timetable, put them on leave, or review hrs history for the current school week (own teaching plus extra cover hours). The week follows the working days set in School profile, not Monday–Sunday. Use Previous week and Next week to load one school week at a time, or pick a From / To date range (up to 31 days). Teachers request leave from their dashboard; roles with Leave approval confirm it under Leave & cover so vacated periods show on the daily board. Assign substitutes (role access) to place ranked cover. Cover periods appear as extra hours on the substitute’s daily board row and in Hours history. Enable Leave approval and Assign substitutes under Staff → Role access for vice principals, supervisors, and coordinators.",
+    about: "Teacher schedules as an accordion, the all-staff daily board (click and drag to scroll periods), a free-period finder, and leave with balanced substitute cover. Expand a teacher for the weekly grid, Put on leave, or Hrs history (own teaching hours plus extra cover hours by day).",
+    useful: "On the Teachers tab, expand a row to Open timetable, Put on leave, or review Hrs history for the current school week. The week follows the working days set in School profile, not Monday–Sunday. Use Previous week and Next week, or pick a From / To date range (up to 31 days) and Show range. Daily board rows show period count and teaching hours, with +extra hours when that teacher is covering. Teachers request leave from My leave on their dashboard; roles with Leave approval confirm it under Leave & cover so vacated periods show as Needs cover. Assign substitutes (role access) to place ranked cover from the board or the Cover planner. Enable Leave approval and Assign substitutes under Staff → Role access for vice principals, supervisors, and coordinators.",
   },
   schoolProfile: {
     title: "What's on this page",
-    about: "School identity (name, crest, school code, affiliation, address, and contact), the join code for new staff, the 5- or 6-day working week and bell schedule, pass and distinction bands, and the unit / mid / final weights used for the annual composite — organised into tabs for quicker access.",
-    useful: "Use the tabs to jump between identity, campus contact, modules & join code, grading, and bell schedule. Upload a PNG or JPEG logo so report cards and mark lists print with a proper letterhead. Share the join code with teachers so they can request access. Set the school week and periods here so timetables match your day. Grading settings drive grades, pass lists, and Deep insights — configure them before you publish results.",
+    about: "School identity and campus details, the join code, optional modules, pass and distinction bands, and the 5- or 6-day working week and bell schedule — organised into tabs: Identity & Affiliation, Campus & Contact, Modules & Security, Grading Framework, and Bell Schedule & Timings.",
+    useful: "Use the tabs to jump between sections. Upload a PNG or JPEG logo under Identity & Affiliation so report cards and mark lists print with a proper letterhead. Share the join code from Modules & Security so teachers can request access. Set the school week and periods under Bell Schedule & Timings so timetables match your day. Grading Framework drives grades, pass lists, and Deep insights — configure them before you publish results.",
   },
   boardOps: {
     title: "What's on this page",
@@ -149,18 +149,23 @@ export const PAGE_HELP = {
   },
   platformDashboard: {
     title: "What's on this page",
-    about: "Platform overview of every school on this deployment: how many are active or suspended, total staff and students, and the most recently added campuses.",
-    useful: "Start here to see whether onboarding is healthy, then open a school to edit its profile, suspend access, or reset a principal password.",
+    about: "Platform overview of every school on this deployment: how many are active or suspended, total staff and students, pending staff, and the most recently added campuses. Live ops shows health plus Download backup, Run email digests, and Flush mail queue.",
+    useful: "Start here to see whether onboarding is healthy, then open a school to edit its profile, suspend access, reset a principal password, or delete selected campus data. Use Live ops to export a JSON backup or process the mail queue after enabling SMTP.",
   },
   platformSchools: {
     title: "What's on this page",
     about: "Every school on the platform with status, board, staff and student counts. Search by name, code, or board, and filter active versus suspended campuses.",
-    useful: "Open a row to manage that school, or add a campus when a new institution should get its own principal and isolated marks data.",
+    useful: "Open a row to manage that school’s profile, principals, suspend or reactivate access, or Delete school data (selected categories or the whole campus). Add a campus when a new institution should get its own principal and isolated marks data.",
   },
   platformSchoolNew: {
     title: "What's on this page",
     about: "Provision a new school: identity, a unique school code used at sign-up, and the first principal account.",
     useful: "Share the school code with staff so they can request access, and give the principal their password once — they must change it on first sign-in.",
+  },
+  platformSchoolDetail: {
+    title: "What's on this page",
+    about: "One campus: identity and board details, principals, suspend or reactivate access, and Delete school data — selected categories (marks, exams, students, classes, timetables, staff, and more) or the entire school record.",
+    useful: "Download a backup from Live ops on the platform overview first. Tick the categories to wipe, optionally keep principal accounts or restore the default bell schedule, then type the school code (and name for a full delete) to confirm. Permanent delete removes the campus from the platform.",
   },
 };
 
@@ -339,6 +344,10 @@ export function helpForPath(pathname, role) {
     return PAGE_HELP.dashboard;
   }
   if (id === "marks" && role === "PRINCIPAL") return PAGE_HELP.marksPrincipal;
+  if (id === "platformSchools") {
+    const path = (pathname || "/").split("?")[0] || "/";
+    if (/^\/platform\/schools\/[^/]+$/.test(path)) return PAGE_HELP.platformSchoolDetail;
+  }
   return PAGE_HELP[id] || null;
 }
 

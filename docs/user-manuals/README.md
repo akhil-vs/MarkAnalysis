@@ -22,12 +22,15 @@ npm run docs:pdf
 |---|---|---|---|
 | Enter / bulk-upload marks | — | Yes | Yes |
 | Approve submitted registers | Yes | Yes | — |
-| Manage staff & assignments | Yes (incl. co-ordinators & feature access) | Teachers & assignments | — |
+| Manage staff & assignments | Yes (incl. co-ordinators & Role access) | Teachers & assignments | — |
 | School profile & join code | Yes (join code rotate is principal-only) | Edit profile (not join code) | — |
 | Records (classes, subjects, students, exams) | Yes | Yes | — |
 | Consolidated mark lists | Yes | Yes | Class teachers only (own section, when complete) |
 | School / subject / teacher analysis | Yes | Yes | Limited (own classes & students) |
-| Timetables | Yes | Yes | View own schedule via staff link if shared |
+| Timetables (accordion, daily board, hours) | Yes | Yes | View if Role access grants it, or via staff link |
+| Leave (request / approve) & substitutes | Approve & assign cover | Approve & assign cover (default) | Request from **My leave** |
+| Student photos | Any student | Any student | Assigned classes |
+| Hall tickets | Create / edit / print | Create / edit / print | View / download own classes |
 | Board ops & CPD (when enabled) | Yes | Yes | Own CPD record |
 | Audit log (all staff) | Full | Teacher actions | — |
 
