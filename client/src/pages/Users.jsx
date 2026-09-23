@@ -303,6 +303,42 @@ function AssignmentSummary({ assignments, maxVisible = 2 }) {
   );
 }
 
+function AssignmentList({ assignments }) {
+  const tags = useMemo(() => assignmentTags(assignments), [assignments]);
+  if (!tags.length) {
+    return <p className="text-sm text-ink-700/45">No classroom assignments yet.</p>;
+  }
+  return (
+    <ul className="flex flex-wrap gap-1.5">
+      {tags.map((tag) => (
+        <li
+          key={tag}
+          className="inline-flex items-center rounded-md border border-ink-900/10 bg-white/70 px-2 py-0.5 text-xs text-ink-700/80"
+        >
+          {tag}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function AccordionChevron({ open }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      className={`shrink-0 text-ink-700/45 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+      aria-hidden="true"
+    >
+      <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
 function StaffStats({ summary }) {
   const total = summary?.total ?? 0;
   const active = summary?.active ?? 0;
@@ -369,6 +405,7 @@ export default function Users() {
   const [newRoleBase, setNewRoleBase] = useState("TEACHER");
   const [savingRole, setSavingRole] = useState(false);
   const [listLoading, setListLoading] = useState(true);
+  const [openStaffId, setOpenStaffId] = useState(null);
   const table = useTableSearch(users, { getSearchText: userSearchText, filterDefs: USER_FILTERS });
   const tableBusy = Boolean(busyId) || creating || importing || savingRole || listLoading;
 
@@ -1205,53 +1242,78 @@ export default function Users() {
           busyLabel={listLoading ? "Loading staff…" : "Updating staff…"}
         >
           {(pageItems) => (
-            <table className="table">
-              <thead>
-                <tr>
-                  <th>Staff Member</th>
-                  <th>Role</th>
-                  <th>Status</th>
-                  <th>Assignments</th>
-                  <th className="text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageItems.map((u) => {
-                  const busy = busyId === u.id;
-                  const canApprove = leadership && u.status !== "ACTIVE";
-                  const canReject = leadership && u.status === "PENDING";
-                  const canAssign = u.role === "TEACHER";
-                  const canReset = user.role === "PRINCIPAL" && u.id !== user.id;
-                  const isLeadershipRole = u.role === "PRINCIPAL" || u.role === "EXAM_COORDINATOR";
-                  const canEditRow = canManageStaffRow(u);
-                  const canDeleteRow = canEditRow && u.id !== user.id;
+            <div className="accordion-list" role="list">
+              {pageItems.map((u) => {
+                const busy = busyId === u.id;
+                const canApprove = leadership && u.status !== "ACTIVE";
+                const canReject = leadership && u.status === "PENDING";
+                const canAssign = u.role === "TEACHER";
+                const canReset = user.role === "PRINCIPAL" && u.id !== user.id;
+                const isLeadershipRole = u.role === "PRINCIPAL" || u.role === "EXAM_COORDINATOR";
+                const canEditRow = canManageStaffRow(u);
+                const canDeleteRow = canEditRow && u.id !== user.id;
+                const open = openStaffId === u.id;
+                const panelId = `staff-panel-${u.id}`;
+                const buttonId = `staff-trigger-${u.id}`;
+                const assignmentCount = (u.assignments || []).length;
 
-                  return (
-                    <tr key={u.id}>
-                      <td>
-                        <div className="flex items-start gap-3 min-w-[14rem]">
-                          <span
-                            className={`mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarTone(u.id || u.name)}`}
-                            aria-hidden="true"
-                          >
-                            {initials(u.name)}
+                return (
+                  <div key={u.id} className={`accordion-item ${open ? "accordion-item-open" : ""}`} role="listitem">
+                    <h3 className="m-0">
+                      <button
+                        type="button"
+                        id={buttonId}
+                        className="accordion-trigger"
+                        aria-expanded={open}
+                        aria-controls={panelId}
+                        onClick={() => setOpenStaffId((current) => (current === u.id ? null : u.id))}
+                      >
+                        <span
+                          className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarTone(u.id || u.name)}`}
+                          aria-hidden="true"
+                        >
+                          {initials(u.name)}
+                        </span>
+                        <span className="min-w-0 flex-1 text-left">
+                          <span className="flex flex-wrap items-center gap-1.5">
+                            <span className="font-medium text-ink-900">{u.name}</span>
+                            {u.schoolId && (
+                              <span className="inline-flex items-center rounded-md bg-ink-900/5 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-700/60">
+                                {u.schoolId}
+                              </span>
+                            )}
                           </span>
-                          <div className="min-w-0">
-                            <div className="flex flex-wrap items-center gap-1.5">
-                              <span className="font-medium text-ink-900">{u.name}</span>
-                              {u.schoolId && (
-                                <span className="inline-flex items-center rounded-md bg-ink-900/5 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-ink-700/60">
-                                  {u.schoolId}
-                                </span>
-                              )}
-                            </div>
-                            <div className="text-xs text-ink-700/55 mt-0.5 truncate">
-                              {u.email || "—"}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td>
+                          <span className="mt-0.5 block truncate text-xs text-ink-700/55">{u.email || "—"}</span>
+                        </span>
+                        <span className="hidden sm:flex flex-wrap items-center justify-end gap-2 shrink-0">
+                          <span
+                            className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide ${
+                              u.role === "TEACHER" && !u.roleTitle ? "uppercase" : ""
+                            } ${roleChipClass(u.role)}`}
+                          >
+                            {staffRoleLabel(u)}
+                          </span>
+                          <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass(u.status)}`}>
+                            <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(u.status)}`} aria-hidden="true" />
+                            {statusLabel(u.status)}
+                          </span>
+                          {canAssign && (
+                            <span className="text-xs text-ink-700/50">
+                              {assignmentCount} paper{assignmentCount === 1 ? "" : "s"}
+                            </span>
+                          )}
+                        </span>
+                        <AccordionChevron open={open} />
+                      </button>
+                    </h3>
+                    <div
+                      id={panelId}
+                      role="region"
+                      aria-labelledby={buttonId}
+                      hidden={!open}
+                      className="accordion-panel px-3 sm:px-4 pb-4 pt-1"
+                    >
+                      <div className="flex flex-wrap gap-2 sm:hidden mb-3">
                         <span
                           className={`inline-flex items-center rounded-md px-2 py-0.5 text-[10px] font-semibold tracking-wide ${
                             u.role === "TEACHER" && !u.roleTitle ? "uppercase" : ""
@@ -1259,129 +1321,115 @@ export default function Users() {
                         >
                           {staffRoleLabel(u)}
                         </span>
-                      </td>
-                      <td>
                         <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusBadgeClass(u.status)}`}>
                           <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(u.status)}`} aria-hidden="true" />
                           {statusLabel(u.status)}
                         </span>
-                      </td>
-                      <td>
-                        {u.role === "TEACHER" ? (
-                          <AssignmentSummary assignments={u.assignments} />
-                        ) : u.role === "PRINCIPAL" ? (
-                          <span className="text-sm italic text-ink-700/50">
-                            All Classrooms & Administrative Oversight
-                          </span>
-                        ) : (
-                          <span className="text-sm italic text-ink-700/50">
-                            Exam operations & register oversight
-                          </span>
-                        )}
-                      </td>
-                      <td>
-                        <div className="flex flex-wrap items-center justify-end gap-1">
-                          {canApprove && (
-                            <IconAction
-                              tip={busy ? "Saving…" : "Approve"}
-                              icon="approve"
-                              tone="primary"
-                              busy={busy}
-                              disabled={tableBusy}
-                              onClick={() => setStatus(u.id, "ACTIVE")}
-                            />
-                          )}
-                          {canReject && (
-                            <IconAction
-                              tip="Reject"
-                              icon="reject"
-                              tone="danger"
-                              disabled={tableBusy}
-                              onClick={() => setStatus(u.id, "REJECTED")}
-                            />
-                          )}
-                          {canEditRow && (
-                            <IconAction
-                              tip="Edit"
-                              icon="edit"
-                              disabled={tableBusy}
-                              onClick={() => startEdit(u)}
-                            />
-                          )}
-                          {canAssign && (
-                            <IconAction
-                              tip="Assign"
-                              icon="assign"
-                              disabled={tableBusy}
-                              onClick={() => setAssigning(u)}
-                            />
-                          )}
-                          {canAssign && (
-                            <IconAction
-                              tip="Transfer classes"
-                              icon="transfer"
-                              disabled={tableBusy}
-                              onClick={() => setTransferring(u)}
-                            />
-                          )}
-                          {canAssign && u.status === "ACTIVE" && (
-                            <IconAction tip="Timetable" icon="timetable" to={`/timetables/teachers/${u.id}`} />
-                          )}
-                          {canAssign && u.status === "ACTIVE" && (
-                            <IconAction
-                              tip="Notify"
-                              icon="notify"
-                              disabled={tableBusy}
-                              onClick={() =>
-                                setNotify({
-                                  kind: "CUSTOM",
-                                  audience: "SELECTED",
-                                  teacherIds: [u.id],
-                                  teacherName: u.name,
-                                })
-                              }
-                            />
-                          )}
-                          {canReset && (
-                            <IconAction
-                              tip="Reset password"
-                              icon="reset"
-                              disabled={tableBusy}
-                              onClick={() => setResetting(u)}
-                            />
-                          )}
-                          {canManageAccess && u.role !== "PRINCIPAL" && u.status === "ACTIVE" && (
-                            <IconAction
-                              tip="Manage role access"
-                              icon="permissions"
-                              disabled={tableBusy}
-                              onClick={() => openRoleAccessForUser(u)}
-                            />
-                          )}
-                          {!canManageAccess && isLeadershipRole && u.status === "ACTIVE" && (
-                            <IconAction
-                              tip="View permissions"
-                              icon="permissions"
-                              disabled={tableBusy}
-                              onClick={() => setPermissionsUser(u)}
-                            />
-                          )}
-                          {canDeleteRow && (
-                            <IconAction
-                              tip="Delete"
-                              icon="delete"
-                              tone="danger"
-                              disabled={tableBusy}
-                              onClick={() => removeStaff(u)}
-                            />
+                      </div>
+
+                      <div className="space-y-3 rounded-lg border border-ink-900/10 bg-white/70 p-3">
+                        <div>
+                          <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45 mb-1.5">
+                            {canAssign ? "Assignments" : "Scope"}
+                          </div>
+                          {u.role === "TEACHER" ? (
+                            <AssignmentList assignments={u.assignments} />
+                          ) : u.role === "PRINCIPAL" ? (
+                            <p className="text-sm italic text-ink-700/55">All Classrooms & Administrative Oversight</p>
+                          ) : (
+                            <p className="text-sm italic text-ink-700/55">Exam operations & register oversight</p>
                           )}
                         </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+                        <div>
+                          <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45 mb-1.5">Actions</div>
+                          <div className="flex flex-wrap items-center gap-1">
+                            {canApprove && (
+                              <IconAction
+                                tip={busy ? "Saving…" : "Approve"}
+                                icon="approve"
+                                tone="primary"
+                                busy={busy}
+                                disabled={tableBusy}
+                                onClick={() => setStatus(u.id, "ACTIVE")}
+                              />
+                            )}
+                            {canReject && (
+                              <IconAction
+                                tip="Reject"
+                                icon="reject"
+                                tone="danger"
+                                disabled={tableBusy}
+                                onClick={() => setStatus(u.id, "REJECTED")}
+                              />
+                            )}
+                            {canEditRow && (
+                              <IconAction tip="Edit" icon="edit" disabled={tableBusy} onClick={() => startEdit(u)} />
+                            )}
+                            {canAssign && (
+                              <IconAction tip="Assign" icon="assign" disabled={tableBusy} onClick={() => setAssigning(u)} />
+                            )}
+                            {canAssign && (
+                              <IconAction
+                                tip="Transfer classes"
+                                icon="transfer"
+                                disabled={tableBusy}
+                                onClick={() => setTransferring(u)}
+                              />
+                            )}
+                            {canAssign && u.status === "ACTIVE" && (
+                              <IconAction tip="Timetable" icon="timetable" to={`/timetables/teachers/${u.id}`} />
+                            )}
+                            {canAssign && u.status === "ACTIVE" && (
+                              <IconAction
+                                tip="Notify"
+                                icon="notify"
+                                disabled={tableBusy}
+                                onClick={() =>
+                                  setNotify({
+                                    kind: "CUSTOM",
+                                    audience: "SELECTED",
+                                    teacherIds: [u.id],
+                                    teacherName: u.name,
+                                  })
+                                }
+                              />
+                            )}
+                            {canReset && (
+                              <IconAction tip="Reset password" icon="reset" disabled={tableBusy} onClick={() => setResetting(u)} />
+                            )}
+                            {canManageAccess && u.role !== "PRINCIPAL" && u.status === "ACTIVE" && (
+                              <IconAction
+                                tip="Manage role access"
+                                icon="permissions"
+                                disabled={tableBusy}
+                                onClick={() => openRoleAccessForUser(u)}
+                              />
+                            )}
+                            {!canManageAccess && isLeadershipRole && u.status === "ACTIVE" && (
+                              <IconAction
+                                tip="View permissions"
+                                icon="permissions"
+                                disabled={tableBusy}
+                                onClick={() => setPermissionsUser(u)}
+                              />
+                            )}
+                            {canDeleteRow && (
+                              <IconAction
+                                tip="Delete"
+                                icon="delete"
+                                tone="danger"
+                                disabled={tableBusy}
+                                onClick={() => removeStaff(u)}
+                              />
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </PaginatedTable>
       </div>
