@@ -40,7 +40,7 @@ export default function PlatformHome() {
   async function runBackup() {
     setBusy("backup");
     try {
-      const backup = await api("/api/platform/backup");
+      const backup = await api("/api/platform/backup", { method: "POST", body: {} });
       downloadJson(`sma-backup-${new Date().toISOString().slice(0, 10)}.json`, backup);
       toast.success(`Backup downloaded (${backup.schoolCount} schools).`);
     } catch (err) {
