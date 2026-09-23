@@ -68,12 +68,29 @@ function asDate(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
+const REUSE_GRACE_MS = 15_000;
+
+/** True when a revoked refresh token is presented after the rotation race window. */
+export function isRefreshReuse(existing, now = Date.now(), graceMs = REUSE_GRACE_MS) {
+  if (!existing?.revokedAt) return false;
+  const revokedAt = asDate(existing.revokedAt);
+  if (!revokedAt) return true;
+  return now - revokedAt.getTime() > graceMs;
+}
+
 export async function rotateRefreshSession(rawToken, { userAgent } = {}) {
   if (!rawToken) return null;
   const tokenHash = hashRefreshToken(rawToken);
   const existing = await prisma.refreshToken.findUnique({ where: { tokenHash } });
-  const expiresAt = asDate(existing?.expiresAt);
-  if (!existing || existing.revokedAt || !expiresAt || expiresAt.getTime() <= Date.now()) {
+  if (!existing) return null;
+  if (existing.revokedAt) {
+    if (isRefreshReuse(existing)) {
+      await revokeAllRefreshSessions(existing.userId);
+    }
+    return null;
+  }
+  const expiresAt = asDate(existing.expiresAt);
+  if (!expiresAt || expiresAt.getTime() <= Date.now()) {
     return null;
   }
   await prisma.refreshToken.update({
