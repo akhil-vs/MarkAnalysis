@@ -233,29 +233,41 @@ authRouter.post("/signup", authWriteLimit, async (req, res) => {
 
   if (normalizedEmail) {
     const exists = await runWithoutTenant(() => prisma.user.findUnique({ where: { email: normalizedEmail } }));
-    if (exists) return res.status(409).json({ error: "Email already registered" });
+    if (exists) {
+      return res.status(409).json({ error: "Could not create this account with the details provided" });
+    }
   }
   if (schoolId) {
     const exists = await runWithTenant(school.id, () =>
       prisma.user.findFirst({ where: { schoolId } })
     );
-    if (exists) return res.status(409).json({ error: "School ID already registered at this school" });
+    if (exists) {
+      return res.status(409).json({ error: "Could not create this account with the details provided" });
+    }
   }
 
   const passwordHash = await hashPassword(password);
-  const user = await runWithTenant(school.id, () =>
-    prisma.user.create({
-      data: {
-        name,
-        email: normalizedEmail || null,
-        schoolId: schoolId || null,
-        passwordHash,
-        role: chosenRole,
-        status: "PENDING",
-        mustChangePassword: false,
-      },
-    })
-  );
+  let user;
+  try {
+    user = await runWithTenant(school.id, () =>
+      prisma.user.create({
+        data: {
+          name,
+          email: normalizedEmail || null,
+          schoolId: schoolId || null,
+          passwordHash,
+          role: chosenRole,
+          status: "PENDING",
+          mustChangePassword: false,
+        },
+      })
+    );
+  } catch (err) {
+    if (err?.code === "P2002" || err?.code === "23505") {
+      return res.status(409).json({ error: "Could not create this account with the details provided" });
+    }
+    throw err;
+  }
 
   return res.status(201).json({
     user: publicUser(user, school),

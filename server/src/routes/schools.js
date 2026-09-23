@@ -58,40 +58,51 @@ schoolsRouter.post("/register", registerLimit, async (req, res) => {
   }
 
   const exists = await runWithoutTenant(() => prisma.user.findUnique({ where: { email: parsedEmail.value } }));
-  if (exists) return res.status(409).json({ error: "Email already registered" });
+  if (exists) {
+    return res.status(409).json({ error: "Could not complete registration with the details provided" });
+  }
 
   const slug = await allocateSchoolSlug(schoolName);
   const joinCode = await allocateJoinCode();
   const passwordHash = await bcrypt.hash(password, 10);
 
-  const { school, principal } = await runWithoutTenant(async () => {
-    const schoolRow = await prisma.school.create({
-      data: {
-        slug,
-        joinCode,
-        name: String(schoolName).trim(),
-        board: board ? String(board).trim() : null,
-      },
-    });
-    const principalRow = await prisma.user.create({
-      data: {
-        tenantId: schoolRow.id,
-        name: String(name).trim(),
-        email: parsedEmail.value,
-        schoolId: schoolId ? String(schoolId).trim() : null,
-        passwordHash,
-        role: "PRINCIPAL",
-        status: "ACTIVE",
-        mustChangePassword: false,
-      },
-    });
-    if (DEFAULT_PERIODS.length) {
-      await prisma.period.createMany({
-        data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId: schoolRow.id })),
+  let school;
+  let principal;
+  try {
+    ({ school, principal } = await runWithoutTenant(async () => {
+      const schoolRow = await prisma.school.create({
+        data: {
+          slug,
+          joinCode,
+          name: String(schoolName).trim(),
+          board: board ? String(board).trim() : null,
+        },
       });
+      const principalRow = await prisma.user.create({
+        data: {
+          tenantId: schoolRow.id,
+          name: String(name).trim(),
+          email: parsedEmail.value,
+          schoolId: schoolId ? String(schoolId).trim() : null,
+          passwordHash,
+          role: "PRINCIPAL",
+          status: "ACTIVE",
+          mustChangePassword: false,
+        },
+      });
+      if (DEFAULT_PERIODS.length) {
+        await prisma.period.createMany({
+          data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId: schoolRow.id })),
+        });
+      }
+      return { school: schoolRow, principal: principalRow };
+    }));
+  } catch (err) {
+    if (err?.code === "P2002" || err?.code === "23505") {
+      return res.status(409).json({ error: "Could not complete registration with the details provided" });
     }
-    return { school: schoolRow, principal: principalRow };
-  });
+    throw err;
+  }
 
   await runWithTenant(school.id, () =>
     logActivity({
