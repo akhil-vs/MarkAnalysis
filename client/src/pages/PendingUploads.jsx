@@ -9,11 +9,38 @@ import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
+import { avatarTone, initials } from "../lib/classRecordPresentation.js";
 import { paths, NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 function assignmentSearchText(a) {
   return searchHaystack(a.classLabel, a.subject);
+}
+
+function AccordionChevron({ open }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      className={`shrink-0 text-ink-700/45 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+      aria-hidden="true"
+    >
+      <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function teacherCountLabel(teacher, mode) {
+  if (mode === "awaiting") {
+    const n = teacher.awaitingApprovalAssignments;
+    return `${n} register${n === 1 ? "" : "s"} awaiting approval`;
+  }
+  const n = teacher.missingAssignments;
+  return `${n} register${n === 1 ? "" : "s"} outstanding`;
 }
 
 export default function PendingUploads() {
@@ -102,46 +129,50 @@ export default function PendingUploads() {
         <div className="space-y-6">
           {awaiting.length > 0 && (
             <section className="space-y-3">
-              <h2 className="font-serif text-xl">Entered — awaiting your approval</h2>
-              <p className="text-sm text-ink-700/60">
-                Approve each teacher’s register separately. Drafts and other teachers’ registers stay unpublished.
-              </p>
-              {awaiting.map((t) => (
-                <TeacherCard
-                  key={`await-${t.teacherId}`}
-                  teacher={t}
-                  mode="awaiting"
-                  examId={examId}
-                  onApproved={async (msg, ok = true) => {
-                    if (ok) toast.success(msg);
-                    else toast.error(msg);
-                    await load(examId);
-                  }}
-                />
-              ))}
+              <div>
+                <h2 className="font-serif text-xl">Entered — awaiting your approval</h2>
+                <p className="text-sm text-ink-700/60 mt-1">
+                  Expand a teacher to approve each register separately. Drafts and other teachers’ registers stay
+                  unpublished.
+                </p>
+              </div>
+              <TeacherAccordionList
+                key={`${examId}-awaiting`}
+                teachers={awaiting}
+                mode="awaiting"
+                examId={examId}
+                onApproved={async (msg, ok = true) => {
+                  if (ok) toast.success(msg);
+                  else toast.error(msg);
+                  await load(examId);
+                }}
+              />
             </section>
           )}
           {pending.length > 0 && (
             <section className="space-y-3">
-              <h2 className="font-serif text-xl">Still missing marks</h2>
-              {pending.map((t) => (
-                <TeacherCard
-                  key={`pend-${t.teacherId}`}
-                  teacher={t}
-                  mode="pending"
-                  examId={examId}
-                  onNotify={() =>
-                    setNotify({
-                      kind: "INCOMPLETE",
-                      examId,
-                      audience: "SELECTED",
-                      teacherIds: [t.teacherId],
-                      teacherName: t.name,
-                      exams: data.exams,
-                    })
-                  }
-                />
-              ))}
+              <div>
+                <h2 className="font-serif text-xl">Still missing marks</h2>
+                <p className="text-sm text-ink-700/60 mt-1">
+                  Expand a teacher to see outstanding papers, open the register, or send a reminder.
+                </p>
+              </div>
+              <TeacherAccordionList
+                key={`${examId}-pending`}
+                teachers={pending}
+                mode="pending"
+                examId={examId}
+                onNotifyTeacher={(t) =>
+                  setNotify({
+                    kind: "INCOMPLETE",
+                    examId,
+                    audience: "SELECTED",
+                    teacherIds: [t.teacherId],
+                    teacherName: t.name,
+                    exams: data.exams,
+                  })
+                }
+              />
             </section>
           )}
         </div>
@@ -161,7 +192,30 @@ export default function PendingUploads() {
   );
 }
 
-function TeacherCard({ teacher: t, mode, examId, onApproved, onNotify }) {
+function TeacherAccordionList({ teachers, mode, examId, onApproved, onNotifyTeacher }) {
+  const [openTeacherId, setOpenTeacherId] = useState(null);
+
+  return (
+    <div className="card overflow-hidden">
+      <div className="accordion-list" role="list">
+        {teachers.map((t) => (
+          <TeacherAccordion
+            key={t.teacherId}
+            teacher={t}
+            mode={mode}
+            examId={examId}
+            open={openTeacherId === t.teacherId}
+            onToggle={() => setOpenTeacherId((current) => (current === t.teacherId ? null : t.teacherId))}
+            onApproved={onApproved}
+            onNotify={onNotifyTeacher ? () => onNotifyTeacher(t) : undefined}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function TeacherAccordion({ teacher: t, mode, examId, open, onToggle, onApproved, onNotify }) {
   const confirm = useConfirm();
   const [busyKey, setBusyKey] = useState("");
   const rows =
@@ -173,6 +227,9 @@ function TeacherCard({ teacher: t, mode, examId, onApproved, onNotify }) {
         )
       : t.assignments.filter((a) => a.missing > 0);
   const table = useTableSearch(rows, { getSearchText: assignmentSearchText });
+  const countLabel = teacherCountLabel(t, mode);
+  const panelId = `pending-${mode}-panel-${t.teacherId}`;
+  const buttonId = `pending-${mode}-trigger-${t.teacherId}`;
 
   async function approveRegister(a) {
     if (!a.subjectId) {
@@ -209,98 +266,121 @@ function TeacherCard({ teacher: t, mode, examId, onApproved, onNotify }) {
   }
 
   return (
-    <div className="card p-4">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <div>
-          <div className="font-serif text-xl">{t.name}</div>
-          <div className="text-xs text-ink-700/60">{t.email}</div>
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          {onNotify && (
-            <button type="button" className="btn-ghost" onClick={onNotify}>
-              Notify
-            </button>
-          )}
-          <div className="text-sm text-clay-600">
-            {mode === "awaiting"
-              ? `${t.awaitingApprovalAssignments} register${t.awaitingApprovalAssignments === 1 ? "" : "s"} awaiting approval`
-              : `${t.missingAssignments} register${t.missingAssignments === 1 ? "" : "s"} outstanding`}
-          </div>
-        </div>
-      </div>
-      <div className="mt-3">
-        <TableToolbar
-          q={table.q}
-          setQ={table.setQ}
-          placeholder="Search class or subject"
-          matched={table.matched}
-          total={table.total}
-        />
-      </div>
-      <PaginatedTable
-        items={table.filtered}
-        pageSize={5}
-        pageSizeOptions={[5, 10, 25]}
-        resetKey={table.resetKey}
-        empty="No rows."
-        busy={Boolean(busyKey)}
-        busyLabel="Approving marks…"
+    <div className={`accordion-item ${open ? "accordion-item-open" : ""}`} role="listitem">
+      <h3 className="m-0">
+        <button
+          type="button"
+          id={buttonId}
+          className="accordion-trigger"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={onToggle}
+        >
+          <span
+            className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarTone(t.teacherId || t.name)}`}
+            aria-hidden="true"
+          >
+            {initials(t.name)}
+          </span>
+          <span className="min-w-0 flex-1 text-left">
+            <span className="font-medium text-ink-900">{t.name}</span>
+            <span className="mt-0.5 block truncate text-xs text-ink-700/55">{t.email || "—"}</span>
+          </span>
+          <span className="hidden sm:flex shrink-0 rounded-lg bg-ink-900/5 px-2 py-1 text-xs font-medium text-clay-600">
+            {countLabel}
+          </span>
+          <AccordionChevron open={open} />
+        </button>
+      </h3>
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={buttonId}
+        hidden={!open}
+        className="accordion-panel px-3 sm:px-4 pb-4 pt-1"
       >
-        {(page) => (
-          <table className="table mt-3">
-            <thead>
-              <tr>
-                <th>Class</th>
-                <th>Subject</th>
-                <th>Entered</th>
-                <th>Submitted</th>
-                <th>Approved</th>
-                <th>Draft</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {page.map((a) => {
-                const key = `${a.classSectionId}-${a.subjectId || a.subject}`;
-                return (
-                  <tr key={key}>
-                    <td>{a.classLabel}</td>
-                    <td>{a.subject}</td>
-                    <td>
-                      {a.uploaded} / {a.expected}
-                    </td>
-                    <td>{a.submitted ?? 0}</td>
-                    <td>{a.approved ?? 0}</td>
-                    <td>{a.draft ?? 0}</td>
-                    <td className="space-x-2 whitespace-nowrap">
-                      <Link
-                        className="underline text-xs"
-                        to={paths.marks({
-                          classSectionId: a.classSectionId,
-                          examId,
-                          subjectId: a.subjectId || undefined,
-                        })}
-                      >
-                        Open register
-                      </Link>
-                      {mode === "awaiting" && a.subjectId && (
-                        <button
-                          type="button"
-                          className="btn-accent"
-                          disabled={Boolean(busyKey)}
-                          onClick={() => approveRegister(a)}
-                        >
-                          <BusyLabel busy={busyKey === key} idle="Approve submitted" busyText="Approving…" />
-                        </button>
-                      )}
-                    </td>
+        <div className="space-y-3 rounded-lg border border-ink-900/10 bg-white/70 p-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="sm:hidden text-xs font-medium text-clay-600">{countLabel}</span>
+            {onNotify && (
+              <button type="button" className="btn-ghost text-xs ml-auto" onClick={onNotify}>
+                Notify
+              </button>
+            )}
+          </div>
+          <TableToolbar
+            q={table.q}
+            setQ={table.setQ}
+            placeholder="Search class or subject"
+            matched={table.matched}
+            total={table.total}
+          />
+          <PaginatedTable
+            items={table.filtered}
+            pageSize={5}
+            pageSizeOptions={[5, 10, 25]}
+            resetKey={table.resetKey}
+            empty="No rows."
+            busy={Boolean(busyKey)}
+            busyLabel="Approving marks…"
+          >
+            {(page) => (
+              <table className="table">
+                <thead>
+                  <tr>
+                    <th>Class</th>
+                    <th>Subject</th>
+                    <th>Entered</th>
+                    <th>Submitted</th>
+                    <th>Approved</th>
+                    <th>Draft</th>
+                    <th></th>
                   </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        )}
-      </PaginatedTable>
+                </thead>
+                <tbody>
+                  {page.map((a) => {
+                    const key = `${a.classSectionId}-${a.subjectId || a.subject}`;
+                    return (
+                      <tr key={key}>
+                        <td>{a.classLabel}</td>
+                        <td>{a.subject}</td>
+                        <td>
+                          {a.uploaded} / {a.expected}
+                        </td>
+                        <td>{a.submitted ?? 0}</td>
+                        <td>{a.approved ?? 0}</td>
+                        <td>{a.draft ?? 0}</td>
+                        <td className="space-x-2 whitespace-nowrap">
+                          <Link
+                            className="underline text-xs"
+                            to={paths.marks({
+                              classSectionId: a.classSectionId,
+                              examId,
+                              subjectId: a.subjectId || undefined,
+                            })}
+                          >
+                            Open register
+                          </Link>
+                          {mode === "awaiting" && a.subjectId && (
+                            <button
+                              type="button"
+                              className="btn-accent"
+                              disabled={Boolean(busyKey)}
+                              onClick={() => approveRegister(a)}
+                            >
+                              <BusyLabel busy={busyKey === key} idle="Approve submitted" busyText="Approving…" />
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            )}
+          </PaginatedTable>
+        </div>
+      </div>
     </div>
   );
 }

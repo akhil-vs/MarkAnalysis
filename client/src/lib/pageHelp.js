@@ -64,8 +64,8 @@ export const PAGE_HELP = {
   },
   pendingUploads: {
     title: "What's on this page",
-    about: "Teachers who still have empty registers, and submitted papers waiting for your approval, for the selected exam.",
-    useful: "Clear this queue so school analytics and consolidated lists are complete. Remind teachers or approve submitted drafts from here.",
+    about: "Teachers who still have empty registers, and submitted papers waiting for your approval, for the selected exam. Each list is an accordion — expand a teacher under Still missing marks or Entered — awaiting your approval.",
+    useful: "Clear this queue so school analytics and consolidated lists are complete. Expand a teacher to open the register, send a reminder, or approve submitted drafts.",
   },
   marks: {
     title: "What's on this page",

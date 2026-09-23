@@ -96,7 +96,7 @@ Unlike the principal, the co-ordinator **can enter and bulk-upload marks** as we
 ### 3.3 Pending uploads (`Marks → Pending uploads`)
 
 1. Select the exam.
-2. Chase teachers with empty registers; open submitted papers to **Approve**.
+2. The two queues are **accordions**: **Entered — awaiting your approval** and **Still missing marks**. Expand a teacher for papers, **Notify**, **Open register**, and **Approve**.
 3. **Notify teachers** about deadlines or incomplete marklists (all pending, or one person).
 
 Approved marks are what school analytics and consolidated lists use.

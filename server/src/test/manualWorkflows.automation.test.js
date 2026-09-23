@@ -672,6 +672,7 @@ describe("User manual automation", () => {
       ]) {
         assert.match(text, /Hrs history/, `${name} should document hours history`);
         assert.match(text, /Open timetable/, `${name} should document the teachers accordion`);
+        assert.match(text, /Still missing marks/, `${name} should document the pending-uploads accordion`);
         assert.match(text, /Click and drag/, `${name} should document daily-board drag scroll`);
         assert.match(text, /Modules & Security/, `${name} should name school profile tabs`);
         assert.match(text, /Classes in this exam/, `${name} should document exam class selection`);

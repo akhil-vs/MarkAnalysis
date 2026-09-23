@@ -81,6 +81,13 @@ test.describe("Principal manual — complete application workflow", () => {
     await goNav(page, "Pending uploads");
     await expect(page).toHaveURL(/\/pending-uploads/);
     await expectPageTitle(page, "Pending");
+    await expect(page.locator("main")).toContainText(/Still missing marks|awaiting your approval|Every assigned teacher/i);
+    const trigger = page.locator("main .accordion-trigger").first();
+    if (await trigger.count()) {
+      await expect(trigger).toBeVisible();
+      await trigger.click();
+      await expect(page.locator("main").getByRole("link", { name: /Open register/i }).first()).toBeVisible();
+    }
   });
 
   test("§3.2 Access requests inbox", async ({ page }) => {
