@@ -152,15 +152,16 @@ Leadership can review:
 
 ## Teacher timetables
 
-Principals and exam coordinators can open **Timetables** in the sidebar (or **Timetable** from a staff row) to browse each teacher’s schedule.
+Principals and exam coordinators can open **Timetables** in the sidebar (or **Timetable** from a staff row) to browse each teacher’s schedule. Teachers see the page when Role access grants **Timetables**, **Leave approval**, or **Assign substitutes**.
 
-- **Teachers** — card list of every active teacher, then open one for **Daily** or **Weekly** views
-- **Daily board** — one page with every teacher’s timetable for a chosen day (subject, class, and free slots together)
-- **Find free** — pick a date and period to see which teachers are free (and who is already teaching)
+- **Teachers** — accordion of every active teacher. Expand a row to **Open timetable**, **Put on leave**, or **Hrs history** (own teaching hours plus extra cover hours). The week follows School profile working days; use Previous week / Next week or a From / To range.
+- **Daily board** — one page with every teacher’s timetable for a chosen day (subject, class, free slots, leave, and cover). Click and drag to scroll periods. Rows show period count, teaching hours, and **+extra** cover hours.
+- **Find free** — pick a date and period to see who is free, on leave, or already teaching.
+- **Leave & cover** — approve teacher **My leave** requests, put a teacher on leave, and accept ranked substitute suggestions. Vacated cells show **Needs cover** until cover is assigned.
 
-The **working week** (5 or 6 school days) and **bell schedule** (period names, start/end times, and breaks) live under **School profile**. Defaults are seeded only when the schedule is empty.
+The **working week** (5 or 6 school days) and **bell schedule** (period names, start/end times, and breaks) live under **School profile → Bell Schedule & Timings**. Defaults are seeded only when the schedule is empty.
 
-Leadership can also add or remove teaching periods on a teacher’s timetable page.
+Leadership can also add or remove teaching periods on a teacher’s full timetable page. Grant **Leave approval** and **Assign substitutes** under **Staff → Role access** for vice principals, supervisors, and coordinators.
 
 Deployments generate the Prisma client on Vercel build. On cold start the API runs `prisma migrate deploy` when `DATABASE_URL` is available, then `ensurePendingSchema` as a catch-up for environments that cannot migrate at build time. You can also run migrations from GitHub Actions (workflow **Migrate database**) when `secrets.DATABASE_URL` is set. Set `SKIP_MIGRATE_DEPLOY=true` to rely only on the catch-up path.
 

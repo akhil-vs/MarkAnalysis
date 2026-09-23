@@ -661,6 +661,26 @@ describe("User manual automation", () => {
         assert.ok(fs.existsSync(path.join(repoRoot, "docs/user-manuals", file)), file);
       }
     });
+
+    it("role manuals describe current timetable, leave, and records UI", () => {
+      const principal = fs.readFileSync(path.join(repoRoot, "docs/user-manuals/principal.md"), "utf8");
+      const coordinator = fs.readFileSync(path.join(repoRoot, "docs/user-manuals/coordinator.md"), "utf8");
+      const teacher = fs.readFileSync(path.join(repoRoot, "docs/user-manuals/teacher.md"), "utf8");
+      for (const [name, text] of [
+        ["principal", principal],
+        ["coordinator", coordinator],
+      ]) {
+        assert.match(text, /Hrs history/, `${name} should document hours history`);
+        assert.match(text, /Open timetable/, `${name} should document the teachers accordion`);
+        assert.match(text, /Click and drag/, `${name} should document daily-board drag scroll`);
+        assert.match(text, /Modules & Security/, `${name} should name school profile tabs`);
+        assert.match(text, /Classes in this exam/, `${name} should document exam class selection`);
+        assert.match(text, /Download PDF \(5 \/ A4\)/, `${name} should document hall-ticket PDF label`);
+      }
+      assert.match(teacher, /My leave/, "teacher should document leave requests");
+      assert.match(teacher, /Student photos/, "teacher should document student photos");
+      assert.match(teacher, /Theory max/, "teacher should document theory\/practical marks");
+    });
   });
 
   describe("Profile / session (manuals Account §)", () => {
