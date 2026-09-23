@@ -47,12 +47,28 @@ test.describe("Principal manual — complete application workflow", () => {
     await expect(page.locator("main")).toContainText(/Anita Sharma|Meera Iyer|Sanjay Menon/i);
   });
 
-  test("§2.4 Timetables — teachers / daily board / find free", async ({ page }) => {
+  test("§2.4 Timetables — teachers accordion opens timetable, leave, hours", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
     await goNav(page, "Timetables");
     await expect(page).toHaveURL(/\/timetables/);
     await expectPageTitle(page, "timetable");
-    await expect(page.locator("main")).toContainText(/teacher|daily|weekly|find free/i);
+    await page.locator("main").getByRole("button", { name: /^Teachers$/i }).click();
+    const trigger = page.locator("main .accordion-trigger").first();
+    await expect(trigger).toBeVisible();
+    await trigger.click();
+    await expect(page.locator("main").getByRole("button", { name: /^Open timetable$/i })).toBeVisible();
+    await expect(page.locator("main").getByRole("button", { name: /^Put on leave$/i })).toBeVisible();
+    await expect(page.locator("main").getByRole("button", { name: /^Hrs history$/i })).toBeVisible();
+
+    await page.locator("main").getByRole("button", { name: /^Open timetable$/i }).click();
+    await expect(page.locator("main")).toContainText(/Weekly timetable|Open full page/i);
+
+    await page.locator("main").getByRole("button", { name: /^Hrs history$/i }).click();
+    await expect(page.locator("main")).toContainText(/own/i);
+    await expect(page.locator("main")).toContainText(/extra/i);
+
+    await page.locator("main").getByRole("button", { name: /^Put on leave$/i }).click();
+    await expect(page.locator("main").getByRole("button", { name: /Save leave/i })).toBeVisible();
   });
 
   test("§3.1 Pending uploads — chase & approve queue", async ({ page }) => {

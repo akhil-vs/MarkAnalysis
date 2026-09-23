@@ -425,15 +425,15 @@ function TeachersList({ onPutOnLeave, canAssignSubs }) {
                       </div>
                     </div>
 
-                    {openAction === "timetable" && <TeacherAccordionTimetable teacherId={t.id} />}
-                    {openAction === "leave" && onPutOnLeave && (
+                    {open && openAction === "timetable" && <TeacherAccordionTimetable teacherId={t.id} />}
+                    {open && openAction === "leave" && onPutOnLeave && (
                       <TeacherAccordionLeave
                         teacher={t}
                         canAssignSubs={canAssignSubs}
                         onReviewCovers={onPutOnLeave}
                       />
                     )}
-                    {openAction === "hours" && <TeacherAccordionHours teacherId={t.id} />}
+                    {open && openAction === "hours" && <TeacherAccordionHours teacherId={t.id} />}
                   </div>
                 </div>
               </div>
