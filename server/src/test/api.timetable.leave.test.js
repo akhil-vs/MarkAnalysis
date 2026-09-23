@@ -242,5 +242,13 @@ describe("API timetable leave + substitutes", () => {
     assert.equal(dayActive.status, 200, dayActive.text);
     const after = (dayActive.json.teachers || []).find((t) => t.id === teacherId);
     assert.ok(after?.onLeave, "approved leave must show on daily board");
+
+    const reopen = await server.request(`/api/timetable/leaves/${request.json.leave.id}`, {
+      method: "PATCH",
+      jar: principal.jar,
+      body: { status: "PENDING" },
+    });
+    assert.equal(reopen.status, 400, reopen.text);
+    assert.match(reopen.json?.error || "", /Cannot change leave status/i);
   });
 });

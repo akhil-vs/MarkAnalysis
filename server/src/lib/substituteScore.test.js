@@ -4,6 +4,7 @@ import {
   eachDateInclusive,
   leaveAppliesToPeriod,
   leaveCoversDate,
+  leavesConflict,
   median,
   planSubstitutesGreedy,
   scoreSubstituteCandidate,
@@ -213,6 +214,24 @@ describe("substituteScore", () => {
     );
     assert.equal(
       leaveAppliesToPeriod({ status: "ACTIVE", leaveType: "PARTIAL", periodIds: ["p1", "p2"] }, "p1"),
+      true
+    );
+    assert.equal(
+      leaveAppliesToPeriod({ status: "ACTIVE", leaveType: "PARTIAL", periodIds: [] }, "p1"),
+      false
+    );
+    assert.equal(
+      leavesConflict(
+        { startDate: "2026-09-20", endDate: "2026-09-20", leaveType: "PARTIAL", periodIds: ["p1"] },
+        { startDate: "2026-09-20", endDate: "2026-09-20", leaveType: "PARTIAL", periodIds: ["p2"] }
+      ),
+      false
+    );
+    assert.equal(
+      leavesConflict(
+        { startDate: "2026-09-20", endDate: "2026-09-20", leaveType: "PARTIAL", periodIds: ["p1"] },
+        { startDate: "2026-09-20", endDate: "2026-09-20", leaveType: "FULL_DAY", periodIds: null }
+      ),
       true
     );
   });
