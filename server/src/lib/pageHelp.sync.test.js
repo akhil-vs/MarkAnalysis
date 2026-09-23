@@ -56,6 +56,8 @@ test("page help mentions current timetable, records, and leave UI", () => {
   assert.match(PAGE_HELP.timetables.about, /accordion/i);
   assert.match(PAGE_HELP.timetables.about, /click and drag/i);
   assert.match(PAGE_HELP.timetables.about, /filter.*class and subject/i);
+  assert.match(PAGE_HELP.pendingUploads.about, /accordion/i);
+  assert.match(PAGE_HELP.pendingUploads.about, /Still missing marks/);
   assert.match(PAGE_HELP.timetables.useful, /Hrs history/);
   assert.match(PAGE_HELP.timetables.useful, /My leave/);
   assert.match(PAGE_HELP.schoolProfile.about, /Identity & Affiliation/);

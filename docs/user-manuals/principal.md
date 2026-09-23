@@ -96,7 +96,7 @@ Teachers enter drafts → Submit → Leadership Approve → Analytics & CML incl
 ### 3.1 Chase and approve (`Marks → Pending uploads`)
 
 1. Select the exam.
-2. See teachers with **empty registers** and papers **awaiting approval**.
+2. The two queues are **accordions**: **Entered — awaiting your approval** and **Still missing marks**. Expand a teacher for papers, **Notify**, **Open register**, and **Approve submitted**.
 3. **Notify teachers** (deadline, incomplete marklist, or custom message) for everyone still missing marks, or one teacher.
 4. Open a register → **Approve** submitted marks. Only approved marks feed school analytics, ranks, and consolidated lists.
 5. Use **Moderate** on the register for grace adjustments with a reason (stays approved and audited).
