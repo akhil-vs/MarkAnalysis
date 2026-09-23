@@ -2,6 +2,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { test, expect } from "@playwright/test";
 import { ROUTES, goNav, goRoute, expectPageTitle, expectNavLink } from "../helpers/auth.js";
+import { SHOW_PUBLIC_PLANS, SHOW_PUBLIC_REGISTRATION } from "../../client/src/lib/publicAccess.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -49,10 +50,30 @@ test.describe("Cross-role marks cycle (manuals exam workflow)", () => {
   test("Landing → login → signup / register-school entry points exist", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("link", { name: /sign in|log in/i }).first()).toBeVisible();
+    if (!SHOW_PUBLIC_PLANS) {
+      await expect(page.getByRole("link", { name: /^plans$/i })).toHaveCount(0);
+      await expect(page.getByRole("heading", { name: /plans that scale/i })).toHaveCount(0);
+    }
+    if (!SHOW_PUBLIC_REGISTRATION) {
+      await expect(page.locator('a[href="/register-school"]')).toHaveCount(0);
+      await expect(page.locator('a[href="/signup"]')).toHaveCount(0);
+    }
+    await page.goto("/login");
+    await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
+    if (!SHOW_PUBLIC_REGISTRATION) {
+      await expect(page.locator('a[href="/register-school"]')).toHaveCount(0);
+      await expect(page.locator('a[href="/signup"]')).toHaveCount(0);
+    }
     await page.goto("/signup");
     await expect(page.getByText(/join code|request access|sign up/i).first()).toBeVisible();
+    if (!SHOW_PUBLIC_REGISTRATION) {
+      await expect(page.locator('a[href="/register-school"]')).toHaveCount(0);
+    }
     await page.goto("/register-school");
     await expect(page.getByText(/register|school|principal/i).first()).toBeVisible();
+    if (!SHOW_PUBLIC_REGISTRATION) {
+      await expect(page.locator('a[href="/signup"]')).toHaveCount(0);
+    }
   });
 
   test("Platform admin opens platform console", async ({ browser }) => {
