@@ -119,13 +119,16 @@ All seed passwords are `password123`. The login page also has one-click sign-in 
 | Teacher · English | `david.thomas@school.edu` | `SCH-T04` |
 | Teacher · Biology | `meera.iyer@school.edu` | `SCH-T05` |
 | Teacher · Mathematics | `kiran.bose@school.edu` | `SCH-T06` |
+| Teachers · T07–T100 | `teacher007@school.edu` … `teacher100@school.edu` | `SCH-T07` … `SCH-T100` |
 | Principal · Riverside | `principal@riverside.school` | `RIV-P01` |
 
 **Platform console** (`/platform`): sign in as the platform admin to list every school, add a campus, suspend or reactivate it, and create or reset principal accounts. Staff request access with the school’s **join code** (Greenfield: `DEMO-JOIN`, Riverside: `RIVE-SIDE`). Marks, staff, and exams stay isolated per campus.
 
-The current Final Exam seed leaves Biology (all sections) and English 10-D empty so principals and coordinators can see pending teacher uploads. Teachers and leadership now default to the **same latest exam**. After a teacher saves marks they stay **draft** until a principal or coordinator clicks **Approve** on the mark register — only then do school analytics and consolidated lists include them.
+Greenfield seed models a mid-size **CBSE** campus: classes **5–8** with four divisions (A–D), classes **9–12** with two divisions (A–B), **40 students** per division, **100 teachers**, CBSE-aligned subjects (middle school core, secondary with Physics/Chemistry/Biology registers, and 11–12 Science PCM vs Commerce streams), weekly teacher timetables, and elective enrollments (AI in 9–10, PE in 11–12).
 
-Mathematics is split across two teachers (Anita Sharma: 9-A, 10-A, 10-B; Kiran Bose: 9-B, 10-C, 10-D) so same-subject teacher comparison has data. Seed exams cover academic years 2024-25 and 2025-26. The demo school join code is `DEMO-JOIN`.
+The current Final Exam seed leaves Biology (all sections) and English 10-B empty so principals and coordinators can see pending teacher uploads. Teachers and leadership now default to the **same latest exam**. After a teacher saves marks they stay **draft** until a principal or coordinator clicks **Approve** on the mark register — only then do school analytics and consolidated lists include them.
+
+Mathematics for classes 9–10 is split across two teachers (Anita Sharma: 9-A, 10-A; Kiran Bose: 9-B, 10-B) so same-subject teacher comparison has data. Seed exams cover academic years 2024-25 and 2025-26. The demo school join code is `DEMO-JOIN`.
 
 ## Multiple schools
 
