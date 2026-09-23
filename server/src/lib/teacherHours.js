@@ -9,8 +9,7 @@ import {
 } from "./substituteScore.js";
 import { DAY_NAMES, isWorkingDay } from "./workingDays.js";
 
-const DEFAULT_WINDOW_DAYS = 14;
-const MAX_RANGE_DAYS = 62;
+const MAX_RANGE_DAYS = 7;
 
 export function shiftYmd(ymd, days) {
   const dt = parseYmd(ymd);
@@ -19,11 +18,19 @@ export function shiftYmd(ymd, days) {
   return formatYmd(dt);
 }
 
-/** Inclusive YYYY-MM-DD window ending on `toYmd` (defaults to UTC today). */
-export function defaultHoursRange(toYmd, days = DEFAULT_WINDOW_DAYS) {
-  const end = parseYmd(toYmd) ? toYmd : formatYmd(new Date());
-  const start = shiftYmd(end, -(Math.max(1, Number(days) || DEFAULT_WINDOW_DAYS) - 1));
-  return { from: start, to: end };
+/** Monday–Sunday ISO week that contains `ymd` (UTC). */
+export function weekRangeContaining(ymd) {
+  const date = parseYmd(ymd) ? ymd : formatYmd(new Date());
+  const dow = isoWeekdayFromYmd(date);
+  if (dow == null) return { from: null, to: null, dates: [] };
+  const from = shiftYmd(date, -(dow - 1));
+  const to = shiftYmd(from, 6);
+  return { from, to, dates: eachDateInclusive(from, to) };
+}
+
+/** Inclusive Monday–Sunday week containing `toYmd` (defaults to UTC today). */
+export function defaultHoursRange(toYmd) {
+  return weekRangeContaining(toYmd);
 }
 
 export function assertHoursRange(fromYmd, toYmd) {

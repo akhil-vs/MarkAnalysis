@@ -272,6 +272,8 @@ describe("API timetable leave + substitutes", () => {
     assert.equal(hours.status, 200, hours.text);
     assert.equal(hours.json?.teacher?.id, teacher.id);
     assert.ok(Array.isArray(hours.json?.days));
+    assert.ok(hours.json?.from && hours.json?.to);
+    assert.ok(hours.json.days.length <= 7);
     assert.ok(hours.json?.summary);
     assert.equal(typeof hours.json.summary.taughtMinutes, "number");
     assert.equal(typeof hours.json.summary.extraMinutes, "number");

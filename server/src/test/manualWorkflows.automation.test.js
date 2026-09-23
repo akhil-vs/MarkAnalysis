@@ -204,6 +204,8 @@ describe("User manual automation", () => {
       const hist = JSON.parse(history.text);
       assert.equal(hist.view, "history");
       assert.ok(Array.isArray(hist.days));
+      assert.ok(hist.days.length <= 7, "history loads one week at a time");
+      assert.ok(hist.from && hist.to);
       assert.ok(hist.summary && typeof hist.summary.totalTaughtMinutes === "number");
       assert.ok(hist.summary && typeof hist.summary.totalExtraMinutes === "number");
       if (hist.days.length) {

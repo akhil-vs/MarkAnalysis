@@ -41,6 +41,16 @@ function shiftDate(ymd, days) {
   return `${yy}-${mm}-${dd}`;
 }
 
+/** Monday–Sunday ISO week containing `ymd`. */
+function weekRangeContaining(ymd) {
+  const [y, m, d] = String(ymd || todayYmd()).split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const sun = dt.getUTCDay();
+  const iso = sun === 0 ? 7 : sun;
+  const from = shiftDate(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`, -(iso - 1));
+  return { from, to: shiftDate(from, 6) };
+}
+
 function teacherSearchText(t) {
   return searchHaystack(
     t.name,
@@ -668,6 +678,9 @@ function TeacherAccordionLeave({ teacher, canAssignSubs, onReviewCovers }) {
 }
 
 function TeacherAccordionHours({ teacherId }) {
+  const currentWeek = useMemo(() => weekRangeContaining(todayYmd()), []);
+  const [weekAnchor, setWeekAnchor] = useState(currentWeek.from);
+  const week = useMemo(() => weekRangeContaining(weekAnchor), [weekAnchor]);
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -675,7 +688,7 @@ function TeacherAccordionHours({ teacherId }) {
     let cancelled = false;
     setError("");
     setData(null);
-    api(`/api/timetable/teachers/${teacherId}/hours`)
+    api(`/api/timetable/teachers/${teacherId}/hours?from=${week.from}&to=${week.to}`)
       .then((res) => {
         if (!cancelled) setData(res);
       })
@@ -685,27 +698,41 @@ function TeacherAccordionHours({ teacherId }) {
     return () => {
       cancelled = true;
     };
-  }, [teacherId]);
+  }, [teacherId, week.from, week.to]);
 
-  const daysNewestFirst = useMemo(() => [...(data?.days || [])].reverse(), [data]);
+  const isCurrentWeek = week.from === currentWeek.from;
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">Hrs history</div>
         <Link
-          to={`/timetables/teachers/${teacherId}?view=history`}
+          to={`/timetables/teachers/${teacherId}?view=history&date=${week.from}`}
           className="text-xs font-medium text-clay-600 hover:underline"
         >
           Open full page
         </Link>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button type="button" className="btn-ghost text-xs" onClick={() => setWeekAnchor(shiftDate(week.from, -7))}>
+          Previous week
+        </button>
+        <button type="button" className="btn-ghost text-xs" onClick={() => setWeekAnchor(shiftDate(week.from, 7))}>
+          Next week
+        </button>
+        {!isCurrentWeek && (
+          <button type="button" className="btn-ghost text-xs" onClick={() => setWeekAnchor(currentWeek.from)}>
+            This week
+          </button>
+        )}
       </div>
       {error && <p className="text-sm text-clay-600">{error}</p>}
       {!data && !error && <InlineLoading label="Loading hours history…" />}
       {data && (
         <>
           <p className="text-sm text-ink-700/65">
-            {data.from} → {data.to}
+            {week.from} → {week.to}
+            {isCurrentWeek ? " · this week" : ""}
             {" · "}
             {formatTaughtHours(data.summary?.taughtMinutes)} own
             {" · "}
@@ -714,8 +741,8 @@ function TeacherAccordionHours({ teacherId }) {
             </span>
             {data.summary?.leaveDays > 0 ? ` · ${data.summary.leaveDays} leave day${data.summary.leaveDays === 1 ? "" : "s"}` : ""}
           </p>
-          {!daysNewestFirst.length ? (
-            <EmptyNote>No working days in this window.</EmptyNote>
+          {!(data.days || []).length ? (
+            <EmptyNote>No working days in this week.</EmptyNote>
           ) : (
             <div className="overflow-x-auto">
               <table className="table text-sm">
@@ -728,7 +755,7 @@ function TeacherAccordionHours({ teacherId }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {daysNewestFirst.map((day) => (
+                  {(data.days || []).map((day) => (
                     <tr key={day.date}>
                       <td>
                         {day.date}

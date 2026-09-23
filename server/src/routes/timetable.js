@@ -29,6 +29,7 @@ import {
   assertHoursRange,
   buildTeacherHoursHistory,
   defaultHoursRange,
+  weekRangeContaining,
 } from "../lib/teacherHours.js";
 import { buildTeacherDayLoad } from "../lib/teacherDayLoad.js";
 
@@ -728,7 +729,9 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
     });
   }
 
-  // monthly / history — per-day hours including classes, taught hrs, and extra (cover) hrs
+  // history — one ISO week (Mon–Sun). monthly keeps a full calendar month for older clients.
+  const dateYmd = ymd(date);
+  const week = weekRangeContaining(dateYmd);
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth();
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
@@ -738,11 +741,14 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
   for (let d = 1; d <= daysInMonth; d++) {
     monthDates.push(`${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
   }
+  const rangeDates = view === "history" ? week.dates : monthDates;
+  const rangeFrom = view === "history" ? week.from : monthStart;
+  const rangeTo = view === "history" ? week.to : monthEnd;
 
   await ensureTeacherLeaveSchema();
   const [leaves, substitutions] = await Promise.all([
-    listActiveLeavesForRange(monthStart, monthEnd),
-    listSubstitutionsForDates(monthDates),
+    listActiveLeavesForRange(rangeFrom, rangeTo),
+    listSubstitutionsForDates(rangeDates),
   ]);
   const teacherLeaves = leaves.filter((l) => l.teacherId === userId);
   const teacherSubs = substitutions.filter(
@@ -755,19 +761,19 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
   }
 
   const days = [];
-  for (let d = 1; d <= daysInMonth; d++) {
-    const current = new Date(Date.UTC(year, month, d));
-    const dateYmd = ymd(current);
+  for (const dayYmd of rangeDates) {
+    const [yy, mm, dd] = dayYmd.split("-").map(Number);
+    const current = new Date(Date.UTC(yy, mm - 1, dd));
     const dayOfWeek = isoWeekday(current);
     const working = isWorkingDay(school, dayOfWeek);
     const load = buildTeacherDayLoad({
       teacherId: userId,
-      dateYmd,
+      dateYmd: dayYmd,
       dayOfWeek,
       periods,
       templateEntries: working ? byDay[dayOfWeek] || [] : [],
       leaves: teacherLeaves,
-      substitutions: subsByDate.get(dateYmd) || [],
+      substitutions: subsByDate.get(dayYmd) || [],
     });
     days.push({
       ...load,
@@ -785,6 +791,10 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
   return res.json({
     ...base,
     view: view === "monthly" ? "monthly" : "history",
+    from: rangeFrom,
+    to: rangeTo,
+    weekStart: view === "history" ? week.from : undefined,
+    weekEnd: view === "history" ? week.to : undefined,
     month: `${year}-${String(month + 1).padStart(2, "0")}`,
     days,
     summary: {

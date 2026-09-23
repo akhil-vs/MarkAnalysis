@@ -5,6 +5,7 @@ import {
   buildTeacherHoursHistory,
   defaultHoursRange,
   shiftYmd,
+  weekRangeContaining,
 } from "./teacherHours.js";
 
 const periods = [
@@ -22,13 +23,26 @@ describe("hours range helpers", () => {
     assert.equal(shiftYmd("bad", -1), null);
   });
 
-  it("defaults to a 14-day window ending on the given date", () => {
-    assert.deepEqual(defaultHoursRange("2026-09-23"), { from: "2026-09-10", to: "2026-09-23" });
+  it("defaults to the Monday–Sunday week containing the given date", () => {
+    assert.deepEqual(weekRangeContaining("2026-09-23"), {
+      from: "2026-09-21",
+      to: "2026-09-27",
+      dates: [
+        "2026-09-21",
+        "2026-09-22",
+        "2026-09-23",
+        "2026-09-24",
+        "2026-09-25",
+        "2026-09-26",
+        "2026-09-27",
+      ],
+    });
+    assert.deepEqual(defaultHoursRange("2026-09-21"), weekRangeContaining("2026-09-23"));
   });
 
   it("rejects inverted or oversized ranges", () => {
     assert.equal(assertHoursRange("2026-09-23", "2026-09-01").error, "to must be on or after from");
-    assert.match(assertHoursRange("2026-01-01", "2026-04-01").error, /62 days/);
+    assert.match(assertHoursRange("2026-01-01", "2026-01-10").error, /7 days/);
     assert.match(assertHoursRange("nope", "2026-09-23").error, /YYYY-MM-DD/);
   });
 });

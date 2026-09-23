@@ -34,16 +34,13 @@ function shiftDate(ymd, days) {
   return `${yy}-${mm}-${dd}`;
 }
 
-function shiftMonth(ymd, deltaMonths) {
-  const [y, m] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1 + deltaMonths, 1));
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  return `${yy}-${mm}-01`;
-}
-
-function monthInputValue(ymd) {
-  return String(ymd || "").slice(0, 7);
+function weekRangeContaining(ymd) {
+  const [y, m, d] = String(ymd || todayYmd()).split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  const sun = dt.getUTCDay();
+  const iso = sun === 0 ? 7 : sun;
+  const from = shiftDate(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`, -(iso - 1));
+  return { from, to: shiftDate(from, 6) };
 }
 
 function formatMinutes(minutes) {
@@ -197,7 +194,8 @@ export default function TeacherTimetable() {
   function setView(next) {
     const params = new URLSearchParams(searchParams);
     params.set("view", next);
-    if (!params.get("date")) params.set("date", date);
+    if (next === "history") params.set("date", todayYmd());
+    else if (!params.get("date")) params.set("date", date);
     setSearchParams(params);
   }
 
@@ -423,21 +421,20 @@ export default function TeacherTimetable() {
         )}
         {view === "history" && (
           <>
-            <button type="button" className="btn-ghost" onClick={() => setDate(shiftMonth(date, -1))}>
-              Previous month
+            <button type="button" className="btn-ghost" onClick={() => setDate(shiftDate(date, -7))}>
+              Previous week
             </button>
-            <input
-              type="month"
-              className="field-filter"
-              value={monthInputValue(data.month || date)}
-              onChange={(e) => {
-                const next = e.target.value;
-                setDate(next ? `${next}-01` : todayYmd());
-              }}
-            />
-            <button type="button" className="btn-ghost" onClick={() => setDate(shiftMonth(date, 1))}>
-              Next month
+            <button type="button" className="btn-ghost" onClick={() => setDate(shiftDate(date, 7))}>
+              Next week
             </button>
+            {weekRangeContaining(date).from !== weekRangeContaining(todayYmd()).from && (
+              <button type="button" className="btn-ghost" onClick={() => setDate(todayYmd())}>
+                This week
+              </button>
+            )}
+            <span className="text-sm text-ink-700/65">
+              {(data.from || weekRangeContaining(date).from)} → {(data.to || weekRangeContaining(date).to)}
+            </span>
             {data.summary && (
               <span className="text-sm text-ink-700/65">
                 · {formatMinutes(data.summary.totalTaughtMinutes)} taught
@@ -747,14 +744,12 @@ function classSummary(classes) {
 }
 
 function HoursHistoryView({ data, onOpenDay }) {
-  const days = (data.days || []).filter(
-    (d) => d.isWorkingDay && (d.taughtCount > 0 || d.extraCount > 0 || d.onLeave || d.missedCount > 0)
-  );
+  const days = (data.days || []).filter((d) => d.isWorkingDay);
 
   if (!days.length) {
     return (
       <EmptyNote>
-        No teaching or cover activity recorded for {data.month || "this month"}.
+        No working days in {data.from && data.to ? `${data.from} → ${data.to}` : "this week"}.
       </EmptyNote>
     );
   }

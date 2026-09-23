@@ -64,6 +64,8 @@ test.describe("Principal manual — complete application workflow", () => {
     await expect(page.locator("main")).toContainText(/Weekly timetable|Open full page/i);
 
     await page.locator("main").getByRole("button", { name: /^Hrs history$/i }).click();
+    await expect(page.locator("main").getByRole("button", { name: /^Previous week$/i })).toBeVisible();
+    await expect(page.locator("main").getByRole("button", { name: /^Next week$/i })).toBeVisible();
     await expect(page.locator("main")).toContainText(/own/i);
     await expect(page.locator("main")).toContainText(/extra/i);
 
