@@ -104,7 +104,7 @@ portalRouter.post(
       expiresAt: link.expiresAt,
       createdAt: link.createdAt,
       token: raw,
-      portalPath: `/portal?t=${encodeURIComponent(raw)}`,
+      portalPath: `/portal#t=${encodeURIComponent(raw)}`,
     });
   }
 );
@@ -162,7 +162,7 @@ const portalSessionLimit = rateLimit({
 
 portalRouter.post("/session", portalSessionLimit, async (req, res) => {
   await ensurePendingSchema();
-  const token = req.body?.token || req.query?.token;
+  const token = req.body?.token;
   const link = await loadActiveLink(token);
   if (!link) return res.status(401).json({ error: "Invalid or expired portal link" });
   res.json({

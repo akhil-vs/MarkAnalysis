@@ -1,8 +1,21 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
 import { BusyLabel } from "../components/Spinner.jsx";
 
 const PORTAL_SESSION_KEY = "sma_portal_token";
+
+function takePortalTokenFromLocation() {
+  if (typeof window === "undefined") return "";
+  const hash = new URLSearchParams(String(window.location.hash || "").replace(/^#/, ""));
+  const query = new URLSearchParams(window.location.search);
+  const token = hash.get("t") || query.get("t") || "";
+  if (token || hash.has("t") || query.has("t")) {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("t");
+    url.hash = "";
+    window.history.replaceState({}, "", `${url.pathname}${url.search}`);
+  }
+  return token;
+}
 
 async function portalFetch(path, { method = "GET", body, token } = {}) {
   const res = await fetch(path, {
@@ -19,8 +32,7 @@ async function portalFetch(path, { method = "GET", body, token } = {}) {
 }
 
 export default function Portal() {
-  const [params] = useSearchParams();
-  const [tokenInput, setTokenInput] = useState(params.get("t") || "");
+  const [tokenInput, setTokenInput] = useState("");
   const [session, setSession] = useState(() => sessionStorage.getItem(PORTAL_SESSION_KEY) || "");
   const [studentId, setStudentId] = useState("");
   const [linkedIds, setLinkedIds] = useState([]);
@@ -50,8 +62,11 @@ export default function Portal() {
   }
 
   useEffect(() => {
-    const t = params.get("t");
-    if (t) openSession(t);
+    const t = takePortalTokenFromLocation();
+    if (t) {
+      setTokenInput(t);
+      openSession(t);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
