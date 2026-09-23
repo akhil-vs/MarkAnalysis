@@ -18,6 +18,7 @@ import ExamPaperScheduleEditor, {
   subjectsForActiveClasses,
 } from "../components/ExamPaperScheduleEditor.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
+import { AcademicYearField, AcademicYearFilter } from "../components/AcademicYearField.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
 import {
   acceptNonNegativeInput,
@@ -1340,7 +1341,16 @@ function StudentsTab() {
           </div>
           <input className="field" placeholder="Guardian name" value={form.guardianName} onChange={(e) => setForm({ ...form, guardianName: e.target.value })} disabled={busy} />
           <input className="field" type="tel" inputMode="tel" placeholder="Guardian phone" value={form.guardianPhone} onChange={(e) => setForm({ ...form, guardianPhone: e.target.value })} disabled={busy} />
-          <input className="field" placeholder="Academic year (e.g. 2025-26)" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} pattern="\d{4}-\d{2}" title="Use a year like 2025-26" disabled={busy} />
+          <div>
+            <label className="label">Academic year</label>
+            <AcademicYearField
+              value={form.academicYear}
+              onChange={(v) => setForm({ ...form, academicYear: v })}
+              extraOptions={yearOptions}
+              disabled={busy}
+              required
+            />
+          </div>
           <div className="flex gap-2">
             <button className="btn-primary" disabled={busy}>
               <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
@@ -1383,20 +1393,14 @@ function StudentsTab() {
                   <option key={c.id} value={c.id}>{c.className}-{c.section}</option>
                 ))}
               </select>
-              <select
-                className="field-filter"
+              <AcademicYearFilter
                 value={table.filters.academicYear || ""}
-                onChange={(e) => {
+                onChange={(v) => {
                   setPage(1);
-                  table.setFilter("academicYear", e.target.value);
+                  table.setFilter("academicYear", v);
                 }}
-                aria-label="Filter by academic year"
-              >
-                <option value="">All years</option>
-                {yearOptions.map((y) => (
-                  <option key={y} value={y}>{y}</option>
-                ))}
-              </select>
+                dataYears={yearOptions}
+              />
             </TableToolbar>
           </div>
           <PaginatedTable
@@ -1841,7 +1845,13 @@ function ExamsTab() {
           </div>
           <div>
             <label className="label">Academic year</label>
-            <input className="field" placeholder="e.g. 2025-26" value={form.academicYear} onChange={(e) => setForm({ ...form, academicYear: e.target.value })} pattern="\d{4}-\d{2}" title="Use a year like 2025-26" disabled={busy} />
+            <AcademicYearField
+              value={form.academicYear}
+              onChange={(v) => setForm({ ...form, academicYear: v })}
+              extraOptions={yearOptions}
+              disabled={busy}
+              required
+            />
           </div>
           <div>
             <label className="label">Exam window start</label>
@@ -2038,17 +2048,11 @@ function ExamsTab() {
               <option value="MID_TERM">Mid-term</option>
               <option value="FINAL">Final</option>
             </select>
-            <select
-              className="field-filter"
+            <AcademicYearFilter
               value={table.filters.academicYear || ""}
-              onChange={(e) => table.setFilter("academicYear", e.target.value)}
-              aria-label="Filter by academic year"
-            >
-              <option value="">All years</option>
-              {yearOptions.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+              onChange={(v) => table.setFilter("academicYear", v)}
+              dataYears={yearOptions}
+            />
           </TableToolbar>
         </div>
         <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No exams scheduled." busy={busy || loading} busyLabel={loading ? "Loading exams…" : "Updating exams…"}>
@@ -2244,7 +2248,14 @@ function PromoteTab() {
             </select>
           </FilterField>
           <FilterField label="Destination year">
-            <input className="field" placeholder="2026-27" value={toYear} onChange={(e) => setToYear(e.target.value)} disabled={busy} />
+            <AcademicYearField
+              value={toYear}
+              onChange={setToYear}
+              extraOptions={yearOptions}
+              disabled={busy}
+              required
+              className="field"
+            />
           </FilterField>
         </FilterBar>
         <button type="button" className="btn-primary" onClick={promote} disabled={!chosen.length || busy}>
@@ -2274,17 +2285,11 @@ function PromoteTab() {
               <option value="selected">Selected</option>
               <option value="unselected">Not selected</option>
             </select>
-            <select
-              className="field-filter"
+            <AcademicYearFilter
               value={table.filters.academicYear || ""}
-              onChange={(e) => table.setFilter("academicYear", e.target.value)}
-              aria-label="Filter by academic year"
-            >
-              <option value="">All years</option>
-              {yearOptions.map((y) => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+              onChange={(v) => table.setFilter("academicYear", v)}
+              dataYears={yearOptions}
+            />
           </TableToolbar>
         </div>
         <PaginatedTable

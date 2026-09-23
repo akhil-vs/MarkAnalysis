@@ -1497,6 +1497,29 @@ export async function ensureExamIncludedClassesColumn() {
   await recordMigration(EXAM_INCLUDED_CLASSES_MIGRATION, EXAM_INCLUDED_CLASSES_CHECKSUM);
 }
 
+const ACADEMIC_YEARS_MIGRATION = "20260923213000_school_academic_years";
+const ACADEMIC_YEARS_CHECKSUM = "school-academic-years-catchup-v1";
+
+const ACADEMIC_YEARS_STATEMENTS = [
+  `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "academicYears" JSONB`,
+  `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "currentAcademicYear" TEXT`,
+];
+
+/**
+ * School-configured academic year catalogue + current year for forms/filters.
+ * Additive columns — safe to ensure even when migrations already recorded.
+ */
+export async function ensureSchoolAcademicYearsColumns() {
+  const hasYears = await columnExists("School", "academicYears");
+  const hasCurrent = await columnExists("School", "currentAcademicYear");
+  if (hasYears && hasCurrent) {
+    await recordMigration(ACADEMIC_YEARS_MIGRATION, ACADEMIC_YEARS_CHECKSUM);
+    return;
+  }
+  await applyStatements(ACADEMIC_YEARS_STATEMENTS);
+  await recordMigration(ACADEMIC_YEARS_MIGRATION, ACADEMIC_YEARS_CHECKSUM);
+}
+
 const TEACHER_LEAVE_MIGRATION = "20260922024500_teacher_leave_substitutes";
 const TEACHER_LEAVE_CHECKSUM = "teacher-leave-substitutes-catchup-v2";
 
@@ -1730,6 +1753,7 @@ export async function ensurePendingSchema() {
         await ensureHallTicketsSchema();
         await ensureSubjectPoolSchema();
         await ensureExamIncludedClassesColumn();
+        await ensureSchoolAcademicYearsColumns();
         await ensureTeacherLeaveSchema();
         await ensureMarkAccessKindUnique();
         return { skipped: true, reason: "migrations-present" };
@@ -1759,6 +1783,7 @@ export async function ensurePendingSchema() {
         ensureHallTicketsSchema(),
         ensureSubjectPoolSchema(),
         ensureExamIncludedClassesColumn(),
+        ensureSchoolAcademicYearsColumns(),
         ensureTeacherLeaveSchema(),
         ensureMarkAccessKindUnique(),
       ]);
@@ -1882,5 +1907,9 @@ export const __test = {
   EXAM_INCLUDED_CLASSES_MIGRATION,
   EXAM_INCLUDED_CLASSES_CHECKSUM,
   EXAM_INCLUDED_CLASSES_STATEMENTS,
+  ensureSchoolAcademicYearsColumns,
+  ACADEMIC_YEARS_MIGRATION,
+  ACADEMIC_YEARS_CHECKSUM,
+  ACADEMIC_YEARS_STATEMENTS,
   resetAuthSchemaEnsure,
 };

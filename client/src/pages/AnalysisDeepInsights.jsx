@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { api } from "../api.js";
 import { ExamSelect } from "../components/ExamSelect.jsx";
+import { mergeYearOptions, useAcademicYears } from "../components/AcademicYearField.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { ChartTooltip, EmptyNote, Metric, Panel } from "../components/DashboardKit.jsx";
 import { HelpHint } from "../components/HelpHint.jsx";
@@ -173,6 +174,7 @@ export default function AnalysisDeepInsights() {
   const [loading, setLoading] = useState(false);
   const filtersRef = useRef({});
   const warmKeysRef = useRef(new Set());
+  const { years: schoolYears, current: currentSchoolYear } = useAcademicYears();
 
   function setTab(id) {
     const next = new URLSearchParams(params);
@@ -202,6 +204,11 @@ export default function AnalysisDeepInsights() {
       })
       .catch((e) => setError(e.message));
   }, []);
+
+  useEffect(() => {
+    if (!currentSchoolYear) return;
+    setAcademicYear((y) => y || currentSchoolYear);
+  }, [currentSchoolYear]);
 
   useEffect(() => {
     if (!meta || !request) return;
@@ -265,8 +272,12 @@ export default function AnalysisDeepInsights() {
   }, [meta, tab, request]);
 
   const years = useMemo(
-    () => [...new Set((meta?.exams || []).map((e) => e.academicYear).filter(Boolean))].sort(),
-    [meta]
+    () =>
+      mergeYearOptions(
+        schoolYears,
+        (meta?.exams || []).map((e) => e.academicYear).filter(Boolean)
+      ),
+    [meta, schoolYears]
   );
 
   if (error && !meta) return <p className="text-clay-600">{error}</p>;

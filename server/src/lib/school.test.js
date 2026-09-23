@@ -61,6 +61,17 @@ describe("buildLetterhead / publicSchool", () => {
     assert.equal(json.logoBytes, undefined);
     assert.equal(json.logoMimeType, "image/png");
     assert.deepEqual(json.optionalModules, { boardOps: false, cpd: false });
+    assert.deepEqual(json.academicYears, []);
+    assert.equal(json.currentAcademicYear, null);
+  });
+
+  it("exposes configured academic years and current year", () => {
+    const json = publicSchool(
+      { ...SAMPLE, academicYears: ["2024-25", "2025-26"], currentAcademicYear: "2025-26" },
+      { grading: { passPercent: 50 }, workingDays: [1, 2, 3, 4, 5] }
+    );
+    assert.deepEqual(json.academicYears, ["2025-26", "2024-25"]);
+    assert.equal(json.currentAcademicYear, "2025-26");
   });
 });
 

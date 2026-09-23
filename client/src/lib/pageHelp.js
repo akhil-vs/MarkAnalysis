@@ -124,8 +124,8 @@ export const PAGE_HELP = {
   },
   schoolProfile: {
     title: "What's on this page",
-    about: "School identity and campus details, the join code, optional modules, pass and distinction bands, and the 5- or 6-day working week and bell schedule — organised into tabs: Identity & Affiliation, Campus & Contact, Modules & Security, Grading Framework, and Bell Schedule & Timings.",
-    useful: "Use the tabs to jump between sections. Upload a PNG or JPEG logo under Identity & Affiliation so report cards and mark lists print with a proper letterhead. Share the join code from Modules & Security so teachers can request access. Set the school week and periods under Bell Schedule & Timings so timetables match your day. Grading Framework drives grades, pass lists, and Deep insights — configure them before you publish results.",
+    about: "School identity and campus details, academic years, the join code, optional modules, pass and distinction bands, and the 5- or 6-day working week and bell schedule — organised into tabs: Identity & Affiliation, Campus & Contact, Academic years, Modules & Security, Grading Framework, and Bell Schedule & Timings.",
+    useful: "Use the tabs to jump between sections. Upload a PNG or JPEG logo under Identity & Affiliation so report cards and mark lists print with a proper letterhead. Add academic years under Academic years so students, exams, CPD, and analytics show a year picker. Share the join code from Modules & Security so teachers can request access. Set the school week and periods under Bell Schedule & Timings so timetables match your day. Grading Framework drives grades, pass lists, and Deep insights — configure them before you publish results.",
   },
   boardOps: {
     title: "What's on this page",

@@ -335,6 +335,8 @@ async function main() {
         phone: "080-40001234",
         email: "office@greenfield.school",
         workingDays: [1, 2, 3, 4, 5],
+        academicYears: ["2025-26", "2024-25"],
+        currentAcademicYear: "2025-26",
       },
     })
   );
@@ -762,6 +764,8 @@ async function seedSchool(school) {
       email: "office@greenfield.school",
       website: "https://greenfield.school",
       workingDays: [1, 2, 3, 4, 5],
+      academicYears: ["2025-26", "2024-25"],
+      currentAcademicYear: ACADEMIC_YEAR,
     },
   });
 
