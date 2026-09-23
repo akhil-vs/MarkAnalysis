@@ -33,7 +33,13 @@ test.describe("Principal manual — complete application workflow", () => {
     await goNav(page, "Records");
     await expect(page).toHaveURL(/\/manage/);
     await expectPageTitle(page, "School records");
-    for (const tab of ["Classes", "Subjects", "Students", "Exams"]) {
+    await page.locator("main").getByRole("button", { name: /^Classes$/i }).click();
+    const teacherOptions = await page
+      .getByLabel(/Class teacher for division 1/i)
+      .locator("option")
+      .allTextContents();
+    expect(teacherOptions.some((text) => /already class teacher of/i.test(text))).toBeTruthy();
+    for (const tab of ["Subjects", "Students", "Exams"]) {
       await page.locator("main").getByRole("button", { name: new RegExp(`^${tab}$`, "i") }).click();
       await expect(page.locator("main")).toBeVisible();
     }
@@ -53,6 +59,8 @@ test.describe("Principal manual — complete application workflow", () => {
     await expect(page).toHaveURL(/\/timetables/);
     await expectPageTitle(page, "timetable");
     await page.locator("main").getByRole("button", { name: /^Teachers$/i }).click();
+    await expect(page.locator("main").getByLabel("Filter by class")).toBeVisible();
+    await expect(page.locator("main").getByLabel("Filter by subject")).toBeVisible();
     const trigger = page.locator("main .accordion-trigger").first();
     await expect(trigger).toBeVisible();
     await trigger.click();

@@ -81,3 +81,65 @@ export function buildBatchClassPayload(className, divisions = []) {
 
   return { ok: true, payload: { className: name, divisions: cleaned } };
 }
+
+export function classSectionLabel(className, section) {
+  const cls = String(className || "").trim();
+  const sec = String(section || "").trim();
+  if (cls && sec) return `${cls}-${sec}`;
+  return cls || sec;
+}
+
+function pushUniqueLabel(map, teacherId, label) {
+  const id = String(teacherId || "").trim();
+  const text = String(label || "").trim();
+  if (!id || !text) return;
+  const list = map.get(id) || [];
+  if (!list.includes(text)) list.push(text);
+  map.set(id, list);
+}
+
+/**
+ * Map classTeacherId → class-section labels they already homeroom.
+ * @param {Array<{ classTeacherId?: string|null, className?: string, section?: string }>} sections
+ * @param {{ excludeId?: string|null }} [opts]
+ */
+export function assignedClassTeacherLabels(sections = [], { excludeId = null } = {}) {
+  const map = new Map();
+  const skip = String(excludeId || "").trim();
+  for (const row of sections || []) {
+    if (skip && String(row?.id || "") === skip) continue;
+    pushUniqueLabel(map, row?.classTeacherId, classSectionLabel(row?.className, row?.section));
+  }
+  return map;
+}
+
+/**
+ * Map classTeacherId → division labels already picked on this create form.
+ * The current row is omitted so its own selection is not marked as a draft conflict.
+ */
+export function draftClassTeacherLabels(divisions = [], { className = "", excludeKey = null } = {}) {
+  const map = new Map();
+  for (const row of divisions || []) {
+    if (excludeKey && row?.key === excludeKey) continue;
+    const teacherId = String(row?.classTeacherId || "").trim();
+    if (!teacherId) continue;
+    const section = String(row?.section || "").trim();
+    const label = section ? classSectionLabel(className, section) : "another division";
+    pushUniqueLabel(map, teacherId, label);
+  }
+  return map;
+}
+
+/**
+ * Native <select> option text for a teacher, noting existing or in-form class-teacher roles.
+ */
+export function classTeacherOptionLabel(name, { assignedLabels = [], draftLabels = [] } = {}) {
+  const teacherName = String(name || "").trim() || "Teacher";
+  const assigned = [...new Set((assignedLabels || []).map((s) => String(s || "").trim()).filter(Boolean))];
+  const draft = [...new Set((draftLabels || []).map((s) => String(s || "").trim()).filter(Boolean))];
+  const notes = [];
+  if (assigned.length) notes.push(`already class teacher of ${assigned.join(", ")}`);
+  if (draft.length) notes.push(`selected for ${draft.join(", ")}`);
+  if (!notes.length) return teacherName;
+  return `${teacherName} — ${notes.join("; ")}`;
+}

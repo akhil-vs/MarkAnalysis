@@ -40,7 +40,7 @@ The page is split into tabs. Jump to the section you need:
 
 | Tab | What to do |
 |---|---|
-| **Classes** | Create a class with several divisions at once (**Add class with divisions**, **Fill A–D** for a quick start); assign a **class teacher** per division. The **Registered class sections** directory expands a grade to manage divisions — search by class, section, or teacher; filter by class teacher / status; export CSV. |
+| **Classes** | Create a class with several divisions at once (**Add class with divisions**, **Fill A–D** for a quick start); assign a **class teacher** per division. The drop-down labels teachers who are already class teacher of another section. The **Registered class sections** directory expands a grade to manage divisions — search by class, section, or teacher; filter by class teacher / status; export CSV. |
 | **Subjects** | Add subjects to the pool with **Max marks** (theory ceiling for mark entry). Optional **Practical max** (leave blank for theory-only). Tick **Elective (enroll selected students only)** and use **Enrollments** to pick students. Then select which pool subjects each class uses. |
 | **Students** | Add or import the roll; upload photos for hall tickets (or use **Marks → Student photos**). |
 | **Exams** | Create exams; under **Classes in this exam** choose which classes sit under it (**Select all** / **Clear**, or toggle **Class {name}** — editable later). Set paper dates (same date for all, or per class/subject); set **Max marks [consolidation]**; **Lock for consolidation** when ready. If one class paper timetable is complete, **Copy class timetable to all classes**. |
@@ -52,7 +52,7 @@ The page is split into tabs. Jump to the section you need:
 2. The list is an **accordion**: expand a row for assignments and actions (edit, **Transfer classes**, timetable, notify).
 3. Only the principal can create **exam co-ordinator** accounts and open **Role access**.
 4. Under **Role access**, grant menu features per role — including **Timetables**, **Leave approval**, and **Assign substitutes** for vice principals, supervisors, or co-ordinators.
-5. Assign each teacher to **class + subject** papers. Teachers cannot enter marks until they are **ACTIVE** and assigned.
+5. Assign **class + subject** papers to any staff role — including **principal**, **vice principal**, and **co-ordinators** — as well as teachers. Teachers cannot enter marks until they are **ACTIVE** and assigned.
 6. Open a teacher’s **timetable** from the staff row when needed.
 
 ### 2.4 Timetables (`School setup → Timetables`)
@@ -61,7 +61,7 @@ Four tabs: **Teachers**, **Daily board**, **Find free**, **Leave & cover**. Tabs
 
 **Teachers (accordion)**
 
-1. Search teachers. Each row shows subjects and a **periods/week** badge.
+1. Search teachers, or filter by **class** and **subject**. Each row shows subjects and a **periods/week** badge.
 2. Expand a teacher, then:
    - **Open timetable** — embedded weekly grid, plus **Open full page** for Daily / Weekly / Hours history (leadership can add or remove periods on the full page).
    - **Put on leave** — Start / End, optional reason. If you can assign substitutes, tick **Suggest a different free teacher for each vacated period**. **Save leave**, then **Review covers**.

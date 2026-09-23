@@ -10,7 +10,7 @@ import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError } from "../components/FieldError.jsx";
 import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
-import { canAddCoordinator, isLeadership } from "../lib/roles.js";
+import { canAddCoordinator, canHoldClassroomAssignments, isLeadership } from "../lib/roles.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { FEATURE_GROUPS, OPTIONAL_MODULE_IDS, isOptionalModuleEnabled } from "../lib/features.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
@@ -735,7 +735,7 @@ export default function Users() {
   async function removeStaff(row) {
     if (!canManageStaffRow(row)) return;
     const paperCount = (row.assignments || []).length;
-    if (row.role === "TEACHER" && paperCount > 0) {
+    if (canHoldClassroomAssignments(row.role) && paperCount > 0) {
       setDeleting(row);
       return;
     }
@@ -1223,7 +1223,7 @@ export default function Users() {
                 const busy = busyId === u.id;
                 const canApprove = leadership && u.status !== "ACTIVE";
                 const canReject = leadership && u.status === "PENDING";
-                const canAssign = u.role === "TEACHER";
+                const canAssign = canManageStaffRow(u) && canHoldClassroomAssignments(u.role);
                 const canReset = user.role === "PRINCIPAL" && u.id !== user.id;
                 const isLeadershipRole = u.role === "PRINCIPAL" || u.role === "EXAM_COORDINATOR";
                 const canEditRow = canManageStaffRow(u);
@@ -1232,6 +1232,7 @@ export default function Users() {
                 const panelId = `staff-panel-${u.id}`;
                 const buttonId = `staff-trigger-${u.id}`;
                 const assignmentCount = (u.assignments || []).length;
+                const showAssignmentCount = canHoldClassroomAssignments(u.role);
 
                 return (
                   <div key={u.id} className={`accordion-item ${open ? "accordion-item-open" : ""}`} role="listitem">
@@ -1273,7 +1274,7 @@ export default function Users() {
                             <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${statusDotClass(u.status)}`} aria-hidden="true" />
                             {statusLabel(u.status)}
                           </span>
-                          {canAssign && (
+                          {showAssignmentCount && (
                             <span className="text-xs text-ink-700/50">
                               {assignmentCount} paper{assignmentCount === 1 ? "" : "s"}
                             </span>
@@ -1306,15 +1307,16 @@ export default function Users() {
                       <div className="space-y-3 rounded-lg border border-ink-900/10 bg-white/70 p-3">
                         <div>
                           <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45 mb-1.5">
-                            {canAssign ? "Assignments" : "Scope"}
+                            Assignments
                           </div>
-                          {u.role === "TEACHER" ? (
-                            <AssignmentList assignments={u.assignments} />
-                          ) : u.role === "PRINCIPAL" ? (
-                            <p className="text-sm italic text-ink-700/55">All Classrooms & Administrative Oversight</p>
-                          ) : (
-                            <p className="text-sm italic text-ink-700/55">Exam operations & register oversight</p>
+                          {isLeadershipRole && (
+                            <p className="text-sm italic text-ink-700/55 mb-1.5">
+                              {u.role === "PRINCIPAL"
+                                ? "All classrooms & administrative oversight"
+                                : "Exam operations & register oversight"}
+                            </p>
                           )}
+                          <AssignmentList assignments={u.assignments} />
                         </div>
                         <div>
                           <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45 mb-1.5">Actions</div>
@@ -1352,10 +1354,10 @@ export default function Users() {
                                 onClick={() => setTransferring(u)}
                               />
                             )}
-                            {canAssign && u.status === "ACTIVE" && (
+                            {u.role === "TEACHER" && u.status === "ACTIVE" && (
                               <IconAction tip="Timetable" icon="timetable" to={`/timetables/teachers/${u.id}`} />
                             )}
-                            {canAssign && u.status === "ACTIVE" && (
+                            {u.role === "TEACHER" && u.status === "ACTIVE" && (
                               <IconAction
                                 tip="Notify"
                                 icon="notify"
@@ -1428,6 +1430,7 @@ export default function Users() {
               setDeleteAfterTransferId(null);
             }
           }}
+          actorRole={user.role}
           onTransfer={transferClasses}
         />
       )}
@@ -1513,7 +1516,7 @@ function PermissionsModal({ user, onClose }) {
         <p className="text-sm text-ink-700/65 mb-3">
           Access follows the <span className="font-medium text-ink-900">{staffRoleLabel(user) || ROLE_LABEL[user.role] || user.role}</span> role
           {user.roleTitle ? ` (${ROLE_LABEL[user.role] || user.role} access)` : ""}.
-          Classroom paper assignments are managed per teacher.
+          Classroom papers can be assigned to any staff role, including principal, vice principal, and coordinators.
         </p>
         <ul className="space-y-2 text-sm text-ink-800">
           {points.map((p) => (
@@ -1740,7 +1743,7 @@ function DeleteBlockedModal({ user, busy, onClose, onTransfer, onClear }) {
   );
 }
 
-function TransferModal({ user, onClose, onTransfer }) {
+function TransferModal({ user, actorRole, onClose, onTransfer }) {
   const [teachers, setTeachers] = useState([]);
   const [toUserId, setToUserId] = useState("");
   const [includeTimetable, setIncludeTimetable] = useState(true);
@@ -1756,15 +1759,21 @@ function TransferModal({ user, onClose, onTransfer }) {
       setLoading(true);
       setLoadError("");
       try {
-        const res = await api("/api/users?role=TEACHER&status=ACTIVE&page=1&pageSize=200&sort=name");
+        const query =
+          actorRole === "PRINCIPAL"
+            ? "/api/users?status=ACTIVE&page=1&pageSize=200&sort=name"
+            : "/api/users?role=TEACHER&status=ACTIVE&page=1&pageSize=200&sort=name";
+        const res = await api(query);
         const items = Array.isArray(res) ? res : res.items || [];
-        const options = items.filter((t) => t.id !== user.id);
+        const options = items.filter(
+          (t) => t.id !== user.id && canHoldClassroomAssignments(t.role)
+        );
         if (!cancelled) {
           setTeachers(options);
           setToUserId(options[0]?.id || "");
         }
       } catch (err) {
-        if (!cancelled) setLoadError(err.message || "Could not load teachers");
+        if (!cancelled) setLoadError(err.message || "Could not load staff");
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -1772,20 +1781,24 @@ function TransferModal({ user, onClose, onTransfer }) {
     return () => {
       cancelled = true;
     };
-  }, [user.id]);
+  }, [user.id, actorRole]);
+
+  const target = teachers.find((t) => t.id === toUserId);
 
   async function save(e) {
     e.preventDefault();
     if (!toUserId) return;
     setSaving(true);
     try {
-      await onTransfer(user, { toUserId, includeTimetable, includeClassTeacher });
+      await onTransfer(user, {
+        toUserId,
+        includeTimetable: includeTimetable && target?.role === "TEACHER",
+        includeClassTeacher: includeClassTeacher && target?.role === "TEACHER",
+      });
     } finally {
       setSaving(false);
     }
   }
-
-  const target = teachers.find((t) => t.id === toUserId);
 
   return (
     <div className="fixed inset-0 bg-ink-950/40 flex items-end sm:items-center justify-center p-0 sm:p-4 z-20">
@@ -1796,22 +1809,22 @@ function TransferModal({ user, onClose, onTransfer }) {
         <h3 className="font-serif text-xl mb-1">Transfer classes</h3>
         <p className="text-sm text-ink-700/65 mb-4">
           Move classroom papers from <span className="font-medium text-ink-900">{user.name}</span>
-          {paperCount ? ` (${paperCount} assigned)` : ""} to a replacement teacher. Useful when someone
-          resigns and a successor is ready.
+          {paperCount ? ` (${paperCount} assigned)` : ""} to a replacement staff member. Useful when
+          someone resigns and a successor is ready.
         </p>
 
         {loading ? (
-          <InlineLoading label="Loading teachers…" className="mb-4" />
+          <InlineLoading label="Loading staff…" className="mb-4" />
         ) : loadError ? (
           <p className="text-sm text-clay-600 mb-4">{loadError}</p>
         ) : teachers.length === 0 ? (
           <p className="text-sm text-ink-700/60 mb-4">
-            No other active teachers available. Create the replacement account first, then transfer.
+            No other active staff available. Create the replacement account first, then transfer.
           </p>
         ) : (
           <div className="space-y-3 mb-4">
             <div>
-              <label className="label">Replacement teacher</label>
+              <label className="label">Replacement staff</label>
               <select
                 className="field"
                 value={toUserId}
@@ -1822,28 +1835,33 @@ function TransferModal({ user, onClose, onTransfer }) {
                   <option key={t.id} value={t.id}>
                     {t.name}
                     {t.schoolId ? ` · ${t.schoolId}` : ""}
+                    {` · ${staffRoleLabel(t)}`}
                   </option>
                 ))}
               </select>
             </div>
-            <label className="flex items-start gap-2 text-sm text-ink-800">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={includeTimetable}
-                onChange={(e) => setIncludeTimetable(e.target.checked)}
-              />
-              <span>Also move timetable slots</span>
-            </label>
-            <label className="flex items-start gap-2 text-sm text-ink-800">
-              <input
-                type="checkbox"
-                className="mt-1"
-                checked={includeClassTeacher}
-                onChange={(e) => setIncludeClassTeacher(e.target.checked)}
-              />
-              <span>Also move class-teacher (homeroom) roles</span>
-            </label>
+            {target?.role === "TEACHER" && (
+              <>
+                <label className="flex items-start gap-2 text-sm text-ink-800">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={includeTimetable}
+                    onChange={(e) => setIncludeTimetable(e.target.checked)}
+                  />
+                  <span>Also move timetable slots</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm text-ink-800">
+                  <input
+                    type="checkbox"
+                    className="mt-1"
+                    checked={includeClassTeacher}
+                    onChange={(e) => setIncludeClassTeacher(e.target.checked)}
+                  />
+                  <span>Also move class-teacher (homeroom) roles</span>
+                </label>
+              </>
+            )}
             <p className="text-xs text-ink-700/55">
               Papers already held by {target?.name || "the replacement"} are kept once. Conflicting
               timetable slots for the same class and period are skipped.
