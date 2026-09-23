@@ -40,7 +40,7 @@ The page is split into tabs. Jump to the section you need:
 
 | Tab | What to do |
 |---|---|
-| **Classes** | Create a class with several divisions at once (**Add class with divisions**, **Fill A–D** for a quick start); assign a **class teacher** per division. The **Registered class sections** directory expands a grade to manage divisions — search by class, section, or teacher; filter by class teacher / status; export CSV. |
+| **Classes** | Create a class with several divisions at once (**Add class with divisions**, **Fill A–D** for a quick start); assign a **class teacher** per division. The drop-down labels teachers who are already class teacher of another section. The **Registered class sections** directory expands a grade to manage divisions — search by class, section, or teacher; filter by class teacher / status; export CSV. |
 | **Subjects** | Add subjects to the pool with **Max marks** (theory ceiling for mark entry). Optional **Practical max** (leave blank for theory-only). Tick **Elective (enroll selected students only)** and use **Enrollments** to pick students. Then select which pool subjects each class uses. |
 | **Students** | Add or import the roll; upload photos for hall tickets (or use **Marks → Student photos**). |
 | **Exams** | Create exams; under **Classes in this exam** choose which classes sit under it (**Select all** / **Clear**, or toggle **Class {name}** — editable later). Set paper dates (same date for all, or per class/subject); set **Max marks [consolidation]**; **Lock for consolidation** when ready. If one class paper timetable is complete, **Copy class timetable to all classes**. |

@@ -115,7 +115,7 @@ export const PAGE_HELP = {
   records: {
     title: "What's on this page",
     about: "School structure: a directory of registered class sections (expand a grade to manage divisions and class teachers), a shared subject pool with theory max marks, optional practical max, and electives, subjects selected per class, students, the exam calendar (choose Classes in this exam, then per-class / per-subject paper dates) and consolidation max marks, and year-end promotion.",
-    useful: "On Classes, enter the class once and add every division with optional class teachers in one step (Fill A–D for a quick start), then use Registered class sections to search and filter. On Subjects, add papers to the pool with max marks (and Practical max if needed; tick Elective to enroll selected students only), then select which ones each class uses. When scheduling an exam, pick the classes that sit under it, then set the same date for every paper or different dates per class and subject.",
+    useful: "On Classes, enter the class once and add every division with optional class teachers in one step (Fill A–D for a quick start). The class-teacher list marks anyone already assigned to another section. Then use Registered class sections to search and filter. On Subjects, add papers to the pool with max marks (and Practical max if needed; tick Elective to enroll selected students only), then select which ones each class uses. When scheduling an exam, pick the classes that sit under it, then set the same date for every paper or different dates per class and subject.",
   },
   timetables: {
     title: "What's on this page",
