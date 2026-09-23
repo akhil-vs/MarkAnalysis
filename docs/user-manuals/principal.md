@@ -61,7 +61,7 @@ Four tabs: **Teachers**, **Daily board**, **Find free**, **Leave & cover**. Tabs
 
 **Teachers (accordion)**
 
-1. Search teachers. Each row shows subjects and a **periods/week** badge.
+1. Search teachers, or filter by **class** and **subject**. Each row shows subjects and a **periods/week** badge.
 2. Expand a teacher, then:
    - **Open timetable** — embedded weekly grid, plus **Open full page** for Daily / Weekly / Hours history (leadership can add or remove periods on the full page).
    - **Put on leave** — Start / End, optional reason. If you can assign substitutes, tick **Suggest a different free teacher for each vacated period**. **Save leave**, then **Review covers**.
