@@ -94,7 +94,11 @@ export function generateRecoveryCodes(count = 8) {
 }
 
 export function hashRecoveryCode(code) {
-  return createHmac("sha256", process.env.JWT_SECRET || "dev")
+  const secret = process.env.JWT_SECRET;
+  if (!secret) {
+    throw new Error("JWT_SECRET is required to hash recovery codes");
+  }
+  return createHmac("sha256", secret)
     .update(String(code).trim().toLowerCase())
     .digest("hex");
 }

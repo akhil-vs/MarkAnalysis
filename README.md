@@ -97,6 +97,9 @@ Set these on the Vercel project (or host env) before going live:
 | `CLIENT_ORIGIN` | no* | Comma-separated SPA origins. \*Not needed when the SPA and `/api` share one Vercel deployment |
 | `COOKIE_SECURE` | no | Force `Secure` cookies; auto-on when `VERCEL` or `NODE_ENV=production` |
 | `VITE_ENABLE_DEMO_LOGIN` | no | Build-time; leave unset/`false` so demo one-click logins stay hidden |
+| `PLATFORM_ADMIN_PASSWORD` | prod | Required to create the platform admin on first boot. Never use the documented seed password (`password123`) in production |
+| `PLATFORM_ADMIN_PASSWORD_LOCKED` | prod | Set `true` after the admin password is set so boot cannot rotate it |
+| `ENSURE_PLATFORM_ADMIN` | no | Set `false` to skip boot-time admin ensure entirely |
 
 Sessions use httpOnly cookies `sma_access` + `sma_refresh` (rotated on `POST /api/auth/refresh`). The SPA calls APIs with `credentials: "include"`.
 
@@ -189,7 +192,7 @@ Principals and exam coordinators can send in-app notices to teachers about **dea
 - **Health**: `GET /api/health` (liveness) and `GET /api/health?deep=1` (DB ping). Helmet sets CSP (report-only unless `CSP_ENFORCE=true`).
 - **MFA**: Profile → enable TOTP; login then asks for a 6-digit code (or recovery code).
 - **Email digests**: enable on School profile; platform admin can **Run email digests** / **Flush mail queue**. Configure `SMTP_URL` or `SMTP_HOST` (without SMTP, messages stay in `EmailOutbox` as skipped).
-- **Backup**: platform overview → **Download backup** (JSON). Merge restore via `POST /api/platform/backup/restore`.
+- **Backup**: platform overview → **Download backup** (JSON) via `POST /api/platform/backup`. Merge restore via `POST /api/platform/backup/restore`.
 - **Board ops** (leadership): per-paper exam calendar, report-card publish/sign-off, parent notify, revaluation, board packs.
 - **CPD**: training plans, observations, appraisals, and certificates under **CPD** in the sidebar.
 

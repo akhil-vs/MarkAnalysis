@@ -1,7 +1,6 @@
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma.js";
 import { ACCESS_COOKIE } from "../lib/authCookies.js";
-import { ensureAuthSchema } from "../lib/ensureSchema.js";
 import { runWithoutTenant, runWithTenant } from "../lib/tenant.js";
 
 const STAFF_ROLES = new Set(["PLATFORM_ADMIN", "PRINCIPAL", "EXAM_COORDINATOR", "TEACHER"]);
@@ -30,7 +29,7 @@ function verifyAccess(req, res) {
     return null;
   }
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
     if (!isStaffAccessPayload(payload)) {
       res.status(401).json({ error: "Invalid token" });
       return null;
@@ -42,77 +41,92 @@ function verifyAccess(req, res) {
   }
 }
 
-async function resolveTenantId(payload) {
-  if (payload?.tenantId) return payload.tenantId;
-  if (!payload?.userId) return null;
-  const user = await runWithoutTenant(() =>
-    prisma.user.findUnique({
-      where: { id: payload.userId },
-      select: { tenantId: true },
-    })
-  );
-  return user?.tenantId || null;
+const LIVE_STAFF_SELECT = {
+  id: true,
+  status: true,
+  role: true,
+  roleTitle: true,
+  name: true,
+  tenantId: true,
+  mustChangePassword: true,
+};
+
+/** Overlay JWT identity with the live user row so demotions and resets apply immediately. */
+export function applyLiveStaffUser(user) {
+  if (!user) return { error: { status: 401, error: "Unauthorized" } };
+  if (user.status === "PENDING" || user.status === "REJECTED") {
+    return { error: { status: 401, error: "Unauthorized" } };
+  }
+  if (!STAFF_ROLES.has(user.role)) {
+    return { error: { status: 401, error: "Invalid token" } };
+  }
+  return {
+    user: {
+      userId: user.id,
+      role: user.role,
+      roleTitle: user.roleTitle || null,
+      name: user.name,
+      tenantId: user.tenantId || null,
+      mustChangePassword: Boolean(user.mustChangePassword),
+    },
+  };
 }
 
-function continueWithTenant(req, res, next, cont) {
-  if (req.user?.role === "PLATFORM_ADMIN") {
+async function loadLiveStaffUser(userId) {
+  if (!userId) return { error: { status: 401, error: "Unauthorized" } };
+  const user = await runWithoutTenant(() =>
+    prisma.user.findUnique({
+      where: { id: userId },
+      select: LIVE_STAFF_SELECT,
+    })
+  );
+  return applyLiveStaffUser(user);
+}
+
+function bindStaffRequest(req, res, next, live, cont) {
+  req.user = live;
+  if (req.user.role === "PLATFORM_ADMIN") {
     return runWithoutTenant(() => cont());
   }
-  return resolveTenantId(req.user)
-    .then((tenantId) => {
-      if (!tenantId) {
-        return res.status(401).json({ error: "Unauthorized" });
-      }
-      req.user.tenantId = tenantId;
-      return runWithTenant(tenantId, () => cont());
-    })
-    .catch((err) => next(err));
+  if (!req.user.tenantId) {
+    return res.status(401).json({ error: "Unauthorized" });
+  }
+  return runWithTenant(req.user.tenantId, () => cont());
 }
 
 /** Block API use until a required password change is completed. */
-export async function rejectIfMustChangePassword(req, res, next) {
+export function rejectIfMustChangePassword(req, res, next) {
   if (!req.user?.userId || req.allowMustChangePassword) return next();
-  // Prefer the claim embedded at login/refresh to avoid a DB round-trip on every request.
-  if (req.user.mustChangePassword === false) return next();
-  if (req.user.mustChangePassword === true) {
+  if (req.user.mustChangePassword) {
     return res.status(403).json({
       error: "Password change required",
       code: "MUST_CHANGE_PASSWORD",
     });
   }
-  try {
-    await ensureAuthSchema();
-    const user = await prisma.user.findUnique({
-      where: { id: req.user.userId },
-      select: { mustChangePassword: true },
-    });
-    if (user?.mustChangePassword) {
-      return res.status(403).json({
-        error: "Password change required",
-        code: "MUST_CHANGE_PASSWORD",
-      });
-    }
-    req.user.mustChangePassword = false;
-    return next();
-  } catch (err) {
-    return next(err);
-  }
+  return next();
+}
+
+function withLiveStaff(req, res, next, cont) {
+  const payload = verifyAccess(req, res);
+  if (!payload) return;
+  return loadLiveStaffUser(payload.userId)
+    .then((result) => {
+      if (result.error) {
+        return res.status(result.error.status).json({ error: result.error.error });
+      }
+      return bindStaffRequest(req, res, next, result.user, cont);
+    })
+    .catch((err) => next(err));
 }
 
 export function auth(req, res, next) {
-  const payload = verifyAccess(req, res);
-  if (!payload) return;
-  req.user = payload;
-  return continueWithTenant(req, res, next, () => rejectIfMustChangePassword(req, res, next));
+  return withLiveStaff(req, res, next, () => rejectIfMustChangePassword(req, res, next));
 }
 
 /** Authenticate, but allow callers who still need to change a temporary password. */
 export function authAllowPasswordChange(req, res, next) {
-  const payload = verifyAccess(req, res);
-  if (!payload) return;
-  req.user = payload;
   req.allowMustChangePassword = true;
-  return continueWithTenant(req, res, next, () => next());
+  return withLiveStaff(req, res, next, () => next());
 }
 
 export function requireRole(...roles) {
@@ -196,7 +210,7 @@ export function signToken(user) {
       mustChangePassword: Boolean(user.mustChangePassword),
     },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_ACCESS_EXPIRES || "15m" }
+    { algorithm: "HS256", expiresIn: process.env.JWT_ACCESS_EXPIRES || "15m" }
   );
 }
 

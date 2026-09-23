@@ -9,5 +9,6 @@ describe("health payload", () => {
     assert.equal(payload.ok, true);
     assert.equal(payload.service, "school-marks-api");
     assert.equal(payload.db, undefined);
+    assert.equal(payload.smtpConfigured, undefined);
   });
 });

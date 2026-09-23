@@ -13,6 +13,7 @@ import {
   clearAuthCookies,
   createRefreshSession,
   REFRESH_COOKIE,
+  revokeAllRefreshSessions,
   revokeRefreshSession,
   rotateRefreshSession,
   setAccessCookie,
@@ -232,29 +233,41 @@ authRouter.post("/signup", authWriteLimit, async (req, res) => {
 
   if (normalizedEmail) {
     const exists = await runWithoutTenant(() => prisma.user.findUnique({ where: { email: normalizedEmail } }));
-    if (exists) return res.status(409).json({ error: "Email already registered" });
+    if (exists) {
+      return res.status(409).json({ error: "Could not create this account with the details provided" });
+    }
   }
   if (schoolId) {
     const exists = await runWithTenant(school.id, () =>
       prisma.user.findFirst({ where: { schoolId } })
     );
-    if (exists) return res.status(409).json({ error: "School ID already registered at this school" });
+    if (exists) {
+      return res.status(409).json({ error: "Could not create this account with the details provided" });
+    }
   }
 
   const passwordHash = await hashPassword(password);
-  const user = await runWithTenant(school.id, () =>
-    prisma.user.create({
-      data: {
-        name,
-        email: normalizedEmail || null,
-        schoolId: schoolId || null,
-        passwordHash,
-        role: chosenRole,
-        status: "PENDING",
-        mustChangePassword: false,
-      },
-    })
-  );
+  let user;
+  try {
+    user = await runWithTenant(school.id, () =>
+      prisma.user.create({
+        data: {
+          name,
+          email: normalizedEmail || null,
+          schoolId: schoolId || null,
+          passwordHash,
+          role: chosenRole,
+          status: "PENDING",
+          mustChangePassword: false,
+        },
+      })
+    );
+  } catch (err) {
+    if (err?.code === "P2002" || err?.code === "23505") {
+      return res.status(409).json({ error: "Could not create this account with the details provided" });
+    }
+    throw err;
+  }
 
   return res.status(201).json({
     user: publicUser(user, school),
@@ -372,7 +385,7 @@ function issueMfaChallenge(user) {
   const mfaToken = jwt.sign(
     { purpose: "mfa", userId: user.id },
     process.env.JWT_SECRET,
-    { expiresIn: "5m" }
+    { algorithm: "HS256", expiresIn: "5m" }
   );
   return {
     mfaRequired: true,
@@ -393,7 +406,7 @@ authRouter.post("/mfa/verify", authWriteLimit, async (req, res) => {
   if (!mfaToken) return res.status(400).json({ error: "mfaToken is required" });
   let payload;
   try {
-    payload = jwt.verify(mfaToken, process.env.JWT_SECRET);
+    payload = jwt.verify(mfaToken, process.env.JWT_SECRET, { algorithms: ["HS256"] });
   } catch {
     return res.status(401).json({ error: "MFA challenge expired" });
   }
@@ -571,6 +584,7 @@ authRouter.post("/change-password", authAllowPasswordChange, async (req, res) =>
       mustChangePassword: false,
     },
   });
+  await runWithoutTenant(() => revokeAllRefreshSessions(user.id));
   res.json({
     ok: true,
     message: "Password updated",

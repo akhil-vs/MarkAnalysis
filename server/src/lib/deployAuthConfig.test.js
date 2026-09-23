@@ -66,5 +66,6 @@ describe("deployAuthConfig", () => {
     assert.ok(names.includes("DATABASE_URL"));
     assert.ok(names.includes("CLIENT_ORIGIN"));
     assert.ok(names.includes("COOKIE_SECURE"));
+    assert.ok(names.includes("PLATFORM_ADMIN_PASSWORD"));
   });
 });

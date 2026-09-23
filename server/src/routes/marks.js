@@ -38,6 +38,7 @@ import { requireSchoolTenant } from "../lib/tenant.js";
 import { invalidateInsightsCache } from "../lib/insightsCache.js";
 import { publicStudent } from "../lib/hallTickets.js";
 import { studentListOmit } from "../lib/markSelects.js";
+import { contentDispositionAttachment } from "../lib/downloadName.js";
 
 const WRITE_CHUNK = 25;
 
@@ -73,7 +74,7 @@ async function scopedSubjects(user, classSection, { write = false, assignments =
   return assigned;
 }
 
-marksRouter.get("/", async (req, res) => {
+marksRouter.get("/", requireFeature("marks", "pendingUploads"), async (req, res) => {
   const { classSectionId, examId, subjectId } = req.query;
   if (!classSectionId || !examId) {
     return res.status(400).json({ error: "classSectionId and examId are required" });
@@ -150,7 +151,7 @@ marksRouter.get("/", async (req, res) => {
   });
 });
 
-marksRouter.put("/", async (req, res) => {
+marksRouter.put("/", requireFeature("marks"), async (req, res) => {
   if (req.user.role === "PRINCIPAL") {
     return res.status(403).json({
       error: "Principals do not enter marks. Approve submitted registers or use Moderate with a reason.",
@@ -242,7 +243,7 @@ marksRouter.put("/", async (req, res) => {
   res.json({ results });
 });
 
-marksRouter.get("/audit", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+marksRouter.get("/audit", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("audit"), async (req, res) => {
   await ensureActivityAuditSchema();
   const { examId, classSectionId, actorId, role: actorRole } = req.query;
   const actorWhere = actorFilterForViewer(req.user.role, actorRole, actorId);
@@ -327,7 +328,7 @@ marksRouter.get("/audit", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
 });
 
 
-marksRouter.get("/template", async (req, res) => {
+marksRouter.get("/template", requireFeature("marks", "upload"), async (req, res) => {
   const { classSectionId, examId } = req.query;
   if (!classSectionId || !examId) {
     return res.status(400).json({ error: "classSectionId and examId are required" });
@@ -370,9 +371,9 @@ marksRouter.get("/template", async (req, res) => {
   });
 
   const buffer = await workbook.xlsx.writeBuffer();
-  const filename = `${classSection.className}${classSection.section}-${exam.name.replace(/\s+/g, "_")}.xlsx`;
+  const filename = `${classSection.className}${classSection.section}-${exam.name}.xlsx`;
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Content-Disposition", contentDispositionAttachment(filename));
   res.send(Buffer.from(buffer));
 });
 
@@ -390,7 +391,7 @@ function markSampleRows(valid) {
   }));
 }
 
-marksRouter.post("/upload", upload.single("file"), async (req, res) => {
+marksRouter.post("/upload", requireFeature("upload"), upload.single("file"), async (req, res) => {
   if (req.user.role === "PRINCIPAL") {
     return res.status(403).json({
       error: "Principals do not bulk-upload marks. Teachers and exam coordinators enter marks.",
@@ -580,7 +581,7 @@ marksRouter.post("/upload", upload.single("file"), async (req, res) => {
 });
 
 
-marksRouter.post("/submit", async (req, res) => {
+marksRouter.post("/submit", requireFeature("marks"), async (req, res) => {
   if (req.user.role === "PRINCIPAL") {
     return res.status(403).json({
       error: "Principals do not submit mark registers. Approve submitted marks from teachers instead.",

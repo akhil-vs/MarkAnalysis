@@ -17,6 +17,7 @@ import {
   slugifyName,
 } from "../lib/tenant.js";
 import { auth, publicUser } from "../middleware/auth.js";
+import { revokeAllRefreshSessions } from "../lib/authCookies.js";
 import { createBackup, restoreBackup } from "../lib/backup.js";
 import { runSchoolDigests } from "../lib/digests.js";
 import { flushEmailOutbox } from "../lib/mailer.js";
@@ -384,6 +385,7 @@ platformRouter.post("/schools/:id/users/:userId/reset-password", async (req, res
       mustChangePassword: true,
     },
   });
+  await revokeAllRefreshSessions(user.id);
   await logActivity({
     actorId: req.user.userId,
     action: "USER_PASSWORD_RESET",
@@ -460,8 +462,8 @@ platformRouter.post("/schools/:id/data/delete", async (req, res) => {
   }
 });
 
-platformRouter.get("/backup", async (req, res) => {
-  const schoolId = req.query.schoolId || null;
+platformRouter.post("/backup", async (req, res) => {
+  const schoolId = req.body?.schoolId || req.query.schoolId || null;
   const backup = await createBackup({ schoolId: schoolId || null });
   await logActivity({
     actorId: req.user.userId,
@@ -498,6 +500,6 @@ platformRouter.post("/mail/flush", async (_req, res) => {
 });
 
 platformRouter.get("/health/deep", async (_req, res) => {
-  const payload = await buildHealthPayload({ deep: true });
+  const payload = await buildHealthPayload({ deep: true, includeOps: true });
   res.status(payload.ok ? 200 : 503).json(payload);
 });

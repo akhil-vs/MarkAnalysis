@@ -23,7 +23,7 @@ async function columnExists(tableName, columnName) {
  * Liveness/readiness probe.
  * Always returns quickly. With ?deep=1, pings the database and checks auth-critical columns.
  */
-export async function buildHealthPayload({ deep = false } = {}) {
+export async function buildHealthPayload({ deep = false, includeOps = false } = {}) {
   const payload = {
     ok: true,
     service: "school-marks-api",
@@ -61,16 +61,19 @@ export async function buildHealthPayload({ deep = false } = {}) {
     } else {
       payload.schema.ok = true;
     }
-  } catch (err) {
+  } catch {
     payload.ok = false;
     payload.db = {
       ok: false,
       latencyMs: Date.now() - started,
-      error: err?.message || String(err),
+      error: "database unreachable",
     };
   }
 
-  payload.smtpConfigured = Boolean(process.env.SMTP_URL || process.env.SMTP_HOST);
-  payload.cspEnforce = process.env.CSP_ENFORCE === "true";
+  if (includeOps) {
+    payload.smtpConfigured = Boolean(process.env.SMTP_URL || process.env.SMTP_HOST);
+    payload.cspEnforce = process.env.CSP_ENFORCE === "true";
+  }
+
   return payload;
 }

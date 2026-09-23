@@ -49,4 +49,15 @@ describe("totp", () => {
     assert.equal(next.length, 1);
     assert.equal(consumeRecoveryCode(next, codes[0]), null);
   });
+
+  it("refuses to hash recovery codes without JWT_SECRET", () => {
+    const previous = process.env.JWT_SECRET;
+    delete process.env.JWT_SECRET;
+    try {
+      assert.throws(() => hashRecoveryCode("abcd"), /JWT_SECRET/);
+    } finally {
+      if (previous == null) delete process.env.JWT_SECRET;
+      else process.env.JWT_SECRET = previous;
+    }
+  });
 });

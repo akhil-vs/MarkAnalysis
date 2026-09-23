@@ -7,7 +7,7 @@ export function buildCorsAllowlist(env = process.env) {
   const configured = (env.CLIENT_ORIGIN || "http://localhost:5173")
     .split(",")
     .map((o) => o.trim())
-    .filter(Boolean);
+    .filter((o) => o && o !== "*");
 
   const vercel = [];
   if (env.VERCEL_URL) {
@@ -22,5 +22,6 @@ export function buildCorsAllowlist(env = process.env) {
 
 export function isCorsOriginAllowed(origin, allowlist) {
   if (!origin) return true;
-  return allowlist.includes("*") || allowlist.includes(origin);
+  // Credentialed CORS must never reflect arbitrary origins via "*".
+  return allowlist.includes(origin);
 }

@@ -81,5 +81,10 @@ export function deployAuthEnvDocs() {
       required: false,
       note: "Client build flag. Leave unset/false in production so one-click demo accounts stay hidden.",
     },
+    {
+      name: "PLATFORM_ADMIN_PASSWORD",
+      required: false,
+      note: "Required to create the platform admin on first production boot. Do not use the seed password.",
+    },
   ];
 }

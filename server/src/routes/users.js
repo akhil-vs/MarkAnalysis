@@ -8,6 +8,7 @@ import { parseEmail } from "../lib/numbers.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
 import { requireSchoolTenant, runWithoutTenant } from "../lib/tenant.js";
+import { revokeAllRefreshSessions } from "../lib/authCookies.js";
 import { getSchoolLetterhead } from "../lib/school.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { parseSpreadsheet } from "../lib/upload.js";
@@ -993,6 +994,7 @@ usersRouter.post("/:id/reset-password", requireRole("PRINCIPAL"), async (req, re
       mustChangePassword: true,
     },
   });
+  await runWithoutTenant(() => revokeAllRefreshSessions(existing.id));
   await logActivity({
     actorId: req.user.userId,
     action: "USER_PASSWORD_RESET",

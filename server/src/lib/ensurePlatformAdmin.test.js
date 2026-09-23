@@ -4,6 +4,7 @@ import bcrypt from "bcryptjs";
 import {
   DEFAULT_PLATFORM_ADMIN_EMAIL,
   ensurePlatformAdmin,
+  isProductionLike,
   platformAdminConfig,
 } from "./ensurePlatformAdmin.js";
 
@@ -46,7 +47,7 @@ describe("platformAdminConfig", () => {
     });
     assert.equal(cfg.email, "admin@platform.edu");
     assert.equal(cfg.password, "secret-pass");
-    assert.equal(cfg.resetPassword, true);
+    assert.equal(cfg.resetPassword, false);
   });
 });
 
@@ -132,6 +133,49 @@ describe("ensurePlatformAdmin", () => {
     const locked = await ensurePlatformAdmin(lockedDb, { PLATFORM_ADMIN_PASSWORD_LOCKED: "true" });
     assert.equal(locked.updated, false);
     assert.equal(lockedDb.state.updated, null);
+  });
+
+  it("does not create or reset the documented default password in production", async () => {
+    const db = mockDb();
+    const created = await ensurePlatformAdmin(db, { NODE_ENV: "production" });
+    assert.equal(created.skipped, true);
+    assert.equal(created.reason, "default-password-blocked");
+    assert.equal(db.state.created, null);
+
+    const passwordHash = await bcrypt.hash("already-rotated", 10);
+    const existingDb = mockDb({
+      existing: {
+        id: "1",
+        email: "admin@platform.edu",
+        role: "PLATFORM_ADMIN",
+        status: "PENDING",
+        mustChangePassword: true,
+        tenantId: null,
+        passwordHash,
+      },
+    });
+    const existing = await ensurePlatformAdmin(existingDb, { VERCEL: "1" });
+    assert.equal(existing.skipped, true);
+    assert.equal(existing.reason, "default-password-blocked");
+    assert.equal(existingDb.state.updated, null);
+    assert.ok(await bcrypt.compare("already-rotated", existingDb.state.existing.passwordHash));
+  });
+
+  it("creates a production admin only when PLATFORM_ADMIN_PASSWORD is set", async () => {
+    const db = mockDb();
+    const result = await ensurePlatformAdmin(db, {
+      NODE_ENV: "production",
+      PLATFORM_ADMIN_PASSWORD: "a-strong-admin-pass",
+    });
+    assert.equal(result.created, true);
+    assert.ok(await bcrypt.compare("a-strong-admin-pass", db.state.created.passwordHash));
+  });
+
+  it("treats Vercel and REQUIRE_SECURE_AUTH as production-like", () => {
+    assert.equal(isProductionLike({ NODE_ENV: "production" }), true);
+    assert.equal(isProductionLike({ VERCEL: "1" }), true);
+    assert.equal(isProductionLike({ REQUIRE_SECURE_AUTH: "true" }), true);
+    assert.equal(isProductionLike({ NODE_ENV: "development" }), false);
   });
 
   it("does not overwrite a non-admin account on the same email", async () => {
