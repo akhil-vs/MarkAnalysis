@@ -30,7 +30,7 @@ function verifyAccess(req, res) {
     return null;
   }
   try {
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
     if (!isStaffAccessPayload(payload)) {
       res.status(401).json({ error: "Invalid token" });
       return null;
@@ -196,7 +196,7 @@ export function signToken(user) {
       mustChangePassword: Boolean(user.mustChangePassword),
     },
     process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_ACCESS_EXPIRES || "15m" }
+    { algorithm: "HS256", expiresIn: process.env.JWT_ACCESS_EXPIRES || "15m" }
   );
 }
 

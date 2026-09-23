@@ -24,7 +24,13 @@ const registerLimit = rateLimit({
   message: "Too many school registrations. Try again in a few minutes.",
 });
 
-schoolsRouter.get("/lookup", async (req, res) => {
+const lookupLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: "Too many join-code lookups. Try again in a few minutes.",
+});
+
+schoolsRouter.get("/lookup", lookupLimit, async (req, res) => {
   const code = normalizeJoinCode(req.query.joinCode);
   if (!code) return res.status(400).json({ error: "Enter a school join code" });
   const school = await findSchoolByJoinCode(code);

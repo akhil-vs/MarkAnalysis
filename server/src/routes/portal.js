@@ -21,7 +21,7 @@ function signPortalJwt(link) {
       examId: link.examId || null,
     },
     process.env.JWT_SECRET,
-    { expiresIn: "12h" }
+    { algorithm: "HS256", expiresIn: "12h" }
   );
 }
 
@@ -42,7 +42,7 @@ function portalAuth(req, res, next) {
   const bearer = header.startsWith("Bearer ") ? header.slice(7) : null;
   if (!bearer) return res.status(401).json({ error: "Unauthorized" });
   try {
-    const payload = jwt.verify(bearer, process.env.JWT_SECRET);
+    const payload = jwt.verify(bearer, process.env.JWT_SECRET, { algorithms: ["HS256"] });
     if (payload?.kind !== "portal" || !payload.linkId || !payload.tenantId) {
       return res.status(401).json({ error: "Invalid portal session" });
     }
