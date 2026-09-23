@@ -10,6 +10,7 @@ import { useToast } from "../components/Toast.jsx";
 import { avatarTone, initials } from "../lib/classRecordPresentation.js";
 import { hasFeature } from "../lib/features.js";
 import { NAV_TITLES } from "../lib/nav.js";
+import { schoolWeekRangeContaining } from "../lib/schoolWeek.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 const ALL_MODES = [
@@ -39,16 +40,6 @@ function shiftDate(ymd, days) {
   const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(dt.getUTCDate()).padStart(2, "0");
   return `${yy}-${mm}-${dd}`;
-}
-
-/** Monday–Sunday ISO week containing `ymd`. */
-function weekRangeContaining(ymd) {
-  const [y, m, d] = String(ymd || todayYmd()).split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  const sun = dt.getUTCDay();
-  const iso = sun === 0 ? 7 : sun;
-  const from = shiftDate(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`, -(iso - 1));
-  return { from, to: shiftDate(from, 6) };
 }
 
 function teacherSearchText(t) {
@@ -678,9 +669,7 @@ function TeacherAccordionLeave({ teacher, canAssignSubs, onReviewCovers }) {
 }
 
 function TeacherAccordionHours({ teacherId }) {
-  const currentWeek = useMemo(() => weekRangeContaining(todayYmd()), []);
-  const [weekAnchor, setWeekAnchor] = useState(currentWeek.from);
-  const week = useMemo(() => weekRangeContaining(weekAnchor), [weekAnchor]);
+  const [weekAnchor, setWeekAnchor] = useState("");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -688,7 +677,8 @@ function TeacherAccordionHours({ teacherId }) {
     let cancelled = false;
     setError("");
     setData(null);
-    api(`/api/timetable/teachers/${teacherId}/hours?from=${week.from}&to=${week.to}`)
+    const query = weekAnchor ? `?week=${encodeURIComponent(weekAnchor)}` : "";
+    api(`/api/timetable/teachers/${teacherId}/hours${query}`)
       .then((res) => {
         if (!cancelled) setData(res);
       })
@@ -698,30 +688,44 @@ function TeacherAccordionHours({ teacherId }) {
     return () => {
       cancelled = true;
     };
-  }, [teacherId, week.from, week.to]);
+  }, [teacherId, weekAnchor]);
 
-  const isCurrentWeek = week.from === currentWeek.from;
+  const from = data?.from;
+  const to = data?.to;
+  const isCurrentWeek = data
+    ? from === schoolWeekRangeContaining(todayYmd(), data.workingDays).from
+    : !weekAnchor;
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">Hrs history</div>
         <Link
-          to={`/timetables/teachers/${teacherId}?view=history&date=${week.from}`}
+          to={`/timetables/teachers/${teacherId}?view=history${from ? `&date=${from}` : ""}`}
           className="text-xs font-medium text-clay-600 hover:underline"
         >
           Open full page
         </Link>
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <button type="button" className="btn-ghost text-xs" onClick={() => setWeekAnchor(shiftDate(week.from, -7))}>
+        <button
+          type="button"
+          className="btn-ghost text-xs"
+          disabled={!from}
+          onClick={() => from && setWeekAnchor(shiftDate(from, -7))}
+        >
           Previous week
         </button>
-        <button type="button" className="btn-ghost text-xs" onClick={() => setWeekAnchor(shiftDate(week.from, 7))}>
+        <button
+          type="button"
+          className="btn-ghost text-xs"
+          disabled={!from}
+          onClick={() => from && setWeekAnchor(shiftDate(from, 7))}
+        >
           Next week
         </button>
         {!isCurrentWeek && (
-          <button type="button" className="btn-ghost text-xs" onClick={() => setWeekAnchor(currentWeek.from)}>
+          <button type="button" className="btn-ghost text-xs" onClick={() => setWeekAnchor("")}>
             This week
           </button>
         )}
@@ -731,7 +735,7 @@ function TeacherAccordionHours({ teacherId }) {
       {data && (
         <>
           <p className="text-sm text-ink-700/65">
-            {week.from} → {week.to}
+            {from} → {to}
             {isCurrentWeek ? " · this week" : ""}
             {" · "}
             {formatTaughtHours(data.summary?.taughtMinutes)} own

@@ -206,6 +206,11 @@ describe("User manual automation", () => {
       assert.ok(Array.isArray(hist.days));
       assert.ok(hist.days.length <= 7, "history loads one week at a time");
       assert.ok(hist.from && hist.to);
+      assert.ok(Array.isArray(hist.workingDays) && hist.workingDays.length >= 5);
+      assert.ok(
+        (hist.days || []).filter((d) => d.isWorkingDay).every((d) => hist.workingDays.includes(d.dayOfWeek)),
+        "history days follow the school working week"
+      );
       assert.ok(hist.summary && typeof hist.summary.totalTaughtMinutes === "number");
       assert.ok(hist.summary && typeof hist.summary.totalExtraMinutes === "number");
       if (hist.days.length) {

@@ -23,21 +23,26 @@ describe("hours range helpers", () => {
     assert.equal(shiftYmd("bad", -1), null);
   });
 
-  it("defaults to the Monday–Sunday week containing the given date", () => {
-    assert.deepEqual(weekRangeContaining("2026-09-23"), {
+  it("uses the school working week, not Monday–Sunday", () => {
+    assert.deepEqual(weekRangeContaining("2026-09-23", [1, 2, 3, 4, 5]), {
       from: "2026-09-21",
-      to: "2026-09-27",
-      dates: [
-        "2026-09-21",
-        "2026-09-22",
-        "2026-09-23",
-        "2026-09-24",
-        "2026-09-25",
-        "2026-09-26",
-        "2026-09-27",
-      ],
+      to: "2026-09-25",
+      dates: ["2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25"],
+      workingDays: [1, 2, 3, 4, 5],
     });
-    assert.deepEqual(defaultHoursRange("2026-09-21"), weekRangeContaining("2026-09-23"));
+    assert.deepEqual(weekRangeContaining("2026-09-23", [1, 2, 3, 4, 5, 6]), {
+      from: "2026-09-21",
+      to: "2026-09-26",
+      dates: ["2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25", "2026-09-26"],
+      workingDays: [1, 2, 3, 4, 5, 6],
+    });
+    assert.deepEqual(weekRangeContaining("2026-09-23", [6, 1, 2, 3, 4, 5]), {
+      from: "2026-09-19",
+      to: "2026-09-25",
+      dates: ["2026-09-19", "2026-09-21", "2026-09-22", "2026-09-23", "2026-09-24", "2026-09-25"],
+      workingDays: [6, 1, 2, 3, 4, 5],
+    });
+    assert.deepEqual(defaultHoursRange("2026-09-23", [1, 2, 3, 4, 5]), weekRangeContaining("2026-09-21", [1, 2, 3, 4, 5]));
   });
 
   it("rejects inverted or oversized ranges", () => {

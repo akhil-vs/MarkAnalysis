@@ -5,6 +5,7 @@ import { prisma } from "../lib/prisma.js";
 import { runWithoutTenant, runWithTenant } from "../lib/tenant.js";
 import { loginAs, startTestServer } from "./httpHarness.js";
 import { ensureTeacherLeaveSchema } from "../lib/ensureSchema.js";
+import { weekRangeContaining } from "../lib/teacherHours.js";
 
 const hasDb = Boolean(process.env.DATABASE_URL);
 
@@ -273,9 +274,25 @@ describe("API timetable leave + substitutes", () => {
     assert.equal(hours.json?.teacher?.id, teacher.id);
     assert.ok(Array.isArray(hours.json?.days));
     assert.ok(hours.json?.from && hours.json?.to);
-    assert.ok(hours.json.days.length <= 7);
+    assert.ok(Array.isArray(hours.json?.workingDays));
+    assert.ok(hours.json.days.length <= hours.json.workingDays.length);
+    const expected = weekRangeContaining(todayYmd(), hours.json.workingDays);
+    assert.equal(hours.json.from, expected.from);
+    assert.equal(hours.json.to, expected.to);
+    for (const day of hours.json.days) {
+      assert.ok(hours.json.workingDays.includes(day.dayOfWeek));
+    }
     assert.ok(hours.json?.summary);
     assert.equal(typeof hours.json.summary.taughtMinutes, "number");
     assert.equal(typeof hours.json.summary.extraMinutes, "number");
+
+    const weekRes = await server.request(`/api/timetable/teachers/${teacher.id}/hours?week=2026-09-23`, {
+      jar: principal.jar,
+    });
+    assert.equal(weekRes.status, 200, weekRes.text);
+    const weekExpected = weekRangeContaining("2026-09-23", weekRes.json.workingDays);
+    assert.equal(weekRes.json.from, weekExpected.from);
+    assert.equal(weekRes.json.to, weekExpected.to);
+    assert.ok(!weekRes.json.days.some((day) => !weekRes.json.workingDays.includes(day.dayOfWeek)));
   });
 });

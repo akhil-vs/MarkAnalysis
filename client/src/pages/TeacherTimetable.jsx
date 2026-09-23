@@ -6,6 +6,7 @@ import { EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { schoolWeekRangeContaining, shiftDate } from "../lib/schoolWeek.js";
 import { isLeadership } from "../lib/roles.js";
 
 const VIEWS = [
@@ -22,25 +23,6 @@ function todayYmd() {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-function shiftDate(ymd, days) {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getUTCDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
-}
-
-function weekRangeContaining(ymd) {
-  const [y, m, d] = String(ymd || todayYmd()).split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  const sun = dt.getUTCDay();
-  const iso = sun === 0 ? 7 : sun;
-  const from = shiftDate(`${y}-${String(m).padStart(2, "0")}-${String(d).padStart(2, "0")}`, -(iso - 1));
-  return { from, to: shiftDate(from, 6) };
 }
 
 function formatMinutes(minutes) {
@@ -421,19 +403,29 @@ export default function TeacherTimetable() {
         )}
         {view === "history" && (
           <>
-            <button type="button" className="btn-ghost" onClick={() => setDate(shiftDate(date, -7))}>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setDate(shiftDate(data.from || date, -7))}
+            >
               Previous week
             </button>
-            <button type="button" className="btn-ghost" onClick={() => setDate(shiftDate(date, 7))}>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setDate(shiftDate(data.from || date, 7))}
+            >
               Next week
             </button>
-            {weekRangeContaining(date).from !== weekRangeContaining(todayYmd()).from && (
+            {schoolWeekRangeContaining(date, data.workingDays).from !==
+              schoolWeekRangeContaining(todayYmd(), data.workingDays).from && (
               <button type="button" className="btn-ghost" onClick={() => setDate(todayYmd())}>
                 This week
               </button>
             )}
             <span className="text-sm text-ink-700/65">
-              {(data.from || weekRangeContaining(date).from)} → {(data.to || weekRangeContaining(date).to)}
+              {(data.from || schoolWeekRangeContaining(date, data.workingDays).from)} →{" "}
+              {(data.to || schoolWeekRangeContaining(date, data.workingDays).to)}
             </span>
             {data.summary && (
               <span className="text-sm text-ink-700/65">

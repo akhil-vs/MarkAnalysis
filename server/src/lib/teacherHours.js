@@ -7,7 +7,7 @@ import {
   leaveCoversDate,
   parseYmd,
 } from "./substituteScore.js";
-import { DAY_NAMES, isWorkingDay } from "./workingDays.js";
+import { DAY_NAMES, isWorkingDay, normalizeWorkingDays } from "./workingDays.js";
 
 const MAX_RANGE_DAYS = 7;
 
@@ -18,19 +18,27 @@ export function shiftYmd(ymd, days) {
   return formatYmd(dt);
 }
 
-/** Monday–Sunday ISO week that contains `ymd` (UTC). */
-export function weekRangeContaining(ymd) {
+/**
+ * School week that contains `ymd`, using the school profile working-day list.
+ * The first configured weekday is the week start; `dates` are only working days
+ * in that cycle (for example Mon–Fri or Sat–Thu).
+ */
+export function weekRangeContaining(ymd, workingDays) {
+  const days = normalizeWorkingDays(workingDays);
   const date = parseYmd(ymd) ? ymd : formatYmd(new Date());
   const dow = isoWeekdayFromYmd(date);
-  if (dow == null) return { from: null, to: null, dates: [] };
-  const from = shiftYmd(date, -(dow - 1));
-  const to = shiftYmd(from, 6);
-  return { from, to, dates: eachDateInclusive(from, to) };
+  if (dow == null) return { from: null, to: null, dates: [], workingDays: days };
+  const startDow = days[0];
+  const from = shiftYmd(date, -((dow - startDow + 7) % 7));
+  const cycle = eachDateInclusive(from, shiftYmd(from, 6));
+  const dates = cycle.filter((day) => days.includes(isoWeekdayFromYmd(day)));
+  const to = dates[dates.length - 1] || from;
+  return { from, to, dates, workingDays: days };
 }
 
-/** Inclusive Monday–Sunday week containing `toYmd` (defaults to UTC today). */
-export function defaultHoursRange(toYmd) {
-  return weekRangeContaining(toYmd);
+/** School week containing `toYmd` (defaults to UTC today). */
+export function defaultHoursRange(toYmd, workingDays) {
+  return weekRangeContaining(toYmd, workingDays);
 }
 
 export function assertHoursRange(fromYmd, toYmd) {
