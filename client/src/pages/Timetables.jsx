@@ -7,8 +7,10 @@ import { PageHeader } from "../components/Layout.jsx";
 import { BusyLabel, InlineLoading, LoadingState } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { avatarTone, initials } from "../lib/classRecordPresentation.js";
 import { hasFeature } from "../lib/features.js";
 import { NAV_TITLES } from "../lib/nav.js";
+import { schoolWeekRangeContaining } from "../lib/schoolWeek.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
 const ALL_MODES = [
@@ -227,12 +229,15 @@ export default function Timetables() {
     <div>
       <PageHeader
         title={NAV_TITLES.timetables}
-        subtitle="Browse teachers, the daily board, free periods, and leave cover. Edit the school week and bell schedule under School profile."
+        subtitle="Expand a teacher to open their timetable, put them on leave, or review hrs history. Daily board, free periods, and leave cover stay on the other tabs. Edit the school week and bell schedule under School profile."
         actions={<ModeTabs mode={mode} modes={modes} onChange={setMode} />}
       />
 
       {mode === "teachers" && (
-        <TeachersList onPutOnLeave={canApproveLeave ? openLeaveForTeacher : null} />
+        <TeachersList
+          onPutOnLeave={canApproveLeave ? openLeaveForTeacher : null}
+          canAssignSubs={canAssignSubs}
+        />
       )}
       {mode === "daily" && (
         <DailyBoard
@@ -258,9 +263,32 @@ export default function Timetables() {
   );
 }
 
-function TeachersList({ onPutOnLeave }) {
+function AccordionChevron({ open }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      className={`shrink-0 text-ink-700/45 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+      aria-hidden="true"
+    >
+      <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function actionButtonClass(active) {
+  return active ? "btn-primary text-xs" : "btn-ghost text-xs";
+}
+
+function TeachersList({ onPutOnLeave, canAssignSubs }) {
   const [teachers, setTeachers] = useState(null);
   const [error, setError] = useState("");
+  const [openTeacherId, setOpenTeacherId] = useState(null);
+  const [openAction, setOpenAction] = useState("");
   const table = useTableSearch(teachers || [], { getSearchText: teacherSearchText });
 
   useEffect(() => {
@@ -273,6 +301,15 @@ function TeachersList({ onPutOnLeave }) {
     () => (teachers || []).reduce((sum, t) => sum + (t.entryCount || 0), 0),
     [teachers]
   );
+
+  function toggleTeacher(id) {
+    setOpenTeacherId((current) => (current === id ? null : id));
+    setOpenAction("");
+  }
+
+  function toggleAction(action) {
+    setOpenAction((current) => (current === action ? "" : action));
+  }
 
   if (error) {
     return (
@@ -295,46 +332,518 @@ function TeachersList({ onPutOnLeave }) {
         </div>
       </div>
 
-      <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-        {table.filtered.map((t) => {
-          const subjects = [...new Set((t.assignments || []).map((a) => a.subject?.name).filter(Boolean))];
-          const classes = [...new Set((t.assignments || []).map((a) => a.classSection?.label).filter(Boolean))];
-          return (
-            <div key={t.id} className="card p-4">
-              <Link to={`/timetables/teachers/${t.id}`} className="block hover:text-clay-600">
-                <div className="font-serif text-2xl leading-tight">{t.name}</div>
-              </Link>
-              <div className="mt-1 text-sm text-ink-700/60">
-                {subjects.slice(0, 3).join(" · ") || "No subjects"}
-                {subjects.length > 3 ? ` +${subjects.length - 3}` : ""}
-              </div>
-              <div className="mt-3 flex items-end justify-between gap-2">
-                <div className="text-xs text-ink-700/55">
-                  {classes.length ? classes.slice(0, 4).join(", ") : "No classes"}
-                  {classes.length > 4 ? ` +${classes.length - 4}` : ""}
-                </div>
-                <div className="shrink-0 rounded-lg bg-ink-900/5 px-2 py-1 text-xs font-medium">
-                  {t.entryCount} periods/week
-                </div>
-              </div>
-              <div className="mt-3 flex flex-wrap gap-2">
-                <Link to={`/timetables/teachers/${t.id}`} className="btn-ghost text-xs">
-                  Open timetable
-                </Link>
-                <Link to={`/timetables/teachers/${t.id}?view=history`} className="btn-ghost text-xs">
-                  Hours history
-                </Link>
-                {onPutOnLeave && (
-                  <button type="button" className="btn-ghost text-xs" onClick={() => onPutOnLeave(t.id)}>
-                    Put on leave
+      <div className="card">
+        <div className="accordion-list" role="list">
+          {table.filtered.map((t) => {
+            const subjects = [...new Set((t.assignments || []).map((a) => a.subject?.name).filter(Boolean))];
+            const classes = [...new Set((t.assignments || []).map((a) => a.classSection?.label).filter(Boolean))];
+            const open = openTeacherId === t.id;
+            const panelId = `timetable-teacher-panel-${t.id}`;
+            const buttonId = `timetable-teacher-trigger-${t.id}`;
+            return (
+              <div key={t.id} className={`accordion-item ${open ? "accordion-item-open" : ""}`} role="listitem">
+                <h3 className="m-0">
+                  <button
+                    type="button"
+                    id={buttonId}
+                    className="accordion-trigger"
+                    aria-expanded={open}
+                    aria-controls={panelId}
+                    onClick={() => toggleTeacher(t.id)}
+                  >
+                    <span
+                      className={`inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold ${avatarTone(t.id || t.name)}`}
+                      aria-hidden="true"
+                    >
+                      {initials(t.name)}
+                    </span>
+                    <span className="min-w-0 flex-1 text-left">
+                      <span className="font-medium text-ink-900">{t.name}</span>
+                      <span className="mt-0.5 block truncate text-xs text-ink-700/55">
+                        {subjects.slice(0, 3).join(" · ") || "No subjects"}
+                        {subjects.length > 3 ? ` +${subjects.length - 3}` : ""}
+                      </span>
+                    </span>
+                    <span className="hidden sm:flex shrink-0 rounded-lg bg-ink-900/5 px-2 py-1 text-xs font-medium">
+                      {t.entryCount} periods/week
+                    </span>
+                    <AccordionChevron open={open} />
                   </button>
-                )}
+                </h3>
+                <div
+                  id={panelId}
+                  role="region"
+                  aria-labelledby={buttonId}
+                  hidden={!open}
+                  className="accordion-panel px-3 sm:px-4 pb-4 pt-1"
+                >
+                  <div className="space-y-3 rounded-lg border border-ink-900/10 bg-white/70 p-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45 mb-1">
+                          Classes
+                        </div>
+                        <p className="text-sm text-ink-700/75">
+                          {classes.length ? classes.join(", ") : "No classes"}
+                        </p>
+                      </div>
+                      <div className="sm:hidden rounded-lg bg-ink-900/5 px-2 py-1 text-xs font-medium">
+                        {t.entryCount} periods/week
+                      </div>
+                    </div>
+
+                    <div>
+                      <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45 mb-1.5">
+                        Actions
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          className={actionButtonClass(openAction === "timetable")}
+                          aria-expanded={openAction === "timetable"}
+                          onClick={() => toggleAction("timetable")}
+                        >
+                          Open timetable
+                        </button>
+                        {onPutOnLeave && (
+                          <button
+                            type="button"
+                            className={actionButtonClass(openAction === "leave")}
+                            aria-expanded={openAction === "leave"}
+                            onClick={() => toggleAction("leave")}
+                          >
+                            Put on leave
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          className={actionButtonClass(openAction === "hours")}
+                          aria-expanded={openAction === "hours"}
+                          onClick={() => toggleAction("hours")}
+                        >
+                          Hrs history
+                        </button>
+                      </div>
+                    </div>
+
+                    {open && openAction === "timetable" && <TeacherAccordionTimetable teacherId={t.id} />}
+                    {open && openAction === "leave" && onPutOnLeave && (
+                      <TeacherAccordionLeave
+                        teacher={t}
+                        canAssignSubs={canAssignSubs}
+                        onReviewCovers={onPutOnLeave}
+                      />
+                    )}
+                    {open && openAction === "hours" && <TeacherAccordionHours teacherId={t.id} />}
+                  </div>
+                </div>
               </div>
-            </div>
-          );
-        })}
-        {!table.filtered.length && <EmptyNote>No teachers match your search.</EmptyNote>}
+            );
+          })}
+        </div>
+        {!table.filtered.length && (
+          <div className="p-4">
+            <EmptyNote>No teachers match your search.</EmptyNote>
+          </div>
+        )}
       </div>
+    </div>
+  );
+}
+
+function CompactEntryCell({ entries }) {
+  const list = Array.isArray(entries) ? entries : entries ? [entries] : [];
+  if (!list.length) {
+    return <div className="min-h-[2.5rem] rounded-lg bg-ink-900/[0.03]" />;
+  }
+  return (
+    <div className="min-h-[2.5rem] space-y-1 rounded-lg border border-ink-900/10 bg-white px-2 py-1">
+      {list.map((entry) => (
+        <div key={entry.id} className="min-w-0">
+          <div className="text-sm font-medium leading-snug truncate">{entry.subject?.name}</div>
+          <div className="text-[11px] text-ink-700/65 truncate">
+            {entry.classSection?.label}
+            {entry.room ? ` · ${entry.room}` : ""}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function TeacherAccordionTimetable({ teacherId }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setError("");
+    setData(null);
+    api(`/api/timetable/teachers/${teacherId}?view=weekly&date=${todayYmd()}`)
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || "Could not load timetable");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [teacherId]);
+
+  const grid = useMemo(() => {
+    if (!data) return null;
+    const map = new Map();
+    for (const entry of data.entries || []) {
+      const key = `${entry.dayOfWeek}|${entry.period?.id}`;
+      if (!map.has(key)) map.set(key, []);
+      map.get(key).push(entry);
+    }
+    const days =
+      Array.isArray(data.workingDays) && data.workingDays.length ? data.workingDays : [1, 2, 3, 4, 5, 6];
+    return { map, days };
+  }, [data]);
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">Weekly timetable</div>
+        <Link to={`/timetables/teachers/${teacherId}`} className="text-xs font-medium text-clay-600 hover:underline">
+          Open full page
+        </Link>
+      </div>
+      {error && <p className="text-sm text-clay-600">{error}</p>}
+      {!data && !error && <InlineLoading label="Loading timetable…" />}
+      {data && grid && (
+        <div className="overflow-x-auto">
+          {(data.entries || []).length === 0 ? (
+            <EmptyNote>No weekly periods yet. Open the full page to add slots.</EmptyNote>
+          ) : (
+            <table className="w-full text-sm border-separate border-spacing-1 min-w-[40rem]">
+              <thead>
+                <tr>
+                  <th className="text-left font-medium text-ink-700/70 px-2 py-1 w-24">Period</th>
+                  {grid.days.map((day) => (
+                    <th key={day} className="text-left font-medium text-ink-700/70 px-2 py-1">
+                      {data.dayNames?.[day]}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {(data.periods || []).map((period) => (
+                  <tr key={period.id}>
+                    <td className="align-top px-2 py-1">
+                      <div className="font-medium">{period.name}</div>
+                      <div className="text-[11px] text-ink-700/50">
+                        {period.startTime}–{period.endTime}
+                      </div>
+                    </td>
+                    {grid.days.map((day) => (
+                      <td key={`${day}-${period.id}`} className="align-top">
+                        {period.isBreak ? (
+                          <div className="min-h-[2.5rem] rounded-lg bg-moss-500/10 px-2 py-1.5 text-xs text-moss-600">
+                            {period.name}
+                          </div>
+                        ) : (
+                          <CompactEntryCell entries={grid.map.get(`${day}|${period.id}`)} />
+                        )}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function TeacherAccordionLeave({ teacher, canAssignSubs, onReviewCovers }) {
+  const toast = useToast();
+  const [form, setForm] = useState({
+    startDate: todayYmd(),
+    endDate: todayYmd(),
+    reason: "",
+    suggestCovers: true,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+  const [saved, setSaved] = useState(null);
+
+  async function submit(e) {
+    e.preventDefault();
+    setSaving(true);
+    setError("");
+    try {
+      const res = await api("/api/timetable/leaves", {
+        method: "POST",
+        body: {
+          teacherId: teacher.id,
+          startDate: form.startDate,
+          endDate: form.endDate,
+          reason: form.reason || undefined,
+          suggestCovers: Boolean(form.suggestCovers && canAssignSubs),
+        },
+      });
+      toast.success("Leave recorded — timetables updated");
+      setSaved(res);
+    } catch (err) {
+      setError(err.message || "Could not record leave");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-3">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">Put on leave</div>
+      <p className="text-sm text-ink-700/65">
+        Approved leave overlays {teacher.name}&apos;s timetable for these dates.
+      </p>
+      {error && <p className="text-sm text-clay-600">{error}</p>}
+      {saved?.leave && (
+        <p className="text-sm text-moss-600">
+          Leave saved
+          {saved.leave.startDate === saved.leave.endDate
+            ? ` for ${saved.leave.startDate}`
+            : ` from ${saved.leave.startDate} to ${saved.leave.endDate}`}
+          .
+        </p>
+      )}
+      <div className="grid sm:grid-cols-2 gap-3">
+        <label className="block">
+          <span className="label">Start</span>
+          <input
+            type="date"
+            className="field"
+            required
+            value={form.startDate}
+            onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+          />
+        </label>
+        <label className="block">
+          <span className="label">End</span>
+          <input
+            type="date"
+            className="field"
+            required
+            value={form.endDate}
+            onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+          />
+        </label>
+      </div>
+      <label className="block">
+        <span className="label">Reason (optional)</span>
+        <input
+          className="field"
+          value={form.reason}
+          onChange={(e) => setForm({ ...form, reason: e.target.value })}
+          placeholder="Sick leave, training, …"
+        />
+      </label>
+      {canAssignSubs && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={form.suggestCovers}
+            onChange={(e) => setForm({ ...form, suggestCovers: e.target.checked })}
+          />
+          Suggest a different free teacher for each vacated period
+        </label>
+      )}
+      <div className="flex flex-wrap gap-2">
+        <button type="submit" className="btn-primary" disabled={saving}>
+          <BusyLabel busy={saving} idle="Save leave" busyText="Saving…" />
+        </button>
+        {saved && onReviewCovers && (
+          <button type="button" className="btn-ghost" onClick={() => onReviewCovers(teacher.id)}>
+            Review covers
+          </button>
+        )}
+      </div>
+    </form>
+  );
+}
+
+function TeacherAccordionHours({ teacherId }) {
+  const [mode, setMode] = useState("week");
+  const [weekAnchor, setWeekAnchor] = useState("");
+  const [fromDraft, setFromDraft] = useState("");
+  const [toDraft, setToDraft] = useState("");
+  const [appliedFrom, setAppliedFrom] = useState("");
+  const [appliedTo, setAppliedTo] = useState("");
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let cancelled = false;
+    setError("");
+    setData(null);
+    const query =
+      mode === "range" && appliedFrom && appliedTo
+        ? `?from=${encodeURIComponent(appliedFrom)}&to=${encodeURIComponent(appliedTo)}`
+        : weekAnchor
+          ? `?week=${encodeURIComponent(weekAnchor)}`
+          : "";
+    api(`/api/timetable/teachers/${teacherId}/hours${query}`)
+      .then((res) => {
+        if (!cancelled) setData(res);
+      })
+      .catch((err) => {
+        if (!cancelled) setError(err.message || "Could not load hours history");
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [teacherId, mode, weekAnchor, appliedFrom, appliedTo]);
+
+  useEffect(() => {
+    if (data?.from && data?.to && mode === "week") {
+      setFromDraft(data.from);
+      setToDraft(data.to);
+    }
+  }, [data, mode]);
+
+  const from = data?.from;
+  const to = data?.to;
+  const isCurrentWeek =
+    mode === "week" &&
+    data &&
+    from === schoolWeekRangeContaining(todayYmd(), data.workingDays).from;
+
+  function goToWeek(anchor) {
+    setMode("week");
+    setAppliedFrom("");
+    setAppliedTo("");
+    setWeekAnchor(anchor);
+  }
+
+  function applyRange(event) {
+    event.preventDefault();
+    if (!fromDraft || !toDraft) return;
+    setMode("range");
+    setAppliedFrom(fromDraft);
+    setAppliedTo(toDraft);
+  }
+
+  const fullPageTo =
+    mode === "range" && appliedFrom && appliedTo
+      ? `/timetables/teachers/${teacherId}?view=history&from=${appliedFrom}&to=${appliedTo}&date=${appliedFrom}`
+      : `/timetables/teachers/${teacherId}?view=history${from ? `&date=${from}` : ""}`;
+
+  return (
+    <div className="space-y-2">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">Hrs history</div>
+        <Link to={fullPageTo} className="text-xs font-medium text-clay-600 hover:underline">
+          Open full page
+        </Link>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          className="btn-ghost text-xs"
+          disabled={!from}
+          onClick={() => from && goToWeek(shiftDate(from, -7))}
+        >
+          Previous week
+        </button>
+        <button
+          type="button"
+          className="btn-ghost text-xs"
+          disabled={!from}
+          onClick={() => from && goToWeek(shiftDate(from, 7))}
+        >
+          Next week
+        </button>
+        {!isCurrentWeek && (
+          <button type="button" className="btn-ghost text-xs" onClick={() => goToWeek("")}>
+            This week
+          </button>
+        )}
+      </div>
+      <form className="flex flex-wrap items-end gap-2" onSubmit={applyRange}>
+        <label className="block">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">From</span>
+          <input
+            type="date"
+            className="field-filter mt-1"
+            value={fromDraft}
+            onChange={(e) => setFromDraft(e.target.value)}
+          />
+        </label>
+        <label className="block">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">To</span>
+          <input
+            type="date"
+            className="field-filter mt-1"
+            value={toDraft}
+            min={fromDraft || undefined}
+            onChange={(e) => setToDraft(e.target.value)}
+          />
+        </label>
+        <button type="submit" className="btn-ghost text-xs" disabled={!fromDraft || !toDraft}>
+          Show range
+        </button>
+      </form>
+      {error && <p className="text-sm text-clay-600">{error}</p>}
+      {!data && !error && <InlineLoading label="Loading hours history…" />}
+      {data && (
+        <>
+          <p className="text-sm text-ink-700/65">
+            {from} → {to}
+            {isCurrentWeek ? " · this week" : mode === "range" ? " · custom range" : ""}
+            {" · "}
+            {formatTaughtHours(data.summary?.taughtMinutes)} own
+            {" · "}
+            <span className="font-medium text-sky-700">
+              +{formatTaughtHours(data.summary?.extraMinutes)} extra
+            </span>
+            {data.summary?.leaveDays > 0 ? ` · ${data.summary.leaveDays} leave day${data.summary.leaveDays === 1 ? "" : "s"}` : ""}
+          </p>
+          {!(data.days || []).length ? (
+            <EmptyNote>No working days in this week.</EmptyNote>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="table text-sm">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Own</th>
+                    <th>Extra</th>
+                    <th>Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(data.days || []).map((day) => (
+                    <tr key={day.date}>
+                      <td>
+                        {day.date}
+                        <div className="text-[11px] text-ink-700/50">
+                          {day.dayName}
+                          {day.onLeave ? <span className="text-clay-600"> · Leave</span> : ""}
+                        </div>
+                      </td>
+                      <td>
+                        {day.taughtCount} · {formatTaughtHours(day.taughtMinutes)}
+                      </td>
+                      <td className={day.extraCount ? "font-medium text-sky-700" : ""}>
+                        {day.extraCount} · {formatTaughtHours(day.extraMinutes)}
+                      </td>
+                      <td>
+                        {day.totalCount} · {formatTaughtHours(day.totalMinutes)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

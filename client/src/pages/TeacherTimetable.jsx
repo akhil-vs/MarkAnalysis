@@ -6,6 +6,7 @@ import { EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { schoolWeekRangeContaining, shiftDate } from "../lib/schoolWeek.js";
 import { isLeadership } from "../lib/roles.js";
 
 const VIEWS = [
@@ -22,28 +23,6 @@ function todayYmd() {
   const m = String(d.getMonth() + 1).padStart(2, "0");
   const day = String(d.getDate()).padStart(2, "0");
   return `${y}-${m}-${day}`;
-}
-
-function shiftDate(ymd, days) {
-  const [y, m, d] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1, d));
-  dt.setUTCDate(dt.getUTCDate() + days);
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getUTCDate()).padStart(2, "0");
-  return `${yy}-${mm}-${dd}`;
-}
-
-function shiftMonth(ymd, deltaMonths) {
-  const [y, m] = ymd.split("-").map(Number);
-  const dt = new Date(Date.UTC(y, m - 1 + deltaMonths, 1));
-  const yy = dt.getUTCFullYear();
-  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
-  return `${yy}-${mm}-01`;
-}
-
-function monthInputValue(ymd) {
-  return String(ymd || "").slice(0, 7);
 }
 
 function formatMinutes(minutes) {
@@ -185,6 +164,8 @@ export default function TeacherTimetable() {
       ? "history"
       : "weekly";
   const date = searchParams.get("date") || todayYmd();
+  const rangeFrom = searchParams.get("from") || "";
+  const rangeTo = searchParams.get("to") || "";
 
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -193,11 +174,19 @@ export default function TeacherTimetable() {
   const [draftSlot, setDraftSlot] = useState(null);
   const formRef = useRef(null);
   const [form, setForm] = useState(emptyForm());
+  const [fromDraft, setFromDraft] = useState(rangeFrom);
+  const [toDraft, setToDraft] = useState(rangeTo);
 
   function setView(next) {
     const params = new URLSearchParams(searchParams);
     params.set("view", next);
-    if (!params.get("date")) params.set("date", date);
+    if (next === "history") {
+      params.set("date", todayYmd());
+      params.delete("from");
+      params.delete("to");
+    } else if (!params.get("date")) {
+      params.set("date", date);
+    }
     setSearchParams(params);
   }
 
@@ -205,6 +194,17 @@ export default function TeacherTimetable() {
     const params = new URLSearchParams(searchParams);
     params.set("date", next);
     params.set("view", view);
+    params.delete("from");
+    params.delete("to");
+    setSearchParams(params);
+  }
+
+  function setHistoryRange(fromYmd, toYmd) {
+    const params = new URLSearchParams(searchParams);
+    params.set("view", "history");
+    params.set("from", fromYmd);
+    params.set("to", toYmd);
+    params.set("date", fromYmd);
     setSearchParams(params);
   }
 
@@ -260,7 +260,11 @@ export default function TeacherTimetable() {
   useEffect(() => {
     let cancelled = false;
     setError("");
-    api(`/api/timetable/teachers/${id}?view=${view}&date=${date}`)
+    const query =
+      view === "history" && rangeFrom && rangeTo
+        ? `view=history&from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}&date=${encodeURIComponent(rangeFrom)}`
+        : `view=${view}&date=${date}`;
+    api(`/api/timetable/teachers/${id}?${query}`)
       .then((res) => {
         if (cancelled) return;
         setData(res);
@@ -273,10 +277,24 @@ export default function TeacherTimetable() {
     return () => {
       cancelled = true;
     };
-  }, [id, view, date]);
+  }, [id, view, date, rangeFrom, rangeTo]);
+
+  useEffect(() => {
+    if (rangeFrom && rangeTo) {
+      setFromDraft(rangeFrom);
+      setToDraft(rangeTo);
+    } else if (data?.from && data?.to && view === "history") {
+      setFromDraft(data.from);
+      setToDraft(data.to);
+    }
+  }, [rangeFrom, rangeTo, data, view]);
 
   async function reload() {
-    const res = await api(`/api/timetable/teachers/${id}?view=${view}&date=${date}`);
+    const query =
+      view === "history" && rangeFrom && rangeTo
+        ? `view=history&from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}&date=${encodeURIComponent(rangeFrom)}`
+        : `view=${view}&date=${date}`;
+    const res = await api(`/api/timetable/teachers/${id}?${query}`);
     setData(res);
     return res;
   }
@@ -423,21 +441,62 @@ export default function TeacherTimetable() {
         )}
         {view === "history" && (
           <>
-            <button type="button" className="btn-ghost" onClick={() => setDate(shiftMonth(date, -1))}>
-              Previous month
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setDate(shiftDate(data.from || date, -7))}
+            >
+              Previous week
             </button>
-            <input
-              type="month"
-              className="field-filter"
-              value={monthInputValue(data.month || date)}
-              onChange={(e) => {
-                const next = e.target.value;
-                setDate(next ? `${next}-01` : todayYmd());
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => setDate(shiftDate(data.from || date, 7))}
+            >
+              Next week
+            </button>
+            {(rangeFrom ||
+              schoolWeekRangeContaining(date, data.workingDays).from !==
+                schoolWeekRangeContaining(todayYmd(), data.workingDays).from) && (
+              <button type="button" className="btn-ghost" onClick={() => setDate(todayYmd())}>
+                This week
+              </button>
+            )}
+            <form
+              className="flex flex-wrap items-end gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (fromDraft && toDraft) setHistoryRange(fromDraft, toDraft);
               }}
-            />
-            <button type="button" className="btn-ghost" onClick={() => setDate(shiftMonth(date, 1))}>
-              Next month
-            </button>
+            >
+              <label className="block">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">From</span>
+                <input
+                  type="date"
+                  className="field-filter mt-1"
+                  value={fromDraft}
+                  onChange={(e) => setFromDraft(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">To</span>
+                <input
+                  type="date"
+                  className="field-filter mt-1"
+                  value={toDraft}
+                  min={fromDraft || undefined}
+                  onChange={(e) => setToDraft(e.target.value)}
+                />
+              </label>
+              <button type="submit" className="btn-ghost" disabled={!fromDraft || !toDraft}>
+                Show range
+              </button>
+            </form>
+            <span className="text-sm text-ink-700/65">
+              {(data.from || schoolWeekRangeContaining(date, data.workingDays).from)} →{" "}
+              {(data.to || schoolWeekRangeContaining(date, data.workingDays).to)}
+              {rangeFrom && rangeTo ? " · custom range" : ""}
+            </span>
             {data.summary && (
               <span className="text-sm text-ink-700/65">
                 · {formatMinutes(data.summary.totalTaughtMinutes)} taught
@@ -747,14 +806,12 @@ function classSummary(classes) {
 }
 
 function HoursHistoryView({ data, onOpenDay }) {
-  const days = (data.days || []).filter(
-    (d) => d.isWorkingDay && (d.taughtCount > 0 || d.extraCount > 0 || d.onLeave || d.missedCount > 0)
-  );
+  const days = (data.days || []).filter((d) => d.isWorkingDay);
 
   if (!days.length) {
     return (
       <EmptyNote>
-        No teaching or cover activity recorded for {data.month || "this month"}.
+        No working days in {data.from && data.to ? `${data.from} → ${data.to}` : "this week"}.
       </EmptyNote>
     );
   }
