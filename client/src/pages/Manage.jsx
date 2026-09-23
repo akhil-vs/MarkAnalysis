@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, download } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
@@ -1180,35 +1180,6 @@ function StudentsTab() {
     }
   }
 
-  async function uploadPhoto(row, file) {
-    if (!file) return;
-    const body = new FormData();
-    body.append("photo", file);
-    setBusy(true);
-    try {
-      await api(`/api/students/${row.id}/photo`, { method: "POST", body });
-      toast.success(`Photo saved for ${row.name}.`);
-      await load();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function clearPhoto(row) {
-    setBusy(true);
-    try {
-      await api(`/api/students/${row.id}/photo`, { method: "DELETE" });
-      toast.success(`Photo removed for ${row.name}.`);
-      await load();
-    } catch (err) {
-      toast.error(err.message);
-    } finally {
-      setBusy(false);
-    }
-  }
-
   const [uploadMode, setUploadMode] = useState(null);
 
   async function send(commit) {
@@ -1359,6 +1330,15 @@ function StudentsTab() {
           </div>
         </form>
         <div className="lg:col-span-2 card">
+          {canManagePhotos && (
+            <p className="px-3 pt-3 text-sm text-ink-700/70">
+              Upload or clear passport photos on{" "}
+              <Link className="underline underline-offset-2" to="/student-photos">
+                Student photos
+              </Link>
+              .
+            </p>
+          )}
           <div className="p-3 border-b border-ink-900/10">
             <TableToolbar
               q={table.q}
@@ -1448,27 +1428,6 @@ function StudentsTab() {
                       <td>{r.guardianPhone || "—"}</td>
                       <td className="whitespace-nowrap space-x-2">
                         <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
-                        {canManagePhotos && (
-                          <label className="btn-ghost inline-flex cursor-pointer items-center">
-                            Photo
-                            <input
-                              type="file"
-                              accept="image/png,image/jpeg"
-                              className="sr-only"
-                              disabled={busy}
-                              onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                e.target.value = "";
-                                if (file) uploadPhoto(r, file);
-                              }}
-                            />
-                          </label>
-                        )}
-                        {canManagePhotos && r.hasPhoto && (
-                          <button type="button" className="btn-ghost" onClick={() => clearPhoto(r)} disabled={busy}>
-                            Clear photo
-                          </button>
-                        )}
                         {canIssuePortal && (
                           <button type="button" className="btn-ghost" onClick={() => issuePortalLink(r)} disabled={busy}>Portal link</button>
                         )}
