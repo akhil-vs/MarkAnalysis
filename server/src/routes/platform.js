@@ -21,6 +21,11 @@ import { createBackup, restoreBackup } from "../lib/backup.js";
 import { runSchoolDigests } from "../lib/digests.js";
 import { flushEmailOutbox } from "../lib/mailer.js";
 import { buildHealthPayload } from "../lib/health.js";
+import {
+  deleteSchoolData,
+  listSchoolDataCategories,
+  schoolDataCounts,
+} from "../lib/schoolDataDelete.js";
 export const platformRouter = Router();
 platformRouter.use(auth);
 platformRouter.use(requirePlatformAdmin());
@@ -393,6 +398,66 @@ platformRouter.post("/schools/:id/users/:userId/reset-password", async (req, res
       ? "Password reset. Share the generated password once — it will not be shown again."
       : "Password reset. The user must change it on next sign-in.",
   });
+});
+
+platformRouter.get("/schools/:id/data", async (req, res) => {
+  const school = await loadSchool(req.params.id);
+  if (!school) return res.status(404).json({ error: "School not found" });
+  const counts = await schoolDataCounts(school.id);
+  res.json({
+    school: publicSchool(school),
+    catalog: listSchoolDataCategories(),
+    ...counts,
+  });
+});
+
+platformRouter.post("/schools/:id/data/delete", async (req, res) => {
+  const school = await loadSchool(req.params.id);
+  if (!school) return res.status(404).json({ error: "School not found" });
+
+  const body = req.body || {};
+  const categories = Array.isArray(body.categories) ? body.categories.map(String) : [];
+  const complete = body.complete === true;
+  const deleteSchool = body.deleteSchool === true;
+  const keepPrincipals = body.keepPrincipals !== false;
+  const restoreDefaultPeriods = body.restoreDefaultPeriods === true;
+
+  try {
+    const result = await deleteSchoolData(school.id, {
+      categories,
+      complete,
+      deleteSchool,
+      keepPrincipals,
+      restoreDefaultPeriods,
+      confirmSlug: body.confirmSlug,
+      confirmName: body.confirmName,
+    });
+
+    if (!result.schoolDeleted) {
+      await logActivity({
+        actorId: req.user.userId,
+        action: "SCHOOL_DATA_DELETED",
+        summary: `Deleted ${result.totalRows} row(s) of data for ${school.name}`,
+        tenantId: school.id,
+        meta: {
+          schoolId: school.id,
+          slug: school.slug,
+          categories: result.categories,
+          deleted: result.deleted,
+          totalRows: result.totalRows,
+          keepPrincipals: result.keepPrincipals,
+        },
+      });
+    }
+    // Permanent school removal cascades ActivityAudit rows for that tenant, so we
+    // do not write a SCHOOL_DELETED audit that would immediately disappear.
+
+    res.json(result);
+  } catch (err) {
+    const status = err.status || 500;
+    if (status >= 500) console.error("School data delete failed", err);
+    res.status(status).json({ error: err.message || "Could not delete school data" });
+  }
 });
 
 platformRouter.get("/backup", async (req, res) => {

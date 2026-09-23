@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'23d160461fc4c2aa31d5d32af678ff210e7b7f12cc3808f0297481a8f13598ea'>;
+  StorageHashBase<'26b28aad93174a0b817200f11f4fb8cf35b477d78a30fb44e98020b0fdfc1c66'>;
 export type ExecutionHash =
   ExecutionHashBase<'a72b23d74a7c00bedc01aae8e1333dfa214b3303b25cb40bff7c9ec558b8b035'>;
 export type ProfileHash =
@@ -266,6 +266,8 @@ export type FieldOutputTypes = {
         | 'SCHOOL_CREATED'
         | 'SCHOOL_UPDATED'
         | 'SCHOOL_STATUS_CHANGED'
+        | 'SCHOOL_DATA_DELETED'
+        | 'SCHOOL_DELETED'
         | 'USER_UPDATED'
         | 'USER_DELETED'
         | 'USER_ASSIGNMENTS_TRANSFERRED'
@@ -284,6 +286,9 @@ export type FieldOutputTypes = {
         | 'HALL_TICKET_UPDATED'
         | 'HALL_TICKET_DELETED'
         | 'TEACHER_LEAVE_CREATED'
+        | 'TEACHER_LEAVE_REQUESTED'
+        | 'TEACHER_LEAVE_APPROVED'
+        | 'TEACHER_LEAVE_REJECTED'
         | 'TEACHER_LEAVE_CANCELLED'
         | 'SUBSTITUTE_ASSIGNED'
         | 'SUBSTITUTE_REMOVED';
@@ -722,6 +727,8 @@ export type FieldInputTypes = {
         | 'SCHOOL_CREATED'
         | 'SCHOOL_UPDATED'
         | 'SCHOOL_STATUS_CHANGED'
+        | 'SCHOOL_DATA_DELETED'
+        | 'SCHOOL_DELETED'
         | 'USER_UPDATED'
         | 'USER_DELETED'
         | 'USER_ASSIGNMENTS_TRANSFERRED'
@@ -740,6 +747,9 @@ export type FieldInputTypes = {
         | 'HALL_TICKET_UPDATED'
         | 'HALL_TICKET_DELETED'
         | 'TEACHER_LEAVE_CREATED'
+        | 'TEACHER_LEAVE_REQUESTED'
+        | 'TEACHER_LEAVE_APPROVED'
+        | 'TEACHER_LEAVE_REJECTED'
         | 'TEACHER_LEAVE_CANCELLED'
         | 'SUBSTITUTE_ASSIGNED'
         | 'SUBSTITUTE_REMOVED';
@@ -1175,6 +1185,8 @@ export type StorageColumnTypes = {
         | 'SCHOOL_CREATED'
         | 'SCHOOL_UPDATED'
         | 'SCHOOL_STATUS_CHANGED'
+        | 'SCHOOL_DATA_DELETED'
+        | 'SCHOOL_DELETED'
         | 'USER_UPDATED'
         | 'USER_DELETED'
         | 'USER_ASSIGNMENTS_TRANSFERRED'
@@ -1193,6 +1205,9 @@ export type StorageColumnTypes = {
         | 'HALL_TICKET_UPDATED'
         | 'HALL_TICKET_DELETED'
         | 'TEACHER_LEAVE_CREATED'
+        | 'TEACHER_LEAVE_REQUESTED'
+        | 'TEACHER_LEAVE_APPROVED'
+        | 'TEACHER_LEAVE_REJECTED'
         | 'TEACHER_LEAVE_CANCELLED'
         | 'SUBSTITUTE_ASSIGNED'
         | 'SUBSTITUTE_REMOVED';
@@ -1631,6 +1646,8 @@ export type StorageColumnInputTypes = {
         | 'SCHOOL_CREATED'
         | 'SCHOOL_UPDATED'
         | 'SCHOOL_STATUS_CHANGED'
+        | 'SCHOOL_DATA_DELETED'
+        | 'SCHOOL_DELETED'
         | 'USER_UPDATED'
         | 'USER_DELETED'
         | 'USER_ASSIGNMENTS_TRANSFERRED'
@@ -1649,6 +1666,9 @@ export type StorageColumnInputTypes = {
         | 'HALL_TICKET_UPDATED'
         | 'HALL_TICKET_DELETED'
         | 'TEACHER_LEAVE_CREATED'
+        | 'TEACHER_LEAVE_REQUESTED'
+        | 'TEACHER_LEAVE_APPROVED'
+        | 'TEACHER_LEAVE_REJECTED'
         | 'TEACHER_LEAVE_CANCELLED'
         | 'SUBSTITUTE_ASSIGNED'
         | 'SUBSTITUTE_REMOVED';
@@ -2504,6 +2524,8 @@ export namespace Models {
       | 'SCHOOL_CREATED'
       | 'SCHOOL_UPDATED'
       | 'SCHOOL_STATUS_CHANGED'
+      | 'SCHOOL_DATA_DELETED'
+      | 'SCHOOL_DELETED'
       | 'USER_UPDATED'
       | 'USER_DELETED'
       | 'USER_ASSIGNMENTS_TRANSFERRED'
@@ -2522,6 +2544,9 @@ export namespace Models {
       | 'HALL_TICKET_UPDATED'
       | 'HALL_TICKET_DELETED'
       | 'TEACHER_LEAVE_CREATED'
+      | 'TEACHER_LEAVE_REQUESTED'
+      | 'TEACHER_LEAVE_APPROVED'
+      | 'TEACHER_LEAVE_REJECTED'
       | 'TEACHER_LEAVE_CANCELLED'
       | 'SUBSTITUTE_ASSIGNED'
       | 'SUBSTITUTE_REMOVED';
@@ -6874,6 +6899,8 @@ type ContractBase = Omit<
                 'SCHOOL_CREATED',
                 'SCHOOL_UPDATED',
                 'SCHOOL_STATUS_CHANGED',
+                'SCHOOL_DATA_DELETED',
+                'SCHOOL_DELETED',
                 'USER_UPDATED',
                 'USER_DELETED',
                 'USER_ASSIGNMENTS_TRANSFERRED',
@@ -6892,6 +6919,9 @@ type ContractBase = Omit<
                 'HALL_TICKET_UPDATED',
                 'HALL_TICKET_DELETED',
                 'TEACHER_LEAVE_CREATED',
+                'TEACHER_LEAVE_REQUESTED',
+                'TEACHER_LEAVE_APPROVED',
+                'TEACHER_LEAVE_REJECTED',
                 'TEACHER_LEAVE_CANCELLED',
                 'SUBSTITUTE_ASSIGNED',
                 'SUBSTITUTE_REMOVED',

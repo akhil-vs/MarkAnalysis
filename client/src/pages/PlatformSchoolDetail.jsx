@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api.js";
 import { PageHeader, Kpi } from "../components/Layout.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
@@ -20,6 +20,7 @@ const ROLE_LABEL = {
 
 export default function PlatformSchoolDetail() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const toast = useToast();
   const confirm = useConfirm();
   const [school, setSchool] = useState(null);
@@ -28,6 +29,14 @@ export default function PlatformSchoolDetail() {
   const [busy, setBusy] = useState("");
   const [generated, setGenerated] = useState("");
   const [principal, setPrincipal] = useState({ name: "", email: "", schoolId: "", password: "" });
+  const [dataCatalog, setDataCatalog] = useState(null);
+  const [selectedCats, setSelectedCats] = useState(() => new Set());
+  const [keepPrincipals, setKeepPrincipals] = useState(true);
+  const [restorePeriods, setRestorePeriods] = useState(true);
+  const [deleteSchoolFlag, setDeleteSchoolFlag] = useState(false);
+  const [confirmSlug, setConfirmSlug] = useState("");
+  const [confirmName, setConfirmName] = useState("");
+  const [lastDelete, setLastDelete] = useState(null);
 
   async function load() {
     const data = await api(`/api/platform/schools/${id}`);
@@ -43,12 +52,38 @@ export default function PlatformSchoolDetail() {
     });
   }
 
+  async function loadDataCatalog() {
+    const data = await api(`/api/platform/schools/${id}/data`);
+    setDataCatalog(data);
+  }
+
   useEffect(() => {
     load().catch((err) => toast.error(err.message || "Could not load school"));
+    loadDataCatalog().catch((err) => toast.error(err.message || "Could not load school data summary"));
   }, [id]);
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  const categoryRows = useMemo(() => dataCatalog?.categories || [], [dataCatalog]);
+
+  function toggleCategory(catId) {
+    setSelectedCats((prev) => {
+      const next = new Set(prev);
+      if (next.has(catId)) next.delete(catId);
+      else next.add(catId);
+      return next;
+    });
+  }
+
+  function selectAllCategories() {
+    setSelectedCats(new Set(dataCatalog?.allCategoryIds || categoryRows.map((c) => c.id)));
+  }
+
+  function clearCategories() {
+    setSelectedCats(new Set());
+    setDeleteSchoolFlag(false);
   }
 
   async function onSave(e) {
@@ -158,6 +193,66 @@ export default function PlatformSchoolDetail() {
       toast.success(data.message || "Principal created.");
     } catch (err) {
       toast.error(err.message || "Could not add principal");
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function onDeleteData() {
+    if (!school) return;
+    const categories = [...selectedCats];
+    if (!categories.length && !deleteSchoolFlag) {
+      toast.error("Select at least one data category, or choose delete school.");
+      return;
+    }
+    if (confirmSlug.trim().toLowerCase() !== String(school.slug || "").toLowerCase()) {
+      toast.error(`Type the school code “${school.slug}” to confirm.`);
+      return;
+    }
+    if (deleteSchoolFlag && confirmName.trim() !== school.name) {
+      toast.error("Type the exact school name to permanently delete it.");
+      return;
+    }
+
+    const ok = await confirm({
+      title: deleteSchoolFlag ? "Permanently delete this school?" : "Delete selected school data?",
+      message: deleteSchoolFlag
+        ? `This removes ${school.name} and all of its data. This cannot be undone.`
+        : `This permanently deletes the selected data for ${school.name}. Dependent categories are removed automatically. This cannot be undone.`,
+      confirmLabel: deleteSchoolFlag ? "Delete school" : "Delete data",
+      tone: "danger",
+    });
+    if (!ok) return;
+
+    setBusy("delete-data");
+    setLastDelete(null);
+    try {
+      const result = await api(`/api/platform/schools/${id}/data/delete`, {
+        method: "POST",
+        body: {
+          categories,
+          complete: categories.length === (dataCatalog?.allCategoryIds || []).length,
+          deleteSchool: deleteSchoolFlag,
+          keepPrincipals,
+          restoreDefaultPeriods: restorePeriods,
+          confirmSlug: confirmSlug.trim(),
+          confirmName: confirmName.trim() || undefined,
+        },
+      });
+      setLastDelete(result);
+      setConfirmSlug("");
+      setConfirmName("");
+      setSelectedCats(new Set());
+      setDeleteSchoolFlag(false);
+      if (result.schoolDeleted) {
+        toast.success(`School deleted (${result.totalRows} rows removed).`);
+        navigate("/platform/schools");
+        return;
+      }
+      toast.success(`Deleted ${result.totalRows} row(s).`);
+      await Promise.all([load(), loadDataCatalog()]);
+    } catch (err) {
+      toast.error(err.message || "Could not delete school data");
     } finally {
       setBusy("");
     }
@@ -301,6 +396,146 @@ export default function PlatformSchoolDetail() {
           </form>
         </div>
       </div>
+
+      <section className="card p-5 mt-4 border-clay-500/25">
+        <div className="flex flex-wrap items-start justify-between gap-3 mb-3">
+          <div>
+            <h2 className="font-serif text-xl text-clay-800">Delete school data</h2>
+            <p className="text-sm text-ink-700/70 mt-1 max-w-2xl">
+              Remove selected operational data for this campus, or wipe everything including the school record.
+              Dependent categories are cleared automatically. Download a backup first if you may need the data later.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-ghost text-sm" onClick={selectAllCategories} disabled={!categoryRows.length}>
+              Select all
+            </button>
+            <button type="button" className="btn-ghost text-sm" onClick={clearCategories}>
+              Clear
+            </button>
+          </div>
+        </div>
+
+        {!dataCatalog ? (
+          <LoadingState label="Loading data summary…" className="py-6" />
+        ) : (
+          <>
+            <ul className="grid sm:grid-cols-2 gap-2 mb-4">
+              {categoryRows.map((cat) => {
+                const checked = selectedCats.has(cat.id) || deleteSchoolFlag;
+                return (
+                  <li key={cat.id}>
+                    <label className="flex gap-3 rounded-xl border border-ink-900/10 bg-cream/60 px-3 py-2.5 cursor-pointer hover:border-clay-500/40">
+                      <input
+                        type="checkbox"
+                        className="mt-1"
+                        checked={checked}
+                        disabled={deleteSchoolFlag}
+                        onChange={() => toggleCategory(cat.id)}
+                      />
+                      <span className="min-w-0">
+                        <span className="flex items-baseline justify-between gap-2">
+                          <span className="font-medium text-ink-900">{cat.label}</span>
+                          <span className="text-xs font-mono text-ink-700/55 shrink-0">{cat.count}</span>
+                        </span>
+                        <span className="block text-xs text-ink-700/65 mt-0.5">{cat.description}</span>
+                      </span>
+                    </label>
+                  </li>
+                );
+              })}
+            </ul>
+
+            <div className="space-y-2 mb-4 text-sm">
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={keepPrincipals && !deleteSchoolFlag}
+                  disabled={deleteSchoolFlag || !selectedCats.has("staff")}
+                  onChange={(e) => setKeepPrincipals(e.target.checked)}
+                />
+                <span>
+                  Keep principal accounts when deleting staff
+                  <span className="block text-xs text-ink-700/60">Ignored if you permanently delete the school.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input type="checkbox" className="mt-1" checked={restorePeriods} onChange={(e) => setRestorePeriods(e.target.checked)} />
+                <span>
+                  Restore default bell schedule after clearing timetables
+                  <span className="block text-xs text-ink-700/60">Recreates the standard period list when periods are emptied.</span>
+                </span>
+              </label>
+              <label className="flex items-start gap-2">
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  checked={deleteSchoolFlag}
+                  onChange={(e) => {
+                    setDeleteSchoolFlag(e.target.checked);
+                    if (e.target.checked) selectAllCategories();
+                  }}
+                />
+                <span className="text-clay-800 font-medium">
+                  Permanently delete the school record
+                  <span className="block text-xs font-normal text-ink-700/65">
+                    Wipes all campus data and removes the school from the platform.
+                  </span>
+                </span>
+              </label>
+            </div>
+
+            <div className="grid sm:grid-cols-2 gap-3 mb-4">
+              <div>
+                <label className="label">
+                  Type school code <span className="font-mono text-clay-700">{school.slug}</span> to confirm
+                </label>
+                <input
+                  className="field font-mono"
+                  value={confirmSlug}
+                  onChange={(e) => setConfirmSlug(e.target.value)}
+                  autoComplete="off"
+                  placeholder={school.slug}
+                />
+              </div>
+              {deleteSchoolFlag && (
+                <div>
+                  <label className="label">
+                    Type school name <span className="text-clay-700">{school.name}</span> to confirm
+                  </label>
+                  <input
+                    className="field"
+                    value={confirmName}
+                    onChange={(e) => setConfirmName(e.target.value)}
+                    autoComplete="off"
+                    placeholder={school.name}
+                  />
+                </div>
+              )}
+            </div>
+
+            <button
+              type="button"
+              className="btn-danger"
+              disabled={busy === "delete-data" || (!selectedCats.size && !deleteSchoolFlag)}
+              onClick={onDeleteData}
+            >
+              <BusyLabel
+                busy={busy === "delete-data"}
+                idle={deleteSchoolFlag ? "Delete school permanently" : "Delete selected data"}
+                busyText="Deleting…"
+              />
+            </button>
+
+            {lastDelete && !lastDelete.schoolDeleted && (
+              <p className="mt-3 text-sm text-ink-700/70" role="status">
+                Last deletion removed {lastDelete.totalRows} row(s) across: {(lastDelete.categories || []).join(", ")}.
+              </p>
+            )}
+          </>
+        )}
+      </section>
     </div>
   );
 }
