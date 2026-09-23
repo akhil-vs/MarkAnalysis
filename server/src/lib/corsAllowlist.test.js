@@ -17,6 +17,15 @@ describe("corsAllowlist", () => {
     ]);
   });
 
+  it("ignores wildcard CLIENT_ORIGIN entries", () => {
+    const list = buildCorsAllowlist({
+      CLIENT_ORIGIN: "*, https://app.example.edu",
+    });
+    assert.equal(list.includes("*"), false);
+    assert.equal(isCorsOriginAllowed("https://evil.example", list), false);
+    assert.equal(isCorsOriginAllowed("https://app.example.edu", list), true);
+  });
+
   it("does not treat VERCEL=1 as allow-all", () => {
     const list = buildCorsAllowlist({
       CLIENT_ORIGIN: "https://app.example.edu",
