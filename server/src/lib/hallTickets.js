@@ -1,6 +1,7 @@
 import PDFDocument from "pdfkit";
 import { enrollmentKeySet, studentTakesSubject } from "./electiveEnrollment.js";
 import { TINY_PNG } from "./letterhead.js";
+import { contentDispositionAttachment } from "./downloadName.js";
 
 export const HALL_TICKETS_PER_PAGE = 5;
 export const DEFAULT_HALL_TICKET_INSTRUCTIONS =
@@ -569,7 +570,7 @@ export function buildHallTicketPayload({
 export function streamHallTicketsPdf(res, { letterhead, tickets, filename }) {
   const layout = ticketLayout(A4);
   res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Content-Disposition", contentDispositionAttachment(filename, "hall-tickets.pdf"));
 
   const doc = new PDFDocument({
     size: "A4",

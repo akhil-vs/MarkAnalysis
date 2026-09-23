@@ -12,6 +12,7 @@ import {
   buildConsolidatedStatus,
   fileStem,
 } from "../lib/consolidated.js";
+import { contentDispositionAttachment } from "../lib/downloadName.js";
 import { ensureConsolidationSchema } from "../lib/ensureSchema.js";
 import {
   applyPdfLetterhead,
@@ -59,7 +60,7 @@ exportsRouter.get("/report-card/:studentId", async (req, res) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename="report-${student.rollNo}-${exam.name.replace(/\s+/g, "_")}.pdf"`
+    contentDispositionAttachment(`report-${student.rollNo}-${exam.name}.pdf`)
   );
 
   const margins = pdfMargins();
@@ -125,7 +126,7 @@ exportsRouter.get("/class-summary/:classId", async (req, res) => {
   res.setHeader("Content-Type", "application/pdf");
   res.setHeader(
     "Content-Disposition",
-    `attachment; filename="class-${cls.className}${cls.section}-${exam.name.replace(/\s+/g, "_")}.pdf"`
+    contentDispositionAttachment(`class-${cls.className}${cls.section}-${exam.name}.pdf`)
   );
   const letterhead = await getSchoolLetterhead();
   const margins = pdfLandscapeMargins();
@@ -173,7 +174,7 @@ exportsRouter.get("/class-summary/:classId", async (req, res) => {
   doc.end();
 });
 
-exportsRouter.get("/consolidated", async (req, res) => {
+exportsRouter.get("/consolidated", requireFeature("consolidated"), async (req, res) => {
   await ensureConsolidationSchema();
   const data = await buildConsolidatedStatus(req.query.examId);
   if (data.empty) return res.json(data);
@@ -208,7 +209,7 @@ exportsRouter.get("/consolidated", async (req, res) => {
   });
 });
 
-exportsRouter.get("/consolidated/:classSectionId", async (req, res) => {
+exportsRouter.get("/consolidated/:classSectionId", requireFeature("consolidated"), async (req, res) => {
   await ensureConsolidationSchema();
   const classSectionId = req.params.classSectionId;
   const leadership = isLeadership(req.user.role);
@@ -254,12 +255,12 @@ exportsRouter.get("/consolidated/:classSectionId", async (req, res) => {
   if (format === "xlsx") {
     const buffer = await writeConsolidatedWorkbook(built, letterhead, { official: wantOfficial || built.ready });
     res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-    res.setHeader("Content-Disposition", `attachment; filename="${stem}.xlsx"`);
+    res.setHeader("Content-Disposition", contentDispositionAttachment(`${stem}.xlsx`));
     return res.send(Buffer.from(buffer));
   }
   if (format === "pdf") {
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="${stem}.pdf"`);
+    res.setHeader("Content-Disposition", contentDispositionAttachment(`${stem}.pdf`));
     return writeConsolidatedPdf(built, res, letterhead, { official: wantOfficial || built.ready });
   }
   return res.status(400).json({ error: "format must be json, xlsx, or pdf" });

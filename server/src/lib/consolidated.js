@@ -9,6 +9,7 @@ import {
 } from "./consolidatedStatus.js";
 import { enrollmentKeySet } from "./electiveEnrollment.js";
 import { listExamsBasic } from "./examCatalog.js";
+import { safeDownloadName } from "./downloadName.js";
 
 export { applyExamConsolidationMax, buildConsolidatedStudentRows } from "./consolidatedRows.js";
 export {
@@ -212,6 +213,6 @@ export async function buildConsolidatedStatus(examId) {
 }
 
 export function fileStem(built) {
-  const examPart = `${built.exam.name}${built.exam.academicYear ? `-${built.exam.academicYear}` : ""}`.replace(/\s+/g, "_");
-  return `CML-${built.label}-${examPart}`;
+  const examPart = `${built.exam.name}${built.exam.academicYear ? `-${built.exam.academicYear}` : ""}`;
+  return safeDownloadName(`CML-${built.label}-${examPart}`, "CML");
 }

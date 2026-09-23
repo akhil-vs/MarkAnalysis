@@ -10,6 +10,7 @@ import { getSchoolLetterhead, LOGO_MAX_BYTES, parseLogoFile } from "../lib/schoo
 import { publicStudent } from "../lib/hallTickets.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
+import { contentDispositionAttachment } from "../lib/downloadName.js";
 import { ensureHallTicketsSchema } from "../lib/ensureSchema.js";
 import {
   indexStudentsByAdmission,
@@ -123,7 +124,7 @@ studentsRouter.get("/template", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
     ? `students-${selected.className}${selected.section}.xlsx`
     : "students-template.xlsx";
   res.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+  res.setHeader("Content-Disposition", contentDispositionAttachment(filename));
   res.send(Buffer.from(buffer));
 });
 
