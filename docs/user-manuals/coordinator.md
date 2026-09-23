@@ -42,7 +42,7 @@ When scheduling an exam, choose which **classes** are included, then set one dat
 
 1. Activate pending teacher sign-ups, or add / **bulk-import** teachers.
 2. The staff list is an **accordion** — expand a row for assignments, **Transfer classes**, and timetable.
-3. Assign **class + subject** papers. Teachers need **ACTIVE** status and assignments before they can enter marks.
+3. Assign **class + subject** papers to teachers. The principal can also assign papers to the principal, vice principal, and co-ordinators. Teachers need **ACTIVE** status and assignments before they can enter marks.
 4. You can create **teacher** accounts; only the **principal** can create another **exam co-ordinator** or change **Role access**.
 5. Open a teacher’s timetable from the staff row when needed.
 6. **Notify** one teacher or all teachers from Staff when useful.
