@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
-import { auth, requireRole } from "../middleware/auth.js";
+import { auth, requireFeature, requireRole } from "../middleware/auth.js";
 import { parseDeadlineInput } from "../lib/markAccess.js";
 import { academicYearFromDate } from "../lib/stats.js";
 import { logActivity } from "../lib/activityAudit.js";
@@ -30,6 +30,8 @@ import {
 export const examsRouter = Router();
 examsRouter.use(auth);
 examsRouter.use(requireSchoolTenant);
+
+const requireRecordsWrite = [requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("records")];
 
 const examListInclude = {
   ...examConsolidationInclude,
@@ -96,7 +98,7 @@ examsRouter.get("/:id/papers", requireRole("PRINCIPAL", "EXAM_COORDINATOR", "TEA
   res.json({ papers, ...paperScheduleSummary(papers) });
 });
 
-examsRouter.put("/:id/papers", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+examsRouter.put("/:id/papers", ...requireRecordsWrite, async (req, res) => {
   const exam = await prisma.exam.findUnique({
     where: { id: req.params.id },
     select: { id: true, name: true, academicYear: true, date: true },
@@ -145,7 +147,7 @@ examsRouter.put("/:id/papers", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
   });
 });
 
-examsRouter.delete("/:id/papers/:paperId", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+examsRouter.delete("/:id/papers/:paperId", ...requireRecordsWrite, async (req, res) => {
   const existing = await prisma.examPaperSchedule.findFirst({
     where: { id: req.params.paperId, examId: req.params.id },
   });
@@ -155,7 +157,7 @@ examsRouter.delete("/:id/papers/:paperId", requireRole("PRINCIPAL", "EXAM_COORDI
   res.json({ ok: true });
 });
 
-examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+examsRouter.post("/", ...requireRecordsWrite, async (req, res) => {
   const {
     name,
     term,
@@ -251,7 +253,7 @@ examsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
   res.status(201).json(examJson(fresh));
 });
 
-examsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+examsRouter.patch("/:id", ...requireRecordsWrite, async (req, res) => {
   const {
     name,
     term,
@@ -363,7 +365,7 @@ examsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
   res.json(examJson(updated));
 });
 
-examsRouter.post("/:id/consolidation/lock", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+examsRouter.post("/:id/consolidation/lock", ...requireRecordsWrite, async (req, res) => {
   await ensureConsolidationSchema();
   const existing = await getExamWithConsolidation(req.params.id);
   if (!existing) return res.status(404).json({ error: "Exam not found" });
@@ -383,7 +385,7 @@ examsRouter.post("/:id/consolidation/lock", requireRole("PRINCIPAL", "EXAM_COORD
   res.json(examJson({ ...locked, paperSchedules: await listExamPapers(locked.id) }));
 });
 
-examsRouter.post("/:id/consolidation/unlock", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+examsRouter.post("/:id/consolidation/unlock", ...requireRecordsWrite, async (req, res) => {
   await ensureConsolidationSchema();
   const existing = await getExamWithConsolidation(req.params.id);
   if (!existing) return res.status(404).json({ error: "Exam not found" });
@@ -392,7 +394,7 @@ examsRouter.post("/:id/consolidation/unlock", requireRole("PRINCIPAL", "EXAM_COO
   res.json(examJson({ ...unlocked, paperSchedules: await listExamPapers(unlocked.id) }));
 });
 
-examsRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+examsRouter.delete("/:id", ...requireRecordsWrite, async (req, res) => {
   const existing = await prisma.exam.findUnique({
     where: { id: req.params.id },
     select: { id: true, name: true, academicYear: true },

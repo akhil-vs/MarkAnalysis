@@ -48,7 +48,9 @@ export const ALWAYS_ON_FEATURES = ["dashboard", "profile", "help"];
 
 export function hasFeature(features, featureId) {
   if (!featureId || ALWAYS_ON_FEATURES.includes(featureId)) return true;
-  if (!Array.isArray(features)) return true; // until session loads features, don't blank the UI
+  // null/undefined = session still loading; keep nav visible until /me settles.
+  if (features == null) return true;
+  if (!Array.isArray(features)) return false;
   return features.includes(featureId);
 }
 
@@ -56,7 +58,8 @@ export function hasFeature(features, featureId) {
 export function hasAnyFeature(features, featureIds) {
   const ids = (featureIds || []).filter(Boolean);
   if (!ids.length) return true;
-  if (!Array.isArray(features)) return true;
+  if (features == null) return true;
+  if (!Array.isArray(features)) return false;
   return ids.some((id) => hasFeature(features, id));
 }
 

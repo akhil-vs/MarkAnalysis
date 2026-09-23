@@ -289,8 +289,20 @@ export function leaveAppliesToPeriod(leave, periodId) {
   if (!leave || leave.status !== "ACTIVE") return false;
   if (leave.leaveType !== "PARTIAL") return true;
   const ids = normalizePeriodIds(leave.periodIds);
-  if (!ids.length) return true;
+  // PARTIAL with no periods covers nothing (request validation should reject empty lists).
+  if (!ids.length) return false;
   return ids.includes(periodId);
+}
+
+/** True when two leave date ranges overlap and their period coverage conflicts. */
+export function leavesConflict(a, b) {
+  if (!a || !b) return false;
+  if (a.startDate > b.endDate || b.startDate > a.endDate) return false;
+  if (a.leaveType !== "PARTIAL" || b.leaveType !== "PARTIAL") return true;
+  const aIds = new Set(normalizePeriodIds(a.periodIds));
+  const bIds = normalizePeriodIds(b.periodIds);
+  if (!aIds.size || !bIds.length) return true;
+  return bIds.some((id) => aIds.has(id));
 }
 
 export function normalizePeriodIds(raw) {
