@@ -11,6 +11,7 @@ import { isLeadership } from "../lib/roles.js";
 const VIEWS = [
   { id: "daily", label: "Daily" },
   { id: "weekly", label: "Weekly" },
+  { id: "history", label: "Hours history" },
 ];
 
 const FALLBACK_WORKING_DAYS = [1, 2, 3, 4, 5, 6];
@@ -31,6 +32,18 @@ function shiftDate(ymd, days) {
   const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
   const dd = String(dt.getUTCDate()).padStart(2, "0");
   return `${yy}-${mm}-${dd}`;
+}
+
+function shiftMonth(ymd, deltaMonths) {
+  const [y, m] = ymd.split("-").map(Number);
+  const dt = new Date(Date.UTC(y, m - 1 + deltaMonths, 1));
+  const yy = dt.getUTCFullYear();
+  const mm = String(dt.getUTCMonth() + 1).padStart(2, "0");
+  return `${yy}-${mm}-01`;
+}
+
+function monthInputValue(ymd) {
+  return String(ymd || "").slice(0, 7);
 }
 
 function formatMinutes(minutes) {
@@ -166,9 +179,11 @@ export default function TeacherTimetable() {
   const toast = useToast();
   const leadership = isLeadership(user.role);
   const [searchParams, setSearchParams] = useSearchParams();
-  const view = ["daily", "weekly"].includes(searchParams.get("view"))
+  const view = ["daily", "weekly", "history"].includes(searchParams.get("view"))
     ? searchParams.get("view")
-    : "weekly";
+    : searchParams.get("view") === "monthly"
+      ? "history"
+      : "weekly";
   const date = searchParams.get("date") || todayYmd();
 
   const [data, setData] = useState(null);
@@ -355,7 +370,7 @@ export default function TeacherTimetable() {
     <div>
       <PageHeader
         title={title}
-        subtitle="Teaching timetable · daily or weekly"
+        subtitle="Teaching timetable · daily, weekly, or hours history"
         actions={
           <div className="flex flex-wrap gap-2">
             <Link to="/timetables" className="btn-ghost">All teachers</Link>
@@ -406,6 +421,38 @@ export default function TeacherTimetable() {
             {leadership ? " · click an empty slot to add" : ""}
           </span>
         )}
+        {view === "history" && (
+          <>
+            <button type="button" className="btn-ghost" onClick={() => setDate(shiftMonth(date, -1))}>
+              Previous month
+            </button>
+            <input
+              type="month"
+              className="field-filter"
+              value={monthInputValue(data.month || date)}
+              onChange={(e) => {
+                const next = e.target.value;
+                setDate(next ? `${next}-01` : todayYmd());
+              }}
+            />
+            <button type="button" className="btn-ghost" onClick={() => setDate(shiftMonth(date, 1))}>
+              Next month
+            </button>
+            {data.summary && (
+              <span className="text-sm text-ink-700/65">
+                · {formatMinutes(data.summary.totalTaughtMinutes)} taught
+                {data.summary.totalExtraMinutes > 0 && (
+                  <span className="ml-1 font-medium text-sky-700">
+                    +{formatMinutes(data.summary.totalExtraMinutes)} extra
+                  </span>
+                )}
+                {data.summary.leaveDays > 0 && (
+                  <span className="ml-1">· {data.summary.leaveDays} leave day{data.summary.leaveDays === 1 ? "" : "s"}</span>
+                )}
+              </span>
+            )}
+          </>
+        )}
       </div>
 
       {view === "daily" && (
@@ -429,6 +476,12 @@ export default function TeacherTimetable() {
           draftSlot={draftSlot}
         />
       )}
+      {view === "history" && <HoursHistoryView data={data} onOpenDay={(d) => {
+        const params = new URLSearchParams(searchParams);
+        params.set("view", "daily");
+        params.set("date", d);
+        setSearchParams(params);
+      }} />}
 
       {leadership && formOpen && (
         <form ref={formRef} className="card mt-5 p-4 space-y-3" onSubmit={saveEntry}>
@@ -665,6 +718,98 @@ function WeeklyView({ data, grid, teachingPeriods, onEdit, onAdd, editingId, dra
                   </td>
                 );
               })}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function classSummary(classes) {
+  const list = Array.isArray(classes) ? classes : [];
+  if (!list.length) return "—";
+  return list
+    .map((c) => {
+      const base = [c.classLabel, c.subjectName].filter(Boolean).join(" · ");
+      if (c.kind === "extra") {
+        return `${base || "Cover"}${c.forTeacherName ? ` (for ${c.forTeacherName})` : ""}`;
+      }
+      if (c.kind === "covered") {
+        return `${base || "Class"} → ${c.coveredByName || "covered"}`;
+      }
+      if (c.kind === "uncovered") {
+        return `${base || "Class"} (needs cover)`;
+      }
+      return base || "—";
+    })
+    .join("; ");
+}
+
+function HoursHistoryView({ data, onOpenDay }) {
+  const days = (data.days || []).filter(
+    (d) => d.isWorkingDay && (d.taughtCount > 0 || d.extraCount > 0 || d.onLeave || d.missedCount > 0)
+  );
+
+  if (!days.length) {
+    return (
+      <EmptyNote>
+        No teaching or cover activity recorded for {data.month || "this month"}.
+      </EmptyNote>
+    );
+  }
+
+  return (
+    <div className="card overflow-x-auto">
+      <p className="px-4 pt-3 text-sm text-ink-700/65">
+        Day-by-day hours for this teacher: scheduled classes, taught hours, and extra hours from cover.
+        Click a date to open the daily view.
+      </p>
+      <table className="table">
+        <thead>
+          <tr>
+            <th>Date</th>
+            <th>Classes</th>
+            <th>Periods</th>
+            <th>Hours</th>
+            <th>Extra</th>
+            <th>Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          {days.map((d) => (
+            <tr key={d.date}>
+              <td className="whitespace-nowrap">
+                <button
+                  type="button"
+                  className="font-medium hover:text-clay-600"
+                  onClick={() => onOpenDay?.(d.date)}
+                >
+                  {d.date}
+                </button>
+                <div className="text-[11px] text-ink-700/50">
+                  {d.dayName}
+                  {d.onLeave ? " · leave" : ""}
+                </div>
+              </td>
+              <td className="max-w-md text-sm text-ink-700/80">{classSummary(d.classes)}</td>
+              <td className="whitespace-nowrap">
+                {d.taughtCount}
+                {d.extraCount > 0 ? (
+                  <span className="text-sky-700"> +{d.extraCount}</span>
+                ) : null}
+              </td>
+              <td className="whitespace-nowrap">{formatMinutes(d.taughtMinutes)}</td>
+              <td className="whitespace-nowrap">
+                {d.extraCount > 0 || d.extraMinutes > 0 ? (
+                  <span className="font-medium text-sky-700">
+                    +{d.extraCount} · {formatMinutes(d.extraMinutes)}
+                  </span>
+                ) : (
+                  "—"
+                )}
+              </td>
+              <td className="whitespace-nowrap font-medium">{formatMinutes(d.totalMinutes)}</td>
             </tr>
           ))}
         </tbody>

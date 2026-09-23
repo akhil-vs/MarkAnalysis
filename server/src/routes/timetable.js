@@ -30,6 +30,7 @@ import {
   buildTeacherHoursHistory,
   defaultHoursRange,
 } from "../lib/teacherHours.js";
+import { buildTeacherDayLoad } from "../lib/teacherDayLoad.js";
 
 export const timetableRouter = Router();
 timetableRouter.use(auth);
@@ -576,9 +577,11 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
   const teacher = await loadTeacherOr404(userId, res);
   if (!teacher) return;
 
-  const view = String(req.query.view || "weekly").toLowerCase();
-  if (!["daily", "weekly", "monthly"].includes(view)) {
-    return res.status(400).json({ error: "view must be daily, weekly, or monthly" });
+  const viewRaw = String(req.query.view || "weekly").toLowerCase();
+  // "history" is the hours-history UI; "monthly" kept as a synonym for older clients.
+  const view = viewRaw === "history" ? "history" : viewRaw;
+  if (!["daily", "weekly", "monthly", "history"].includes(view)) {
+    return res.status(400).json({ error: "view must be daily, weekly, monthly, or history" });
   }
 
   const date = parseDateParam(req.query.date);
@@ -725,31 +728,73 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
     });
   }
 
-  // monthly
+  // monthly / history — per-day hours including classes, taught hrs, and extra (cover) hrs
   const year = date.getUTCFullYear();
   const month = date.getUTCMonth();
   const daysInMonth = new Date(Date.UTC(year, month + 1, 0)).getUTCDate();
+  const monthStart = `${year}-${String(month + 1).padStart(2, "0")}-01`;
+  const monthEnd = `${year}-${String(month + 1).padStart(2, "0")}-${String(daysInMonth).padStart(2, "0")}`;
+  const monthDates = [];
+  for (let d = 1; d <= daysInMonth; d++) {
+    monthDates.push(`${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
+  }
+
+  await ensureTeacherLeaveSchema();
+  const [leaves, substitutions] = await Promise.all([
+    listActiveLeavesForRange(monthStart, monthEnd),
+    listSubstitutionsForDates(monthDates),
+  ]);
+  const teacherLeaves = leaves.filter((l) => l.teacherId === userId);
+  const teacherSubs = substitutions.filter(
+    (s) => s.substituteTeacherId === userId || s.originalTeacherId === userId
+  );
+  const subsByDate = new Map();
+  for (const sub of teacherSubs) {
+    if (!subsByDate.has(sub.date)) subsByDate.set(sub.date, []);
+    subsByDate.get(sub.date).push(sub);
+  }
+
   const days = [];
   for (let d = 1; d <= daysInMonth; d++) {
     const current = new Date(Date.UTC(year, month, d));
+    const dateYmd = ymd(current);
     const dayOfWeek = isoWeekday(current);
-    const dayEntries = byDay[dayOfWeek] || [];
-    days.push({
-      date: ymd(current),
+    const working = isWorkingDay(school, dayOfWeek);
+    const load = buildTeacherDayLoad({
+      teacherId: userId,
+      dateYmd,
       dayOfWeek,
+      periods,
+      templateEntries: working ? byDay[dayOfWeek] || [] : [],
+      leaves: teacherLeaves,
+      substitutions: subsByDate.get(dateYmd) || [],
+    });
+    days.push({
+      ...load,
       dayName: DAY_NAMES[dayOfWeek],
-      entryCount: dayEntries.length,
-      entries: dayEntries,
+      isWorkingDay: working,
+      /** Legacy field: template slot count for this weekday (pre-leave). */
+      entryCount: working ? (byDay[dayOfWeek] || []).length : 0,
+      entries: working ? byDay[dayOfWeek] || [] : [],
     });
   }
 
+  const activeDays = days.filter(
+    (d) => d.isWorkingDay && (d.taughtCount > 0 || d.extraCount > 0 || d.onLeave)
+  );
   return res.json({
     ...base,
+    view: view === "monthly" ? "monthly" : "history",
     month: `${year}-${String(month + 1).padStart(2, "0")}`,
     days,
     summary: {
-      teachingDays: days.filter((d) => d.entryCount > 0).length,
-      totalSlots: days.reduce((sum, d) => sum + d.entryCount, 0),
+      teachingDays: activeDays.filter((d) => d.taughtCount > 0 || d.extraCount > 0).length,
+      leaveDays: days.filter((d) => d.onLeave).length,
+      totalSlots: days.reduce((sum, d) => sum + d.taughtCount, 0),
+      totalExtraSlots: days.reduce((sum, d) => sum + d.extraCount, 0),
+      totalTaughtMinutes: days.reduce((sum, d) => sum + d.taughtMinutes, 0),
+      totalExtraMinutes: days.reduce((sum, d) => sum + d.extraMinutes, 0),
+      totalMinutes: days.reduce((sum, d) => sum + d.totalMinutes, 0),
     },
   });
 });

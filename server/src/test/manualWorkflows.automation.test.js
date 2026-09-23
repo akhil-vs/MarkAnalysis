@@ -192,6 +192,26 @@ describe("User manual automation", () => {
       assert.ok(Array.isArray(board.teachers));
       assert.ok(board.teachers.every((t) => typeof t.taughtCount === "number"));
       assert.ok(board.teachers.every((t) => typeof t.taughtMinutes === "number"));
+
+      const teacherList = JSON.parse(teachers.text);
+      assert.ok(Array.isArray(teacherList) && teacherList.length > 0, "expected seeded teachers");
+      const teacherId = teacherList[0].id;
+      const history = await server.request(
+        `/api/timetable/teachers/${teacherId}?view=history&date=${ymd}`,
+        { jar: jars.principal }
+      );
+      assert.equal(history.status, 200, history.text);
+      const hist = JSON.parse(history.text);
+      assert.equal(hist.view, "history");
+      assert.ok(Array.isArray(hist.days));
+      assert.ok(hist.summary && typeof hist.summary.totalTaughtMinutes === "number");
+      assert.ok(hist.summary && typeof hist.summary.totalExtraMinutes === "number");
+      if (hist.days.length) {
+        const sample = hist.days.find((d) => d.isWorkingDay) || hist.days[0];
+        assert.ok(Array.isArray(sample.classes));
+        assert.equal(typeof sample.taughtMinutes, "number");
+        assert.equal(typeof sample.extraMinutes, "number");
+      }
     });
 
     it("principal cannot enter or submit marks (manual §10)", async (t) => {

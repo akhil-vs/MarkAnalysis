@@ -691,7 +691,15 @@ function TeacherAccordionHours({ teacherId }) {
 
   return (
     <div className="space-y-2">
-      <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">Hrs history</div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">Hrs history</div>
+        <Link
+          to={`/timetables/teachers/${teacherId}?view=history`}
+          className="text-xs font-medium text-clay-600 hover:underline"
+        >
+          Open full page
+        </Link>
+      </div>
       {error && <p className="text-sm text-clay-600">{error}</p>}
       {!data && !error && <InlineLoading label="Loading hours history…" />}
       {data && (
