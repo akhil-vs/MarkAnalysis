@@ -117,4 +117,28 @@ describe("API auth (real database)", () => {
     const res = await server.request("/api/auth/me", { jar: new CookieJar() });
     assert.equal(res.status, 401);
   });
+
+  it("rejects portal and MFA JWTs on staff routes", async (t) => {
+    if (!server) return t.skip("DATABASE_URL not set");
+    const jwt = (await import("jsonwebtoken")).default;
+    const secret = process.env.JWT_SECRET;
+    const portal = jwt.sign(
+      { kind: "portal", linkId: "link1", tenantId: "tenant1", studentIds: ["s1"] },
+      secret,
+      { expiresIn: "1h" }
+    );
+    const mfa = jwt.sign({ purpose: "mfa", userId: "user1" }, secret, { expiresIn: "5m" });
+
+    const portalRes = await server.request("/api/students", {
+      headers: { Authorization: `Bearer ${portal}` },
+      jar: new CookieJar(),
+    });
+    assert.equal(portalRes.status, 401);
+
+    const mfaRes = await server.request("/api/marks?classSectionId=x&examId=y", {
+      headers: { Authorization: `Bearer ${mfa}` },
+      jar: new CookieJar(),
+    });
+    assert.equal(mfaRes.status, 401);
+  });
 });
