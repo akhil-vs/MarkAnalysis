@@ -669,7 +669,12 @@ function TeacherAccordionLeave({ teacher, canAssignSubs, onReviewCovers }) {
 }
 
 function TeacherAccordionHours({ teacherId }) {
+  const [mode, setMode] = useState("week");
   const [weekAnchor, setWeekAnchor] = useState("");
+  const [fromDraft, setFromDraft] = useState("");
+  const [toDraft, setToDraft] = useState("");
+  const [appliedFrom, setAppliedFrom] = useState("");
+  const [appliedTo, setAppliedTo] = useState("");
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
 
@@ -677,7 +682,12 @@ function TeacherAccordionHours({ teacherId }) {
     let cancelled = false;
     setError("");
     setData(null);
-    const query = weekAnchor ? `?week=${encodeURIComponent(weekAnchor)}` : "";
+    const query =
+      mode === "range" && appliedFrom && appliedTo
+        ? `?from=${encodeURIComponent(appliedFrom)}&to=${encodeURIComponent(appliedTo)}`
+        : weekAnchor
+          ? `?week=${encodeURIComponent(weekAnchor)}`
+          : "";
     api(`/api/timetable/teachers/${teacherId}/hours${query}`)
       .then((res) => {
         if (!cancelled) setData(res);
@@ -688,22 +698,47 @@ function TeacherAccordionHours({ teacherId }) {
     return () => {
       cancelled = true;
     };
-  }, [teacherId, weekAnchor]);
+  }, [teacherId, mode, weekAnchor, appliedFrom, appliedTo]);
+
+  useEffect(() => {
+    if (data?.from && data?.to && mode === "week") {
+      setFromDraft(data.from);
+      setToDraft(data.to);
+    }
+  }, [data, mode]);
 
   const from = data?.from;
   const to = data?.to;
-  const isCurrentWeek = data
-    ? from === schoolWeekRangeContaining(todayYmd(), data.workingDays).from
-    : !weekAnchor;
+  const isCurrentWeek =
+    mode === "week" &&
+    data &&
+    from === schoolWeekRangeContaining(todayYmd(), data.workingDays).from;
+
+  function goToWeek(anchor) {
+    setMode("week");
+    setAppliedFrom("");
+    setAppliedTo("");
+    setWeekAnchor(anchor);
+  }
+
+  function applyRange(event) {
+    event.preventDefault();
+    if (!fromDraft || !toDraft) return;
+    setMode("range");
+    setAppliedFrom(fromDraft);
+    setAppliedTo(toDraft);
+  }
+
+  const fullPageTo =
+    mode === "range" && appliedFrom && appliedTo
+      ? `/timetables/teachers/${teacherId}?view=history&from=${appliedFrom}&to=${appliedTo}&date=${appliedFrom}`
+      : `/timetables/teachers/${teacherId}?view=history${from ? `&date=${from}` : ""}`;
 
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">Hrs history</div>
-        <Link
-          to={`/timetables/teachers/${teacherId}?view=history${from ? `&date=${from}` : ""}`}
-          className="text-xs font-medium text-clay-600 hover:underline"
-        >
+        <Link to={fullPageTo} className="text-xs font-medium text-clay-600 hover:underline">
           Open full page
         </Link>
       </div>
@@ -712,7 +747,7 @@ function TeacherAccordionHours({ teacherId }) {
           type="button"
           className="btn-ghost text-xs"
           disabled={!from}
-          onClick={() => from && setWeekAnchor(shiftDate(from, -7))}
+          onClick={() => from && goToWeek(shiftDate(from, -7))}
         >
           Previous week
         </button>
@@ -720,23 +755,47 @@ function TeacherAccordionHours({ teacherId }) {
           type="button"
           className="btn-ghost text-xs"
           disabled={!from}
-          onClick={() => from && setWeekAnchor(shiftDate(from, 7))}
+          onClick={() => from && goToWeek(shiftDate(from, 7))}
         >
           Next week
         </button>
         {!isCurrentWeek && (
-          <button type="button" className="btn-ghost text-xs" onClick={() => setWeekAnchor("")}>
+          <button type="button" className="btn-ghost text-xs" onClick={() => goToWeek("")}>
             This week
           </button>
         )}
       </div>
+      <form className="flex flex-wrap items-end gap-2" onSubmit={applyRange}>
+        <label className="block">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">From</span>
+          <input
+            type="date"
+            className="field-filter mt-1"
+            value={fromDraft}
+            onChange={(e) => setFromDraft(e.target.value)}
+          />
+        </label>
+        <label className="block">
+          <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">To</span>
+          <input
+            type="date"
+            className="field-filter mt-1"
+            value={toDraft}
+            min={fromDraft || undefined}
+            onChange={(e) => setToDraft(e.target.value)}
+          />
+        </label>
+        <button type="submit" className="btn-ghost text-xs" disabled={!fromDraft || !toDraft}>
+          Show range
+        </button>
+      </form>
       {error && <p className="text-sm text-clay-600">{error}</p>}
       {!data && !error && <InlineLoading label="Loading hours history…" />}
       {data && (
         <>
           <p className="text-sm text-ink-700/65">
             {from} → {to}
-            {isCurrentWeek ? " · this week" : ""}
+            {isCurrentWeek ? " · this week" : mode === "range" ? " · custom range" : ""}
             {" · "}
             {formatTaughtHours(data.summary?.taughtMinutes)} own
             {" · "}

@@ -164,6 +164,8 @@ export default function TeacherTimetable() {
       ? "history"
       : "weekly";
   const date = searchParams.get("date") || todayYmd();
+  const rangeFrom = searchParams.get("from") || "";
+  const rangeTo = searchParams.get("to") || "";
 
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -172,12 +174,19 @@ export default function TeacherTimetable() {
   const [draftSlot, setDraftSlot] = useState(null);
   const formRef = useRef(null);
   const [form, setForm] = useState(emptyForm());
+  const [fromDraft, setFromDraft] = useState(rangeFrom);
+  const [toDraft, setToDraft] = useState(rangeTo);
 
   function setView(next) {
     const params = new URLSearchParams(searchParams);
     params.set("view", next);
-    if (next === "history") params.set("date", todayYmd());
-    else if (!params.get("date")) params.set("date", date);
+    if (next === "history") {
+      params.set("date", todayYmd());
+      params.delete("from");
+      params.delete("to");
+    } else if (!params.get("date")) {
+      params.set("date", date);
+    }
     setSearchParams(params);
   }
 
@@ -185,6 +194,17 @@ export default function TeacherTimetable() {
     const params = new URLSearchParams(searchParams);
     params.set("date", next);
     params.set("view", view);
+    params.delete("from");
+    params.delete("to");
+    setSearchParams(params);
+  }
+
+  function setHistoryRange(fromYmd, toYmd) {
+    const params = new URLSearchParams(searchParams);
+    params.set("view", "history");
+    params.set("from", fromYmd);
+    params.set("to", toYmd);
+    params.set("date", fromYmd);
     setSearchParams(params);
   }
 
@@ -240,7 +260,11 @@ export default function TeacherTimetable() {
   useEffect(() => {
     let cancelled = false;
     setError("");
-    api(`/api/timetable/teachers/${id}?view=${view}&date=${date}`)
+    const query =
+      view === "history" && rangeFrom && rangeTo
+        ? `view=history&from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}&date=${encodeURIComponent(rangeFrom)}`
+        : `view=${view}&date=${date}`;
+    api(`/api/timetable/teachers/${id}?${query}`)
       .then((res) => {
         if (cancelled) return;
         setData(res);
@@ -253,10 +277,24 @@ export default function TeacherTimetable() {
     return () => {
       cancelled = true;
     };
-  }, [id, view, date]);
+  }, [id, view, date, rangeFrom, rangeTo]);
+
+  useEffect(() => {
+    if (rangeFrom && rangeTo) {
+      setFromDraft(rangeFrom);
+      setToDraft(rangeTo);
+    } else if (data?.from && data?.to && view === "history") {
+      setFromDraft(data.from);
+      setToDraft(data.to);
+    }
+  }, [rangeFrom, rangeTo, data, view]);
 
   async function reload() {
-    const res = await api(`/api/timetable/teachers/${id}?view=${view}&date=${date}`);
+    const query =
+      view === "history" && rangeFrom && rangeTo
+        ? `view=history&from=${encodeURIComponent(rangeFrom)}&to=${encodeURIComponent(rangeTo)}&date=${encodeURIComponent(rangeFrom)}`
+        : `view=${view}&date=${date}`;
+    const res = await api(`/api/timetable/teachers/${id}?${query}`);
     setData(res);
     return res;
   }
@@ -417,15 +455,47 @@ export default function TeacherTimetable() {
             >
               Next week
             </button>
-            {schoolWeekRangeContaining(date, data.workingDays).from !==
-              schoolWeekRangeContaining(todayYmd(), data.workingDays).from && (
+            {(rangeFrom ||
+              schoolWeekRangeContaining(date, data.workingDays).from !==
+                schoolWeekRangeContaining(todayYmd(), data.workingDays).from) && (
               <button type="button" className="btn-ghost" onClick={() => setDate(todayYmd())}>
                 This week
               </button>
             )}
+            <form
+              className="flex flex-wrap items-end gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (fromDraft && toDraft) setHistoryRange(fromDraft, toDraft);
+              }}
+            >
+              <label className="block">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">From</span>
+                <input
+                  type="date"
+                  className="field-filter mt-1"
+                  value={fromDraft}
+                  onChange={(e) => setFromDraft(e.target.value)}
+                />
+              </label>
+              <label className="block">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-700/45">To</span>
+                <input
+                  type="date"
+                  className="field-filter mt-1"
+                  value={toDraft}
+                  min={fromDraft || undefined}
+                  onChange={(e) => setToDraft(e.target.value)}
+                />
+              </label>
+              <button type="submit" className="btn-ghost" disabled={!fromDraft || !toDraft}>
+                Show range
+              </button>
+            </form>
             <span className="text-sm text-ink-700/65">
               {(data.from || schoolWeekRangeContaining(date, data.workingDays).from)} →{" "}
               {(data.to || schoolWeekRangeContaining(date, data.workingDays).to)}
+              {rangeFrom && rangeTo ? " · custom range" : ""}
             </span>
             {data.summary && (
               <span className="text-sm text-ink-700/65">

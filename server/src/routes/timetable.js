@@ -733,7 +733,7 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
     });
   }
 
-  // history — one school week (from School profile working days). monthly keeps a full month.
+  // history — one school week by default, or an explicit from/to range. monthly keeps a full month.
   const dateYmd = ymd(date);
   const week = weekRangeContaining(dateYmd, workingDays);
   const year = date.getUTCFullYear();
@@ -745,9 +745,13 @@ timetableRouter.get("/teachers/:userId", async (req, res) => {
   for (let d = 1; d <= daysInMonth; d++) {
     monthDates.push(`${year}-${String(month + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`);
   }
-  const rangeDates = view === "history" ? week.dates : monthDates;
-  const rangeFrom = view === "history" ? week.from : monthStart;
-  const rangeTo = view === "history" ? week.to : monthEnd;
+  const customFrom = String(req.query.from || "").trim();
+  const customTo = String(req.query.to || "").trim();
+  const customRange = view === "history" && customFrom && customTo ? assertHoursRange(customFrom, customTo) : null;
+  if (customRange?.error) return res.status(400).json({ error: customRange.error });
+  const rangeDates = customRange ? customRange.dates : view === "history" ? week.dates : monthDates;
+  const rangeFrom = customRange ? customRange.from : view === "history" ? week.from : monthStart;
+  const rangeTo = customRange ? customRange.to : view === "history" ? week.to : monthEnd;
 
   await ensureTeacherLeaveSchema();
   const [leaves, substitutions] = await Promise.all([

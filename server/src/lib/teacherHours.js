@@ -9,7 +9,8 @@ import {
 } from "./substituteScore.js";
 import { DAY_NAMES, isWorkingDay, normalizeWorkingDays } from "./workingDays.js";
 
-const MAX_RANGE_DAYS = 7;
+/** Custom date ranges may span at most one calendar month. School-week queries stay shorter. */
+export const MAX_HOURS_RANGE_DAYS = 31;
 
 export function shiftYmd(ymd, days) {
   const dt = parseYmd(ymd);
@@ -47,8 +48,8 @@ export function assertHoursRange(fromYmd, toYmd) {
   }
   if (fromYmd > toYmd) return { error: "to must be on or after from" };
   const dates = eachDateInclusive(fromYmd, toYmd);
-  if (dates.length > MAX_RANGE_DAYS) {
-    return { error: `Range cannot exceed ${MAX_RANGE_DAYS} days` };
+  if (dates.length > MAX_HOURS_RANGE_DAYS) {
+    return { error: `Range cannot exceed ${MAX_HOURS_RANGE_DAYS} days` };
   }
   return { from: fromYmd, to: toYmd, dates };
 }

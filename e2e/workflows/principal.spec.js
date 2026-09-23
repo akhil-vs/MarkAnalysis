@@ -66,6 +66,9 @@ test.describe("Principal manual — complete application workflow", () => {
     await page.locator("main").getByRole("button", { name: /^Hrs history$/i }).click();
     await expect(page.locator("main").getByRole("button", { name: /^Previous week$/i })).toBeVisible();
     await expect(page.locator("main").getByRole("button", { name: /^Next week$/i })).toBeVisible();
+    await expect(page.locator("main").getByLabel(/^From$/i)).toBeVisible();
+    await expect(page.locator("main").getByLabel(/^To$/i)).toBeVisible();
+    await expect(page.locator("main").getByRole("button", { name: /^Show range$/i })).toBeVisible();
     await expect(page.locator("main")).toContainText(/own/i);
     await expect(page.locator("main")).toContainText(/extra/i);
 

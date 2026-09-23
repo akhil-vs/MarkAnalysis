@@ -294,5 +294,14 @@ describe("API timetable leave + substitutes", () => {
     assert.equal(weekRes.json.from, weekExpected.from);
     assert.equal(weekRes.json.to, weekExpected.to);
     assert.ok(!weekRes.json.days.some((day) => !weekRes.json.workingDays.includes(day.dayOfWeek)));
+
+    const rangeRes = await server.request(
+      `/api/timetable/teachers/${teacher.id}/hours?from=2026-09-14&to=2026-09-23`,
+      { jar: principal.jar }
+    );
+    assert.equal(rangeRes.status, 200, rangeRes.text);
+    assert.equal(rangeRes.json.from, "2026-09-14");
+    assert.equal(rangeRes.json.to, "2026-09-23");
+    assert.ok(rangeRes.json.days.length <= rangeRes.json.workingDays.length + 3);
   });
 });

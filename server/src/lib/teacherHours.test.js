@@ -47,7 +47,8 @@ describe("hours range helpers", () => {
 
   it("rejects inverted or oversized ranges", () => {
     assert.equal(assertHoursRange("2026-09-23", "2026-09-01").error, "to must be on or after from");
-    assert.match(assertHoursRange("2026-01-01", "2026-01-10").error, /7 days/);
+    assert.match(assertHoursRange("2026-01-01", "2026-02-15").error, /31 days/);
+    assert.ok(!assertHoursRange("2026-01-01", "2026-01-31").error);
     assert.match(assertHoursRange("nope", "2026-09-23").error, /YYYY-MM-DD/);
   });
 });
