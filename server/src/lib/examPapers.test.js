@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  earliestPaperDate,
   normalizeClassName,
   normalizePaperInput,
   paperScheduleSummary,
@@ -37,6 +38,15 @@ describe("examPapers helpers", () => {
       { allowEmpty: true }
     );
     assert.equal(skipped.value, null);
+  });
+
+  it("earliestPaperDate is the first dated paper", () => {
+    assert.equal(earliestPaperDate([]), null);
+    const first = earliestPaperDate([
+      { paperDate: "2026-03-12T00:00:00.000Z" },
+      { paperDate: "2026-03-10T00:00:00.000Z" },
+    ]);
+    assert.equal(first.toISOString().slice(0, 10), "2026-03-10");
   });
 
   it("paperScheduleSummary reports range", () => {

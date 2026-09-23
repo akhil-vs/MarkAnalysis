@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { api } from "../api.js";
 import { ExamSelect } from "../components/ExamSelect.jsx";
 import { EmptyNote, Panel } from "../components/DashboardKit.jsx";
@@ -421,7 +422,11 @@ export default function BoardOps() {
           <form className="card p-4 sm:p-5 space-y-3" onSubmit={savePaper}>
             <h3 className="font-serif text-lg">Schedule a paper</h3>
             <p className="text-xs text-ink-700/55">
-              Day-to-day exam dates can also be set under Records → Exams (same or different per class and subject). Use this form for venues and board calendar detail.
+              Edits here use the same paper schedule as{" "}
+              <Link className="underline underline-offset-2" to="/manage?tab=Exams">
+                Records → Exams
+              </Link>
+              . Use this form for venues and board calendar detail; use Records to set dates for a whole class at once.
             </p>
             <div>
               <label className="label">Subject</label>

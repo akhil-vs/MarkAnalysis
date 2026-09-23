@@ -95,7 +95,7 @@ export const PAGE_HELP = {
   hallTickets: {
     title: "What's on this page",
     about: "Class hall tickets for a selected exam: student identity and photo, paper schedule, venue, and instructions. Five tickets print on each A4 page (Download PDF (5 / A4)). Principals and exam coordinators create and edit batches; teachers can view and download for their classes.",
-    useful: "Pick an exam, then a class and division. Preview loads on the right with a With photo count. Use Download PDF (5 / A4) or the PDF button beside each division to print. Create/save a batch to store title, venue, and instructions, and tick Print student photos when available. Upload photos under Student photos (or Records → Students). Paper dates and start times come from Records → Exams — if one class timetable is done, leadership can copy it to the other classes.",
+    useful: "Pick an exam, then a class and division. Preview loads on the right with a With photo count. Use Download PDF (5 / A4) or the PDF button beside each division to print. Create/save a batch to store title, venue, and instructions, and tick Print student photos when available. Upload photos under Student photos. Paper dates and start times come from Records → Exams — if one class timetable is done, leadership can copy it to the other classes.",
   },
   studentPhotos: {
     title: "What's on this page",
@@ -130,7 +130,7 @@ export const PAGE_HELP = {
   boardOps: {
     title: "What's on this page",
     about: "Board exam operations for a selected exam: paper calendar and venues, report-card publish and principal sign-off, parent notify, revaluation requests and reviews, and downloadable board packs with a results manifest.",
-    useful: "Schedule papers before the exam window, publish and sign off class report cards when marks are approved, process revaluations, then create a board pack when leadership needs a single snapshot for the board.",
+    useful: "Schedule or adjust papers here or under Records → Exams — both write the same calendar. Publish and sign off class report cards when marks are approved, process revaluations, then create a board pack when leadership needs a single snapshot for the board.",
   },
   cpd: {
     title: "What's on this page",

@@ -4,16 +4,20 @@ import { auth, requireLeadership, requireRole, requireFeature } from "../middlew
 import { logActivity, classLabel } from "../lib/activityAudit.js";
 import { queueEmail } from "../lib/mailer.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
+import { invalidateExamCatalog } from "../lib/examCatalog.js";
+import {
+  deleteExamPaper,
+  listExamPapers,
+  normalizeClassName,
+  saveExamPapers,
+  syncExamDateFromPapers,
+} from "../lib/examPapers.js";
 
 export const boardRouter = Router();
 boardRouter.use(auth);
 boardRouter.use(requireSchoolTenant);
 boardRouter.use(requireLeadership());
 boardRouter.use(requireFeature("boardOps"));
-
-const PAPER_INCLUDE = {
-  subject: { select: { id: true, name: true, className: true, maxMarks: true } },
-};
 
 const RELEASE_INCLUDE = {
   classSection: { select: { id: true, className: true, section: true } },
@@ -28,97 +32,66 @@ const REVAL_INCLUDE = {
   reviewedBy: { select: { id: true, name: true } },
 };
 
-function normalizeClassName(value) {
-  if (value == null || value === "") return null;
-  return String(value).trim() || null;
-}
-
-/* ── Exam paper calendar ─────────────────────────────────────────── */
+/* ── Exam paper calendar (same ExamPaperSchedule writer as Records → Exams) ── */
 
 boardRouter.get("/exam-papers", async (req, res) => {
   const examId = req.query.examId;
   if (!examId) return res.status(400).json({ error: "examId is required" });
-
-  const rows = await prisma.examPaperSchedule.findMany({
-    where: { examId },
-    include: PAPER_INCLUDE,
-    orderBy: [{ paperDate: "asc" }, { startTime: "asc" }],
-  });
-  res.json(rows);
+  const exam = await prisma.exam.findUnique({ where: { id: examId }, select: { id: true } });
+  if (!exam) return res.status(404).json({ error: "Exam not found" });
+  res.json(await listExamPapers(examId));
 });
 
 boardRouter.put("/exam-papers", async (req, res) => {
-  const {
-    examId,
-    subjectId,
-    className: rawClassName,
-    paperDate,
-    startTime,
-    endTime,
-    venue,
-    maxMarks,
-    notes,
-  } = req.body || {};
-
+  const { examId, subjectId, paperDate } = req.body || {};
   if (!examId || !subjectId || !paperDate) {
     return res.status(400).json({ error: "examId, subjectId, and paperDate are required" });
   }
 
-  const exam = await prisma.exam.findUnique({ where: { id: examId }, select: { id: true, name: true } });
+  const exam = await prisma.exam.findUnique({
+    where: { id: examId },
+    select: { id: true, name: true, academicYear: true },
+  });
   if (!exam) return res.status(404).json({ error: "Exam not found" });
-  const subject = await prisma.subject.findUnique({
-    where: { id: subjectId },
-    select: { id: true, name: true },
+
+  const result = await saveExamPapers({
+    tenantId: req.tenantId,
+    examId: exam.id,
+    papers: [req.body],
+    mode: "merge",
   });
-  if (!subject) return res.status(404).json({ error: "Subject not found" });
+  if (result.error) return res.status(400).json({ error: result.error });
 
-  const className = normalizeClassName(rawClassName);
-  const data = {
-    paperDate: new Date(paperDate),
-    startTime: startTime != null && startTime !== "" ? String(startTime) : null,
-    endTime: endTime != null && endTime !== "" ? String(endTime) : null,
-    venue: venue != null && venue !== "" ? String(venue) : null,
-    maxMarks: maxMarks != null && maxMarks !== "" ? Number(maxMarks) : null,
-    notes: notes != null && notes !== "" ? String(notes) : null,
-  };
-  if (data.maxMarks != null && !Number.isFinite(data.maxMarks)) {
-    return res.status(400).json({ error: "maxMarks must be a number" });
-  }
-  if (Number.isNaN(data.paperDate.getTime())) {
-    return res.status(400).json({ error: "Invalid paperDate" });
-  }
+  await syncExamDateFromPapers(exam.id, result.papers);
+  invalidateExamCatalog();
 
-  const existing = await prisma.examPaperSchedule.findFirst({
-    where: { examId, subjectId, className },
+  await logActivity({
+    actorId: req.user.userId,
+    action: "EXAM_UPDATED",
+    summary: `Updated paper schedule for ${exam.name}${exam.academicYear ? ` (${exam.academicYear})` : ""} · ${result.summary.paperCount} paper${result.summary.paperCount === 1 ? "" : "s"}`,
+    examId: exam.id,
+    meta: {
+      examName: exam.name,
+      academicYear: exam.academicYear,
+      paperCount: result.summary.paperCount,
+      firstPaperDate: result.summary.firstPaperDate,
+      lastPaperDate: result.summary.lastPaperDate,
+      source: "board-ops",
+    },
   });
 
-  let row;
-  if (existing) {
-    row = await prisma.examPaperSchedule.update({
-      where: { id: existing.id },
-      data,
-      include: PAPER_INCLUDE,
-    });
-  } else {
-    row = await prisma.examPaperSchedule.create({
-      data: {
-        tenantId: req.tenantId,
-        examId,
-        subjectId,
-        className,
-        ...data,
-      },
-      include: PAPER_INCLUDE,
-    });
-  }
-
+  const className = normalizeClassName(req.body.className);
+  const row =
+    result.papers.find(
+      (p) => p.subjectId === subjectId && (p.className ?? null) === className
+    ) || result.papers.at(-1);
   res.json(row);
 });
 
 boardRouter.delete("/exam-papers/:id", async (req, res) => {
-  const existing = await prisma.examPaperSchedule.findUnique({ where: { id: req.params.id } });
-  if (!existing) return res.status(404).json({ error: "Exam paper schedule not found" });
-  await prisma.examPaperSchedule.delete({ where: { id: existing.id } });
+  const result = await deleteExamPaper({ paperId: req.params.id });
+  if (result.error) return res.status(404).json({ error: result.error });
+  invalidateExamCatalog();
   res.json({ ok: true });
 });
 

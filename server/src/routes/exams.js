@@ -16,10 +16,12 @@ import {
 } from "../lib/consolidationMaxMarks.js";
 import { invalidateExamCatalog } from "../lib/examCatalog.js";
 import {
+  deleteExamPaper,
   earliestPaperDate,
   listExamPapers,
   paperScheduleSummary,
   saveExamPapers,
+  syncExamDateFromPapers,
 } from "../lib/examPapers.js";
 import {
   parseIncludedClassNames,
@@ -117,13 +119,7 @@ examsRouter.put("/:id/papers", ...requireRecordsWrite, async (req, res) => {
   });
   if (result.error) return res.status(400).json({ error: result.error });
 
-  // Keep exam.date aligned with the earliest scheduled paper when papers exist.
-  if (result.summary.firstPaperDate) {
-    await prisma.exam.update({
-      where: { id: exam.id },
-      data: { date: result.summary.firstPaperDate },
-    });
-  }
+  await syncExamDateFromPapers(exam.id, result.papers);
 
   await logActivity({
     actorId: req.user.userId,
@@ -148,11 +144,8 @@ examsRouter.put("/:id/papers", ...requireRecordsWrite, async (req, res) => {
 });
 
 examsRouter.delete("/:id/papers/:paperId", ...requireRecordsWrite, async (req, res) => {
-  const existing = await prisma.examPaperSchedule.findFirst({
-    where: { id: req.params.paperId, examId: req.params.id },
-  });
-  if (!existing) return res.status(404).json({ error: "Exam paper schedule not found" });
-  await prisma.examPaperSchedule.delete({ where: { id: existing.id } });
+  const result = await deleteExamPaper({ paperId: req.params.paperId, examId: req.params.id });
+  if (result.error) return res.status(404).json({ error: result.error });
   invalidateExamCatalog();
   res.json({ ok: true });
 });

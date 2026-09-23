@@ -67,4 +67,66 @@ describe("API RBAC + tenant smoke (real database)", () => {
     assert.ok(!emails.includes("anita.sharma@school.edu"));
     assert.ok(emails.includes("principal@riverside.school"));
   });
+
+  it("teacher home is teacher-only; leadership uses staff analytics", async (t) => {
+    if (!server) return t.skip("DATABASE_URL not set");
+    const login = await loginAs(server, { email: "principal@school.edu" });
+    assert.equal(login.status, 200, login.text);
+
+    const denied = await server.request("/api/analytics/teacher", { jar: login.jar });
+    assert.equal(denied.status, 403);
+
+    const teacher = await loginAs(server, { email: "anita.sharma@school.edu" });
+    assert.equal(teacher.status, 200, teacher.text);
+    const allowed = await server.request("/api/analytics/teacher", { jar: teacher.jar });
+    assert.equal(allowed.status, 200, allowed.text);
+  });
+
+  it("board exam-papers write is visible on Records exam papers", async (t) => {
+    if (!server) return t.skip("DATABASE_URL not set");
+    const login = await loginAs(server, { email: "principal@school.edu" });
+    assert.equal(login.status, 200, login.text);
+
+    const exams = await server.request("/api/exams", { jar: login.jar });
+    assert.equal(exams.status, 200, exams.text);
+    const exam = Array.isArray(exams.json) ? exams.json[0] : exams.json?.[exams.json.length - 1];
+    assert.ok(exam?.id, "seed exam missing");
+
+    const subjects = await server.request("/api/subjects", { jar: login.jar });
+    assert.equal(subjects.status, 200, subjects.text);
+    const subjectList = Array.isArray(subjects.json) ? subjects.json : subjects.json?.items || [];
+    const subject = subjectList[0];
+    assert.ok(subject?.id, "seed subject missing");
+
+    const paperDate = "2026-09-23";
+    const saved = await server.request("/api/board/exam-papers", {
+      method: "PUT",
+      jar: login.jar,
+      body: {
+        examId: exam.id,
+        subjectId: subject.id,
+        className: subject.className || null,
+        paperDate,
+        startTime: "09:00",
+        venue: "Hall A",
+      },
+    });
+    assert.equal(saved.status, 200, saved.text);
+    assert.ok(saved.json?.id);
+    assert.equal(saved.json?.subjectId, subject.id);
+
+    const listed = await server.request(`/api/exams/${exam.id}/papers`, { jar: login.jar });
+    assert.equal(listed.status, 200, listed.text);
+    const papers = listed.json?.papers || [];
+    assert.ok(
+      papers.some((p) => p.id === saved.json.id && p.venue === "Hall A"),
+      "board write missing from /api/exams/:id/papers"
+    );
+
+    const removed = await server.request(`/api/board/exam-papers/${saved.json.id}`, {
+      method: "DELETE",
+      jar: login.jar,
+    });
+    assert.equal(removed.status, 200, removed.text);
+  });
 });

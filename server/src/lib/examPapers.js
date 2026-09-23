@@ -181,3 +181,33 @@ export function earliestPaperDate(papers = []) {
   const summary = paperScheduleSummary(papers);
   return summary.firstPaperDate;
 }
+
+/** Keep exam.date aligned with the earliest scheduled paper when papers exist. */
+export async function syncExamDateFromPapers(examId, papers = null) {
+  const list = papers ?? (await listExamPapers(examId));
+  const first = paperScheduleSummary(list).firstPaperDate;
+  if (first) {
+    await prisma.exam.update({ where: { id: examId }, data: { date: first } });
+  }
+  return list;
+}
+
+/**
+ * Delete one paper schedule row. Optionally require it to belong to `examId`.
+ * Syncs exam.date from remaining papers.
+ */
+export async function deleteExamPaper({ paperId, examId = null } = {}) {
+  const existing = await prisma.examPaperSchedule.findFirst({
+    where: examId ? { id: paperId, examId } : { id: paperId },
+  });
+  if (!existing) return { error: "Exam paper schedule not found" };
+  await prisma.examPaperSchedule.delete({ where: { id: existing.id } });
+  const remaining = await listExamPapers(existing.examId);
+  await syncExamDateFromPapers(existing.examId, remaining);
+  return {
+    ok: true,
+    examId: existing.examId,
+    papers: remaining,
+    summary: paperScheduleSummary(remaining),
+  };
+}
