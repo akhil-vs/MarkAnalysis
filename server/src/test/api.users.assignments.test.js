@@ -75,12 +75,13 @@ describe("API staff classroom assignments for all roles", () => {
     const paper = await pickPaper(principalLogin.jar);
     if (!paper) return t.skip("no class/subject pair in seed");
 
-    const staff = await server.request("/api/users?page=1&pageSize=50&sort=name", {
-      jar: principalLogin.jar,
-    });
+    const staff = await server.request(
+      "/api/users?role=EXAM_COORDINATOR&status=ACTIVE&page=1&pageSize=20&sort=name",
+      { jar: principalLogin.jar }
+    );
     assert.equal(staff.status, 200, staff.text);
     const items = staff.json?.items || staff.json || [];
-    const coordinator = items.find((u) => u.role === "EXAM_COORDINATOR" && !u.roleTitle);
+    const coordinator = items.find((u) => u.email === "coordinator@school.edu") || items[0];
     assert.ok(coordinator, "seed exam coordinator missing");
 
     const toPairs = (assignments) =>
