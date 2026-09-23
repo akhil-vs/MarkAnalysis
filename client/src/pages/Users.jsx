@@ -279,30 +279,6 @@ function assignmentTags(assignments) {
   return tags;
 }
 
-function AssignmentSummary({ assignments, maxVisible = 2 }) {
-  const tags = useMemo(() => assignmentTags(assignments), [assignments]);
-  if (!tags.length) {
-    return <span className="text-sm text-ink-700/45">No assignments</span>;
-  }
-  const visible = tags.slice(0, maxVisible);
-  const more = tags.length - visible.length;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 min-w-[10rem] max-w-sm">
-      {visible.map((tag) => (
-        <span
-          key={tag}
-          className="inline-flex items-center rounded-md border border-ink-900/10 bg-ink-900/[0.03] px-2 py-0.5 text-xs text-ink-700/80"
-        >
-          {tag}
-        </span>
-      ))}
-      {more > 0 && (
-        <span className="text-xs font-medium text-moss-600">+{more} more</span>
-      )}
-    </div>
-  );
-}
-
 function AssignmentList({ assignments }) {
   const tags = useMemo(() => assignmentTags(assignments), [assignments]);
   if (!tags.length) {
