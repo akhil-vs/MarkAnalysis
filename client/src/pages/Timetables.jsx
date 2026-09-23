@@ -321,6 +321,9 @@ function TeachersList({ onPutOnLeave }) {
                 <Link to={`/timetables/teachers/${t.id}`} className="btn-ghost text-xs">
                   Open timetable
                 </Link>
+                <Link to={`/timetables/teachers/${t.id}?view=history`} className="btn-ghost text-xs">
+                  Hours history
+                </Link>
                 {onPutOnLeave && (
                   <button type="button" className="btn-ghost text-xs" onClick={() => onPutOnLeave(t.id)}>
                     Put on leave
