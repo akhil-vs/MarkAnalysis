@@ -5,6 +5,7 @@ import { api, setSessionHint, setToken } from "../api.js";
 import { FieldError } from "../components/FieldError.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
+import { SHOW_PUBLIC_REGISTRATION } from "../lib/publicAccess.js";
 import { AuthShell } from "./Login.jsx";
 
 export default function RegisterSchool() {
@@ -87,9 +88,11 @@ export default function RegisterSchool() {
         <button className="btn-primary w-full" disabled={busy}>
           <BusyLabel busy={busy} idle="Create school" busyText="Creating school…" />
         </button>
-        <p className="text-sm text-ink-700/70">
-          Staff joining an existing school? <Link className="underline" to="/signup">Request access</Link>
-        </p>
+        {SHOW_PUBLIC_REGISTRATION && (
+          <p className="text-sm text-ink-700/70">
+            Staff joining an existing school? <Link className="underline" to="/signup">Request access</Link>
+          </p>
+        )}
         <p className="text-sm text-ink-700/70">
           Already approved? <Link className="underline" to="/login">Sign in</Link>
         </p>

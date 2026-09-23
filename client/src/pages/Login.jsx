@@ -5,6 +5,7 @@ import { FieldError } from "../components/FieldError.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { firstError, parseEmail, parseJoinCode, parsePassword, requiredText } from "../lib/formValidation.js";
 import { preloadDashboardModules } from "../lib/dashboardPrefetch.js";
+import { SHOW_PUBLIC_REGISTRATION } from "../lib/publicAccess.js";
 import PoweredBy from "../components/PoweredBy.jsx";
 
 const DEMO_PASSWORD = "password123";
@@ -281,11 +282,13 @@ export default function Login() {
         <button className="btn-primary w-full" disabled={Boolean(busy)}>
           <BusyLabel busy={busy === "form"} idle="Sign in" busyText="Signing in…" />
         </button>
-        <p className="text-sm text-ink-700/70">
-          New staff? <Link className="underline" to="/signup">Request an account</Link>
-          {" · "}
-          New school? <Link className="underline" to="/register-school">Register your school</Link>
-        </p>
+        {SHOW_PUBLIC_REGISTRATION && (
+          <p className="text-sm text-ink-700/70">
+            New staff? <Link className="underline" to="/signup">Request an account</Link>
+            {" · "}
+            New school? <Link className="underline" to="/register-school">Register your school</Link>
+          </p>
+        )}
       </form>
         <p className="mt-4 text-center text-sm text-ink-700/70">
           <a className="underline" href="/portal">Parent / student portal</a>
