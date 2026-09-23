@@ -6729,6 +6729,8 @@
                 "SCHOOL_CREATED",
                 "SCHOOL_UPDATED",
                 "SCHOOL_STATUS_CHANGED",
+                "SCHOOL_DATA_DELETED",
+                "SCHOOL_DELETED",
                 "USER_UPDATED",
                 "USER_DELETED",
                 "USER_ASSIGNMENTS_TRANSFERRED",
@@ -12059,6 +12061,8 @@
                 "SCHOOL_CREATED",
                 "SCHOOL_UPDATED",
                 "SCHOOL_STATUS_CHANGED",
+                "SCHOOL_DATA_DELETED",
+                "SCHOOL_DELETED",
                 "USER_UPDATED",
                 "USER_DELETED",
                 "USER_ASSIGNMENTS_TRANSFERRED",
@@ -12227,7 +12231,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "6d8e78a5cc9da5c678906aaf6768f21b7d06a77e7dfa07966924123e39273137"
+    "storageHash": "22f0464f32f75ae3278bc4cce02731b84a3e2be3729efa079ea44f16c4c5815c"
   },
   "execution": {
     "executionHash": "a72b23d74a7c00bedc01aae8e1333dfa214b3303b25cb40bff7c9ec558b8b035",

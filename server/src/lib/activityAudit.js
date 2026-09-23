@@ -27,6 +27,8 @@ export const ACTION_LABELS = {
   SCHOOL_CREATED: "School created",
   SCHOOL_UPDATED: "School updated",
   SCHOOL_STATUS_CHANGED: "School status",
+  SCHOOL_DATA_DELETED: "School data deleted",
+  SCHOOL_DELETED: "School deleted",
   MFA_ENABLED: "MFA enabled",
   MFA_DISABLED: "MFA disabled",
   REPORT_CARD_PUBLISHED: "Report cards published",

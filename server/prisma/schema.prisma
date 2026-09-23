@@ -443,6 +443,8 @@ enum AuditAction {
   SCHOOL_CREATED
   SCHOOL_UPDATED
   SCHOOL_STATUS_CHANGED
+  SCHOOL_DATA_DELETED
+  SCHOOL_DELETED
 }
 
 /// Operational audit trail (approvals, access reviews, staff/exam changes).

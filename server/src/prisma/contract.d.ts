@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'6d8e78a5cc9da5c678906aaf6768f21b7d06a77e7dfa07966924123e39273137'>;
+  StorageHashBase<'22f0464f32f75ae3278bc4cce02731b84a3e2be3729efa079ea44f16c4c5815c'>;
 export type ExecutionHash =
   ExecutionHashBase<'a72b23d74a7c00bedc01aae8e1333dfa214b3303b25cb40bff7c9ec558b8b035'>;
 export type ProfileHash =
@@ -266,6 +266,8 @@ export type FieldOutputTypes = {
         | 'SCHOOL_CREATED'
         | 'SCHOOL_UPDATED'
         | 'SCHOOL_STATUS_CHANGED'
+        | 'SCHOOL_DATA_DELETED'
+        | 'SCHOOL_DELETED'
         | 'USER_UPDATED'
         | 'USER_DELETED'
         | 'USER_ASSIGNMENTS_TRANSFERRED'
@@ -725,6 +727,8 @@ export type FieldInputTypes = {
         | 'SCHOOL_CREATED'
         | 'SCHOOL_UPDATED'
         | 'SCHOOL_STATUS_CHANGED'
+        | 'SCHOOL_DATA_DELETED'
+        | 'SCHOOL_DELETED'
         | 'USER_UPDATED'
         | 'USER_DELETED'
         | 'USER_ASSIGNMENTS_TRANSFERRED'
@@ -1181,6 +1185,8 @@ export type StorageColumnTypes = {
         | 'SCHOOL_CREATED'
         | 'SCHOOL_UPDATED'
         | 'SCHOOL_STATUS_CHANGED'
+        | 'SCHOOL_DATA_DELETED'
+        | 'SCHOOL_DELETED'
         | 'USER_UPDATED'
         | 'USER_DELETED'
         | 'USER_ASSIGNMENTS_TRANSFERRED'
@@ -1640,6 +1646,8 @@ export type StorageColumnInputTypes = {
         | 'SCHOOL_CREATED'
         | 'SCHOOL_UPDATED'
         | 'SCHOOL_STATUS_CHANGED'
+        | 'SCHOOL_DATA_DELETED'
+        | 'SCHOOL_DELETED'
         | 'USER_UPDATED'
         | 'USER_DELETED'
         | 'USER_ASSIGNMENTS_TRANSFERRED'
@@ -2516,6 +2524,8 @@ export namespace Models {
       | 'SCHOOL_CREATED'
       | 'SCHOOL_UPDATED'
       | 'SCHOOL_STATUS_CHANGED'
+      | 'SCHOOL_DATA_DELETED'
+      | 'SCHOOL_DELETED'
       | 'USER_UPDATED'
       | 'USER_DELETED'
       | 'USER_ASSIGNMENTS_TRANSFERRED'
@@ -6895,6 +6905,8 @@ type ContractBase = Omit<
                 'SCHOOL_CREATED',
                 'SCHOOL_UPDATED',
                 'SCHOOL_STATUS_CHANGED',
+                'SCHOOL_DATA_DELETED',
+                'SCHOOL_DELETED',
                 'USER_UPDATED',
                 'USER_DELETED',
                 'USER_ASSIGNMENTS_TRANSFERRED',
