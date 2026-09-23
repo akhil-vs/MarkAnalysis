@@ -31,7 +31,10 @@ import {
 import {
   QUICK_SECTIONS,
   applyQuickSections,
+  assignedClassTeacherLabels,
   buildBatchClassPayload,
+  classTeacherOptionLabel,
+  draftClassTeacherLabels,
   emptyDivisionRow,
   emptyMultiClassForm,
 } from "../lib/classDivisions.js";
@@ -119,10 +122,23 @@ function ClassesTab() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const table = useTableSearch(rows, { getSearchText: classSearchText, filterDefs: CLASS_FILTERS });
-  const teacherOptions = useMemo(
-    () => teachers.map((t) => ({ id: t.id, name: t.name })),
-    [teachers]
+  const assignedByTeacher = useMemo(
+    () => assignedClassTeacherLabels(rows, { excludeId: editingId }),
+    [rows, editingId]
   );
+
+  function teacherOptionText(teacher, { excludeDivisionKey, includeDraft = false } = {}) {
+    const draftMap = includeDraft
+      ? draftClassTeacherLabels(createForm.divisions, {
+          className: createForm.className,
+          excludeKey: excludeDivisionKey,
+        })
+      : new Map();
+    return classTeacherOptionLabel(teacher.name, {
+      assignedLabels: assignedByTeacher.get(teacher.id),
+      draftLabels: draftMap.get(teacher.id),
+    });
+  }
 
   async function load() {
     setLoading(true);
@@ -284,8 +300,8 @@ function ClassesTab() {
             disabled={busy}
           >
             <option value="">Class teacher (optional)</option>
-            {teacherOptions.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
+            {teachers.map((t) => (
+              <option key={t.id} value={t.id}>{teacherOptionText(t)}</option>
             ))}
           </select>
           <div className="flex gap-2">
@@ -302,6 +318,7 @@ function ClassesTab() {
               <h3 className="font-serif text-lg">Add class with divisions</h3>
               <p className="text-sm text-ink-700/60 mt-0.5">
                 Enter the class once, then add every division and optional class teacher in one step.
+                Teachers already assigned as class teacher are labelled in the list.
               </p>
             </div>
             <button type="button" className="btn-ghost shrink-0" onClick={fillQuickSections} disabled={busy}>
@@ -353,8 +370,10 @@ function ClassesTab() {
                         disabled={busy}
                       >
                         <option value="">Optional</option>
-                        {teacherOptions.map((t) => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
+                        {teachers.map((t) => (
+                          <option key={t.id} value={t.id}>
+                            {teacherOptionText(t, { excludeDivisionKey: row.key, includeDraft: true })}
+                          </option>
                         ))}
                       </select>
                     </td>

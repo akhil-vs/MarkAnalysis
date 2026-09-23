@@ -3,7 +3,11 @@ import { describe, it } from "node:test";
 import {
   QUICK_SECTIONS,
   applyQuickSections,
+  assignedClassTeacherLabels,
   buildBatchClassPayload,
+  classSectionLabel,
+  classTeacherOptionLabel,
+  draftClassTeacherLabels,
   emptyDivisionRow,
   emptyMultiClassForm,
 } from "./classDivisions.js";
@@ -63,5 +67,55 @@ describe("classDivisions helpers", () => {
         { section: "B", classTeacherId: "tea-1" },
       ],
     });
+  });
+
+  it("classSectionLabel joins class and division", () => {
+    assert.equal(classSectionLabel("10", "A"), "10-A");
+    assert.equal(classSectionLabel(" 9 ", " B "), "9-B");
+    assert.equal(classSectionLabel("", "C"), "C");
+    assert.equal(classSectionLabel("8", ""), "8");
+  });
+
+  it("assignedClassTeacherLabels maps teachers to existing homerooms", () => {
+    const map = assignedClassTeacherLabels(
+      [
+        { id: "c1", className: "10", section: "A", classTeacherId: "t1" },
+        { id: "c2", className: "10", section: "B", classTeacherId: "t1" },
+        { id: "c3", className: "8", section: "C", classTeacherId: "t2" },
+        { id: "c4", className: "7", section: "A", classTeacherId: null },
+      ],
+      { excludeId: "c3" }
+    );
+    assert.deepEqual(map.get("t1"), ["10-A", "10-B"]);
+    assert.equal(map.has("t2"), false);
+  });
+
+  it("draftClassTeacherLabels skips the current row", () => {
+    const map = draftClassTeacherLabels(
+      [
+        { key: "a", section: "A", classTeacherId: "t1" },
+        { key: "b", section: "B", classTeacherId: "t1" },
+        { key: "c", section: "", classTeacherId: "t2" },
+      ],
+      { className: "10", excludeKey: "a" }
+    );
+    assert.deepEqual(map.get("t1"), ["10-B"]);
+    assert.deepEqual(map.get("t2"), ["another division"]);
+  });
+
+  it("classTeacherOptionLabel notes assigned and in-form teachers", () => {
+    assert.equal(classTeacherOptionLabel("Anita Sharma"), "Anita Sharma");
+    assert.equal(
+      classTeacherOptionLabel("Anita Sharma", { assignedLabels: ["10-A"] }),
+      "Anita Sharma — already class teacher of 10-A"
+    );
+    assert.equal(
+      classTeacherOptionLabel("Kiran Bose", {
+        assignedLabels: ["9-A"],
+        draftLabels: ["10-B"],
+      }),
+      "Kiran Bose — already class teacher of 9-A; selected for 10-B"
+    );
+    assert.equal(classTeacherOptionLabel("  ", { assignedLabels: ["8-A"] }), "Teacher — already class teacher of 8-A");
   });
 });
