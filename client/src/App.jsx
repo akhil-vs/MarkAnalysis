@@ -4,7 +4,7 @@ import { useAuth } from "./auth.jsx";
 import Layout from "./components/Layout.jsx";
 import { LoadingState } from "./components/Spinner.jsx";
 import { guardFeatureForRoute, guardRolesForRoute, paths } from "./lib/nav.js";
-import { hasFeature } from "./lib/features.js";
+import { hasFeature, hasTimetableAccess } from "./lib/features.js";
 
 const Landing = lazy(() => import("./pages/Landing.jsx"));
 const Login = lazy(() => import("./pages/Login.jsx"));
@@ -75,7 +75,7 @@ function Guard({ roles, feature, children }) {
   if (roles && !roles.includes(user.role)) {
     return <Navigate to={user.role === "PLATFORM_ADMIN" ? "/platform" : "/"} replace />;
   }
-  if (feature && !hasFeature(features, feature)) {
+  if (feature && !(feature === "timetables" ? hasTimetableAccess(features) : hasFeature(features, feature))) {
     // Never send platform admins to `/` — Home immediately redirects back to
     // `/platform`, which used to create an infinite blank-page loop.
     return <Navigate to={user.role === "PLATFORM_ADMIN" ? "/platform" : "/"} replace />;

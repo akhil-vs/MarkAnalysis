@@ -1,20 +1,26 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, Navigate, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
+import { useAuth } from "../auth.jsx";
 import { EmptyNote } from "../components/DashboardKit.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { BusyLabel, InlineLoading, LoadingState } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { hasFeature } from "../lib/features.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 
-const MODES = [
-  { id: "teachers", label: "Teachers" },
-  { id: "daily", label: "Daily board" },
-  { id: "free", label: "Find free" },
-  { id: "leave", label: "Leave & cover" },
+const ALL_MODES = [
+  { id: "teachers", label: "Teachers", needs: ["timetables", "leaveApproval", "assignSubstitutes"] },
+  { id: "daily", label: "Daily board", needs: ["timetables", "leaveApproval", "assignSubstitutes"] },
+  { id: "free", label: "Find free", needs: ["timetables", "assignSubstitutes"] },
+  { id: "leave", label: "Leave & cover", needs: ["leaveApproval", "assignSubstitutes", "timetables"] },
 ];
+
+function modesForFeatures(features) {
+  return ALL_MODES.filter((m) => m.needs.some((id) => hasFeature(features, id)));
+}
 
 function todayYmd() {
   const d = new Date();
@@ -59,10 +65,10 @@ function formatTaughtHours(minutes) {
   return `${h}h ${m}m`;
 }
 
-function ModeTabs({ mode, onChange }) {
+function ModeTabs({ mode, onChange, modes }) {
   return (
     <div className="flex flex-wrap gap-2">
-      {MODES.map((m) => (
+      {modes.map((m) => (
         <button
           key={m.id}
           type="button"
@@ -161,12 +167,17 @@ function SlotCell({ entries, onAssignCover }) {
 }
 
 export default function Timetables() {
+  const { features } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
+  const modes = useMemo(() => modesForFeatures(features), [features]);
+  const canApproveLeave = hasFeature(features, "leaveApproval");
+  const canAssignSubs = hasFeature(features, "assignSubstitutes");
+
   const rawMode = searchParams.get("mode");
   if (rawMode === "periods") {
     return <Navigate to="/school#school-schedule" replace />;
   }
-  const mode = MODES.some((m) => m.id === rawMode) ? rawMode : "teachers";
+  const mode = modes.some((m) => m.id === rawMode) ? rawMode : modes[0]?.id || "teachers";
   const date = searchParams.get("date") || todayYmd();
   const periodId = searchParams.get("periodId") || "";
   const leaveTeacherId = searchParams.get("leaveTeacher") || "";
@@ -203,17 +214,33 @@ export default function Timetables() {
     setSearchParams(params);
   }
 
+  if (!modes.length) {
+    return (
+      <div>
+        <PageHeader title={NAV_TITLES.timetables} subtitle="No timetable features enabled for your role." />
+        <EmptyNote>Ask the principal to enable Timetables, Leave approval, or Assign substitutes under Staff → Role access.</EmptyNote>
+      </div>
+    );
+  }
+
   return (
     <div>
       <PageHeader
         title={NAV_TITLES.timetables}
         subtitle="Browse teachers, the daily board, free periods, and leave cover. Edit the school week and bell schedule under School profile."
-        actions={<ModeTabs mode={mode} onChange={setMode} />}
+        actions={<ModeTabs mode={mode} modes={modes} onChange={setMode} />}
       />
 
-      {mode === "teachers" && <TeachersList onPutOnLeave={openLeaveForTeacher} />}
+      {mode === "teachers" && (
+        <TeachersList onPutOnLeave={canApproveLeave ? openLeaveForTeacher : null} />
+      )}
       {mode === "daily" && (
-        <DailyBoard date={date} onDateChange={setDate} onPutOnLeave={openLeaveForTeacher} />
+        <DailyBoard
+          date={date}
+          onDateChange={setDate}
+          onPutOnLeave={canApproveLeave ? openLeaveForTeacher : null}
+          canAssignCover={canAssignSubs}
+        />
       )}
       {mode === "free" && (
         <FreeFinder date={date} periodId={periodId} onDateChange={setDate} onPeriodChange={setPeriodId} />
@@ -223,6 +250,8 @@ export default function Timetables() {
           date={date}
           onDateChange={setDate}
           initialTeacherId={leaveTeacherId}
+          canApproveLeave={canApproveLeave}
+          canAssignSubs={canAssignSubs}
         />
       )}
     </div>
@@ -292,9 +321,11 @@ function TeachersList({ onPutOnLeave }) {
                 <Link to={`/timetables/teachers/${t.id}`} className="btn-ghost text-xs">
                   Open timetable
                 </Link>
-                <button type="button" className="btn-ghost text-xs" onClick={() => onPutOnLeave(t.id)}>
-                  Put on leave
-                </button>
+                {onPutOnLeave && (
+                  <button type="button" className="btn-ghost text-xs" onClick={() => onPutOnLeave(t.id)}>
+                    Put on leave
+                  </button>
+                )}
               </div>
             </div>
           );
@@ -436,7 +467,7 @@ function AssignCoverModal({ slot, date, onClose, onSaved }) {
   );
 }
 
-function DailyBoard({ date, onDateChange, onPutOnLeave }) {
+function DailyBoard({ date, onDateChange, onPutOnLeave, canAssignCover }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [q, setQ] = useState("");
@@ -541,7 +572,7 @@ function DailyBoard({ date, onDateChange, onPutOnLeave }) {
                           </span>
                         )}
                       </div>
-                      {!teacher.onLeave && (
+                      {!teacher.onLeave && onPutOnLeave && (
                         <button
                           type="button"
                           className="mt-1 text-[11px] text-ink-700/55 hover:text-clay-600"
@@ -560,7 +591,7 @@ function DailyBoard({ date, onDateChange, onPutOnLeave }) {
                         ) : (
                           <SlotCell
                             entries={teacher.entriesByPeriodId?.[period.id]}
-                            onAssignCover={(entry) => setAssignSlot(entry)}
+                            onAssignCover={canAssignCover ? (entry) => setAssignSlot(entry) : null}
                           />
                         )}
                       </td>
@@ -790,10 +821,11 @@ function FreeFinder({ date, periodId, onDateChange, onPeriodChange }) {
   );
 }
 
-function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
+function LeaveCoverPanel({ date, onDateChange, initialTeacherId, canApproveLeave, canAssignSubs }) {
   const toast = useToast();
   const [teachers, setTeachers] = useState([]);
   const [leaves, setLeaves] = useState(null);
+  const [pending, setPending] = useState(null);
   const [form, setForm] = useState({
     teacherId: initialTeacherId || "",
     startDate: date,
@@ -802,6 +834,7 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
     suggestCovers: true,
   });
   const [saving, setSaving] = useState(false);
+  const [reviewingId, setReviewingId] = useState("");
   const [error, setError] = useState("");
   const [plan, setPlan] = useState(null);
   const [selectedSubs, setSelectedSubs] = useState({});
@@ -818,32 +851,44 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
   }, [initialTeacherId, date]);
 
   useEffect(() => {
+    if (!canApproveLeave && !canAssignSubs) return undefined;
     api("/api/timetable/teachers")
       .then(setTeachers)
       .catch(() => setTeachers([]));
-  }, []);
+  }, [canApproveLeave, canAssignSubs]);
 
   useEffect(() => {
     let cancelled = false;
     const from = shiftDate(date, -7);
     const to = shiftDate(date, 21);
-    api(`/api/timetable/leaves?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`)
-      .then((rows) => {
-        if (!cancelled) setLeaves(rows);
+    Promise.all([
+      api(`/api/timetable/leaves?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&status=ACTIVE`),
+      canApproveLeave
+        ? api(
+            `/api/timetable/leaves?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}&status=PENDING`
+          )
+        : Promise.resolve([]),
+    ])
+      .then(([activeRows, pendingRows]) => {
+        if (cancelled) return;
+        setLeaves(activeRows);
+        setPending(pendingRows);
       })
       .catch((err) => {
         if (!cancelled) {
           setError(err.message || "Could not load leaves");
           setLeaves([]);
+          setPending([]);
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [date, reloadKey]);
+  }, [date, reloadKey, canApproveLeave]);
 
   async function submitLeave(e) {
     e.preventDefault();
+    if (!canApproveLeave) return;
     setSaving(true);
     setError("");
     try {
@@ -854,10 +899,10 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
           startDate: form.startDate,
           endDate: form.endDate,
           reason: form.reason || undefined,
-          suggestCovers: form.suggestCovers,
+          suggestCovers: form.suggestCovers && canAssignSubs,
         },
       });
-      toast.success("Leave recorded");
+      toast.success("Leave recorded — timetables updated");
       setPlan(res.plan || null);
       if (res.plan?.suggestions?.length) {
         const defaults = {};
@@ -875,6 +920,32 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
     }
   }
 
+  async function reviewLeave(leaveId, status) {
+    setReviewingId(leaveId);
+    setError("");
+    try {
+      const res = await api(`/api/timetable/leaves/${leaveId}`, {
+        method: "PATCH",
+        body: { status, suggestCovers: status === "ACTIVE" && canAssignSubs },
+      });
+      toast.success(status === "ACTIVE" ? "Leave approved — shown on timetables" : "Leave request rejected");
+      if (res?.plan) {
+        setPlan(res.plan);
+        const defaults = {};
+        for (const s of res.plan.suggestions || []) {
+          const key = `${s.date}:${s.periodId}:${s.classSectionId}`;
+          defaults[key] = s.suggestedSubstitute?.id || "";
+        }
+        setSelectedSubs(defaults);
+      }
+      setReloadKey((k) => k + 1);
+    } catch (err) {
+      setError(err.message || "Could not update leave");
+    } finally {
+      setReviewingId("");
+    }
+  }
+
   async function cancelLeave(leaveId) {
     try {
       await api(`/api/timetable/leaves/${leaveId}`, { method: "DELETE" });
@@ -887,6 +958,7 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
   }
 
   async function loadPlan(leaveId) {
+    if (!canAssignSubs) return;
     setError("");
     try {
       const res = await api(`/api/timetable/leaves/${leaveId}/plan`);
@@ -903,7 +975,7 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
   }
 
   async function acceptSuggestions() {
-    if (!plan?.suggestions?.length) return;
+    if (!plan?.suggestions?.length || !canAssignSubs) return;
     const substitutions = plan.suggestions
       .map((s) => {
         const key = `${s.date}:${s.periodId}:${s.classSectionId}`;
@@ -948,75 +1020,136 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
     <div className="space-y-6">
       <DateNav date={date} onChange={onDateChange} />
 
-      <form onSubmit={submitLeave} className="card p-4 sm:p-5 space-y-3 max-w-xl">
-        <h3 className="font-serif text-2xl">Put a teacher on leave</h3>
-        <p className="text-sm text-ink-700/65">
-          Leave overlays the weekly timetable for those dates. Auto-suggest picks a{" "}
-          <span className="font-medium text-ink-800">different free teacher for each vacated period</span>{" "}
-          so the load stays balanced.
-        </p>
-        {error && <p className="text-sm text-clay-600">{error}</p>}
-        <label className="block">
-          <span className="label">Teacher</span>
-          <select
-            className="field"
-            required
-            value={form.teacherId}
-            onChange={(e) => setForm({ ...form, teacherId: e.target.value })}
-          >
-            <option value="">Select teacher</option>
-            {teachers.map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <div className="grid sm:grid-cols-2 gap-3">
-          <label className="block">
-            <span className="label">Start</span>
-            <input
-              type="date"
-              className="field"
-              required
-              value={form.startDate}
-              onChange={(e) => setForm({ ...form, startDate: e.target.value })}
-            />
-          </label>
-          <label className="block">
-            <span className="label">End</span>
-            <input
-              type="date"
-              className="field"
-              required
-              value={form.endDate}
-              onChange={(e) => setForm({ ...form, endDate: e.target.value })}
-            />
-          </label>
+      {canApproveLeave && pending && pending.length > 0 && (
+        <div className="card p-4 sm:p-5">
+          <h3 className="font-serif text-2xl mb-1">Pending leave requests</h3>
+          <p className="text-sm text-ink-700/65 mb-3">
+            Approve to overlay leave on timetables, or reject the request.
+          </p>
+          {error && <p className="text-sm text-clay-600 mb-2">{error}</p>}
+          <div className="overflow-x-auto">
+            <table className="table text-sm">
+              <thead>
+                <tr>
+                  <th>Teacher</th>
+                  <th>Dates</th>
+                  <th>Reason</th>
+                  <th />
+                </tr>
+              </thead>
+              <tbody>
+                {pending.map((leave) => (
+                  <tr key={leave.id}>
+                    <td>{leave.teacher?.name || "—"}</td>
+                    <td>
+                      {leave.startDate}
+                      {leave.endDate !== leave.startDate ? ` → ${leave.endDate}` : ""}
+                    </td>
+                    <td>{leave.reason || "—"}</td>
+                    <td className="text-right whitespace-nowrap">
+                      <button
+                        type="button"
+                        className="btn-primary text-xs mr-2"
+                        disabled={reviewingId === leave.id}
+                        onClick={() => reviewLeave(leave.id, "ACTIVE")}
+                      >
+                        <BusyLabel busy={reviewingId === leave.id} idle="Approve" busyText="…" />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost text-xs"
+                        disabled={reviewingId === leave.id}
+                        onClick={() => reviewLeave(leave.id, "REJECTED")}
+                      >
+                        Reject
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-        <label className="block">
-          <span className="label">Reason (optional)</span>
-          <input
-            className="field"
-            value={form.reason}
-            onChange={(e) => setForm({ ...form, reason: e.target.value })}
-            placeholder="Sick leave, training, …"
-          />
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={form.suggestCovers}
-            onChange={(e) => setForm({ ...form, suggestCovers: e.target.checked })}
-          />
-          Suggest a different free teacher for each vacated period
-        </label>
-        <button type="submit" className="btn-primary" disabled={saving || !form.teacherId}>
-          <BusyLabel busy={saving} idle="Save leave" busyText="Saving…" />
-        </button>
-      </form>
+      )}
 
-      {plan && (
+      {canApproveLeave && (
+        <form onSubmit={submitLeave} className="card p-4 sm:p-5 space-y-3 max-w-xl">
+          <h3 className="font-serif text-2xl">Put a teacher on leave</h3>
+          <p className="text-sm text-ink-700/65">
+            Approved leave overlays the weekly timetable for those dates. Principal, vice principal,
+            supervisors, and coordinators are notified. Auto-suggest picks a{" "}
+            <span className="font-medium text-ink-800">different free teacher for each vacated period</span>{" "}
+            so the load stays balanced.
+          </p>
+          {error && <p className="text-sm text-clay-600">{error}</p>}
+          <label className="block">
+            <span className="label">Teacher</span>
+            <select
+              className="field"
+              required
+              value={form.teacherId}
+              onChange={(e) => setForm({ ...form, teacherId: e.target.value })}
+            >
+              <option value="">Select teacher</option>
+              {teachers.map((t) => (
+                <option key={t.id} value={t.id}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="grid sm:grid-cols-2 gap-3">
+            <label className="block">
+              <span className="label">Start</span>
+              <input
+                type="date"
+                className="field"
+                required
+                value={form.startDate}
+                onChange={(e) => setForm({ ...form, startDate: e.target.value })}
+              />
+            </label>
+            <label className="block">
+              <span className="label">End</span>
+              <input
+                type="date"
+                className="field"
+                required
+                value={form.endDate}
+                onChange={(e) => setForm({ ...form, endDate: e.target.value })}
+              />
+            </label>
+          </div>
+          <label className="block">
+            <span className="label">Reason (optional)</span>
+            <input
+              className="field"
+              value={form.reason}
+              onChange={(e) => setForm({ ...form, reason: e.target.value })}
+              placeholder="Sick leave, training, …"
+            />
+          </label>
+          {canAssignSubs && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={form.suggestCovers}
+                onChange={(e) => setForm({ ...form, suggestCovers: e.target.checked })}
+              />
+              Suggest a different free teacher for each vacated period
+            </label>
+          )}
+          <button type="submit" className="btn-primary" disabled={saving || !form.teacherId}>
+            <BusyLabel busy={saving} idle="Save leave" busyText="Saving…" />
+          </button>
+        </form>
+      )}
+
+      {!canApproveLeave && !canAssignSubs && (
+        <EmptyNote>Your role does not include leave approval or substitute assignment.</EmptyNote>
+      )}
+
+      {plan && canAssignSubs && (
         <div className="card p-4 sm:p-5 space-y-3">
           <div className="flex flex-wrap items-start justify-between gap-2">
             <div>
@@ -1031,6 +1164,7 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
             </button>
           </div>
 
+          {plan.planError && <p className="text-sm text-clay-600">{plan.planError}</p>}
           {!plan.suggestions?.length && !plan.uncovered?.length && (
             <EmptyNote>No teaching periods to cover in this leave range.</EmptyNote>
           )}
@@ -1138,20 +1272,24 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
                     </td>
                     <td>{leave.reason || "—"}</td>
                     <td className="text-right whitespace-nowrap">
-                      <button
-                        type="button"
-                        className="btn-ghost text-xs"
-                        onClick={() => loadPlan(leave.id)}
-                      >
-                        Plan covers
-                      </button>
-                      <button
-                        type="button"
-                        className="btn-ghost text-xs text-clay-600"
-                        onClick={() => cancelLeave(leave.id)}
-                      >
-                        Cancel
-                      </button>
+                      {canAssignSubs && (
+                        <button
+                          type="button"
+                          className="btn-ghost text-xs"
+                          onClick={() => loadPlan(leave.id)}
+                        >
+                          Plan covers
+                        </button>
+                      )}
+                      {canApproveLeave && (
+                        <button
+                          type="button"
+                          className="btn-ghost text-xs text-clay-600"
+                          onClick={() => cancelLeave(leave.id)}
+                        >
+                          Cancel
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}
@@ -1163,3 +1301,4 @@ function LeaveCoverPanel({ date, onDateChange, initialTeacherId }) {
     </div>
   );
 }
+

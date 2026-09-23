@@ -172,4 +172,75 @@ describe("API timetable leave + substitutes", () => {
     });
     assert.equal(cancel.status, 200, cancel.text);
   });
+
+  it("teacher requests leave pending; principal approves onto timetable", async (t) => {
+    if (!server || !tenantId) return t.skip("DATABASE_URL not set");
+
+    const teacherLogin = await loginAs(server, { email: "anita.sharma@school.edu" });
+    assert.equal(teacherLogin.status, 200, teacherLogin.text);
+    const principal = await loginAs(server, { email: "principal@school.edu" });
+    assert.equal(principal.status, 200, principal.text);
+
+    let teacherId = null;
+    let dateYmd = todayYmd();
+    await runWithTenant(tenantId, async () => {
+      const teacher = await prisma.user.findFirst({
+        where: { email: "anita.sharma@school.edu", role: "TEACHER" },
+      });
+      assert.ok(teacher);
+      teacherId = teacher.id;
+      await prisma.timetableSubstitution.deleteMany({ where: { originalTeacherId: teacherId } });
+      await prisma.teacherLeave.deleteMany({ where: { teacherId } });
+      const entries = await prisma.timetableEntry.findMany({ where: { teacherId } });
+      if (entries.length) {
+        for (let i = 0; i < 14; i++) {
+          const [y, m, d] = dateYmd.split("-").map(Number);
+          const dt = new Date(Date.UTC(y, m - 1, d + i));
+          const ymd = `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, "0")}-${String(dt.getUTCDate()).padStart(2, "0")}`;
+          if (isoWeekday(ymd) === entries[0].dayOfWeek) {
+            dateYmd = ymd;
+            break;
+          }
+        }
+      }
+    });
+
+    const request = await server.request("/api/timetable/leaves", {
+      method: "POST",
+      jar: teacherLogin.jar,
+      body: {
+        teacherId,
+        startDate: dateYmd,
+        endDate: dateYmd,
+        reason: "Teacher self request",
+        suggestCovers: false,
+      },
+    });
+    assert.equal(request.status, 201, request.text);
+    assert.equal(request.json?.leave?.status, "PENDING");
+    leaveIds.push(request.json.leave.id);
+
+    const dayPending = await server.request(`/api/timetable/day?date=${encodeURIComponent(dateYmd)}`, {
+      jar: principal.jar,
+    });
+    assert.equal(dayPending.status, 200, dayPending.text);
+    const before = (dayPending.json.teachers || []).find((t) => t.id === teacherId);
+    assert.equal(Boolean(before?.onLeave), false, "pending leave must not overlay timetable");
+
+    const approve = await server.request(`/api/timetable/leaves/${request.json.leave.id}`, {
+      method: "PATCH",
+      jar: principal.jar,
+      body: { status: "ACTIVE", suggestCovers: false },
+    });
+    assert.equal(approve.status, 200, approve.text);
+    const approvedLeave = approve.json?.leave || approve.json;
+    assert.equal(approvedLeave.status, "ACTIVE");
+
+    const dayActive = await server.request(`/api/timetable/day?date=${encodeURIComponent(dateYmd)}`, {
+      jar: principal.jar,
+    });
+    assert.equal(dayActive.status, 200, dayActive.text);
+    const after = (dayActive.json.teachers || []).find((t) => t.id === teacherId);
+    assert.ok(after?.onLeave, "approved leave must show on daily board");
+  });
 });

@@ -1,5 +1,5 @@
 import { canAccessConsolidated, canEnterMarks, isLeadership, isPlatformAdmin } from "./roles.js";
-import { hasFeature } from "./features.js";
+import { hasFeature, hasTimetableAccess } from "./features.js";
 
 export const LEADERSHIP_ROLES = ["PRINCIPAL", "EXAM_COORDINATOR"];
 /** Roles that enter marks (register + bulk upload), not principals. */
@@ -293,7 +293,7 @@ export const NAV_GROUPS = [
         to: "/timetables",
         label: NAV_LABELS.timetables,
         icon: "timetable",
-        roles: "leadership",
+        roles: "all",
       },
       {
         id: "schoolProfile",
@@ -417,7 +417,7 @@ export const PLATFORM_NAV_GROUPS = [
 export const EXTRA_ROUTE_GUARDS = {
   "analysis/subjects/name/:name": "leadership",
   "analysis/subjects/:id": "leadership",
-  "timetables/teachers/:id": "leadership",
+  "timetables/teachers/:id": "all",
   "platform/schools/:id": "platform",
 };
 
@@ -434,6 +434,9 @@ export function roleAllows(itemRoles, userRole, { classTeacherOf = [] } = {}) {
 export function featureAllows(itemId, features) {
   if (!itemId) return true;
   if (itemId === "dashboard" || itemId === "profile" || itemId === "help") return true;
+  if (itemId === "timetables") {
+    return hasTimetableAccess(features);
+  }
   return hasFeature(features, itemId);
 }
 
