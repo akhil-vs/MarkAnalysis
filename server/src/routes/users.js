@@ -19,6 +19,8 @@ import {
 import { invalidatePeriodsCache } from "../lib/periods.js";
 import {
   addCustomStaffRole,
+  canHoldClassroomAssignments,
+  canManageClassroomAssignments,
   listStaffRoles,
   parseNewStaffRole,
   resolveAssignedRole,
@@ -663,11 +665,11 @@ usersRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (
     }
   }
 
-  if (existing.role === "TEACHER") {
+  if (canHoldClassroomAssignments(existing.role)) {
     const assignmentCount = await prisma.teacherAssignment.count({ where: { userId: existing.id } });
     if (assignmentCount > 0) {
       return res.status(409).json({
-        error: "Transfer or remove classroom assignments before deleting this teacher",
+        error: "Transfer or remove classroom assignments before deleting this staff account",
         code: "HAS_ASSIGNMENTS",
         assignmentCount,
       });
@@ -727,8 +729,11 @@ usersRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (
 usersRouter.post("/:id/clear-classes", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Not found" });
-  if (existing.role !== "TEACHER") {
-    return res.status(400).json({ error: "Only teachers have classroom assignments to clear" });
+  if (!canManageClassroomAssignments(req.user.role, existing.role)) {
+    if (!canHoldClassroomAssignments(existing.role)) {
+      return res.status(400).json({ error: "This account cannot hold classroom assignments" });
+    }
+    return res.status(403).json({ error: "Only the principal can clear leadership classroom assignments" });
   }
 
   const [assignmentCount, timetableCount, classTeacherCount] = await Promise.all([
@@ -780,9 +785,9 @@ usersRouter.post("/:id/transfer", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
   const includeTimetable = req.body?.includeTimetable !== false;
   const includeClassTeacher = req.body?.includeClassTeacher !== false;
 
-  if (!toUserId) return res.status(400).json({ error: "Choose a teacher to transfer to" });
+  if (!toUserId) return res.status(400).json({ error: "Choose a staff member to transfer to" });
   if (toUserId === fromId) {
-    return res.status(400).json({ error: "Choose a different teacher as the replacement" });
+    return res.status(400).json({ error: "Choose a different staff member as the replacement" });
   }
 
   const [fromUser, toUser] = await Promise.all([
@@ -792,13 +797,22 @@ usersRouter.post("/:id/transfer", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
     }),
     prisma.user.findUnique({ where: { id: toUserId } }),
   ]);
-  if (!fromUser) return res.status(404).json({ error: "Source teacher not found" });
-  if (!toUser) return res.status(404).json({ error: "Replacement teacher not found" });
-  if (fromUser.role !== "TEACHER" || toUser.role !== "TEACHER") {
-    return res.status(400).json({ error: "Class transfers are only supported between teachers" });
+  if (!fromUser) return res.status(404).json({ error: "Source staff member not found" });
+  if (!toUser) return res.status(404).json({ error: "Replacement staff member not found" });
+  if (!canManageClassroomAssignments(req.user.role, fromUser.role)) {
+    if (!canHoldClassroomAssignments(fromUser.role)) {
+      return res.status(400).json({ error: "This account cannot hold classroom assignments" });
+    }
+    return res.status(403).json({ error: "Only the principal can transfer leadership classroom assignments" });
+  }
+  if (!canHoldClassroomAssignments(toUser.role)) {
+    return res.status(400).json({ error: "Replacement account cannot hold classroom assignments" });
+  }
+  if (req.user.role === "EXAM_COORDINATOR" && toUser.role !== "TEACHER") {
+    return res.status(403).json({ error: "Exam coordinators can only transfer classes to teachers" });
   }
   if (toUser.status !== "ACTIVE") {
-    return res.status(400).json({ error: "Replacement teacher must be an active account" });
+    return res.status(400).json({ error: "Replacement staff member must be an active account" });
   }
 
   const sourceAssignments = fromUser.assignments || [];
@@ -813,9 +827,12 @@ usersRouter.post("/:id/transfer", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
 
   if (!sourceAssignments.length && !timetableCount && !classTeacherCount) {
     return res.status(400).json({
-      error: "This teacher has no classroom papers, timetable slots, or class-teacher roles to transfer",
+      error: "This staff member has no classroom papers, timetable slots, or class-teacher roles to transfer",
     });
   }
+
+  const moveTimetable = includeTimetable && toUser.role === "TEACHER";
+  const moveClassTeacher = includeClassTeacher && toUser.role === "TEACHER";
 
   let assignmentsMoved = 0;
   let assignmentsSkipped = 0;
@@ -859,7 +876,7 @@ usersRouter.post("/:id/transfer", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
         await tx.teacherAssignment.deleteMany({ where: { userId: fromId } });
       }
 
-      if (includeTimetable) {
+      if (moveTimetable) {
         const entries = await tx.timetableEntry.findMany({ where: { teacherId: fromId } });
         for (const entry of entries) {
           const clash = await tx.timetableEntry.findFirst({
@@ -892,7 +909,7 @@ usersRouter.post("/:id/transfer", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
         }
       }
 
-      if (includeClassTeacher) {
+      if (moveClassTeacher) {
         const updated = await tx.classSection.updateMany({
           where: { classTeacherId: fromId },
           data: { classTeacherId: toUserId },

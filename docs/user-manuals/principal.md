@@ -52,7 +52,7 @@ The page is split into tabs. Jump to the section you need:
 2. The list is an **accordion**: expand a row for assignments and actions (edit, **Transfer classes**, timetable, notify).
 3. Only the principal can create **exam co-ordinator** accounts and open **Role access**.
 4. Under **Role access**, grant menu features per role — including **Timetables**, **Leave approval**, and **Assign substitutes** for vice principals, supervisors, or co-ordinators.
-5. Assign each teacher to **class + subject** papers. Teachers cannot enter marks until they are **ACTIVE** and assigned.
+5. Assign **class + subject** papers to any staff role — including **principal**, **vice principal**, and **co-ordinators** — as well as teachers. Teachers cannot enter marks until they are **ACTIVE** and assigned.
 6. Open a teacher’s **timetable** from the staff row when needed.
 
 ### 2.4 Timetables (`School setup → Timetables`)

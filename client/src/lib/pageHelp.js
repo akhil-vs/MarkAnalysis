@@ -109,8 +109,8 @@ export const PAGE_HELP = {
   },
   staff: {
     title: "What's on this page",
-    about: "Staff accounts in an expandable directory: add or bulk-import users, activate pending sign-ups, manage Role access (including Timetables, Leave approval, and Assign substitutes), assign classes and subjects, transfer classes to a replacement, and open a teacher’s timetable.",
-    useful: "Expand a staff row for assignments and actions. Teachers cannot enter marks until they are active and assigned to a paper. Download the spreadsheet template (Name, Email, School ID, Password, Role), fill it as CSV or Excel, then use Bulk Import. Use Role access to grant leave approval or substitute assignment to vice principals, supervisors, or coordinators. Keep assignments in step with the timetable.",
+    about: "Staff accounts in an expandable directory: add or bulk-import users, activate pending sign-ups, manage Role access (including Timetables, Leave approval, and Assign substitutes), assign classes and subjects to any role (principal, vice principal, coordinators, and teachers), transfer classes to a replacement, and open a teacher’s timetable.",
+    useful: "Expand a staff row for assignments and actions. Teachers cannot enter marks until they are active and assigned to a paper. Principals, vice principals, and coordinators can also be assigned class × subject papers if they teach. Download the spreadsheet template (Name, Email, School ID, Password, Role), fill it as CSV or Excel, then use Bulk Import. Use Role access to grant leave approval or substitute assignment to vice principals, supervisors, or coordinators. Keep assignments in step with the timetable.",
   },
   records: {
     title: "What's on this page",

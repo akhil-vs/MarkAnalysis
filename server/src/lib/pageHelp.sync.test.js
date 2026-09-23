@@ -65,6 +65,7 @@ test("page help mentions current timetable, records, and leave UI", () => {
   assert.match(PAGE_HELP.dashboardTeacher.about, /My leave/);
   assert.match(PAGE_HELP.platformDashboard.about, /Live ops/);
   assert.match(PAGE_HELP.staff.about, /Role access/);
+  assert.match(PAGE_HELP.staff.about, /assign classes and subjects to any role/);
 });
 
 test("each deep insight tab explains what it is and how it is useful", () => {

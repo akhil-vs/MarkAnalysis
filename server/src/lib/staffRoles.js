@@ -6,6 +6,20 @@ export const SYSTEM_STAFF_ROLES = [
 ];
 
 const BASE_ROLES = new Set(["TEACHER", "EXAM_COORDINATOR"]);
+const CLASSROOM_ASSIGNMENT_ROLES = new Set(["TEACHER", "EXAM_COORDINATOR", "PRINCIPAL"]);
+
+/** School staff roles that can hold class × subject papers. */
+export function canHoldClassroomAssignments(role) {
+  return CLASSROOM_ASSIGNMENT_ROLES.has(role);
+}
+
+/** Whether the actor may add, clear, or transfer classroom papers on the target. */
+export function canManageClassroomAssignments(actorRole, targetRole) {
+  if (!canHoldClassroomAssignments(targetRole)) return false;
+  if (actorRole === "PRINCIPAL") return true;
+  if (actorRole === "EXAM_COORDINATOR") return targetRole === "TEACHER";
+  return false;
+}
 
 function newRoleId() {
   return `sr_${randomBytes(8).toString("hex")}`;

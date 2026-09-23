@@ -2,6 +2,11 @@ export function isLeadership(role) {
   return role === "PRINCIPAL" || role === "EXAM_COORDINATOR";
 }
 
+/** Principal, coordinators, vice principals (custom titles), and teachers can hold papers. */
+export function canHoldClassroomAssignments(role) {
+  return role === "TEACHER" || role === "EXAM_COORDINATOR" || role === "PRINCIPAL";
+}
+
 export function isPlatformAdmin(role) {
   return role === "PLATFORM_ADMIN";
 }

@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
   addCustomStaffRole,
+  canHoldClassroomAssignments,
+  canManageClassroomAssignments,
   displayStaffRole,
   listStaffRoles,
   normalizeCustomStaffRoles,
@@ -68,6 +70,25 @@ describe("resolveAssignedRole", () => {
       resolveAssignedRole({ role: "TEACHER", roleTitle: "" }, custom, { canAssignCoordinator: true }),
       { role: "TEACHER", roleTitle: null, customRoleId: null }
     );
+  });
+});
+
+describe("classroom assignment roles", () => {
+  it("lets every school role hold class × subject papers", () => {
+    assert.equal(canHoldClassroomAssignments("TEACHER"), true);
+    assert.equal(canHoldClassroomAssignments("EXAM_COORDINATOR"), true);
+    assert.equal(canHoldClassroomAssignments("PRINCIPAL"), true);
+    assert.equal(canHoldClassroomAssignments("PLATFORM_ADMIN"), false);
+  });
+
+  it("lets the principal assign papers to leadership and teachers", () => {
+    assert.equal(canManageClassroomAssignments("PRINCIPAL", "PRINCIPAL"), true);
+    assert.equal(canManageClassroomAssignments("PRINCIPAL", "EXAM_COORDINATOR"), true);
+    assert.equal(canManageClassroomAssignments("PRINCIPAL", "TEACHER"), true);
+    assert.equal(canManageClassroomAssignments("EXAM_COORDINATOR", "TEACHER"), true);
+    assert.equal(canManageClassroomAssignments("EXAM_COORDINATOR", "PRINCIPAL"), false);
+    assert.equal(canManageClassroomAssignments("EXAM_COORDINATOR", "EXAM_COORDINATOR"), false);
+    assert.equal(canManageClassroomAssignments("TEACHER", "TEACHER"), false);
   });
 });
 
