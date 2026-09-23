@@ -2,7 +2,7 @@
 
 School Marks Analytics — guide for the **Exam co-ordinator** (co-ordinator) role.
 
-The co-ordinator runs the exam operations desk: school records, teacher chase-ups, mark entry when needed, approvals, consolidated lists, hall tickets, and operational analytics. You work alongside the principal; some school-admin actions (join code rotation, co-ordinator accounts, feature access) stay with the principal.
+The co-ordinator runs the exam operations desk: school records, teacher chase-ups, mark entry when needed, approvals, leave cover, consolidated lists, hall tickets, and operational analytics. You work alongside the principal; some school-admin actions (join code rotation, co-ordinator accounts, Role access) stay with the principal.
 
 ---
 
@@ -15,7 +15,8 @@ The co-ordinator runs the exam operations desk: school records, teacher chase-up
 You land on the **Exam coordination** desk (`/`): teachers still pending upload, papers awaiting approval, hardest subjects, subject correlations, upload queue, and access-request panels.
 
 - Switch the **working exam** with the exam selector.
-- Use the **?** hint on each page for short guidance.
+- Use the **?** hint on each page for short guidance (**How it is useful**).
+- Download this guide from **HELP → User manuals**.
 
 If you requested access via `/signup`, wait until the principal activates your account before you can use the desk.
 
@@ -29,36 +30,46 @@ Keep structure accurate so registers, hall tickets, analytics, and promotion sta
 
 | Tab | What to do |
 |---|---|
-| **Classes** | Add a class with several divisions at once; assign class teachers per division. |
-| **Subjects** | Subjects and **Max marks (mark entry)**; electives and enrolments. |
-| **Students** | Roll list; photos for hall tickets. |
-| **Exams** | Exam calendar; per-class / per-subject paper dates; **Max marks [consolidation]**; **Lock for consolidation**. |
+| **Classes** | Add a class with several divisions at once (**Fill A–D** for a quick start); assign class teachers per division. Use **Registered class sections** to expand a grade, search, and filter. |
+| **Subjects** | Pool subjects with **Max marks (mark entry)**; optional **Practical max**; **Elective (enroll selected students only)** plus **Enrollments**. Then pick which papers each class uses. |
+| **Students** | Roll list; photos for hall tickets (or **Marks → Student photos**). |
+| **Exams** | Exam calendar; **Classes in this exam** (choose which classes sit under the exam — editable later); per-class / per-subject paper dates and start times; **Max marks [consolidation]**; **Lock for consolidation**. Copy one class timetable to the others when useful. |
 | **Promote** | Year-end promotion to the next section. |
 
-When scheduling an exam, choose which **classes** are included (editable later), then set one date for every paper or different dates per class and subject.
+When scheduling an exam, choose which **classes** are included, then set one date for every paper or different dates per class and subject. Paper dates only appear for the classes you select.
 
 ### 2.2 Staff (`School setup → Staff`)
 
 1. Activate pending teacher sign-ups, or add / **bulk-import** teachers.
-2. Assign **class + subject** papers. Teachers need **ACTIVE** status and assignments before they can enter marks.
-3. You can create **teacher** accounts; only the **principal** can create another **exam co-ordinator** or change role feature access.
-4. Open a teacher’s timetable from the staff row when needed.
-5. **Notify** one teacher or all teachers from Staff when useful.
+2. The staff list is an **accordion** — expand a row for assignments, **Transfer classes**, and timetable.
+3. Assign **class + subject** papers. Teachers need **ACTIVE** status and assignments before they can enter marks.
+4. You can create **teacher** accounts; only the **principal** can create another **exam co-ordinator** or change **Role access**.
+5. Open a teacher’s timetable from the staff row when needed.
+6. **Notify** one teacher or all teachers from Staff when useful.
+
+Co-ordinators typically already have **Timetables**, **Leave approval**, and **Assign substitutes**. Ask the principal if a tab is missing.
 
 ### 2.3 Timetables (`School setup → Timetables`)
 
-- Teacher cards → Daily / Weekly; add or remove periods.
-- **Daily board** — all teachers for one day.
-- **Find free** — who is free in a chosen period.
-- **Leave & cover** — mark leave, accept balanced substitute suggestions, or assign cover from uncovered cells.
-- Working week and bell times are set under **School profile**.
+Same four tabs as the principal:
+
+- **Teachers** — accordion. Expand a row to **Open timetable**, **Put on leave**, or **Hrs history** (own teaching plus extra cover hours). Use **Previous week** / **Next week**, or **From** / **To** and **Show range**.
+- **Daily board** — all teachers for one day. **Click and drag to scroll periods**. Rows show period count, teaching hours, and **+extra** cover hours. Vacated cells: **Needs cover** / **Cover**. **Assign cover** opens ranked substitutes.
+- **Find free** — who is free, on leave, or teaching in a chosen period.
+- **Leave & cover** — **Pending leave requests** (Approve / Reject), put a teacher on leave, and the **Cover planner**.
+
+Working week and bell times are set under **School profile → Bell Schedule & Timings**.
+
+Teachers request leave from **My leave** on their dashboard. Approved leave overlays timetables and notifies principal, vice principal, supervisors, and co-ordinators.
 
 ### 2.4 School profile (`School setup → School profile`)
+
+Tabs: **Identity & Affiliation**, **Campus & Contact**, **Modules & Security**, **Grading Framework**, **Bell Schedule & Timings**.
 
 Edit identity, logo, working week, bell schedule, grading bands, pass/distinction, exam weights, and digests.
 
 - You can update most profile fields and the logo.
-- The **join code** is shown for sharing; **rotating** it is principal-only.
+- The **join code** is on **Modules & Security** for sharing; **rotating** it is principal-only.
 - Optional modules (Board ops / CPD) are controlled by the principal when saving.
 
 ---
@@ -71,8 +82,10 @@ Unlike the principal, the co-ordinator **can enter and bulk-upload marks** as we
 
 1. Choose exam, class/section, and subject.
 2. Enter marks (or `AB` / `EX` / `WH` for absent / exempt / withheld).
-3. **Save draft** — drafts stay out of analytics until submitted and approved.
-4. **Submit** for leadership approval (you or the principal can then Approve).
+3. Split papers show **Theory max** / **Practical max** and **Th** / **Pr** columns. Codes apply to **theory only**.
+4. Elective papers show **—** (**Not enrolled**) for students who are not on that paper — skip those cells.
+5. **Save draft** — drafts stay out of analytics until submitted and approved.
+6. **Submit** for leadership approval (you or the principal can then Approve).
 
 ### 3.2 Bulk upload (`Marks → Bulk upload`)
 
@@ -105,7 +118,9 @@ On an open register, leadership can **Moderate** marks with a recorded reason (g
 
 ### 3.7 Hall tickets (`Marks → Hall tickets`)
 
-Create and edit batches (title, venue, instructions), preview, and download PDF (five per A4). Ensure paper schedule dates **and start times** exist under Records → Exams for every class that needs tickets (or fill one class and use **Copy class timetable to all classes**).
+Create and edit batches (title, venue, instructions; **Print student photos when available**), preview (**With photo**), and **Download PDF (5 / A4)**. Ensure paper schedule dates **and start times** exist under Records → Exams for every class that needs tickets (or fill one class and use **Copy class timetable to all classes**).
+
+Upload photos under **Marks → Student photos**: **Bulk upload by admission no** (files named like `ADM-10B-01.jpg`) or one photo per student. PNG or JPEG, 1 MB or smaller. Use **Remove unmatched** to drop files that did not match.
 
 ### 3.8 Audit log (`Marks → Audit log`)
 
@@ -127,7 +142,7 @@ Start from the co-ordinator desk metrics (pending upload, awaiting approval, har
 
 ## 5. Board ops and CPD
 
-When enabled on the school:
+When enabled on the school (and granted in Role access):
 
 - **Board ops** — paper calendar, report-card publish/sign-off flow, parent notify, revaluation, board packs.
 - **CPD** — plans, observations, appraisals, certificates for any teacher.
@@ -154,14 +169,14 @@ Available from pending uploads, consolidated lists, exam records, staff, and the
 
 ## 9. Typical co-ordinator checklist (per exam)
 
-1. Confirm classes, subjects (entry max), students, and exam paper dates in **Records**.
+1. Confirm classes, subjects (entry max, practical max, electives), students, photos, **Classes in this exam**, and paper dates in **Records**.
 2. Set and **lock** consolidation max marks.
-3. Verify teacher assignments and timetables.
+3. Verify teacher assignments and timetables; clear **Pending leave requests** and assign cover.
 4. Send deadline notices; watch **Pending uploads**.
-5. Enter/upload marks yourself only for papers you cover or when covering gaps.
+5. Enter/upload marks yourself only for papers you cover or when covering gaps (including **Th** / **Pr** where used).
 6. **Approve** submitted registers; handle access requests carefully.
 7. Check Deep insights → **Exam readiness** and subject difficulty.
-8. Produce hall tickets and **official** consolidated lists when every paper is approved.
+8. Produce hall tickets (**Download PDF (5 / A4)**) and **official** consolidated lists when every paper is approved.
 9. Support Board ops publish/pack steps if your school uses them.
 
 ---
@@ -171,8 +186,8 @@ Available from pending uploads, consolidated lists, exam records, staff, and the
 | You can | Principal only |
 |---|---|
 | Enter & bulk-upload marks | Create co-ordinator accounts |
-| Approve / unapprove / moderate | Manage role feature access |
-| Manage teachers, records, timetables | Rotate join code |
+| Approve / unapprove / moderate | Manage **Role access** |
+| Manage teachers, records, timetables, leave & cover | Rotate join code |
 | Edit school profile & logo | Toggle optional modules on save |
 | Leadership analytics & CML | Full audit across all roles |
 
