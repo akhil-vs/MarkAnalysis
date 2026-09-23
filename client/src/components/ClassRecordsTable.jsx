@@ -1,3 +1,4 @@
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { PaginatedTable } from "./PaginatedTable.jsx";
 import {
@@ -31,6 +32,179 @@ function TrashIcon() {
   );
 }
 
+function ChevronIcon({ open }) {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.9"
+      className={`shrink-0 text-ink-700/45 transition-transform duration-200 ${open ? "rotate-180" : ""}`}
+      aria-hidden="true"
+    >
+      <path d="M6 9l6 6 6-6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+function groupSectionsByClass(rows = []) {
+  const map = sectionsByClassName(rows);
+  return [...map.entries()]
+    .map(([className, sections]) => ({ className, sections }))
+    .sort((a, b) => String(a.className).localeCompare(String(b.className), undefined, { numeric: true }));
+}
+
+function ClassGradeAccordion({ group, open, onToggle, busy, onEdit, onDelete }) {
+  const panelId = `class-panel-${group.className}`;
+  const buttonId = `class-trigger-${group.className}`;
+  const totalStudents = group.sections.reduce((sum, row) => sum + (row._count?.students ?? 0), 0);
+  const needsFaculty = group.sections.filter((row) => !row.classTeacherId).length;
+
+  return (
+    <div className={`accordion-item ${open ? "accordion-item-open" : ""}`}>
+      <h4 className="m-0">
+        <button
+          type="button"
+          id={buttonId}
+          className="accordion-trigger"
+          aria-expanded={open}
+          aria-controls={panelId}
+          onClick={onToggle}
+        >
+          <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink-900 text-sm font-serif font-semibold text-cream shadow-sm">
+            {classRomanBadge(group.className)}
+          </span>
+          <span className="min-w-0 flex-1 text-left">
+            <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="font-medium text-ink-900">Grade {group.className}</span>
+              <span className="text-xs text-ink-700/50">{classTierLabel(group.className)}</span>
+            </span>
+            <span className="mt-1.5 flex flex-wrap items-center gap-1.5">
+              {group.sections.map((s) => (
+                <span
+                  key={s.id}
+                  className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${sectionPillTone(s.section, s.className)}`}
+                >
+                  Sec {s.section}
+                </span>
+              ))}
+            </span>
+          </span>
+          <span className="hidden sm:flex flex-col items-end gap-0.5 text-right shrink-0 mr-1">
+            <span className="text-sm font-medium text-ink-900">
+              {group.sections.length} division{group.sections.length === 1 ? "" : "s"}
+            </span>
+            <span className="text-xs text-ink-700/50">
+              {totalStudents} students
+              {needsFaculty > 0 ? ` · ${needsFaculty} need faculty` : ""}
+            </span>
+          </span>
+          <ChevronIcon open={open} />
+        </button>
+      </h4>
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={buttonId}
+        hidden={!open}
+        className="accordion-panel"
+      >
+        <ul className="divide-y divide-ink-900/8 border-t border-ink-900/8">
+          {group.sections.map((row) => {
+            const students = row._count?.students ?? 0;
+            const { cap, pct } = rosterCapacity(students);
+            const status = classSectionStatus(row);
+            const teacher = row.classTeacher;
+            return (
+              <li key={row.id} className="flex flex-col gap-3 px-3 sm:px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex min-w-0 flex-1 flex-wrap items-start gap-3">
+                  <div className="min-w-[4.5rem]">
+                    <div className="text-sm font-semibold text-ink-900">
+                      {row.className}-{row.section}
+                    </div>
+                    <span className={`mt-1 inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${status.className}`}>
+                      <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${status.dotClass}`} aria-hidden="true" />
+                      {status.label}
+                    </span>
+                  </div>
+                  <div className="flex min-w-[10rem] flex-1 items-start gap-2.5">
+                    {teacher ? (
+                      <>
+                        <span
+                          className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarTone(teacher.id || teacher.name)}`}
+                          aria-hidden="true"
+                        >
+                          {initials(teacher.name)}
+                        </span>
+                        <div className="min-w-0">
+                          <div className="text-sm font-medium text-ink-900">{teacher.name}</div>
+                          <div className="text-xs text-ink-700/50">Class teacher / homeroom</div>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-900/6 text-xs text-ink-700/35">
+                          —
+                        </span>
+                        <div>
+                          <div className="text-sm font-medium text-ink-700/55">Unassigned lead</div>
+                          <div className="text-xs text-ink-700/45">Pending assignment</div>
+                        </div>
+                      </>
+                    )}
+                  </div>
+                  <div className="min-w-[9.5rem] max-w-[14rem] grow sm:grow-0">
+                    <div className="flex items-baseline justify-between gap-2 text-sm">
+                      <span className="font-medium text-ink-900">
+                        {students} / {cap} students
+                      </span>
+                      <span className="text-xs text-ink-700/50">{pct}%</span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-ink-900/8">
+                      <div
+                        className={`h-full rounded-full transition-all ${rosterBarTone(pct, Boolean(teacher))}`}
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-1.5 sm:justify-end">
+                  {teacher ? (
+                    <button type="button" className="btn-ghost !px-2 !py-1 text-xs" onClick={() => onEdit(row)} disabled={busy}>
+                      Edit
+                    </button>
+                  ) : (
+                    <button type="button" className="btn-primary !px-2 !py-1 text-xs" onClick={() => onEdit(row)} disabled={busy}>
+                      Assign lead
+                    </button>
+                  )}
+                  <Link
+                    className="btn-ghost !px-2 !py-1 text-xs inline-flex"
+                    to={`/manage?tab=Students&classSectionId=${encodeURIComponent(row.id)}`}
+                  >
+                    Roster
+                  </Link>
+                  <button
+                    type="button"
+                    className="inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-700/55 hover:bg-clay-500/10 hover:text-clay-600 disabled:opacity-40"
+                    aria-label={`Delete class ${row.className}-${row.section}`}
+                    onClick={() => onDelete(row)}
+                    disabled={busy}
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 export default function ClassRecordsTable({
   rows,
   allRows,
@@ -42,7 +216,16 @@ export default function ClassRecordsTable({
   onExport,
   onPresetNeedsFaculty,
 }) {
-  const sectionMap = sectionsByClassName(allRows);
+  const groups = useMemo(() => groupSectionsByClass(rows), [rows]);
+  const [openClass, setOpenClass] = useState(null);
+
+  useEffect(() => {
+    setOpenClass((current) => {
+      if (current && groups.some((g) => g.className === current)) return current;
+      return groups[0]?.className ?? null;
+    });
+  }, [table.resetKey, groups]);
+
   const gradeLevelCount = new Set(allRows.map((r) => r.className).filter(Boolean)).size;
 
   return (
@@ -50,7 +233,7 @@ export default function ClassRecordsTable({
       <div className="flex flex-wrap items-center justify-between gap-3 px-3 sm:px-4 py-3 border-b border-ink-900/10 bg-white/50">
         <div>
           <h3 className="font-serif text-lg text-ink-900">Registered class sections</h3>
-          <p className="text-xs text-ink-700/55 mt-0.5">Filter, export, and manage divisions and class teachers.</p>
+          <p className="text-xs text-ink-700/55 mt-0.5">Expand a grade to manage its divisions and class teachers.</p>
         </div>
         <dl className="flex flex-wrap gap-x-5 gap-y-1 text-sm">
           <div>
@@ -125,146 +308,30 @@ export default function ClassRecordsTable({
       </div>
 
       <PaginatedTable
-        items={rows}
+        items={groups}
         resetKey={table.resetKey}
         empty="No class sections yet. Register a class above."
-        itemLabel="class sections"
+        itemLabel="class levels"
+        pageSize={8}
         busy={busy || loading}
         busyLabel={loading ? "Loading classes…" : "Updating classes…"}
       >
         {(pageItems) => (
-          <table className="table min-w-[56rem]">
-            <thead>
-              <tr>
-                <th>Grade level &amp; standard</th>
-                <th>Division / section</th>
-                <th>Assigned class teacher</th>
-                <th>Roster enrollment</th>
-                <th>Status</th>
-                <th className="text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageItems.map((row) => {
-                const siblings = sectionMap.get(String(row.className || "")) || [row];
-                const students = row._count?.students ?? 0;
-                const { cap, pct } = rosterCapacity(students);
-                const status = classSectionStatus(row);
-                const teacher = row.classTeacher;
-
-                return (
-                  <tr key={row.id}>
-                    <td>
-                      <div className="flex items-start gap-3 min-w-[11rem]">
-                        <span className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-ink-900 text-sm font-serif font-semibold text-cream shadow-sm">
-                          {classRomanBadge(row.className)}
-                        </span>
-                        <div className="min-w-0 pt-0.5">
-                          <div className="font-medium text-ink-900">Grade {row.className}</div>
-                          <div className="text-xs text-ink-700/55 mt-0.5">{classTierLabel(row.className)}</div>
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="flex flex-wrap gap-1.5 max-w-[12rem]">
-                        {siblings.map((s) => {
-                          const active = s.id === row.id;
-                          const tone = sectionPillTone(s.section, s.className);
-                          return (
-                            <span
-                              key={s.id}
-                              className={`inline-flex items-center rounded-md border px-2 py-0.5 text-xs font-semibold ${
-                                active ? tone : "bg-ink-900/4 text-ink-700/45 border-ink-900/8"
-                              }`}
-                              title={active ? "This row" : `Section ${s.section}`}
-                            >
-                              Sec {s.section}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </td>
-                    <td>
-                      {teacher ? (
-                        <div className="flex items-start gap-2.5 min-w-[10rem]">
-                          <span
-                            className={`mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${avatarTone(teacher.id || teacher.name)}`}
-                            aria-hidden="true"
-                          >
-                            {initials(teacher.name)}
-                          </span>
-                          <div className="min-w-0">
-                            <div className="font-medium text-ink-900 text-sm">{teacher.name}</div>
-                            <div className="text-xs text-ink-700/50">Class teacher / homeroom</div>
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="flex items-start gap-2.5 min-w-[10rem]">
-                          <span className="mt-0.5 inline-flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-ink-900/6 text-ink-700/35 text-xs">
-                            —
-                          </span>
-                          <div>
-                            <div className="text-sm font-medium text-ink-700/55">Unassigned lead</div>
-                            <div className="text-xs text-ink-700/45">Pending assignment</div>
-                          </div>
-                        </div>
-                      )}
-                    </td>
-                    <td>
-                      <div className="min-w-[9.5rem] max-w-[14rem]">
-                        <div className="flex items-baseline justify-between gap-2 text-sm">
-                          <span className="font-medium text-ink-900">
-                            {students} / {cap} students
-                          </span>
-                          <span className="text-xs text-ink-700/50">{pct}%</span>
-                        </div>
-                        <div className="mt-1.5 h-1.5 w-full overflow-hidden rounded-full bg-ink-900/8">
-                          <div
-                            className={`h-full rounded-full transition-all ${rosterBarTone(pct, Boolean(teacher))}`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    </td>
-                    <td>
-                      <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${status.className}`}>
-                        <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${status.dotClass}`} aria-hidden="true" />
-                        {status.label}
-                      </span>
-                    </td>
-                    <td>
-                      <div className="flex flex-wrap items-center justify-end gap-1.5">
-                        {teacher ? (
-                          <button type="button" className="btn-ghost !px-2 !py-1 text-xs" onClick={() => onEdit(row)} disabled={busy}>
-                            Edit
-                          </button>
-                        ) : (
-                          <button type="button" className="btn-primary !px-2 !py-1 text-xs" onClick={() => onEdit(row)} disabled={busy}>
-                            Assign lead
-                          </button>
-                        )}
-                        <Link
-                          className="btn-ghost !px-2 !py-1 text-xs inline-flex"
-                          to={`/manage?tab=Students&classSectionId=${encodeURIComponent(row.id)}`}
-                        >
-                          Roster
-                        </Link>
-                        <button
-                          type="button"
-                          className="inline-flex h-8 w-8 items-center justify-center rounded-md text-ink-700/55 hover:bg-clay-500/10 hover:text-clay-600 disabled:opacity-40"
-                          aria-label={`Delete class ${row.className}-${row.section}`}
-                          onClick={() => onDelete(row)}
-                          disabled={busy}
-                        >
-                          <TrashIcon />
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div className="accordion-list" role="list">
+            {pageItems.map((group) => (
+              <ClassGradeAccordion
+                key={group.className}
+                group={group}
+                open={openClass === group.className}
+                onToggle={() =>
+                  setOpenClass((current) => (current === group.className ? null : group.className))
+                }
+                busy={busy || loading}
+                onEdit={onEdit}
+                onDelete={onDelete}
+              />
+            ))}
+          </div>
         )}
       </PaginatedTable>
     </div>
