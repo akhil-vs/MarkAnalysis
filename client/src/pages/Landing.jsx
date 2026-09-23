@@ -7,6 +7,7 @@ import {
   formatCampusPrice,
   getPricingRegion,
 } from "../lib/pricingRegions.js";
+import { SHOW_PUBLIC_PLANS, SHOW_PUBLIC_REGISTRATION } from "../lib/publicAccess.js";
 
 const FEATURES = [
   {
@@ -115,22 +116,30 @@ export default function Landing() {
             >
               Features
             </a>
-            <a href="#plans" className="hidden text-sm text-cream/70 hover:text-cream md:inline">
-              Plans
-            </a>
+            {SHOW_PUBLIC_PLANS && (
+              <a href="#plans" className="hidden text-sm text-cream/70 hover:text-cream md:inline">
+                Plans
+              </a>
+            )}
             <Link
               to="/login"
-              className="btn-ghost border-cream/25 bg-transparent px-2.5 py-2 text-xs text-cream hover:bg-cream/10 min-[400px]:px-3.5 min-[400px]:text-sm"
+              className={
+                SHOW_PUBLIC_REGISTRATION
+                  ? "btn-ghost border-cream/25 bg-transparent px-2.5 py-2 text-xs text-cream hover:bg-cream/10 min-[400px]:px-3.5 min-[400px]:text-sm"
+                  : "btn-accent px-2.5 py-2 text-xs min-[400px]:px-3.5 min-[400px]:text-sm"
+              }
             >
               Sign in
             </Link>
-            <Link
-              to="/register-school"
-              className="btn-accent px-2.5 py-2 text-xs min-[400px]:px-3.5 min-[400px]:text-sm"
-            >
-              <span className="min-[400px]:hidden">Register</span>
-              <span className="hidden min-[400px]:inline">Register school</span>
-            </Link>
+            {SHOW_PUBLIC_REGISTRATION && (
+              <Link
+                to="/register-school"
+                className="btn-accent px-2.5 py-2 text-xs min-[400px]:px-3.5 min-[400px]:text-sm"
+              >
+                <span className="min-[400px]:hidden">Register</span>
+                <span className="hidden min-[400px]:inline">Register school</span>
+              </Link>
+            )}
           </nav>
         </div>
       </header>
@@ -150,12 +159,18 @@ export default function Landing() {
               coordinators, and teachers — built for live campuses.
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-2.5 min-[400px]:mt-8 min-[400px]:gap-3">
-              <Link to="/register-school" className="btn-accent px-4 min-[400px]:px-5">
-                Register your school
-              </Link>
+              {SHOW_PUBLIC_REGISTRATION && (
+                <Link to="/register-school" className="btn-accent px-4 min-[400px]:px-5">
+                  Register your school
+                </Link>
+              )}
               <Link
                 to="/login"
-                className="btn border border-cream/30 bg-transparent text-cream hover:bg-cream/10"
+                className={
+                  SHOW_PUBLIC_REGISTRATION
+                    ? "btn border border-cream/30 bg-transparent text-cream hover:bg-cream/10"
+                    : "btn-accent px-4 min-[400px]:px-5"
+                }
               >
                 Sign in
               </Link>
@@ -189,6 +204,7 @@ export default function Landing() {
         </ul>
       </section>
 
+      {SHOW_PUBLIC_PLANS && (
       <section id="plans" className="border-y border-ink-900/10 bg-cream/60">
         <div className="mx-auto max-w-6xl px-4 py-14 min-[400px]:px-5 sm:px-8 sm:py-20 lg:px-12">
           <div className="flex flex-col gap-5 sm:gap-6 lg:flex-row lg:items-end lg:justify-between">
@@ -281,6 +297,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
+      )}
 
       <section className="mx-auto max-w-6xl px-4 py-14 min-[400px]:px-5 sm:px-8 sm:py-20 lg:px-12">
         <div className="landing-cta relative overflow-hidden rounded-2xl bg-ink-950 px-5 py-10 text-cream sm:rounded-3xl sm:px-12 sm:py-14">
@@ -290,19 +307,28 @@ export default function Landing() {
               Open your school workspace
             </h2>
             <p className="mt-3 text-sm text-cream/70 sm:text-base">
-              Create the principal account, invite staff with a join code, and run the next exam
-              cycle without shared spreadsheets.
+              {SHOW_PUBLIC_REGISTRATION
+                ? "Create the principal account, invite staff with a join code, and run the next exam cycle without shared spreadsheets."
+                : "Sign in to run the next exam cycle without shared spreadsheets."}
             </p>
             <div className="mt-6 flex flex-wrap gap-2.5 sm:mt-8 sm:gap-3">
-              <Link to="/register-school" className="btn-accent px-4 sm:px-5">
-                Register your school
-              </Link>
-              <Link
-                to="/signup"
-                className="btn border border-cream/25 bg-transparent text-cream hover:bg-cream/10"
-              >
-                Request staff access
-              </Link>
+              {SHOW_PUBLIC_REGISTRATION ? (
+                <>
+                  <Link to="/register-school" className="btn-accent px-4 sm:px-5">
+                    Register your school
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="btn border border-cream/25 bg-transparent text-cream hover:bg-cream/10"
+                  >
+                    Request staff access
+                  </Link>
+                </>
+              ) : (
+                <Link to="/login" className="btn-accent px-4 sm:px-5">
+                  Sign in
+                </Link>
+              )}
             </div>
           </div>
         </div>
@@ -318,9 +344,11 @@ export default function Landing() {
             <Link className="hover:text-ink-900" to="/login">
               Sign in
             </Link>
-            <Link className="hover:text-ink-900" to="/register-school">
-              Register school
-            </Link>
+            {SHOW_PUBLIC_REGISTRATION && (
+              <Link className="hover:text-ink-900" to="/register-school">
+                Register school
+              </Link>
+            )}
             <a className="hover:text-ink-900" href="/portal">
               Parent portal
             </a>

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { FieldError } from "../components/FieldError.jsx";
 import { firstError, parseEmail, parseJoinCode, parsePassword, requiredText } from "../lib/formValidation.js";
+import { SHOW_PUBLIC_REGISTRATION } from "../lib/publicAccess.js";
 import { AuthShell } from "./Login.jsx";
 
 export default function Signup() {
@@ -102,8 +103,12 @@ export default function Signup() {
         <button className="btn-primary w-full">Create account</button>
         <p className="text-sm text-ink-700/70">
           Already approved? <Link className="underline" to="/login">Sign in</Link>
-          {" · "}
-          New school? <Link className="underline" to="/register-school">Register your school</Link>
+          {SHOW_PUBLIC_REGISTRATION && (
+            <>
+              {" · "}
+              New school? <Link className="underline" to="/register-school">Register your school</Link>
+            </>
+          )}
         </p>
       </form>
     </AuthShell>
