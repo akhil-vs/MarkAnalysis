@@ -13,6 +13,7 @@ import {
   clearAuthCookies,
   createRefreshSession,
   REFRESH_COOKIE,
+  revokeAllRefreshSessions,
   revokeRefreshSession,
   rotateRefreshSession,
   setAccessCookie,
@@ -372,7 +373,7 @@ function issueMfaChallenge(user) {
   const mfaToken = jwt.sign(
     { purpose: "mfa", userId: user.id },
     process.env.JWT_SECRET,
-    { expiresIn: "5m" }
+    { algorithm: "HS256", expiresIn: "5m" }
   );
   return {
     mfaRequired: true,
@@ -393,7 +394,7 @@ authRouter.post("/mfa/verify", authWriteLimit, async (req, res) => {
   if (!mfaToken) return res.status(400).json({ error: "mfaToken is required" });
   let payload;
   try {
-    payload = jwt.verify(mfaToken, process.env.JWT_SECRET);
+    payload = jwt.verify(mfaToken, process.env.JWT_SECRET, { algorithms: ["HS256"] });
   } catch {
     return res.status(401).json({ error: "MFA challenge expired" });
   }
@@ -571,6 +572,7 @@ authRouter.post("/change-password", authAllowPasswordChange, async (req, res) =>
       mustChangePassword: false,
     },
   });
+  await runWithoutTenant(() => revokeAllRefreshSessions(user.id));
   res.json({
     ok: true,
     message: "Password updated",

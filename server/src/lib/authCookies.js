@@ -92,6 +92,15 @@ export async function revokeRefreshSession(rawToken) {
   });
 }
 
+/** Invalidate every refresh session for a user after password change or admin reset. */
+export async function revokeAllRefreshSessions(userId) {
+  if (!userId) return;
+  await prisma.refreshToken.updateMany({
+    where: { userId, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
+}
+
 export const __test = {
   ACCESS_MAX_AGE_MS,
   REFRESH_MAX_AGE_MS,
