@@ -10,6 +10,7 @@ import { useToast } from "../components/Toast.jsx";
 import { hasFeature } from "../lib/features.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+import { useDragScroll } from "../lib/useDragScroll.js";
 
 const ALL_MODES = [
   { id: "teachers", label: "Teachers", needs: ["timetables", "leaveApproval", "assignSubstitutes"] },
@@ -476,6 +477,7 @@ function DailyBoard({ date, onDateChange, onPutOnLeave, canAssignCover }) {
   const [q, setQ] = useState("");
   const [assignSlot, setAssignSlot] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
+  const dragScroll = useDragScroll({ axis: "x" });
 
   useEffect(() => {
     let cancelled = false;
@@ -535,8 +537,18 @@ function DailyBoard({ date, onDateChange, onPutOnLeave, canAssignCover }) {
         <>
           <p className="mb-3 text-sm text-ink-700/65">
             {filteredTeachers.length} teachers · green cells are free that period
+            {" · "}
+            click and drag to scroll periods
           </p>
-          <div className="card overflow-x-auto p-2 sm:p-3">
+          <div
+            {...dragScroll.containerProps}
+            data-daily-board-scroll=""
+            className={`card overflow-x-auto p-2 sm:p-3 select-none ${
+              dragScroll.dragging ? "cursor-grabbing" : "cursor-grab"
+            }`}
+            role="region"
+            aria-label="Daily board. Click and drag to scroll across periods."
+          >
             <table className="w-full text-sm border-separate border-spacing-1 min-w-[48rem]">
               <thead>
                 <tr>
