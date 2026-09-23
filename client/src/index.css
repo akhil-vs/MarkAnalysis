@@ -88,6 +88,26 @@ body {
   @apply px-2 py-2 border-t border-ink-900/10;
 }
 
+.accordion-list {
+  @apply divide-y divide-ink-900/10;
+}
+
+.accordion-item {
+  @apply bg-transparent;
+}
+
+.accordion-item-open {
+  @apply bg-white/40;
+}
+
+.accordion-trigger {
+  @apply flex w-full items-center gap-3 px-3 sm:px-4 py-3 text-left transition hover:bg-white/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-clay-500/30;
+}
+
+.accordion-panel {
+  @apply bg-paper/35;
+}
+
 .pager-btn {
   @apply min-w-[2.5rem] h-9 sm:min-w-[2rem] sm:h-8 px-2 rounded-md text-sm border border-ink-900/15 bg-white/70 hover:bg-white disabled:opacity-40 disabled:hover:bg-white/70;
 }
