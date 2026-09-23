@@ -9327,7 +9327,8 @@
                     "examId",
                     "teacherId",
                     "classSectionId",
-                    "subjectId"
+                    "subjectId",
+                    "kind"
                   ]
                 }
               ]
@@ -11214,7 +11215,7 @@
                   "codecId": "pg/text@1",
                   "default": {
                     "kind": "literal",
-                    "value": "ACTIVE"
+                    "value": "PENDING"
                   },
                   "nativeType": "text",
                   "nullable": false
@@ -12230,7 +12231,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "26b28aad93174a0b817200f11f4fb8cf35b477d78a30fb44e98020b0fdfc1c66"
+    "storageHash": "22f0464f32f75ae3278bc4cce02731b84a3e2be3729efa079ea44f16c4c5815c"
   },
   "execution": {
     "executionHash": "a72b23d74a7c00bedc01aae8e1333dfa214b3303b25cb40bff7c9ec558b8b035",

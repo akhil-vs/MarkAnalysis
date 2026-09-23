@@ -21,6 +21,8 @@ export const studentsRouter = Router();
 studentsRouter.use(auth);
 studentsRouter.use(requireSchoolTenant);
 
+const requireRecordsWrite = [requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("records")];
+
 const BULK_PHOTO_MAX_FILES = 100;
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -125,7 +127,7 @@ studentsRouter.get("/template", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
   res.send(Buffer.from(buffer));
 });
 
-studentsRouter.post("/upload", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), upload.single("file"), async (req, res) => {
+studentsRouter.post("/upload", ...requireRecordsWrite, upload.single("file"), async (req, res) => {
   const { classSectionId, commit } = req.body || {};
   if (!req.file) return res.status(400).json({ error: "File is required" });
 
@@ -498,7 +500,7 @@ studentsRouter.delete(
   }
 );
 
-studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+studentsRouter.post("/", ...requireRecordsWrite, async (req, res) => {
   const { name, rollNo, classSectionId, dob, guardianName, guardianPhone, academicYear, admissionNo } =
     req.body || {};
   if (!String(name || "").trim() || !String(rollNo || "").trim() || !classSectionId) {
@@ -523,7 +525,7 @@ studentsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
   res.status(201).json(omitPhoto(created));
 });
 
-studentsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+studentsRouter.patch("/:id", ...requireRecordsWrite, async (req, res) => {
   const {
     name,
     rollNo,
@@ -553,12 +555,12 @@ studentsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
   res.json(omitPhoto(updated));
 });
 
-studentsRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+studentsRouter.delete("/:id", ...requireRecordsWrite, async (req, res) => {
   await prisma.student.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 });
 
-studentsRouter.post("/promote", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+studentsRouter.post("/promote", ...requireRecordsWrite, async (req, res) => {
   const { fromClassSectionId, toClassSectionId, toYear, students: rows } = req.body || {};
   if (!fromClassSectionId || !toClassSectionId || !Array.isArray(rows) || !rows.length) {
     return res.status(400).json({ error: "fromClassSectionId, toClassSectionId, and students are required" });

@@ -18,6 +18,7 @@ import {
   isoWeekdayFromYmd,
   leaveAppliesToPeriod,
   leaveCoversDate,
+  leavesConflict,
   normalizePeriodIds,
   parseYmd,
 } from "../lib/substituteScore.js";
@@ -77,7 +78,13 @@ function parseLeaveBody(body) {
   return { teacherId, startDate, endDate, leaveType, reason, periodIds: leaveType === "PARTIAL" ? periodIds : null };
 }
 
-async function assertNoOverlap(teacherId, startDate, endDate, { excludeId, statuses = ["ACTIVE", "PENDING"] } = {}) {
+async function assertNoOverlap(
+  teacherId,
+  startDate,
+  endDate,
+  { excludeId, statuses = ["ACTIVE", "PENDING"], leaveType = "FULL_DAY", periodIds = null } = {}
+) {
+  const candidate = { startDate, endDate, leaveType, periodIds };
   const existing = await prisma.teacherLeave.findMany({
     where: {
       teacherId,
@@ -87,9 +94,10 @@ async function assertNoOverlap(teacherId, startDate, endDate, { excludeId, statu
       ...(excludeId ? { id: { not: excludeId } } : {}),
     },
   });
-  if (existing.length) {
+  const conflict = existing.find((row) => leavesConflict(candidate, row));
+  if (conflict) {
     const err = new Error(
-      `Teacher already has ${existing[0].status === "PENDING" ? "a pending" : "active"} leave overlapping ${existing[0].startDate}–${existing[0].endDate}`
+      `Teacher already has ${conflict.status === "PENDING" ? "a pending" : "active"} leave overlapping ${conflict.startDate}–${conflict.endDate}`
     );
     err.status = 409;
     throw err;
@@ -162,7 +170,10 @@ teacherLeaveRouter.post("/leaves", async (req, res) => {
   const initialStatus = approver ? "ACTIVE" : "PENDING";
 
   try {
-    await assertNoOverlap(parsed.teacherId, parsed.startDate, parsed.endDate);
+    await assertNoOverlap(parsed.teacherId, parsed.startDate, parsed.endDate, {
+      leaveType: parsed.leaveType,
+      periodIds: parsed.periodIds,
+    });
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });
   }
@@ -312,6 +323,8 @@ teacherLeaveRouter.patch("/leaves/:id", async (req, res) => {
     try {
       await assertNoOverlap(existing.teacherId, parsed.startDate, parsed.endDate, {
         excludeId: existing.id,
+        leaveType: parsed.leaveType,
+        periodIds: parsed.periodIds,
       });
     } catch (err) {
       return res.status(err.status || 500).json({ error: err.message });
@@ -325,6 +338,17 @@ teacherLeaveRouter.patch("/leaves/:id", async (req, res) => {
     if (!["ACTIVE", "CANCELLED", "REJECTED", "PENDING"].includes(nextStatusRaw)) {
       return res.status(400).json({ error: "status must be ACTIVE, PENDING, REJECTED, or CANCELLED" });
     }
+    const from = existing.status;
+    const to = nextStatusRaw;
+    const allowed =
+      (from === "PENDING" && (to === "ACTIVE" || to === "REJECTED" || to === "CANCELLED")) ||
+      (from === "ACTIVE" && to === "CANCELLED") ||
+      (from === to);
+    if (!allowed) {
+      return res.status(400).json({
+        error: `Cannot change leave status from ${from} to ${to}`,
+      });
+    }
     data.status = nextStatusRaw;
   }
 
@@ -333,6 +357,11 @@ teacherLeaveRouter.patch("/leaves/:id", async (req, res) => {
     data,
     include: LEAVE_INCLUDE,
   });
+
+  // Drop covers whenever leave leaves ACTIVE (cancel or any other transition).
+  if (existing.status === "ACTIVE" && data.status && data.status !== "ACTIVE") {
+    await prisma.timetableSubstitution.deleteMany({ where: { leaveId: existing.id } });
+  }
 
   const dateLabel = leaveDateLabel(updated.startDate, updated.endDate);
   const teacherName = existing.teacher?.name || "teacher";
@@ -629,13 +658,31 @@ async function upsertSubstitution(item, assignedById) {
     throw err;
   }
 
-  const [subTeacher, period, leaves] = await Promise.all([
+  const [subTeacher, period, origTeacher, classSection, subject, leaves] = await Promise.all([
     prisma.user.findUnique({ where: { id: substituteTeacherId } }),
     prisma.period.findUnique({ where: { id: periodId } }),
+    prisma.user.findUnique({ where: { id: originalTeacherId } }),
+    prisma.classSection.findUnique({ where: { id: classSectionId } }),
+    prisma.subject.findUnique({ where: { id: subjectId } }),
     listActiveLeavesForRange(date, date),
   ]);
   if (!subTeacher || subTeacher.role !== "TEACHER" || subTeacher.status !== "ACTIVE") {
     const err = new Error("Invalid substitute teacher");
+    err.status = 400;
+    throw err;
+  }
+  if (!origTeacher || origTeacher.role !== "TEACHER") {
+    const err = new Error("Invalid original teacher");
+    err.status = 400;
+    throw err;
+  }
+  if (!classSection) {
+    const err = new Error("Invalid class section");
+    err.status = 400;
+    throw err;
+  }
+  if (!subject) {
+    const err = new Error("Invalid subject");
     err.status = 400;
     throw err;
   }
@@ -644,6 +691,35 @@ async function upsertSubstitution(item, assignedById) {
     err.status = 400;
     throw err;
   }
+
+  let coveringLeave = null;
+  if (leaveId) {
+    coveringLeave = await prisma.teacherLeave.findUnique({ where: { id: leaveId } });
+    if (
+      !coveringLeave ||
+      coveringLeave.status !== "ACTIVE" ||
+      coveringLeave.teacherId !== originalTeacherId ||
+      !leaveCoversDate(coveringLeave, date) ||
+      !leaveAppliesToPeriod(coveringLeave, periodId)
+    ) {
+      const err = new Error("leaveId must be active leave for the original teacher covering this slot");
+      err.status = 400;
+      throw err;
+    }
+  } else {
+    coveringLeave = leaves.find(
+      (l) =>
+        l.teacherId === originalTeacherId &&
+        leaveCoversDate(l, date) &&
+        leaveAppliesToPeriod(l, periodId)
+    );
+    if (!coveringLeave) {
+      const err = new Error("Original teacher is not on leave for this period");
+      err.status = 400;
+      throw err;
+    }
+  }
+
   if (leaves.some((l) => l.teacherId === substituteTeacherId && leaveAppliesToPeriod(l, periodId))) {
     const err = new Error("Substitute teacher is on leave that day");
     err.status = 409;
@@ -677,13 +753,13 @@ async function upsertSubstitution(item, assignedById) {
     row = await prisma.timetableSubstitution.update({
       where: { id: existingSlot.id },
       data: {
-        leaveId,
-        subjectId,
-        originalTeacherId,
-        substituteTeacherId,
-        sourceTimetableEntryId,
-        assignedById,
-        notes,
+      leaveId: coveringLeave?.id || leaveId,
+      subjectId,
+      originalTeacherId,
+      substituteTeacherId,
+      sourceTimetableEntryId,
+      assignedById,
+      notes,
       },
       include: SUB_INCLUDE,
     });
@@ -691,7 +767,7 @@ async function upsertSubstitution(item, assignedById) {
     try {
       row = await prisma.timetableSubstitution.create({
         data: {
-          leaveId,
+          leaveId: coveringLeave?.id || leaveId,
           date,
           periodId,
           classSectionId,

@@ -426,7 +426,7 @@ model MarkEntryAccessRequest {
   subject      Subject      @relation(fields: [subjectId], references: [id], onDelete: Cascade)
   reviewedBy   User?        @relation("MarkEntryReviewer", fields: [reviewedById], references: [id])
 
-  @@unique([examId, teacherId, classSectionId, subjectId])
+  @@unique([examId, teacherId, classSectionId, subjectId, kind])
   @@index([status, requestedAt])
   @@index([tenantId])
   @@map("MarkEntryAccessRequest")
@@ -651,7 +651,7 @@ model TeacherLeave {
   periodIds   Jsonb?
   reason      String?
   /// PENDING | ACTIVE | REJECTED | CANCELLED
-  status      String @default("ACTIVE")
+  status      String @default("PENDING")
   createdById String
   createdAt   TimestamptzString @default(now())
   updatedAt   temporal.updatedAtString()

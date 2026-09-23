@@ -29,8 +29,20 @@ export async function resolveRequestFeatures(req) {
     req.featureAccess = list;
     return list;
   }
+  // Prefer live roleTitle from DB over JWT so custom-role grants stay accurate.
+  let roleTitle = req.user.roleTitle ?? null;
+  if (req.user.userId) {
+    const fresh = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { roleTitle: true },
+    });
+    if (fresh) {
+      roleTitle = fresh.roleTitle || null;
+      req.user.roleTitle = roleTitle;
+    }
+  }
   if (!req.user.tenantId) {
-    const list = featuresForUser({ role: req.user.role, roleTitle: req.user.roleTitle });
+    const list = featuresForUser({ role: req.user.role, roleTitle });
     req.featureAccess = list;
     return list;
   }
@@ -39,7 +51,7 @@ export async function resolveRequestFeatures(req) {
     select: { customStaffRoles: true, roleFeatureAccess: true, optionalModules: true },
   });
   const list = featuresForUser(
-    { role: req.user.role, roleTitle: req.user.roleTitle },
+    { role: req.user.role, roleTitle },
     {
       customRoles: normalizeCustomStaffRoles(school?.customStaffRoles),
       roleFeatureAccess: school?.roleFeatureAccess,

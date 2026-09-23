@@ -2,12 +2,14 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { ensureConsolidationSchema, ensureSubjectPoolSchema } from "../lib/ensureSchema.js";
 import { parseOptionalPositiveInt, parsePositiveInt } from "../lib/numbers.js";
-import { auth, requireRole } from "../middleware/auth.js";
+import { auth, requireFeature, requireRole } from "../middleware/auth.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const subjectsRouter = Router();
 subjectsRouter.use(auth);
 subjectsRouter.use(requireSchoolTenant);
+
+const requireRecordsWrite = [requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("records")];
 
 async function ensureSubjectSchemas() {
   await ensureConsolidationSchema();
@@ -101,7 +103,7 @@ subjectsRouter.get("/pool", requireRole("PRINCIPAL", "EXAM_COORDINATOR", "TEACHE
   res.json(items);
 });
 
-subjectsRouter.post("/pool", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+subjectsRouter.post("/pool", ...requireRecordsWrite, async (req, res) => {
   await ensureSubjectSchemas();
   const fields = parseSubjectFields(req.body || {});
   if (fields.error) return res.status(400).json({ error: fields.error });
@@ -123,7 +125,7 @@ subjectsRouter.post("/pool", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
   res.status(201).json(created);
 });
 
-subjectsRouter.patch("/pool/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+subjectsRouter.patch("/pool/:id", ...requireRecordsWrite, async (req, res) => {
   await ensureSubjectSchemas();
   const existing = await prisma.subjectPoolItem.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Pool subject not found" });
@@ -175,7 +177,7 @@ subjectsRouter.patch("/pool/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
   res.json({ ...updated, syncedClassName: syncName });
 });
 
-subjectsRouter.delete("/pool/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+subjectsRouter.delete("/pool/:id", ...requireRecordsWrite, async (req, res) => {
   await ensureSubjectSchemas();
   const existing = await prisma.subjectPoolItem.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Pool subject not found" });
@@ -203,7 +205,7 @@ subjectsRouter.get("/for-class/:className", requireRole("PRINCIPAL", "EXAM_COORD
   res.json({ className, pool, subjects, selectedPoolIds });
 });
 
-subjectsRouter.put("/for-class/:className", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+subjectsRouter.put("/for-class/:className", ...requireRecordsWrite, async (req, res) => {
   await ensureSubjectSchemas();
   const className = String(req.params.className || "").trim();
   if (!className) return res.status(400).json({ error: "Class is required" });
@@ -300,7 +302,7 @@ subjectsRouter.put("/for-class/:className", requireRole("PRINCIPAL", "EXAM_COORD
   });
 });
 
-subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+subjectsRouter.post("/", ...requireRecordsWrite, async (req, res) => {
   const { name, className, maxMarks, isElective, practicalMaxMarks } = req.body || {};
   if (!name || !className) {
     return res.status(400).json({ error: "Name and class are required" });
@@ -336,7 +338,7 @@ subjectsRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (re
   res.status(201).json(created);
 });
 
-subjectsRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+subjectsRouter.patch("/:id", ...requireRecordsWrite, async (req, res) => {
   const { name, className, maxMarks, isElective, practicalMaxMarks } = req.body || {};
   await ensureSubjectSchemas();
 
@@ -387,7 +389,7 @@ subjectsRouter.get("/:id/enrollments", requireRole("PRINCIPAL", "EXAM_COORDINATO
   res.json({ studentIds: rows.map((r) => r.studentId) });
 });
 
-subjectsRouter.put("/:id/enrollments", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+subjectsRouter.put("/:id/enrollments", ...requireRecordsWrite, async (req, res) => {
   await ensureSubjectSchemas();
   const subject = await prisma.subject.findUnique({ where: { id: req.params.id } });
   if (!subject) return res.status(404).json({ error: "Subject not found" });
@@ -427,7 +429,7 @@ subjectsRouter.put("/:id/enrollments", requireRole("PRINCIPAL", "EXAM_COORDINATO
   res.json({ studentIds });
 });
 
-subjectsRouter.delete("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+subjectsRouter.delete("/:id", ...requireRecordsWrite, async (req, res) => {
   await prisma.subject.delete({ where: { id: req.params.id } });
   res.json({ ok: true });
 });

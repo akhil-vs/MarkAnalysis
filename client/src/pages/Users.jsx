@@ -1947,7 +1947,7 @@ function AssignModal({ user, classes, subjects, onClose, onSave }) {
 }
 
 function ResetPasswordModal({ user, onClose, onDone }) {
-  const [password, setPassword] = useState("password123");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 

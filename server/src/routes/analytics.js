@@ -6,7 +6,7 @@ import {
   mean,
   round1,
 } from "../lib/grades.js";
-import { auth, isLeadership, teacherCanAccess } from "../middleware/auth.js";
+import { auth, isLeadership, requireFeature, teacherCanAccess } from "../middleware/auth.js";
 import { getTenantId, requireSchoolTenant } from "../lib/tenant.js";
 import {
   classLabel,
@@ -57,6 +57,19 @@ import {
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
 analyticsRouter.use(requireSchoolTenant);
+analyticsRouter.use(
+  requireFeature(
+    "analysis",
+    "analysisSchool",
+    "analysisClasses",
+    "analysisSubjects",
+    "analysisTeachers",
+    "analysisStudents",
+    "analysisCompare",
+    "analysisDeep",
+    "pendingUploads"
+  )
+);
 analyticsRouter.use(async (_req, _res, next) => {
   try {
     await ensurePendingSchema();

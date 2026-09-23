@@ -1498,7 +1498,28 @@ export async function ensureExamIncludedClassesColumn() {
 }
 
 const TEACHER_LEAVE_MIGRATION = "20260922024500_teacher_leave_substitutes";
-const TEACHER_LEAVE_CHECKSUM = "teacher-leave-substitutes-catchup-v1";
+const TEACHER_LEAVE_CHECKSUM = "teacher-leave-substitutes-catchup-v2";
+
+const MARK_ACCESS_KIND_UNIQUE_MIGRATION = "20260923101000_mark_access_kind_unique";
+const MARK_ACCESS_KIND_UNIQUE_CHECKSUM = "mark-access-kind-unique-v1";
+
+const MARK_ACCESS_KIND_UNIQUE_STATEMENTS = [
+  `DROP INDEX IF EXISTS "MarkEntryAccessRequest_examId_teacherId_classSectionId_subj_key"`,
+  `ALTER TABLE "MarkEntryAccessRequest" DROP CONSTRAINT IF EXISTS "MarkEntryAccessRequest_examId_teacherId_classSectionId_subjectId_key"`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS "MarkEntryAccessRequest_examId_teacherId_classSectionId_subj_kind_key"
+    ON "MarkEntryAccessRequest"("examId", "teacherId", "classSectionId", "subjectId", "kind")`,
+];
+
+/** Allow LATE_ENTRY and EDIT requests for the same register to coexist. */
+export async function ensureMarkAccessKindUnique() {
+  const hasKindCol = await columnExists("MarkEntryAccessRequest", "kind");
+  if (!hasKindCol) {
+    await recordMigration(MARK_ACCESS_KIND_UNIQUE_MIGRATION, MARK_ACCESS_KIND_UNIQUE_CHECKSUM);
+    return;
+  }
+  await applyStatements(MARK_ACCESS_KIND_UNIQUE_STATEMENTS);
+  await recordMigration(MARK_ACCESS_KIND_UNIQUE_MIGRATION, MARK_ACCESS_KIND_UNIQUE_CHECKSUM);
+}
 
 const TEACHER_LEAVE_AUDIT_ACTIONS = [
   "TEACHER_LEAVE_CREATED",
@@ -1520,7 +1541,7 @@ const TEACHER_LEAVE_TABLE_STATEMENTS = [
     "leaveType" TEXT NOT NULL DEFAULT 'FULL_DAY',
     "periodIds" JSONB,
     "reason" TEXT,
-    "status" TEXT NOT NULL DEFAULT 'ACTIVE',
+    "status" TEXT NOT NULL DEFAULT 'PENDING',
     "createdById" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -1710,6 +1731,7 @@ export async function ensurePendingSchema() {
         await ensureSubjectPoolSchema();
         await ensureExamIncludedClassesColumn();
         await ensureTeacherLeaveSchema();
+        await ensureMarkAccessKindUnique();
         return { skipped: true, reason: "migrations-present" };
       }
       // Auth pieces first so concurrent login can finish while the rest runs.
@@ -1738,6 +1760,7 @@ export async function ensurePendingSchema() {
         ensureSubjectPoolSchema(),
         ensureExamIncludedClassesColumn(),
         ensureTeacherLeaveSchema(),
+        ensureMarkAccessKindUnique(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the
       // school-wide lock, so this must run after those catch-ups.

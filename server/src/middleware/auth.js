@@ -4,6 +4,8 @@ import { ACCESS_COOKIE } from "../lib/authCookies.js";
 import { ensureAuthSchema } from "../lib/ensureSchema.js";
 import { runWithoutTenant, runWithTenant } from "../lib/tenant.js";
 
+const STAFF_ROLES = new Set(["PLATFORM_ADMIN", "PRINCIPAL", "EXAM_COORDINATOR", "TEACHER"]);
+
 function readAccessToken(req) {
   const header = req.headers.authorization || "";
   if (header.startsWith("Bearer ")) {
@@ -13,6 +15,14 @@ function readAccessToken(req) {
   return req.cookies?.[ACCESS_COOKIE] || null;
 }
 
+/** Staff access JWTs only — reject MFA challenges, portal sessions, and other audiences. */
+export function isStaffAccessPayload(payload) {
+  if (!payload || typeof payload !== "object") return false;
+  if (payload.purpose || payload.kind) return false;
+  if (!payload.userId || !payload.role) return false;
+  return STAFF_ROLES.has(payload.role);
+}
+
 function verifyAccess(req, res) {
   const token = readAccessToken(req);
   if (!token) {
@@ -20,7 +30,12 @@ function verifyAccess(req, res) {
     return null;
   }
   try {
-    return jwt.verify(token, process.env.JWT_SECRET);
+    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    if (!isStaffAccessPayload(payload)) {
+      res.status(401).json({ error: "Invalid token" });
+      return null;
+    }
+    return payload;
   } catch {
     res.status(401).json({ error: "Invalid token" });
     return null;
@@ -140,15 +155,28 @@ export function requireFeature(...featureIds) {
 async function loadFeatureAccessForRequest(req) {
   const { featuresForUser } = await import("../lib/roleFeatures.js");
   const { normalizeCustomStaffRoles } = await import("../lib/staffRoles.js");
+  // Reload roleTitle from DB so custom-role feature maps stay correct after title changes
+  // and are not stuck on a stale JWT claim.
+  let roleTitle = req.user?.roleTitle ?? null;
+  if (req.user?.userId) {
+    const fresh = await prisma.user.findUnique({
+      where: { id: req.user.userId },
+      select: { roleTitle: true },
+    });
+    if (fresh) {
+      roleTitle = fresh.roleTitle || null;
+      req.user.roleTitle = roleTitle;
+    }
+  }
   if (!req.user?.tenantId) {
-    return featuresForUser({ role: req.user.role, roleTitle: req.user.roleTitle });
+    return featuresForUser({ role: req.user.role, roleTitle });
   }
   const school = await prisma.school.findUnique({
     where: { id: req.user.tenantId },
     select: { customStaffRoles: true, roleFeatureAccess: true, optionalModules: true },
   });
   return featuresForUser(
-    { role: req.user.role, roleTitle: req.user.roleTitle },
+    { role: req.user.role, roleTitle },
     {
       customRoles: normalizeCustomStaffRoles(school?.customStaffRoles),
       roleFeatureAccess: school?.roleFeatureAccess,
@@ -162,6 +190,7 @@ export function signToken(user) {
     {
       userId: user.id,
       role: user.role,
+      roleTitle: user.roleTitle || null,
       name: user.name,
       tenantId: user.tenantId || null,
       mustChangePassword: Boolean(user.mustChangePassword),

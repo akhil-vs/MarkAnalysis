@@ -3,7 +3,7 @@ import { Router } from "express";
 import multer from "multer";
 import ExcelJS from "exceljs";
 import { prisma } from "../lib/prisma.js";
-import { auth, getAssignments, isLeadership, requireRole, teacherCanAccess } from "../middleware/auth.js";
+import { auth, getAssignments, isLeadership, requireFeature, requireRole, teacherCanAccess } from "../middleware/auth.js";
 import {
   assertTeacherMarkEntryAccess,
   getMarkEntryAccessMap,
@@ -44,6 +44,7 @@ const WRITE_CHUNK = 25;
 export const marksRouter = Router();
 marksRouter.use(auth);
 marksRouter.use(requireSchoolTenant);
+marksRouter.use(requireFeature("marks", "upload", "pendingUploads", "audit"));
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
