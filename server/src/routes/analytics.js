@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import {
-  PASS_PERCENT,
   gradeFromPercent,
   mean,
   round1,
@@ -37,22 +36,11 @@ import {
   weightedAnnualForStudent,
 } from "../lib/analyticsExtras.js";
 import {
-  assignmentAnalyticsSelect,
-  markAnalyticsSelect,
   markHistorySelect,
   studentListOmit,
   subjectCoreSelect,
 } from "../lib/markSelects.js";
 import { buildHomeDashboardCached } from "../lib/homeDashboard.js";
-import {
-  indexMarksByPaper,
-  indexMarksBySubject,
-  marksForPaper,
-  slimPendingUploads,
-  subjectCorrelations,
-  subjectDifficulty,
-  teacherSubjectAverages,
-} from "../lib/dashboardAgg.js";
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
@@ -418,191 +406,31 @@ analyticsRouter.get("/coordinator", async (req, res) => {
   if (!isLeadership(req.user.role)) {
     return res.status(403).json({ error: "Forbidden" });
   }
-  // Default + exam-switch share the login/home tenant cache for coordinators.
-  if (req.user.role === "EXAM_COORDINATOR") {
-    const dash = await buildHomeDashboardCached(
-      {
-        id: req.user.userId,
-        role: "EXAM_COORDINATOR",
-        tenantId: req.user.tenantId,
-      },
-      { examId: req.query.examId || undefined }
-    );
-    return res.json(dash || { empty: true });
-  }
-
-  const { exams, exam } = await loadExams(req.query.examId);
-  if (!exam) return res.json({ empty: true });
-
-  const [marks, subjects, classes, assignments, pending, pendingUploads] = await Promise.all([
-    prisma.mark.findMany({
-      where: { examId: exam.id, status: "APPROVED" },
-      select: markAnalyticsSelect,
-    }),
-    prisma.subject.findMany({
-      orderBy: { name: "asc" },
-      select: subjectCoreSelect,
-    }),
-    prisma.classSection.findMany({
-      orderBy: [{ className: "asc" }, { section: "asc" }],
-      select: { id: true, className: true, section: true },
-    }),
-    prisma.teacherAssignment.findMany({
-      select: assignmentAnalyticsSelect,
-    }),
-    prisma.mark.count({ where: { examId: exam.id, status: "DRAFT" } }),
-    buildPendingUploads(exam),
-  ]);
-
-  const marksBySubject = indexMarksBySubject(marks);
-  const marksByPaper = indexMarksByPaper(marks);
-
-  res.json({
-    exam,
-    exams,
-    difficulty: subjectDifficulty(subjects, marksBySubject),
-    teacherBySubject: teacherSubjectAverages(assignments, marksByPaper),
-    correlations: subjectCorrelations(marks, subjects.map((s) => s.name)),
-    classes,
-    pendingDrafts: pending,
-    pendingUploads: slimPendingUploads(pendingUploads),
-  });
+  // Same builder as login/home — principals opening this endpoint get the coordinator payload.
+  const dash = await buildHomeDashboardCached(
+    {
+      id: req.user.userId,
+      role: "EXAM_COORDINATOR",
+      tenantId: req.user.tenantId,
+    },
+    { examId: req.query.examId || undefined }
+  );
+  return res.json(dash || { empty: true });
 });
 
 analyticsRouter.get("/teacher", async (req, res) => {
-  // Teacher home + exam switches reuse the shared builder / tenant cache.
-  if (req.user.role === "TEACHER") {
-    const dash = await buildHomeDashboardCached(
-      {
-        id: req.user.userId,
-        role: "TEACHER",
-        tenantId: req.user.tenantId,
-      },
-      { examId: req.query.examId || undefined }
-    );
-    return res.json(dash || { empty: true });
-  }
-
-  if (!isLeadership(req.user.role)) {
+  if (req.user.role !== "TEACHER") {
     return res.status(403).json({ error: "Forbidden" });
   }
-
-  const { exams, exam } = await loadExams(req.query.examId);
-  if (!exam) return res.json({ empty: true });
-
-  const assignments = await prisma.teacherAssignment.findMany({
-    select: assignmentAnalyticsSelect,
-  });
-  if (!assignments.length) return res.json({ empty: true, exams, exam });
-
-  const classIds = [...new Set(assignments.map((a) => a.classSectionId))];
-  const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
-
-  const [marks, students, allMarks] = await Promise.all([
-    prisma.mark.findMany({
-      where: {
-        examId: exam.id,
-        subjectId: { in: subjectIds },
-        student: { classSectionId: { in: classIds } },
-      },
-      select: markAnalyticsSelect,
-    }),
-    prisma.student.findMany({
-      where: { classSectionId: { in: classIds } },
-      select: { id: true, classSectionId: true, name: true, rollNo: true },
-    }),
-    prisma.mark.findMany({
-      where: {
-        subjectId: { in: subjectIds },
-        student: { classSectionId: { in: classIds } },
-        status: "APPROVED",
-      },
-      select: markHistorySelect,
-    }),
-  ]);
-
-  const studentsByClass = groupBy(students, (s) => s.classSectionId);
-  const marksByPaper = indexMarksByPaper(marks);
-
-  const registers = assignments.map((a) => {
-    const expected = studentsByClass.get(a.classSectionId) || [];
-    const list = marksForPaper(marksByPaper, a.subjectId, a.classSectionId);
-    const approved = list.filter((m) => m.status === "APPROVED");
-    const forAverage = approved.length ? approved : list;
-    const percents = forAverage.map(toPercent).filter((p) => p != null);
-    const progress = summarizeRegister(expected.length, list);
-    return {
-      id: a.id,
-      classSectionId: a.classSectionId,
-      subjectId: a.subjectId,
-      classLabel: `${a.classSection.className}-${a.classSection.section}`,
-      subject: a.subject.name,
-      average: round1(mean(percents)),
-      passRate: percents.length
-        ? round1((percents.filter((p) => p >= PASS_PERCENT).length / percents.length) * 100)
-        : 0,
-      provisional: approved.length === 0 && list.length > 0,
-      ...progress,
-    };
-  });
-
-  const radar = registers.map((r) => ({
-    subject: r.subject,
-    classLabel: r.classLabel,
-    average: r.average ?? 0,
-  }));
-
-  const watchlist = [];
-  const byStudent = groupBy(allMarks, (m) => m.studentId);
-  for (const [studentId, list] of byStudent) {
-    const byExam = groupBy(list, (m) => m.examId);
-    const points = [...byExam.entries()].map(([id, ms]) => ({
-      examId: id,
-      examName: examLabel(ms[0].exam),
-      date: ms[0].exam.date,
-      average: round1(mean(ms.map(toPercent).filter((p) => p != null))),
-    }));
-    points.sort((a, b) => new Date(a.date) - new Date(b.date));
-    const latest = points.at(-1);
-    const prev = points.at(-2);
-    const delta =
-      latest?.average != null && prev?.average != null
-        ? round1(latest.average - prev.average)
-        : null;
-    const atRisk = (latest?.average ?? 100) < 55;
-    const declining = delta != null && delta <= -4;
-    if (!atRisk && !declining) continue;
-    watchlist.push({
-      studentId,
-      name: list[0].student.name,
-      rollNo: list[0].student.rollNo,
-      points,
-      latest: latest?.average ?? null,
-      delta,
-      declining,
-      atRisk,
-    });
-  }
-  watchlist.sort((a, b) => (a.latest ?? 100) - (b.latest ?? 100));
-
-  const uploadedPercents = registers.flatMap((r) => (r.average != null ? [r.average] : []));
-  const kpis = {
-    sections: classIds.length,
-    students: students.length,
-    average: round1(mean(uploadedPercents)),
-    pendingRegisters: registers.filter((r) => r.missing > 0).length,
-  };
-
-  res.json({
-    exam,
-    exams,
-    assignments,
-    radar,
-    registers,
-    watchlist: watchlist.slice(0, 8),
-    kpis,
-    yearComparison: yearSeries(allMarks, exams, exam),
-  });
+  const dash = await buildHomeDashboardCached(
+    {
+      id: req.user.userId,
+      role: "TEACHER",
+      tenantId: req.user.tenantId,
+    },
+    { examId: req.query.examId || undefined }
+  );
+  return res.json(dash || { empty: true });
 });
 
 analyticsRouter.get("/student/:id", async (req, res) => {

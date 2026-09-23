@@ -151,6 +151,7 @@ export default function App() {
           <Route path="upload" element={<Guarded route="upload"><MarksUpload /></Guarded>} />
           <Route path="audit" element={<Guarded route="audit"><AuditLog /></Guarded>} />
           <Route path="analysis" element={<AnalysisHub />} />
+          {/* Leadership school overview. Principals see the same desk as Home; coordinators keep a distinct home. */}
           <Route
             path="analysis/school"
             element={<Guarded route="analysis/school"><PrincipalDashboard /></Guarded>}
