@@ -12,6 +12,11 @@ import { hasFeature } from "../lib/features.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { schoolWeekRangeContaining } from "../lib/schoolWeek.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+import {
+  TEACHER_TIMETABLE_FILTERS,
+  teacherClassOptions,
+  teacherSubjectOptions,
+} from "../lib/teacherTimetableFilters.js";
 import { useDragScroll } from "../lib/useDragScroll.js";
 
 const ALL_MODES = [
@@ -290,18 +295,22 @@ function TeachersList({ onPutOnLeave, canAssignSubs }) {
   const [error, setError] = useState("");
   const [openTeacherId, setOpenTeacherId] = useState(null);
   const [openAction, setOpenAction] = useState("");
-  const table = useTableSearch(teachers || [], { getSearchText: teacherSearchText });
+  const table = useTableSearch(teachers || [], {
+    getSearchText: teacherSearchText,
+    filterDefs: TEACHER_TIMETABLE_FILTERS,
+  });
+  const classOptions = useMemo(() => teacherClassOptions(teachers || []), [teachers]);
+  const subjectOptions = useMemo(() => teacherSubjectOptions(teachers || []), [teachers]);
+  const visibleSlots = useMemo(
+    () => table.filtered.reduce((sum, t) => sum + (t.entryCount || 0), 0),
+    [table.filtered]
+  );
 
   useEffect(() => {
     api("/api/timetable/teachers")
       .then(setTeachers)
       .catch((err) => setError(err.message || "Could not load teachers"));
   }, []);
-
-  const totalSlots = useMemo(
-    () => (teachers || []).reduce((sum, t) => sum + (t.entryCount || 0), 0),
-    [teachers]
-  );
 
   function toggleTeacher(id) {
     setOpenTeacherId((current) => (current === id ? null : id));
@@ -327,9 +336,42 @@ function TeachersList({ onPutOnLeave, canAssignSubs }) {
   return (
     <div>
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-        <TableToolbar q={table.q} setQ={table.setQ} placeholder="Search teachers…" />
+        <TableToolbar
+          q={table.q}
+          setQ={table.setQ}
+          placeholder="Search teachers…"
+          matched={table.matched}
+          total={table.total}
+        >
+          <select
+            className="field-filter"
+            value={table.filters.classSectionId || ""}
+            onChange={(e) => table.setFilter("classSectionId", e.target.value)}
+            aria-label="Filter by class"
+          >
+            <option value="">All classes</option>
+            {classOptions.map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.label}
+              </option>
+            ))}
+          </select>
+          <select
+            className="field-filter"
+            value={table.filters.subjectName || ""}
+            onChange={(e) => table.setFilter("subjectName", e.target.value)}
+            aria-label="Filter by subject"
+          >
+            <option value="">All subjects</option>
+            {subjectOptions.map((name) => (
+              <option key={name} value={name}>
+                {name}
+              </option>
+            ))}
+          </select>
+        </TableToolbar>
         <div className="text-sm text-ink-700/70">
-          {teachers.length} teachers · {totalSlots} weekly slots
+          {table.matched} teacher{table.matched === 1 ? "" : "s"} · {visibleSlots} weekly slots
         </div>
       </div>
 
@@ -444,7 +486,7 @@ function TeachersList({ onPutOnLeave, canAssignSubs }) {
         </div>
         {!table.filtered.length && (
           <div className="p-4">
-            <EmptyNote>No teachers match your search.</EmptyNote>
+            <EmptyNote>No teachers match your search or filters.</EmptyNote>
           </div>
         )}
       </div>

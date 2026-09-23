@@ -53,7 +53,7 @@ Co-ordinators typically already have **Timetables**, **Leave approval**, and **A
 
 Same four tabs as the principal:
 
-- **Teachers** — accordion. Expand a row to **Open timetable**, **Put on leave**, or **Hrs history** (own teaching plus extra cover hours). Use **Previous week** / **Next week**, or **From** / **To** and **Show range**.
+- **Teachers** — accordion. Search or filter by **class** and **subject**. Expand a row to **Open timetable**, **Put on leave**, or **Hrs history** (own teaching plus extra cover hours). Use **Previous week** / **Next week**, or **From** / **To** and **Show range**.
 - **Daily board** — all teachers for one day. **Click and drag to scroll periods**. Rows show period count, teaching hours, and **+extra** cover hours. Vacated cells: **Needs cover** / **Cover**. **Assign cover** opens ranked substitutes.
 - **Find free** — who is free, on leave, or teaching in a chosen period.
 - **Leave & cover** — **Pending leave requests** (Approve / Reject), put a teacher on leave, and the **Cover planner**.

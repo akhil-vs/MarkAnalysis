@@ -53,6 +53,8 @@ test.describe("Principal manual — complete application workflow", () => {
     await expect(page).toHaveURL(/\/timetables/);
     await expectPageTitle(page, "timetable");
     await page.locator("main").getByRole("button", { name: /^Teachers$/i }).click();
+    await expect(page.locator("main").getByLabel("Filter by class")).toBeVisible();
+    await expect(page.locator("main").getByLabel("Filter by subject")).toBeVisible();
     const trigger = page.locator("main .accordion-trigger").first();
     await expect(trigger).toBeVisible();
     await trigger.click();

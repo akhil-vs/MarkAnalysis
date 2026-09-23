@@ -157,7 +157,7 @@ Leadership can review:
 
 Principals and exam coordinators can open **Timetables** in the sidebar (or **Timetable** from a staff row) to browse each teacher’s schedule. Teachers see the page when Role access grants **Timetables**, **Leave approval**, or **Assign substitutes**.
 
-- **Teachers** — accordion of every active teacher. Expand a row to **Open timetable**, **Put on leave**, or **Hrs history** (own teaching hours plus extra cover hours). The week follows School profile working days; use Previous week / Next week or a From / To range.
+- **Teachers** — accordion of every active teacher. Search, or filter by class and subject, then expand a row to **Open timetable**, **Put on leave**, or **Hrs history** (own teaching hours plus extra cover hours). The week follows School profile working days; use Previous week / Next week or a From / To range.
 - **Daily board** — one page with every teacher’s timetable for a chosen day (subject, class, free slots, leave, and cover). Click and drag to scroll periods. Rows show period count, teaching hours, and **+extra** cover hours.
 - **Find free** — pick a date and period to see who is free, on leave, or already teaching.
 - **Leave & cover** — approve teacher **My leave** requests, put a teacher on leave, and accept ranked substitute suggestions. Vacated cells show **Needs cover** until cover is assigned.
