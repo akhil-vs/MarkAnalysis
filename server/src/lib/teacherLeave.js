@@ -223,10 +223,19 @@ export async function suggestSubstitutesForSlot({
         orderBy: { name: "asc" },
         select: { id: true, name: true, email: true, schoolId: true, role: true, status: true },
       }),
-      prisma.timetableEntry.findMany({ where: { dayOfWeek } }),
-      prisma.timetableEntry.findMany({}),
+      prisma.timetableEntry.findMany({
+        where: { dayOfWeek },
+        select: { id: true, teacherId: true, periodId: true, classSectionId: true, subjectId: true, dayOfWeek: true },
+      }),
+      // Week load only needs teacherId counts — avoid loading full grid relations.
+      prisma.timetableEntry.findMany({
+        select: { teacherId: true },
+      }),
       listActiveLeavesForRange(dateYmd, dateYmd),
-      prisma.timetableSubstitution.findMany({ where: { date: dateYmd } }),
+      prisma.timetableSubstitution.findMany({
+        where: { date: dateYmd },
+        select: { substituteTeacherId: true, periodId: true, date: true },
+      }),
       loadRecentCoverCounts(dateYmd, policy.balanceWindowDays),
       prisma.teacherAssignment.findMany({
         where: {
@@ -374,7 +383,23 @@ export async function planCoversForSlots(slots, { policy } = {}) {
     where: { isBreak: false },
     orderBy: { sortOrder: "asc" },
   });
-  const weekEntries = await prisma.timetableEntry.findMany({});
+  const daysNeeded = [
+    ...new Set(
+      slots
+        .map((s) => (s.dayOfWeek != null ? s.dayOfWeek : isoWeekdayFromYmd(s.date)))
+        .filter((d) => d != null)
+    ),
+  ];
+  const [weekLoadRows, dayScopedEntries] = await Promise.all([
+    prisma.timetableEntry.findMany({ select: { teacherId: true } }),
+    daysNeeded.length
+      ? prisma.timetableEntry.findMany({
+          where: { dayOfWeek: { in: daysNeeded } },
+          select: { teacherId: true, periodId: true, dayOfWeek: true },
+        })
+      : Promise.resolve([]),
+  ]);
+  const weekEntries = weekLoadRows;
   const allLeaves = await listActiveLeavesForRange(
     dates.reduce((a, b) => (a < b ? a : b)),
     dates.reduce((a, b) => (a > b ? a : b))
@@ -384,13 +409,41 @@ export async function planCoversForSlots(slots, { policy } = {}) {
     select: { userId: true, subjectId: true, classSectionId: true },
   });
 
+  const policyWindow = mergeLeavePolicy(policy).balanceWindowDays;
+  const sortedDates = [...dates].sort();
+  const coverWindowTo = sortedDates.at(-1);
+  const coverWindowFrom = (() => {
+    const earliest = sortedDates[0];
+    const end = parseYmd(earliest);
+    if (!end) return earliest;
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - Math.max(1, Number(policyWindow) || 14) + 1);
+    return formatYmd(start);
+  })();
+  const recentCoverRows = await prisma.timetableSubstitution.findMany({
+    where: { date: { gte: coverWindowFrom, lte: coverWindowTo } },
+    select: { substituteTeacherId: true, date: true },
+  });
   const recentByDate = new Map();
   for (const d of dates) {
-    recentByDate.set(d, await loadRecentCoverCounts(d, mergeLeavePolicy(policy).balanceWindowDays));
+    const end = parseYmd(d);
+    if (!end) {
+      recentByDate.set(d, new Map());
+      continue;
+    }
+    const start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - Math.max(1, Number(policyWindow) || 14) + 1);
+    const from = formatYmd(start);
+    const map = new Map();
+    for (const row of recentCoverRows) {
+      if (row.date < from || row.date > d) continue;
+      map.set(row.substituteTeacherId, (map.get(row.substituteTeacherId) || 0) + 1);
+    }
+    recentByDate.set(d, map);
   }
 
   const dayEntriesByDow = new Map();
-  for (const e of weekEntries) {
+  for (const e of dayScopedEntries) {
     if (!dayEntriesByDow.has(e.dayOfWeek)) dayEntriesByDow.set(e.dayOfWeek, []);
     dayEntriesByDow.get(e.dayOfWeek).push(e);
   }

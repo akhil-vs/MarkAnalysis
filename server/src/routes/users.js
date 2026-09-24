@@ -2,7 +2,7 @@ import { Router } from "express";
 import ExcelJS from "exceljs";
 import multer from "multer";
 import { prisma } from "../lib/prisma.js";
-import { auth, publicUser, requireRole, requireFeature } from "../middleware/auth.js";
+import { auth, publicUser, requireRole, requireFeature, invalidateLiveStaffUserCache } from "../middleware/auth.js";
 import { parseEmail } from "../lib/numbers.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
@@ -573,6 +573,7 @@ usersRouter.patch("/:id", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (r
   const user = Object.keys(data).length
     ? await prisma.user.update({ where: { id: req.params.id }, data })
     : existing;
+  if (Object.keys(data).length) invalidateLiveStaffUserCache(user.id);
 
   if (Array.isArray(assignments)) {
     await prisma.teacherAssignment.deleteMany({ where: { userId: user.id } });
@@ -881,32 +882,41 @@ usersRouter.post("/:id/transfer", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
 
       if (moveTimetable) {
         const entries = await tx.timetableEntry.findMany({ where: { teacherId: fromId } });
-        for (const entry of entries) {
-          const clash = await tx.timetableEntry.findFirst({
+        if (entries.length) {
+          const clashRows = await tx.timetableEntry.findMany({
             where: {
               teacherId: toUserId,
-              dayOfWeek: entry.dayOfWeek,
-              periodId: entry.periodId,
-              classSectionId: entry.classSectionId,
+              OR: entries.map((entry) => ({
+                dayOfWeek: entry.dayOfWeek,
+                periodId: entry.periodId,
+                classSectionId: entry.classSectionId,
+              })),
             },
+            select: { dayOfWeek: true, periodId: true, classSectionId: true },
           });
-          if (clash) {
-            await tx.timetableEntry.delete({ where: { id: entry.id } });
-            timetableSkipped += 1;
-            continue;
-          }
-          try {
-            await tx.timetableEntry.update({
-              where: { id: entry.id },
-              data: { teacherId: toUserId },
-            });
-            timetableMoved += 1;
-          } catch (err) {
-            if (err.code === "P2002") {
+          const clashKeys = new Set(
+            clashRows.map((c) => `${c.dayOfWeek}|${c.periodId}|${c.classSectionId}`)
+          );
+          for (const entry of entries) {
+            const key = `${entry.dayOfWeek}|${entry.periodId}|${entry.classSectionId}`;
+            if (clashKeys.has(key)) {
               await tx.timetableEntry.delete({ where: { id: entry.id } });
               timetableSkipped += 1;
-            } else {
-              throw err;
+              continue;
+            }
+            try {
+              await tx.timetableEntry.update({
+                where: { id: entry.id },
+                data: { teacherId: toUserId },
+              });
+              timetableMoved += 1;
+            } catch (err) {
+              if (err.code === "P2002") {
+                await tx.timetableEntry.delete({ where: { id: entry.id } });
+                timetableSkipped += 1;
+              } else {
+                throw err;
+              }
             }
           }
         }
@@ -924,23 +934,32 @@ usersRouter.post("/:id/transfer", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
       const pending = await tx.markEntryAccessRequest.findMany({
         where: { teacherId: fromId, status: "PENDING" },
       });
-      for (const reqRow of pending) {
-        const clash = await tx.markEntryAccessRequest.findFirst({
+      if (pending.length) {
+        const clashRows = await tx.markEntryAccessRequest.findMany({
           where: {
-            examId: reqRow.examId,
             teacherId: toUserId,
-            classSectionId: reqRow.classSectionId,
-            subjectId: reqRow.subjectId,
+            OR: pending.map((reqRow) => ({
+              examId: reqRow.examId,
+              classSectionId: reqRow.classSectionId,
+              subjectId: reqRow.subjectId,
+            })),
           },
+          select: { examId: true, classSectionId: true, subjectId: true },
         });
-        if (clash) {
-          await tx.markEntryAccessRequest.delete({ where: { id: reqRow.id } });
-          continue;
+        const clashKeys = new Set(
+          clashRows.map((c) => `${c.examId}|${c.classSectionId}|${c.subjectId}`)
+        );
+        for (const reqRow of pending) {
+          const key = `${reqRow.examId}|${reqRow.classSectionId}|${reqRow.subjectId}`;
+          if (clashKeys.has(key)) {
+            await tx.markEntryAccessRequest.delete({ where: { id: reqRow.id } });
+            continue;
+          }
+          await tx.markEntryAccessRequest.update({
+            where: { id: reqRow.id },
+            data: { teacherId: toUserId },
+          });
         }
-        await tx.markEntryAccessRequest.update({
-          where: { id: reqRow.id },
-          data: { teacherId: toUserId },
-        });
       }
     });
   } catch (err) {
@@ -1017,6 +1036,7 @@ usersRouter.post("/:id/reset-password", requireRole("PRINCIPAL"), async (req, re
       mustChangePassword: true,
     },
   });
+  invalidateLiveStaffUserCache(existing.id);
   await runWithoutTenant(() => revokeAllRefreshSessions(existing.id));
   await logActivity({
     actorId: req.user.userId,

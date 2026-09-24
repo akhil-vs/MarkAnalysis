@@ -51,6 +51,25 @@ const LIVE_STAFF_SELECT = {
   mustChangePassword: true,
 };
 
+const LIVE_USER_TTL_MS = 10_000;
+const liveUserCache = new Map();
+
+function readLiveUserCache(userId) {
+  const entry = liveUserCache.get(userId);
+  if (!entry) return undefined;
+  if (Date.now() >= entry.expires) {
+    liveUserCache.delete(userId);
+    return undefined;
+  }
+  return entry.value;
+}
+
+/** Drop cached live staff identity (call after role/status/password mutations). */
+export function invalidateLiveStaffUserCache(userId) {
+  if (userId) liveUserCache.delete(String(userId));
+  else liveUserCache.clear();
+}
+
 /** Overlay JWT identity with the live user row so demotions and resets apply immediately. */
 export function applyLiveStaffUser(user) {
   if (!user) return { error: { status: 401, error: "Unauthorized" } };
@@ -74,13 +93,19 @@ export function applyLiveStaffUser(user) {
 
 async function loadLiveStaffUser(userId) {
   if (!userId) return { error: { status: 401, error: "Unauthorized" } };
+  const cached = readLiveUserCache(userId);
+  if (cached !== undefined) return cached;
+
   const user = await runWithoutTenant(() =>
     prisma.user.findUnique({
       where: { id: userId },
       select: LIVE_STAFF_SELECT,
     })
   );
-  return applyLiveStaffUser(user);
+  const result = applyLiveStaffUser(user);
+  // Cache successes and auth failures briefly to cut repeat DB hits on bursty UIs.
+  liveUserCache.set(userId, { value: result, expires: Date.now() + LIVE_USER_TTL_MS });
+  return result;
 }
 
 function bindStaffRequest(req, res, next, live, cont) {

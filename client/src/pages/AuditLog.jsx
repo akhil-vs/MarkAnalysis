@@ -142,7 +142,7 @@ export default function AuditLog() {
       })
       .catch((err) => setError(err.message || "Could not load exams"));
     if (seeAllUsers) {
-      api("/api/users")
+      api("/api/users?status=ACTIVE&page=1&pageSize=200&sort=name")
         .then((u) => setStaff(Array.isArray(u) ? u : u.items || []))
         .catch(() => setStaff([]));
     }

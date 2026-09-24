@@ -537,14 +537,10 @@ function SubjectsTab() {
       setClassStudents([]);
       return;
     }
-    const batches = await Promise.all(
-      sectionIds.map((id) => api(`/api/students?classSectionId=${id}`))
+    const batches = await api(
+      `/api/students?classSectionIds=${encodeURIComponent(sectionIds.join(","))}`
     );
-    const merged = [];
-    for (const batch of batches) {
-      const list = Array.isArray(batch) ? batch : batch?.items || [];
-      merged.push(...list);
-    }
+    const merged = Array.isArray(batches) ? batches : batches?.items || [];
     setClassStudents(merged);
   }
 
@@ -1115,6 +1111,17 @@ function StudentsTab() {
     setClassSectionId(fromUrl);
   }, [params]);
 
+  useEffect(() => {
+    api("/api/classes")
+      .then((c) => {
+        setClasses(c);
+        if (!form.classSectionId && c[0]) setForm((f) => ({ ...f, classSectionId: c[0].id }));
+        if (!classSectionId && c[0]) setClassSectionId(c[0].id);
+      })
+      .catch((err) => toast.error(err.message || "Could not load classes"));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   async function load() {
     const params = new URLSearchParams({ page: String(page), pageSize: String(pageSize) });
     if (table.q) params.set("q", table.q);
@@ -1122,7 +1129,7 @@ function StudentsTab() {
     if (table.filters.academicYear) params.set("academicYear", table.filters.academicYear);
     setLoading(true);
     try {
-      const [sRes, c] = await Promise.all([api(`/api/students?${params}`), api("/api/classes")]);
+      const sRes = await api(`/api/students?${params}`);
       if (Array.isArray(sRes)) {
         setRows(sRes);
         setTotal(sRes.length);
@@ -1134,9 +1141,6 @@ function StudentsTab() {
         setPageCount(sRes.pageCount || 1);
         if (Array.isArray(sRes.years)) setYearOptions(sRes.years);
       }
-      setClasses(c);
-      if (!form.classSectionId && c[0]) setForm((f) => ({ ...f, classSectionId: c[0].id }));
-      if (!classSectionId && c[0]) setClassSectionId(c[0].id);
     } finally {
       setLoading(false);
     }

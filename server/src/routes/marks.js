@@ -212,12 +212,16 @@ marksRouter.put("/", requireFeature("marks"), async (req, res) => {
       ...new Set(students.map((s) => s.classSectionId).filter(Boolean)),
     ];
     accessBySubject = {};
-    for (const classSectionId of classSectionIds) {
-      const map = await getMarkEntryAccessMap(req.user, examId, classSectionId, subjectIds, {
-        writableSubjectIds: assignments
-          .filter((a) => a.classSectionId === classSectionId)
-          .map((a) => a.subjectId),
-      });
+    const accessMaps = await Promise.all(
+      classSectionIds.map((classSectionId) =>
+        getMarkEntryAccessMap(req.user, examId, classSectionId, subjectIds, {
+          writableSubjectIds: assignments
+            .filter((a) => a.classSectionId === classSectionId)
+            .map((a) => a.subjectId),
+        })
+      )
+    );
+    for (const map of accessMaps) {
       Object.assign(accessBySubject, map.bySubject || {});
     }
   }

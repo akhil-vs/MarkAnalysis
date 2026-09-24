@@ -26,6 +26,7 @@ import {
   greeting,
 } from "../components/DashboardKit.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { useNotificationsOptional } from "../components/NotificationBell.jsx";
 import { helpForPath } from "../lib/pageHelp.js";
 import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
 import { paths } from "../lib/nav.js";
@@ -181,6 +182,7 @@ function TeacherLeaveRequest({ userId }) {
 
 export default function TeacherDashboard() {
   const { user, assignments, classTeacherOf, optimistic } = useAuth();
+  const notifications = useNotificationsOptional();
   const homePath = dashboardApiPath("TEACHER");
   const [data, setData] = useState(() => peekDashboardPrefetch(homePath, { userId: user?.id }));
   const [examId, setExamId] = useState(() => data?.exam?.id || "");
@@ -201,12 +203,22 @@ export default function TeacherDashboard() {
 
   async function loadNotices() {
     try {
+      if (notifications) {
+        await notifications.loadList();
+        return;
+      }
       const res = await api("/api/notifications?limit=8");
       setNotices(Array.isArray(res.items) ? res.items : []);
     } catch {
       setNotices([]);
     }
   }
+
+  useEffect(() => {
+    if (notifications?.listLoaded) {
+      setNotices((notifications.items || []).slice(0, 8));
+    }
+  }, [notifications?.items, notifications?.listLoaded]);
 
   useEffect(() => {
     if (optimistic) return undefined;
@@ -240,6 +252,10 @@ export default function TeacherDashboard() {
         setNotices((prev) =>
           prev.map((n) => (n.id === notice.id ? { ...n, readAt: new Date().toISOString() } : n))
         );
+        notifications?.setItems?.((prev) =>
+          prev.map((n) => (n.id === notice.id ? { ...n, readAt: new Date().toISOString() } : n))
+        );
+        notifications?.refreshUnread?.();
       } catch {
         // continue to link
       }

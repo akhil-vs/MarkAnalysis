@@ -72,15 +72,15 @@ export default function PrincipalDashboard() {
     setError("");
     const base = new URLSearchParams();
     if (id) base.set("examId", id);
-    base.set("include", "summary");
-    const summaryPath = `/api/analytics/school?${base}`;
+    // Cold path: one round-trip for summary+detail instead of summary-then-detail waterfall.
+    base.set("include", "summary,detail");
+    const path = `/api/analytics/school?${base}`;
     try {
-      const summary = await api(summaryPath);
-      setData(summary);
+      const payload = await api(path);
+      setData(payload);
       setDetailLoading(false);
-      if (summary.empty) return;
-      if (summary.exam) setExamId(summary.exam.id);
-      await loadDetail(summary);
+      if (payload.empty) return;
+      if (payload.exam) setExamId(payload.exam.id);
     } catch (e) {
       if (!data) setError(e.message || "Could not load school view");
     }

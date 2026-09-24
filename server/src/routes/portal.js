@@ -174,7 +174,16 @@ portalRouter.post("/session", portalSessionLimit, async (req, res) => {
 
 portalRouter.get("/marks", portalAuth, async (req, res) => {
   await ensurePendingSchema();
-  const link = await prisma.portalAccessLink.findUnique({ where: { id: req.portal.linkId } });
+  const link = await prisma.portalAccessLink.findUnique({
+    where: { id: req.portal.linkId },
+    select: {
+      id: true,
+      revokedAt: true,
+      expiresAt: true,
+      studentIds: true,
+      examId: true,
+    },
+  });
   if (!link || link.revokedAt) return res.status(401).json({ error: "Link revoked" });
   if (link.expiresAt && new Date(link.expiresAt).getTime() < Date.now()) {
     return res.status(401).json({ error: "Link expired" });
@@ -185,20 +194,44 @@ portalRouter.get("/marks", portalAuth, async (req, res) => {
     return res.status(403).json({ error: "Student not on this link" });
   }
 
-  const student = await prisma.student.findUnique({
-    where: { id: studentId },
-    include: { classSection: true },
-  });
+  const [student, linkedExam, latestExam] = await Promise.all([
+    prisma.student.findUnique({
+      where: { id: studentId },
+      select: {
+        id: true,
+        name: true,
+        rollNo: true,
+        guardianName: true,
+        classSection: { select: { className: true, section: true } },
+      },
+    }),
+    link.examId
+      ? prisma.exam.findUnique({
+          where: { id: link.examId },
+          select: { id: true, name: true, term: true, academicYear: true, date: true },
+        })
+      : Promise.resolve(null),
+    link.examId
+      ? Promise.resolve(null)
+      : prisma.exam.findFirst({
+          orderBy: { date: "desc" },
+          select: { id: true, name: true, term: true, academicYear: true, date: true },
+        }),
+  ]);
   if (!student) return res.status(404).json({ error: "Student not found" });
 
-  const exam =
-    (link.examId && (await prisma.exam.findUnique({ where: { id: link.examId } }))) ||
-    (await prisma.exam.findFirst({ orderBy: { date: "desc" } }));
+  const exam = linkedExam || latestExam;
   if (!exam) return res.status(404).json({ error: "No exam available" });
 
   const marks = await prisma.mark.findMany({
     where: { studentId: student.id, examId: exam.id, status: "APPROVED" },
-    include: { subject: true },
+    select: {
+      subjectId: true,
+      marksObtained: true,
+      practicalMarks: true,
+      outcome: true,
+      subject: { select: { name: true, maxMarks: true, practicalMaxMarks: true } },
+    },
     orderBy: { subject: { name: "asc" } },
   });
 

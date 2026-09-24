@@ -37,16 +37,85 @@ function optionalTrim(value) {
   return text ? text : null;
 }
 
-async function schoolStats(schoolId) {
-  const [staffCount, principalCount, studentCount, classCount, examCount, pendingStaff] = await Promise.all([
-    prisma.user.count({ where: { tenantId: schoolId } }),
-    prisma.user.count({ where: { tenantId: schoolId, role: "PRINCIPAL", status: "ACTIVE" } }),
-    prisma.student.count({ where: { tenantId: schoolId, status: "ACTIVE" } }),
-    prisma.classSection.count({ where: { tenantId: schoolId } }),
-    prisma.exam.count({ where: { tenantId: schoolId } }),
-    prisma.user.count({ where: { tenantId: schoolId, status: "PENDING" } }),
+async function schoolStatsForIds(schoolIds) {
+  const ids = [...new Set((schoolIds || []).filter(Boolean))];
+  const empty = {
+    staffCount: 0,
+    principalCount: 0,
+    studentCount: 0,
+    classCount: 0,
+    examCount: 0,
+    pendingStaff: 0,
+  };
+  if (!ids.length) return new Map();
+
+  const [userRows, studentRows, classRows, examRows] = await Promise.all([
+    prisma.$queryRaw`
+      SELECT
+        "tenantId" AS "schoolId",
+        COUNT(*)::int AS "staffCount",
+        COUNT(*) FILTER (WHERE role = 'PRINCIPAL'::"Role" AND status = 'ACTIVE'::"UserStatus")::int AS "principalCount",
+        COUNT(*) FILTER (WHERE status = 'PENDING'::"UserStatus")::int AS "pendingStaff"
+      FROM "User"
+      WHERE "tenantId" = ANY(${ids})
+      GROUP BY "tenantId"
+    `,
+    prisma.$queryRaw`
+      SELECT "tenantId" AS "schoolId", COUNT(*)::int AS "studentCount"
+      FROM "Student"
+      WHERE "tenantId" = ANY(${ids}) AND status = 'ACTIVE'::"StudentStatus"
+      GROUP BY "tenantId"
+    `,
+    prisma.$queryRaw`
+      SELECT "tenantId" AS "schoolId", COUNT(*)::int AS "classCount"
+      FROM "ClassSection"
+      WHERE "tenantId" = ANY(${ids})
+      GROUP BY "tenantId"
+    `,
+    prisma.$queryRaw`
+      SELECT "tenantId" AS "schoolId", COUNT(*)::int AS "examCount"
+      FROM "Exam"
+      WHERE "tenantId" = ANY(${ids})
+      GROUP BY "tenantId"
+    `,
   ]);
-  return { staffCount, principalCount, studentCount, classCount, examCount, pendingStaff };
+
+  const map = new Map(ids.map((id) => [id, { ...empty }]));
+  for (const row of userRows || []) {
+    const cur = map.get(row.schoolId) || { ...empty };
+    cur.staffCount = Number(row.staffCount) || 0;
+    cur.principalCount = Number(row.principalCount) || 0;
+    cur.pendingStaff = Number(row.pendingStaff) || 0;
+    map.set(row.schoolId, cur);
+  }
+  for (const row of studentRows || []) {
+    const cur = map.get(row.schoolId) || { ...empty };
+    cur.studentCount = Number(row.studentCount) || 0;
+    map.set(row.schoolId, cur);
+  }
+  for (const row of classRows || []) {
+    const cur = map.get(row.schoolId) || { ...empty };
+    cur.classCount = Number(row.classCount) || 0;
+    map.set(row.schoolId, cur);
+  }
+  for (const row of examRows || []) {
+    const cur = map.get(row.schoolId) || { ...empty };
+    cur.examCount = Number(row.examCount) || 0;
+    map.set(row.schoolId, cur);
+  }
+  return map;
+}
+
+async function schoolStats(schoolId) {
+  const map = await schoolStatsForIds([schoolId]);
+  return map.get(schoolId) || {
+    staffCount: 0,
+    principalCount: 0,
+    studentCount: 0,
+    classCount: 0,
+    examCount: 0,
+    pendingStaff: 0,
+  };
 }
 
 async function loadSchool(id) {
@@ -79,12 +148,13 @@ platformRouter.get("/overview", async (_req, res) => {
       updatedAt: true,
     },
   });
-  const withCounts = await Promise.all(
-    recent.map(async (school) => ({
+  const withCounts = await (async () => {
+    const statsMap = await schoolStatsForIds(recent.map((s) => s.id));
+    return recent.map((school) => ({
       ...publicSchool(school),
-      ...(await schoolStats(school.id)),
-    }))
-  );
+      ...(statsMap.get(school.id) || {}),
+    }));
+  })();
   res.json({
     kpis: {
       schools,
@@ -103,7 +173,7 @@ platformRouter.get("/schools", async (req, res) => {
   const where = {
     ...(status === "ACTIVE" || status === "SUSPENDED" ? { status } : {}),
   };
-  const paging = parsePageQuery(req.query);
+  const paging = parsePageQuery(req.query, { defaultPaged: true, defaultSize: 50 });
   if (paging.q) {
     where.OR = [
       { name: { contains: paging.q, mode: "insensitive" } },
@@ -117,9 +187,11 @@ platformRouter.get("/schools", async (req, res) => {
   const orderBy = [{ name: "asc" }];
   if (!paging.paged) {
     const schools = await prisma.school.findMany({ where, orderBy, omit: { logoBytes: true } });
-    const items = await Promise.all(
-      schools.map(async (school) => ({ ...publicSchool(school), ...(await schoolStats(school.id)) }))
-    );
+    const statsMap = await schoolStatsForIds(schools.map((s) => s.id));
+    const items = schools.map((school) => ({
+      ...publicSchool(school),
+      ...(statsMap.get(school.id) || {}),
+    }));
     return res.json(items);
   }
 
@@ -133,9 +205,11 @@ platformRouter.get("/schools", async (req, res) => {
       omit: { logoBytes: true },
     }),
   ]);
-  const items = await Promise.all(
-    schools.map(async (school) => ({ ...publicSchool(school), ...(await schoolStats(school.id)) }))
-  );
+  const statsMap = await schoolStatsForIds(schools.map((s) => s.id));
+  const items = schools.map((school) => ({
+    ...publicSchool(school),
+    ...(statsMap.get(school.id) || {}),
+  }));
   res.json(pageResult({ items, total, page: paging.page, pageSize: paging.pageSize }));
 });
 

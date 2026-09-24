@@ -241,6 +241,7 @@ model ClassSection {
 
   @@unique([tenantId, className, section])
   @@index([tenantId])
+  @@index([classTeacherId])
   @@map("ClassSection")
 }
 
@@ -292,6 +293,7 @@ model Subject {
 
   @@unique([tenantId, name, className])
   @@index([tenantId])
+  @@index([tenantId, className])
   @@map("Subject")
 }
 
@@ -326,6 +328,8 @@ model TeacherAssignment {
 
   @@unique([userId, classSectionId, subjectId])
   @@index([tenantId])
+  @@index([classSectionId])
+  @@index([subjectId])
   @@map("TeacherAssignment")
 }
 
@@ -468,6 +472,7 @@ model Mark {
   @@index([status])
   @@index([studentId])
   @@index([tenantId])
+  @@index([tenantId, examId, status])
   @@map("Mark")
 }
 
@@ -487,6 +492,7 @@ model MarkAudit {
   changedBy User   @relation(fields: [changedById], references: [id])
 
   @@index([tenantId])
+  @@index([markId])
   @@map("MarkAudit")
 }
 
@@ -558,6 +564,7 @@ model ActivityAudit {
   @@index([actorId, timestamp])
   @@index([examId, timestamp])
   @@index([tenantId])
+  @@index([tenantId, timestamp])
   @@map("ActivityAudit")
 }
 
