@@ -25,8 +25,12 @@ import { bootstrapAuthSchema, bootstrapSchema } from "./lib/migrateOnStart.js";
 import { toErrorPayload } from "./lib/httpErrors.js";
 import { securityHeaders } from "./lib/securityHeaders.js";
 import { buildHealthPayload, markBootTime } from "./lib/health.js";
+import { resolveTrustProxy } from "./lib/clientIp.js";
+import { captureException, initErrorReporting } from "./lib/errorReporting.js";
+import { logger, requestLogMiddleware } from "./lib/logger.js";
 
 markBootTime();
+void initErrorReporting();
 
 const app = express();
 
@@ -59,8 +63,10 @@ function awaitAuthSchema(_req, _res, next) {
 // analytics payloads slows every response, and matching If-None-Match
 // replies with 304 (empty body) which breaks the SPA fetch client.
 app.set("etag", false);
+app.set("trust proxy", resolveTrustProxy());
 
 app.use(securityHeaders());
+app.use(requestLogMiddleware);
 
 const allowedOrigins = buildCorsAllowlist();
 
@@ -82,12 +88,15 @@ app.use(express.json({ limit: "2mb" }));
 app.use("/api", (_req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
   res.set("Pragma", "no-cache");
+  // Current public surface is unversioned `/api/*` (= v1). Clients may rely on this header.
+  res.set("X-API-Version", "1");
   next();
 });
 
 app.get("/api/health", async (req, res) => {
   const deep = req.query.deep === "1" || req.query.deep === "true";
-  const payload = await buildHealthPayload({ deep });
+  // Public probe: deep = DB ping only. Schema inventory is platform-admin only.
+  const payload = await buildHealthPayload({ deep, includeSchema: false });
   res.status(payload.ok ? 200 : 503).json(payload);
 });
 app.use("/api/auth", awaitAuthSchema, authRouter);
@@ -117,7 +126,8 @@ app.use("/api", (req, res) => {
 
 app.use((err, _req, res, _next) => {
   const { status, body } = toErrorPayload(err);
-  if (status >= 500) console.error(err);
+  if (status >= 500) captureException(err, { path: _req?.originalUrl });
+  else logger.warn("request_error", { status, error: body?.error || err?.message });
   if (res.headersSent) return;
   res.status(status).json(body);
 });

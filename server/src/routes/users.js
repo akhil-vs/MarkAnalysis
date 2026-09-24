@@ -1,5 +1,4 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import ExcelJS from "exceljs";
 import multer from "multer";
 import { prisma } from "../lib/prisma.js";
@@ -12,6 +11,7 @@ import { revokeAllRefreshSessions } from "../lib/authCookies.js";
 import { getSchoolLetterhead } from "../lib/school.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { parseSpreadsheet } from "../lib/upload.js";
+import { hashPassword, validatePasswordPolicy } from "../lib/password.js";
 import {
   STAFF_IMPORT_HEADERS,
   generateStaffTempPassword,
@@ -269,7 +269,7 @@ usersRouter.get("/template", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
   const headerRow = sheet.addRow(STAFF_IMPORT_HEADERS);
   headerRow.font = { bold: true };
   sheet.pageSetup.printTitlesRow = `1:${headerRow.number}`;
-  sheet.addRow(["Ramesh Chandra", "ramesh@school.edu", "SCH-T06", "password123", "TEACHER"]);
+  sheet.addRow(["Ramesh Chandra", "ramesh@school.edu", "SCH-T06", "ChangeMe123", "TEACHER"]);
   sheet.columns.forEach((col) => {
     col.width = 18;
   });
@@ -332,7 +332,7 @@ usersRouter.post(
             name: item.name,
             email: item.email,
             schoolId: item.schoolId,
-            passwordHash: await bcrypt.hash(item.password, 10),
+            passwordHash: await hashPassword(item.password),
             role: chosenRole,
             status: "ACTIVE",
             mustChangePassword: true,
@@ -373,8 +373,9 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
   if (!password) {
     return res.status(400).json({ error: "Password is required" });
   }
-  if (String(password).length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  {
+    const policyError = validatePasswordPolicy(password);
+    if (policyError) return res.status(400).json({ error: policyError });
   }
   if (!email && !schoolId) {
     return res.status(400).json({ error: "Provide an email or school ID" });
@@ -420,7 +421,7 @@ usersRouter.post("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, 
       name,
       email: email || null,
       schoolId: schoolId || null,
-      passwordHash: await bcrypt.hash(password, 10),
+      passwordHash: await hashPassword(password),
       role: chosenRole,
       roleTitle,
       status: chosenStatus,
@@ -999,15 +1000,19 @@ usersRouter.post("/:id/transfer", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
 
 usersRouter.post("/:id/reset-password", requireRole("PRINCIPAL"), async (req, res) => {
   const { password } = req.body || {};
-  if (!password || String(password).length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  if (!password) {
+    return res.status(400).json({ error: "Password is required" });
+  }
+  {
+    const policyError = validatePasswordPolicy(password);
+    if (policyError) return res.status(400).json({ error: policyError });
   }
   const existing = await prisma.user.findUnique({ where: { id: req.params.id } });
   if (!existing) return res.status(404).json({ error: "Not found" });
   await prisma.user.update({
     where: { id: existing.id },
     data: {
-      passwordHash: await bcrypt.hash(String(password), 10),
+      passwordHash: await hashPassword(String(password)),
       mustChangePassword: true,
     },
   });

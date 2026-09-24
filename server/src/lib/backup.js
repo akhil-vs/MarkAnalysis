@@ -1,11 +1,23 @@
 import { prisma } from "./prisma.js";
 import { runWithoutTenant, runWithTenant } from "./tenant.js";
 
+/** Soft cap on total JSON-ish rows exported (photos never included). */
+export const BACKUP_MAX_ROWS = Number(process.env.BACKUP_MAX_ROWS || 250_000);
+
 const TENANT_EXPORT_MODELS = [
   { key: "classSections", model: "classSection" },
   { key: "subjects", model: "subject" },
-  { key: "users", model: "user", omit: { passwordHash: true, mfaSecret: true, mfaRecoveryHashes: true } },
-  { key: "students", model: "student" },
+  {
+    key: "users",
+    model: "user",
+    omit: { passwordHash: true, mfaSecret: true, mfaRecoveryHashes: true },
+  },
+  // Never dump binary student photos or guardian contact into plaintext backups.
+  {
+    key: "students",
+    model: "student",
+    omit: { photoBytes: true, guardianEmail: true, phone: true, address: true },
+  },
   { key: "exams", model: "exam" },
   { key: "teacherAssignments", model: "teacherAssignment" },
   { key: "studentSubjectEnrollments", model: "studentSubjectEnrollment" },
@@ -21,9 +33,19 @@ const TENANT_EXPORT_MODELS = [
   { key: "cpdCertificates", model: "cpdCertificate" },
 ];
 
+function countRows(tenants) {
+  let total = 0;
+  for (const tenant of tenants) {
+    for (const { key } of TENANT_EXPORT_MODELS) {
+      total += Array.isArray(tenant[key]) ? tenant[key].length : 0;
+    }
+  }
+  return total;
+}
+
 /**
  * Export one school (or all) as a JSON backup document.
- * Passwords/MFA secrets are omitted from user rows.
+ * Passwords/MFA secrets, student photos, and guardian contact fields are omitted.
  */
 export async function createBackup({ schoolId = null } = {}) {
   return runWithoutTenant(async () => {
@@ -52,10 +74,21 @@ export async function createBackup({ schoolId = null } = {}) {
       tenants.push(data);
     }
 
+    const rowCount = countRows(tenants);
+    if (rowCount > BACKUP_MAX_ROWS) {
+      const err = new Error(
+        `Backup exceeds row limit (${rowCount} > ${BACKUP_MAX_ROWS}). Export one school at a time or raise BACKUP_MAX_ROWS.`
+      );
+      err.status = 413;
+      throw err;
+    }
+
     return {
       format: "sma-backup-v1",
       createdAt: new Date().toISOString(),
       schoolCount: tenants.length,
+      rowCount,
+      omitted: ["logoBytes", "photoBytes", "guardianEmail", "student.phone", "student.address", "passwordHash", "mfaSecret"],
       tenants,
     };
   });

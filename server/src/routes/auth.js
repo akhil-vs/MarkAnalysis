@@ -33,7 +33,7 @@ import {
 } from "../lib/totp.js";
 import { ensureAuthSchema, resetAuthSchemaEnsure } from "../lib/ensureSchema.js";
 import { isSchemaDriftError } from "../lib/httpErrors.js";
-import { hashPassword, verifyPassword } from "../lib/password.js";
+import { hashPassword, validatePasswordPolicy, verifyPassword } from "../lib/password.js";
 import {
   buildHomeDashboardCached,
   buildHomeDashboardForLogin,
@@ -201,8 +201,9 @@ authRouter.post("/signup", authWriteLimit, async (req, res) => {
   if (!password) {
     return res.status(400).json({ error: "Password is required" });
   }
-  if (String(password).length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  {
+    const policyError = validatePasswordPolicy(password);
+    if (policyError) return res.status(400).json({ error: policyError });
   }
   if (!email && !schoolId) {
     return res.status(400).json({ error: "Provide an email or school ID" });
@@ -564,8 +565,11 @@ authRouter.post("/change-password", authAllowPasswordChange, async (req, res) =>
   if (!currentPassword || !newPassword) {
     return res.status(400).json({ error: "Current and new passwords are required" });
   }
-  if (String(newPassword).length < 8) {
-    return res.status(400).json({ error: "New password must be at least 8 characters" });
+  {
+    const policyError = validatePasswordPolicy(newPassword);
+    if (policyError) {
+      return res.status(400).json({ error: policyError.replace(/^Password/, "New password") });
+    }
   }
   if (String(newPassword) === String(currentPassword)) {
     return res.status(400).json({ error: "New password must be different from the current password" });

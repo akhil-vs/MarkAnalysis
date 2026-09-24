@@ -21,9 +21,15 @@ async function columnExists(tableName, columnName) {
 
 /**
  * Liveness/readiness probe.
- * Always returns quickly. With ?deep=1, pings the database and checks auth-critical columns.
+ * Always returns quickly. With ?deep=1, pings the database.
+ * Schema column inventory is only included when includeSchema=true
+ * (platform admin deep health) — never on the public probe.
  */
-export async function buildHealthPayload({ deep = false, includeOps = false } = {}) {
+export async function buildHealthPayload({
+  deep = false,
+  includeOps = false,
+  includeSchema = false,
+} = {}) {
   const payload = {
     ok: true,
     service: "school-marks-api",
@@ -40,26 +46,28 @@ export async function buildHealthPayload({ deep = false, includeOps = false } = 
     await prisma.$queryRaw`SELECT 1 AS ok`;
     payload.db = { ok: true, latencyMs: Date.now() - started };
 
-    const [mfaEnabled, mfaSecret, emailDigestsEnabled, digestEmail, guardianEmail] =
-      await Promise.all([
-        columnExists("User", "mfaEnabled"),
-        columnExists("User", "mfaSecret"),
-        columnExists("School", "emailDigestsEnabled"),
-        columnExists("School", "digestEmail"),
-        columnExists("Student", "guardianEmail"),
-      ]);
-    payload.schema = {
-      mfaEnabled,
-      mfaSecret,
-      emailDigestsEnabled,
-      digestEmail,
-      guardianEmail,
-    };
-    if (!mfaEnabled || !mfaSecret || !emailDigestsEnabled || !guardianEmail) {
-      payload.ok = false;
-      payload.schema.ok = false;
-    } else {
-      payload.schema.ok = true;
+    if (includeSchema) {
+      const [mfaEnabled, mfaSecret, emailDigestsEnabled, digestEmail, guardianEmail] =
+        await Promise.all([
+          columnExists("User", "mfaEnabled"),
+          columnExists("User", "mfaSecret"),
+          columnExists("School", "emailDigestsEnabled"),
+          columnExists("School", "digestEmail"),
+          columnExists("Student", "guardianEmail"),
+        ]);
+      payload.schema = {
+        mfaEnabled,
+        mfaSecret,
+        emailDigestsEnabled,
+        digestEmail,
+        guardianEmail,
+      };
+      if (!mfaEnabled || !mfaSecret || !emailDigestsEnabled || !guardianEmail) {
+        payload.ok = false;
+        payload.schema.ok = false;
+      } else {
+        payload.schema.ok = true;
+      }
     }
   } catch {
     payload.ok = false;
@@ -72,7 +80,12 @@ export async function buildHealthPayload({ deep = false, includeOps = false } = 
 
   if (includeOps) {
     payload.smtpConfigured = Boolean(process.env.SMTP_URL || process.env.SMTP_HOST);
-    payload.cspEnforce = process.env.CSP_ENFORCE === "true";
+    payload.cspEnforce =
+      process.env.CSP_ENFORCE === "true" ||
+      process.env.CSP_ENFORCE === "1" ||
+      ((process.env.VERCEL || process.env.NODE_ENV === "production") &&
+        process.env.CSP_ENFORCE !== "false" &&
+        process.env.CSP_ENFORCE !== "0");
   }
 
   return payload;

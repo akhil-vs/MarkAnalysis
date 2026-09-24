@@ -737,6 +737,76 @@ analyticsRouter.get("/pending-uploads", async (req, res) => {
   res.json({ exams, ...pendingUploads });
 });
 
+/**
+ * Class-teacher inbox: pending / awaiting papers for sections where the
+ * signed-in teacher is the class teacher (read-only chase view).
+ */
+analyticsRouter.get("/class-teacher-inbox", async (req, res) => {
+  if (req.user.role !== "TEACHER") {
+    return res.status(403).json({ error: "Class-teacher inbox is for teachers only" });
+  }
+  const sections = await prisma.classSection.findMany({
+    where: { classTeacherId: req.user.userId },
+    select: { id: true, className: true, section: true },
+    orderBy: [{ className: "asc" }, { section: "asc" }],
+  });
+  if (!sections.length) {
+    return res.json({
+      empty: true,
+      reason: "not-class-teacher",
+      exams: [],
+      sections: [],
+      papers: [],
+    });
+  }
+  const sectionIds = new Set(sections.map((s) => s.id));
+  const { exams, exam } = await loadExams(req.query.examId);
+  if (!exam) {
+    return res.json({
+      empty: true,
+      reason: "no-exams",
+      exams,
+      sections,
+      papers: [],
+    });
+  }
+  const pendingUploads = await buildPendingUploads(exam);
+  const papers = [];
+  for (const teacher of pendingUploads.teachers || []) {
+    for (const assignment of teacher.assignments || []) {
+      if (!sectionIds.has(assignment.classSectionId)) continue;
+      if (!assignment.missing && assignment.status !== "AWAITING_APPROVAL" && !(assignment.submitted > 0 && assignment.approved < assignment.expected)) {
+        continue;
+      }
+      papers.push({
+        ...assignment,
+        teacherId: teacher.teacherId,
+        teacherName: teacher.name,
+        teacherEmail: teacher.email,
+        pending: Boolean(assignment.missing > 0),
+        awaitingApproval:
+          assignment.status === "AWAITING_APPROVAL" ||
+          ((assignment.submitted ?? 0) > 0 && assignment.approved < assignment.expected),
+      });
+    }
+  }
+  papers.sort(
+    (a, b) =>
+      Number(b.pending) - Number(a.pending) ||
+      a.classLabel.localeCompare(b.classLabel) ||
+      a.subject.localeCompare(b.subject)
+  );
+  res.json({
+    empty: false,
+    exams,
+    exam,
+    sections,
+    papers,
+    pendingCount: papers.filter((p) => p.pending).length,
+    awaitingApprovalCount: papers.filter((p) => p.awaitingApproval && !p.pending).length,
+  });
+});
+
 /** Submitted registers awaiting leadership approval — across every exam. */
 analyticsRouter.get("/awaiting-approvals", async (req, res) => {
   if (!isLeadership(req.user.role)) return res.status(403).json({ error: "Forbidden" });
