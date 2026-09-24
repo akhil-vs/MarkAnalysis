@@ -376,25 +376,27 @@ export default function TeacherDashboard() {
       {classTeacherOf?.length > 0 && (
         <Panel
           className="mb-5"
-          title="Class teacher — consolidated lists"
+          title="Class teacher"
           action={
-            <Link className="text-xs underline text-ink-700/60" to={`/consolidated${examId ? `?examId=${examId}` : ""}`}>
-              Open lists
+            <Link className="text-xs underline text-ink-700/60" to={`/class-inbox${examId ? `?examId=${examId}` : ""}`}>
+              Open inbox
             </Link>
           }
         >
           <p className="text-sm text-ink-700/70 mb-3">
-            Your section list opens only after every subject teacher has submitted marks and the principal or
-            exam coordinator has approved them.
+            Track pending subject papers for your sections, then open the consolidated list once every register is approved.
           </p>
           <div className="flex flex-wrap gap-2">
+            <Link className="btn-accent" to={`/class-inbox${examId ? `?examId=${examId}` : ""}`}>
+              Class inbox
+            </Link>
             {classTeacherOf.map((c) => (
               <Link
                 key={c.id}
                 className="btn-ghost"
                 to={`/consolidated?examId=${examId}&classSectionId=${c.id}`}
               >
-                {c.label || `${c.className}-${c.section}`}
+                {c.label || `${c.className}-${c.section}`} · CML
               </Link>
             ))}
           </div>

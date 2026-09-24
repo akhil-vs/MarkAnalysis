@@ -189,11 +189,12 @@ Principals and exam coordinators can send in-app notices to teachers about **dea
 
 ## Live ops, board product, and CPD
 
-- **Health**: `GET /api/health` (liveness) and `GET /api/health?deep=1` (DB ping). Helmet sets CSP (report-only unless `CSP_ENFORCE=true`).
+- **Health**: `GET /api/health` (liveness) and `GET /api/health?deep=1` (DB ping only). Schema inventory is on platform admin deep health. Helmet CSP enforces in production/Vercel by default.
 - **MFA**: Profile → enable TOTP; login then asks for a 6-digit code (or recovery code).
 - **Email digests**: enable on School profile; platform admin can **Run email digests** / **Flush mail queue**. Configure `SMTP_URL` or `SMTP_HOST` (without SMTP, messages stay in `EmailOutbox` as skipped).
-- **Backup**: platform overview → **Download backup** (JSON) via `POST /api/platform/backup`. Merge restore via `POST /api/platform/backup/restore`.
+- **Backup**: platform overview → **Download backup** (JSON) via `POST /api/platform/backup`. Student photos and guardian contact fields are omitted. Merge restore via `POST /api/platform/backup/restore`.
 - **Board ops** (leadership): per-paper exam calendar, report-card publish/sign-off, parent notify, revaluation, board packs.
 - **CPD**: training plans, observations, appraisals, and certificates under **CPD** in the sidebar.
+- **Docs**: [PRIVACY](docs/PRIVACY.md) · [ENGINEERING](docs/ENGINEERING.md) · [SECURITY](SECURITY.md) · [CONTRIBUTING](CONTRIBUTING.md)
 
 # MarkAnalysis

@@ -7,6 +7,7 @@ Role-based guides for day-to-day use of the School Marks Analytics platform.
 | **Principal** | [Principal user manual](./principal.md) | [`principal-user-manual.pdf`](../../client/public/help/principal-user-manual.pdf) |
 | **Exam co-ordinator** | [Co-ordinator user manual](./coordinator.md) | [`coordinator-user-manual.pdf`](../../client/public/help/coordinator-user-manual.pdf) |
 | **Teacher** | [Teacher user manual](./teacher.md) | [`teacher-user-manual.pdf`](../../client/public/help/teacher-user-manual.pdf) |
+| **Parent / student portal** | [Portal guide](./portal.md) | (web guide — no PDF yet) |
 
 In the app, **HELP → User manuals** shows **only the signed-in user’s own role PDF** (principals, co-ordinators, and teachers each get their guide). Platform admins can open every manual.
 

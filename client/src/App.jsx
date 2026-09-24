@@ -33,6 +33,7 @@ const ClassGroupAnalytics = lazy(() => import("./pages/ClassGroupAnalytics.jsx")
 const SubjectSchoolAnalytics = lazy(() => import("./pages/SubjectSchoolAnalytics.jsx"));
 const TeacherAnalytics = lazy(() => import("./pages/TeacherAnalytics.jsx"));
 const PendingUploads = lazy(() => import("./pages/PendingUploads.jsx"));
+const ClassTeacherInbox = lazy(() => import("./pages/ClassTeacherInbox.jsx"));
 const LateEntryRequests = lazy(() => import("./pages/LateEntryRequests.jsx"));
 const AuditLog = lazy(() => import("./pages/AuditLog.jsx"));
 const ConsolidatedLists = lazy(() => import("./pages/ConsolidatedLists.jsx"));
@@ -201,6 +202,10 @@ export default function App() {
           <Route
             path="pending-uploads"
             element={<Guarded route="pending-uploads"><PendingUploads /></Guarded>}
+          />
+          <Route
+            path="class-inbox"
+            element={<Guarded route="class-inbox"><ClassTeacherInbox /></Guarded>}
           />
           <Route
             path="late-entry"

@@ -47,6 +47,7 @@ export const NAV_LABELS = {
   analysisCompare: "Compare",
   analysisDeep: "Deep insights",
   pendingUploads: "Pending uploads",
+  classInbox: "Class inbox",
   marks: "Mark register",
   upload: "Bulk upload",
   accessRequests: "Access requests",
@@ -78,6 +79,7 @@ export const NAV_TITLES = {
   analysisCompare: "Comparisons",
   analysisDeep: "Deep insights",
   pendingUploads: "Pending mark uploads",
+  classInbox: "Class-teacher inbox",
   marks: "Mark register",
   upload: "Bulk upload",
   accessRequests: "Access requests",
@@ -156,6 +158,13 @@ export const NAV_GROUPS = [
         icon: "pending",
         roles: "leadership",
         badgeKey: "pending",
+      },
+      {
+        id: "classInbox",
+        to: "/class-inbox",
+        label: NAV_LABELS.classInbox,
+        icon: "pending",
+        roles: "classTeacher",
       },
       {
         id: "accessRequests",
@@ -426,6 +435,9 @@ export function roleAllows(itemRoles, userRole, { classTeacherOf = [] } = {}) {
   if (itemRoles === "leadership") return isLeadership(userRole);
   if (itemRoles === "platform") return isPlatformAdmin(userRole);
   if (itemRoles === "consolidated") return canAccessConsolidated(userRole, classTeacherOf);
+  if (itemRoles === "classTeacher") {
+    return userRole === "TEACHER" && Array.isArray(classTeacherOf) && classTeacherOf.length > 0;
+  }
   if (itemRoles === "marksEntry") return canEnterMarks(userRole);
   if (Array.isArray(itemRoles)) return itemRoles.includes(userRole);
   return false;
@@ -447,7 +459,7 @@ export function rolesForGuard(itemRoles) {
   if (itemRoles === "platform") return ["PLATFORM_ADMIN"];
   if (itemRoles === "marksEntry") return MARKS_ENTRY_ROLES;
   // Route is open to authenticated users; page/API enforce class-teacher rules.
-  if (itemRoles === "consolidated") return null;
+  if (itemRoles === "consolidated" || itemRoles === "classTeacher") return null;
   if (Array.isArray(itemRoles)) return itemRoles;
   return null;
 }
