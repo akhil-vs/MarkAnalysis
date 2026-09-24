@@ -86,7 +86,7 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFea
   const workingDaysPatch = parseWorkingDays(req.body?.workingDays);
   if (workingDaysPatch.error) return res.status(400).json({ error: workingDaysPatch.error });
 
-  // Only principals can flip school-wide optional modules (Board console / CPD).
+  // Only principals can flip school-wide optional modules (CPD; Board console is not product-facing).
   let optionalModulesData = {};
   if (req.body?.optionalModules !== undefined) {
     if (req.user.role !== "PRINCIPAL") {

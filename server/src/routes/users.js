@@ -28,6 +28,7 @@ import {
 } from "../lib/staffRoles.js";
 import {
   FEATURE_CATALOG,
+  HIDDEN_OPTIONAL_MODULE_IDS,
   effectiveFeatureMap,
   normalizeOptionalModules,
   normalizeRoleFeatureAccess,
@@ -145,7 +146,7 @@ usersRouter.get("/staff-roles", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), as
   });
   res.json({
     roles,
-    features: FEATURE_CATALOG,
+    features: FEATURE_CATALOG.filter((f) => !HIDDEN_OPTIONAL_MODULE_IDS.includes(f.id)),
     optionalModules: modules,
     roleFeatureAccess,
     canAddRoles: req.user.role === "PRINCIPAL",
@@ -205,7 +206,7 @@ usersRouter.put("/staff-roles/:roleId/features", requireRole("PRINCIPAL"), async
     },
     roles,
     roleFeatureAccess: patched.access,
-    features: FEATURE_CATALOG,
+    features: FEATURE_CATALOG.filter((f) => !HIDDEN_OPTIONAL_MODULE_IDS.includes(f.id)),
   });
 });
 
