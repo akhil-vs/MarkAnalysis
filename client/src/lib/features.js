@@ -1,7 +1,7 @@
 /** Feature ids toggled by principals under Staff → role access. Must match server catalog. */
 export const FEATURE_GROUPS = [
   {
-    id: "Marks",
+    id: "Exam office",
     items: [
       { id: "marks", label: "Mark register" },
       { id: "upload", label: "Bulk upload" },
@@ -35,7 +35,7 @@ export const FEATURE_GROUPS = [
       { id: "leaveApproval", label: "Leave approval" },
       { id: "assignSubstitutes", label: "Assign substitutes" },
       { id: "schoolProfile", label: "School profile" },
-      { id: "boardOps", label: "Board ops" },
+      { id: "boardOps", label: "Board console" },
       { id: "cpd", label: "CPD" },
     ],
   },

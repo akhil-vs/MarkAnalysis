@@ -134,8 +134,8 @@ export const PAGE_HELP = {
   },
   boardOps: {
     title: "What's on this page",
-    about: "Board exam operations for a selected exam: paper calendar and venues, report-card publish and principal sign-off, parent notify, revaluation requests and reviews, and downloadable board packs with a results manifest.",
-    useful: "Schedule or adjust papers here or under Records → Exams — both write the same calendar. Publish and sign off class report cards when marks are approved, process revaluations, then create a board pack when leadership needs a single snapshot for the board.",
+    about: "Board console is the CBSE board-facing desk: paper calendar and venues, report-card publish and principal sign-off, parent notify, revaluation, and downloadable board packs. Day-to-day mark entry, approvals, CML, and hall tickets stay under Exam office.",
+    useful: "Use Exam office for the live term cycle. Open Board console when you need official release, revaluation, or a pack for board submission — not for chasing teacher uploads.",
   },
   cpd: {
     title: "What's on this page",

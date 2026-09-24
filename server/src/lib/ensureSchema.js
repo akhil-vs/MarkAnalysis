@@ -1520,6 +1520,28 @@ export async function ensureSchoolAcademicYearsColumns() {
   await recordMigration(ACADEMIC_YEARS_MIGRATION, ACADEMIC_YEARS_CHECKSUM);
 }
 
+const ASSESSMENT_POLICY_MIGRATION = "20260924100000_assessment_policy";
+const ASSESSMENT_POLICY_CHECKSUM = "assessment-policy-catchup-v1";
+
+const ASSESSMENT_POLICY_STATEMENTS = [
+  `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "assessmentPolicy" JSONB`,
+  `ALTER TABLE "Subject" ADD COLUMN IF NOT EXISTS "category" TEXT`,
+  `ALTER TABLE "SubjectPoolItem" ADD COLUMN IF NOT EXISTS "category" TEXT`,
+];
+
+/** CBSE/Gulf assessment policy + optional subject curriculum tags. */
+export async function ensureAssessmentPolicyColumns() {
+  const hasPolicy = await columnExists("School", "assessmentPolicy");
+  const hasSubjectCat = await columnExists("Subject", "category");
+  const hasPoolCat = await columnExists("SubjectPoolItem", "category");
+  if (hasPolicy && hasSubjectCat && hasPoolCat) {
+    await recordMigration(ASSESSMENT_POLICY_MIGRATION, ASSESSMENT_POLICY_CHECKSUM);
+    return;
+  }
+  await applyStatements(ASSESSMENT_POLICY_STATEMENTS);
+  await recordMigration(ASSESSMENT_POLICY_MIGRATION, ASSESSMENT_POLICY_CHECKSUM);
+}
+
 const TEACHER_LEAVE_MIGRATION = "20260922024500_teacher_leave_substitutes";
 const TEACHER_LEAVE_CHECKSUM = "teacher-leave-substitutes-catchup-v2";
 
@@ -1754,6 +1776,7 @@ export async function ensurePendingSchema() {
         await ensureSubjectPoolSchema();
         await ensureExamIncludedClassesColumn();
         await ensureSchoolAcademicYearsColumns();
+        await ensureAssessmentPolicyColumns();
         await ensureTeacherLeaveSchema();
         await ensureMarkAccessKindUnique();
         return { skipped: true, reason: "migrations-present" };
@@ -1784,6 +1807,7 @@ export async function ensurePendingSchema() {
         ensureSubjectPoolSchema(),
         ensureExamIncludedClassesColumn(),
         ensureSchoolAcademicYearsColumns(),
+        ensureAssessmentPolicyColumns(),
         ensureTeacherLeaveSchema(),
         ensureMarkAccessKindUnique(),
       ]);

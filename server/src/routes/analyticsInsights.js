@@ -80,6 +80,7 @@ export function registerAnalyticsInsights(router) {
         passPercent: grading.passPercent,
         distinctionMin: grading.distinctionMin,
         gradeFn: grading.gradeFn,
+        assessmentPolicy: grading.assessmentPolicy,
       });
 
       return {
@@ -89,6 +90,9 @@ export function registerAnalyticsInsights(router) {
           passPercent: grading.passPercent,
           distinctionMin: grading.distinctionMin,
           gradeBands: grading.gradeBands,
+          subjectPassMode: grading.subjectPassMode,
+          studentPassMode: grading.studentPassMode,
+          gradingScheme: grading.gradingScheme,
         },
         outcomes: outcomeBreakdown(marks),
         markBands: markBandHistogram(marks),
@@ -207,7 +211,10 @@ export function registerAnalyticsInsights(router) {
       );
       const subjectNames = subjects.map((s) => s.name);
       const gaps = divisionGapMatrix(approvedMarks, sections, subjectNames);
-      const passFail = passFailMatrix(approvedMarks, subjectNames, { passPercent: grading.passPercent });
+      const passFail = passFailMatrix(approvedMarks, subjectNames, {
+        passPercent: grading.passPercent,
+        assessmentPolicy: grading.assessmentPolicy,
+      });
       const heatmap = completenessHeatmap(assignments, studentsByClass, allMarks, exam.id);
 
       return {
@@ -511,6 +518,7 @@ export async function enrichMarksInsights(marks, grading) {
     passPercent: cfg.passPercent,
     distinctionMin: cfg.distinctionMin,
     gradeFn: cfg.gradeFn,
+    assessmentPolicy: cfg.assessmentPolicy,
   });
   return {
     outcomes: outcomeBreakdown(marks),
@@ -521,6 +529,9 @@ export async function enrichMarksInsights(marks, grading) {
       distinctionMin: cfg.distinctionMin,
       gradeBands: cfg.gradeBands,
       examWeights: cfg.examWeights,
+      subjectPassMode: cfg.subjectPassMode,
+      studentPassMode: cfg.studentPassMode,
+      gradingScheme: cfg.gradingScheme,
     },
   };
 }

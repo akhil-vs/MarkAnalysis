@@ -6,19 +6,19 @@
  */
 
 export const FEATURE_CATALOG = [
-  { id: "marks", label: "Mark register", group: "Marks", description: "Enter and review marks for assigned papers." },
-  { id: "upload", label: "Bulk upload", group: "Marks", description: "Upload marks from a spreadsheet." },
-  { id: "pendingUploads", label: "Pending uploads", group: "Marks", description: "Review and approve submitted mark registers." },
-  { id: "accessRequests", label: "Access requests", group: "Marks", description: "Approve late-entry and edit requests." },
-  { id: "consolidated", label: "Consolidated lists", group: "Marks", description: "Open and download consolidated mark lists." },
-  { id: "hallTickets", label: "Hall tickets", group: "Marks", description: "Create and print class hall tickets for an exam." },
+  { id: "marks", label: "Mark register", group: "Exam office", description: "Enter and review marks for assigned papers." },
+  { id: "upload", label: "Bulk upload", group: "Exam office", description: "Upload marks from a spreadsheet." },
+  { id: "pendingUploads", label: "Pending uploads", group: "Exam office", description: "Review and approve submitted mark registers." },
+  { id: "accessRequests", label: "Access requests", group: "Exam office", description: "Approve late-entry and edit requests." },
+  { id: "consolidated", label: "Consolidated lists", group: "Exam office", description: "Open and download consolidated mark lists." },
+  { id: "hallTickets", label: "Hall tickets", group: "Exam office", description: "Create and print class hall tickets for an exam." },
   {
     id: "studentPhotos",
     label: "Student photos",
-    group: "Marks",
+    group: "Exam office",
     description: "Upload and clear student photos for hall tickets and school records.",
   },
-  { id: "audit", label: "Audit log", group: "Marks", description: "View school activity and mark change history." },
+  { id: "audit", label: "Audit log", group: "Exam office", description: "View school activity and mark change history." },
   { id: "analysis", label: "Marks analysis", group: "Insights", description: "Open the analysis hub and nested reports." },
   { id: "analysisSchool", label: "School overview", group: "Insights", description: "School-wide KPIs and grade mix." },
   { id: "analysisClasses", label: "Class analysis", group: "Insights", description: "Class and section result reports." },
@@ -43,7 +43,7 @@ export const FEATURE_CATALOG = [
     description: "Assign and remove substitute teachers for leave cover on the timetable.",
   },
   { id: "schoolProfile", label: "School profile", group: "School setup", description: "Edit school identity, grading, and schedule." },
-  { id: "boardOps", label: "Board ops", group: "School setup", description: "Board calendar, report cards, and packs." },
+  { id: "boardOps", label: "Board console", group: "School setup", description: "CBSE board-facing calendar, report-card release, revaluation, and upload packs — separate from day-to-day Exam office work." },
   { id: "cpd", label: "CPD", group: "School setup", description: "Training plans, observations, and certificates." },
 ];
 

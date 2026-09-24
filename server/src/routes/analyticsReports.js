@@ -14,6 +14,7 @@ import {
   yearSeries,
 } from "../lib/stats.js";
 import { getGradingConfig, gradingHelpers } from "../lib/gradingConfig.js";
+import { teacherComparePresentation } from "../lib/assessmentPolicy.js";
 import {
   completenessHeatmap,
   divisionGapMatrix,
@@ -176,7 +177,10 @@ export function registerAnalysisReports(router) {
 
     const subjectNames = subjects.map((s) => s.name);
     const gapMatrix = divisionGapMatrix(marks, sections, subjectNames);
-    const passFail = passFailMatrix(marks, subjectNames, { passPercent });
+  const passFail = passFailMatrix(marks, subjectNames, {
+    passPercent,
+    assessmentPolicy: grading.assessmentPolicy,
+  });
     const completeness = completenessHeatmap(assignments, studentsByClass, allMarks, exam.id);
     const extras = await enrichMarksInsights(marks, grading);
 
@@ -570,6 +574,15 @@ export function registerAnalysisReports(router) {
     const { exams, exam } = await loadExams(req.query.examId);
     if (!exam) return res.json({ empty: true });
 
+    const grading = gradingHelpers(await getGradingConfig());
+    const compareView = teacherComparePresentation(req.user, grading.assessmentPolicy);
+    if (!compareView.allowed) {
+      return res.status(403).json({
+        error: "Teacher comparisons are limited to the principal for this school.",
+        teacherCompare: compareView,
+      });
+    }
+
     const subjectName = req.query.subjectName || null;
     const className = req.query.className || null;
     const assignments = await prisma.teacherAssignment.findMany({
@@ -587,19 +600,24 @@ export function registerAnalysisReports(router) {
         const list = assignments.filter(
           (a) => a.subject.name === name && (!className || a.classSection.className === className)
         );
-        const rows = [...groupBy(list, (a) => a.userId).entries()].map(([userId, items]) => {
+        const rows = [...groupBy(list, (a) => a.userId).entries()].map(([userId, items], index) => {
           const sectionIds = new Set(items.map((a) => a.classSectionId));
           const subjectIds = new Set(items.map((a) => a.subjectId));
+          const label = compareView.anonymize ? `Teacher ${index + 1}` : items[0].user.name;
           return {
-            teacherId: userId,
-            teacher: items[0].user.name,
+            teacherId: compareView.anonymize ? `anon-${index + 1}` : userId,
+            teacher: label,
             classLabels: items.map((a) => classLabel(a.classSection)).sort(),
             ...summarize(
               percentsOf(marks.filter((m) => subjectIds.has(m.subjectId) && sectionIds.has(m.student.classSectionId)))
             ),
           };
         });
-        return { name, ...withTeacherDeltas(rows) };
+        const compared = withTeacherDeltas(rows);
+        if (compareView.hidePeerDeltas && compared.teachers) {
+          compared.teachers = compared.teachers.map((t) => ({ ...t, delta: null }));
+        }
+        return { name, ...compared };
       })
       .filter((s) => s.comparable);
 
@@ -610,6 +628,7 @@ export function registerAnalysisReports(router) {
       subjects: [...new Set(assignments.map((a) => a.subject.name))].sort(),
       classes: [...new Set(assignments.map((a) => a.classSection.className))].sort(),
       comparisons,
+      teacherCompare: compareView,
     });
   });
 }

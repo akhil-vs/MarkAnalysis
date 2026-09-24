@@ -151,6 +151,7 @@ export async function restoreBackup(document, { schoolId, mode = "merge" } = {})
         optionalModules: src.optionalModules ?? existing.optionalModules,
         academicYears: src.academicYears ?? existing.academicYears,
         currentAcademicYear: src.currentAcademicYear ?? existing.currentAcademicYear,
+        assessmentPolicy: src.assessmentPolicy ?? existing.assessmentPolicy,
       },
     });
 

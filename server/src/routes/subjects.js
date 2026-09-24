@@ -23,11 +23,16 @@ function parseSubjectFields(body = {}) {
   if (entry.error) return { error: entry.error };
   const practical = parseOptionalPositiveInt(body.practicalMaxMarks, "Practical max marks");
   if (practical.error) return { error: practical.error };
+  let category = null;
+  if (body.category !== undefined && body.category !== null && body.category !== "") {
+    category = String(body.category).trim().toUpperCase().slice(0, 40) || null;
+  }
   return {
     name,
     maxMarks: entry.value,
     practicalMaxMarks: practical.value,
     isElective: Boolean(body.isElective),
+    category,
   };
 }
 
@@ -53,6 +58,7 @@ async function backfillPoolFromSubjects(tenantId) {
       maxMarks: s.maxMarks,
       isElective: Boolean(s.isElective),
       practicalMaxMarks: s.practicalMaxMarks ?? null,
+      category: s.category ?? null,
       tenantId,
     })),
     skipDuplicates: true,
@@ -70,6 +76,7 @@ async function upsertPoolItemFromSubject(tenantId, fields) {
         maxMarks: fields.maxMarks,
         isElective: fields.isElective,
         practicalMaxMarks: fields.practicalMaxMarks,
+        ...(fields.category !== undefined ? { category: fields.category } : {}),
       },
     });
   }
@@ -79,6 +86,7 @@ async function upsertPoolItemFromSubject(tenantId, fields) {
       maxMarks: fields.maxMarks,
       isElective: fields.isElective,
       practicalMaxMarks: fields.practicalMaxMarks,
+      category: fields.category ?? null,
       tenantId,
     },
   });
@@ -119,6 +127,7 @@ subjectsRouter.post("/pool", ...requireRecordsWrite, async (req, res) => {
       maxMarks: fields.maxMarks,
       isElective: fields.isElective,
       practicalMaxMarks: fields.practicalMaxMarks,
+      category: fields.category ?? null,
       tenantId: req.tenantId,
     },
   });
@@ -152,6 +161,12 @@ subjectsRouter.patch("/pool/:id", ...requireRecordsWrite, async (req, res) => {
     const practical = parseOptionalPositiveInt(req.body.practicalMaxMarks, "Practical max marks");
     if (practical.error) return res.status(400).json({ error: practical.error });
     data.practicalMaxMarks = practical.value;
+  }
+  if (req.body?.category !== undefined) {
+    const text = req.body.category == null || req.body.category === ""
+      ? null
+      : String(req.body.category).trim().toUpperCase().slice(0, 40) || null;
+    data.category = text;
   }
 
   const updated = await prisma.subjectPoolItem.update({
@@ -243,6 +258,7 @@ subjectsRouter.put("/for-class/:className", ...requireRecordsWrite, async (req, 
             maxMarks: item.maxMarks,
             isElective: item.isElective,
             practicalMaxMarks: item.practicalMaxMarks,
+            category: item.category ?? null,
           },
         });
         updated.push(next);
@@ -254,6 +270,7 @@ subjectsRouter.put("/for-class/:className", ...requireRecordsWrite, async (req, 
             maxMarks: item.maxMarks,
             isElective: item.isElective,
             practicalMaxMarks: item.practicalMaxMarks,
+            category: item.category ?? null,
             tenantId: req.tenantId,
           },
         });

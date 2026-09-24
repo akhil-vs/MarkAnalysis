@@ -95,6 +95,27 @@ function ProfileTabBar({ tab, onChange }) {
 
 const DEFAULT_OPTIONAL_MODULES = { boardOps: false, cpd: false };
 
+const DEFAULT_ASSESSMENT = {
+  gradingScheme: "STANDARD",
+  subjectPassMode: "COMBINED",
+  studentPassMode: "AVERAGE",
+  theoryPassPercent: "",
+  practicalPassPercent: "",
+  region: "INDIA",
+  gulfExtras: {
+    arabic: false,
+    islamicStudies: false,
+    uaeSocialStudies: false,
+    bilingualReports: false,
+  },
+  teacherCompare: {
+    visibility: "LEADERSHIP",
+    anonymizeForCoordinators: true,
+    hidePeerDeltas: true,
+    developmentalFraming: true,
+  },
+};
+
 const DEFAULT_BANDS = [
   { grade: "A+", min: 90 },
   { grade: "A", min: 80 },
@@ -103,6 +124,45 @@ const DEFAULT_BANDS = [
   { grade: "D", min: 50 },
   { grade: "F", min: 0 },
 ];
+
+function assessmentFromApi(s) {
+  const g = s?.grading || {};
+  const a = g.assessmentPolicy || {};
+  return {
+    gradingScheme: g.gradingScheme || a.gradingScheme || "STANDARD",
+    subjectPassMode: g.subjectPassMode || a.subjectPassMode || "COMBINED",
+    studentPassMode: g.studentPassMode || a.studentPassMode || "AVERAGE",
+    theoryPassPercent:
+      g.theoryPassPercent != null
+        ? String(g.theoryPassPercent)
+        : a.theoryPassPercent != null
+          ? String(a.theoryPassPercent)
+          : "",
+    practicalPassPercent:
+      g.practicalPassPercent != null
+        ? String(g.practicalPassPercent)
+        : a.practicalPassPercent != null
+          ? String(a.practicalPassPercent)
+          : "",
+    region: g.region || a.region || "INDIA",
+    gulfExtras: {
+      arabic: Boolean(g.gulfExtras?.arabic ?? a.gulfExtras?.arabic),
+      islamicStudies: Boolean(g.gulfExtras?.islamicStudies ?? a.gulfExtras?.islamicStudies),
+      uaeSocialStudies: Boolean(g.gulfExtras?.uaeSocialStudies ?? a.gulfExtras?.uaeSocialStudies),
+      bilingualReports: Boolean(g.gulfExtras?.bilingualReports ?? a.gulfExtras?.bilingualReports),
+    },
+    teacherCompare: {
+      visibility: g.teacherCompare?.visibility || a.teacherCompare?.visibility || "LEADERSHIP",
+      anonymizeForCoordinators:
+        g.teacherCompare?.anonymizeForCoordinators ?? a.teacherCompare?.anonymizeForCoordinators ?? true,
+      hidePeerDeltas: g.teacherCompare?.hidePeerDeltas ?? a.teacherCompare?.hidePeerDeltas ?? true,
+      developmentalFraming:
+        g.teacherCompare?.developmentalFraming ?? a.teacherCompare?.developmentalFraming ?? true,
+    },
+    schemes: Array.isArray(g.schemes) ? g.schemes : [],
+    gulfSuggestedSubjects: Array.isArray(g.gulfSuggestedSubjects) ? g.gulfSuggestedSubjects : [],
+  };
+}
 
 function profileFromApi(s) {
   return {
@@ -265,6 +325,7 @@ export default function SchoolSettings() {
   const [distinctionMin, setDistinctionMin] = useState(90);
   const [bands, setBands] = useState(DEFAULT_BANDS);
   const [weights, setWeights] = useState({ UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 });
+  const [assessment, setAssessment] = useState(DEFAULT_ASSESSMENT);
   const [academicYears, setAcademicYears] = useState([]);
   const [currentAcademicYear, setCurrentAcademicYear] = useState("");
   const [newAcademicYear, setNewAcademicYear] = useState("");
@@ -282,6 +343,7 @@ export default function SchoolSettings() {
     setDistinctionMin(g.distinctionMin ?? 90);
     setBands(g.gradeBands?.length ? g.gradeBands : DEFAULT_BANDS);
     setWeights(g.examWeights || { UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 });
+    setAssessment(assessmentFromApi(s));
     const years = Array.isArray(s.academicYears) ? s.academicYears.filter(Boolean) : [];
     setAcademicYears(years);
     setCurrentAcademicYear(s.currentAcademicYear || years[0] || "");
@@ -377,6 +439,18 @@ export default function SchoolSettings() {
             UNIT_TEST: Number(weights.UNIT_TEST),
             MID_TERM: Number(weights.MID_TERM),
             FINAL: Number(weights.FINAL),
+          },
+          gradingScheme: assessment.gradingScheme,
+          assessmentPolicy: {
+            gradingScheme: assessment.gradingScheme,
+            subjectPassMode: assessment.subjectPassMode,
+            studentPassMode: assessment.studentPassMode,
+            theoryPassPercent: assessment.theoryPassPercent === "" ? null : Number(assessment.theoryPassPercent),
+            practicalPassPercent:
+              assessment.practicalPassPercent === "" ? null : Number(assessment.practicalPassPercent),
+            region: assessment.region,
+            gulfExtras: assessment.gulfExtras,
+            teacherCompare: assessment.teacherCompare,
           },
           academicYears,
           currentAcademicYear: currentAcademicYear || null,
@@ -728,8 +802,9 @@ export default function SchoolSettings() {
                 <section className="space-y-3">
                   <h3 className="font-serif text-xl">Optional modules</h3>
                   <p className="text-sm text-ink-700/65">
-                    Board ops and CPD are hidden by default. Turn them on when your school is ready to use
-                    them. Staff still need the matching permission under Staff → Role access.
+                    Board console and CPD are hidden by default. Turn them on when your school is ready.
+                    Staff still need the matching permission under Staff → Role access. Day-to-day marks,
+                    approvals, CML, and hall tickets always live under <span className="font-medium">Exam office</span>.
                   </p>
                   <div className="rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
                     <label className="flex items-start gap-2 text-sm">
@@ -742,9 +817,10 @@ export default function SchoolSettings() {
                         }
                       />
                       <span>
-                        <span className="font-medium text-ink-900">Show Board ops</span>
+                        <span className="font-medium text-ink-900">Show Board console</span>
                         <span className="block text-ink-700/60">
-                          Exam calendar, report-card release, revaluation, and board upload packs.
+                          CBSE board-facing calendar, report-card release, revaluation, and upload packs —
+                          separate from Exam office mark work.
                         </span>
                       </span>
                     </label>
@@ -788,12 +864,98 @@ export default function SchoolSettings() {
           )}
 
           {tab === "grading" && (
-            <div role="tabpanel" aria-labelledby="school-profile-tab-grading">
-              <h3 className="font-serif text-xl mb-2">Analytics grading</h3>
-              <p className="text-sm text-ink-700/65 mb-3">
-                These thresholds drive pass rates, distinction lists, letter grades, and weighted annual composites across Insights. Values cannot be negative.
-              </p>
-              <div className="grid sm:grid-cols-2 gap-3 mb-3">
+            <div role="tabpanel" aria-labelledby="school-profile-tab-grading" className="space-y-5">
+              <div>
+                <h3 className="font-serif text-xl mb-2">Grading framework</h3>
+                <p className="text-sm text-ink-700/65 mb-3">
+                  Choose a CBSE or Gulf preset, then fine-tune pass rules. These drive pass rates,
+                  distinction lists, letter grades, and Insights. Values cannot be negative.
+                </p>
+                <label className="label">Grading scheme</label>
+                <select
+                  className="field mb-2"
+                  value={assessment.gradingScheme}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    setAssessment((a) => ({ ...a, gradingScheme: next }));
+                  }}
+                >
+                  {(assessment.schemes?.length
+                    ? assessment.schemes
+                    : [
+                        { id: "STANDARD", label: "Standard (A+–F)" },
+                        { id: "CBSE_SECONDARY", label: "CBSE Secondary (A1–E2)" },
+                        { id: "CBSE_SENIOR", label: "CBSE Senior (XI–XII)" },
+                        { id: "GULF_CBSE", label: "Gulf CBSE" },
+                        { id: "CUSTOM", label: "Custom" },
+                      ]
+                  ).map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-ink-700/55 mb-3">
+                  Saving with a named scheme (not Custom) applies that scheme’s pass mark, bands, and
+                  subject-pass rules. Pick Custom to keep the numbers you edit below.
+                </p>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="label">Region</label>
+                  <select
+                    className="field"
+                    value={assessment.region}
+                    onChange={(e) =>
+                      setAssessment((a) => ({
+                        ...a,
+                        region: e.target.value,
+                        gradingScheme: a.gradingScheme === "GULF_CBSE" && e.target.value !== "GULF" ? "CUSTOM" : a.gradingScheme,
+                      }))
+                    }
+                  >
+                    <option value="INDIA">India</option>
+                    <option value="GULF">Gulf (UAE / KSA / Qatar / Oman / Bahrain / Kuwait)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Student pass rule</label>
+                  <select
+                    className="field"
+                    value={assessment.studentPassMode}
+                    onChange={(e) =>
+                      setAssessment((a) => ({
+                        ...a,
+                        studentPassMode: e.target.value,
+                        gradingScheme: "CUSTOM",
+                      }))
+                    }
+                  >
+                    <option value="AVERAGE">Average ≥ pass percent</option>
+                    <option value="ALL_SUBJECTS">Every subject must pass (CBSE-style)</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Subject / paper pass rule</label>
+                  <select
+                    className="field"
+                    value={assessment.subjectPassMode}
+                    onChange={(e) =>
+                      setAssessment((a) => ({
+                        ...a,
+                        subjectPassMode: e.target.value,
+                        gradingScheme: "CUSTOM",
+                      }))
+                    }
+                  >
+                    <option value="COMBINED">Combined theory + practical %</option>
+                    <option value="THEORY_AND_PRACTICAL">Theory and practical separately</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-3">
                 <div>
                   <label className="label">Pass percent</label>
                   <input
@@ -805,7 +967,10 @@ export default function SchoolSettings() {
                     required
                     value={passPercent}
                     onKeyDown={rejectNegativeKey}
-                    onChange={(e) => setPassPercent(acceptNonNegativeInput(e.target.value, passPercent))}
+                    onChange={(e) => {
+                      setPassPercent(acceptNonNegativeInput(e.target.value, passPercent));
+                      setAssessment((a) => ({ ...a, gradingScheme: "CUSTOM" }));
+                    }}
                   />
                 </div>
                 <div>
@@ -819,11 +984,164 @@ export default function SchoolSettings() {
                     required
                     value={distinctionMin}
                     onKeyDown={rejectNegativeKey}
-                    onChange={(e) => setDistinctionMin(acceptNonNegativeInput(e.target.value, distinctionMin))}
+                    onChange={(e) => {
+                      setDistinctionMin(acceptNonNegativeInput(e.target.value, distinctionMin));
+                      setAssessment((a) => ({ ...a, gradingScheme: "CUSTOM" }));
+                    }}
+                  />
+                </div>
+                <div>
+                  <label className="label">Theory pass % (optional)</label>
+                  <input
+                    className="field"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={assessment.theoryPassPercent}
+                    placeholder="Defaults to pass percent"
+                    onKeyDown={rejectNegativeKey}
+                    onChange={(e) =>
+                      setAssessment((a) => ({
+                        ...a,
+                        theoryPassPercent: acceptNonNegativeInput(e.target.value, a.theoryPassPercent),
+                        gradingScheme: "CUSTOM",
+                      }))
+                    }
+                  />
+                </div>
+                <div>
+                  <label className="label">Practical pass % (optional)</label>
+                  <input
+                    className="field"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={assessment.practicalPassPercent}
+                    placeholder="Defaults to pass percent"
+                    onKeyDown={rejectNegativeKey}
+                    onChange={(e) =>
+                      setAssessment((a) => ({
+                        ...a,
+                        practicalPassPercent: acceptNonNegativeInput(e.target.value, a.practicalPassPercent),
+                        gradingScheme: "CUSTOM",
+                      }))
+                    }
                   />
                 </div>
               </div>
-              <div className="mb-3">
+
+              {assessment.region === "GULF" && (
+                <section className="rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
+                  <h4 className="font-medium text-ink-900">Gulf extras</h4>
+                  <p className="text-sm text-ink-700/65">
+                    Host-country subjects suggested in Records → Subjects. Enable what your ministry
+                    requires; bilingual report wording is remembered for letterheads and portal copy.
+                  </p>
+                  {[
+                    ["arabic", "Arabic"],
+                    ["islamicStudies", "Islamic Studies"],
+                    ["uaeSocialStudies", "UAE Social Studies"],
+                    ["bilingualReports", "Bilingual reports (English + Arabic cues)"],
+                  ].map(([key, label]) => (
+                    <label key={key} className="flex items-start gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        className="mt-0.5"
+                        checked={Boolean(assessment.gulfExtras[key])}
+                        onChange={(e) =>
+                          setAssessment((a) => ({
+                            ...a,
+                            gulfExtras: { ...a.gulfExtras, [key]: e.target.checked },
+                          }))
+                        }
+                      />
+                      <span>{label}</span>
+                    </label>
+                  ))}
+                  {assessment.gulfSuggestedSubjects?.length > 0 && (
+                    <p className="text-xs text-ink-700/60">
+                      Suggested pool subjects:{" "}
+                      {assessment.gulfSuggestedSubjects.map((s) => s.name).join(", ")}.
+                    </p>
+                  )}
+                </section>
+              )}
+
+              <section className="rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
+                <h4 className="font-medium text-ink-900">Teacher comparison (Insights)</h4>
+                <p className="text-sm text-ink-700/65">
+                  Same-subject averages are for developmental review, not ranking staff in public. Soften
+                  how coordinators see peer gaps.
+                </p>
+                <div>
+                  <label className="label">Who can open teacher comparisons</label>
+                  <select
+                    className="field"
+                    value={assessment.teacherCompare.visibility}
+                    onChange={(e) =>
+                      setAssessment((a) => ({
+                        ...a,
+                        teacherCompare: { ...a.teacherCompare, visibility: e.target.value },
+                      }))
+                    }
+                  >
+                    <option value="LEADERSHIP">Principal and exam co-ordinator</option>
+                    <option value="PRINCIPAL_ONLY">Principal only</option>
+                  </select>
+                </div>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={Boolean(assessment.teacherCompare.anonymizeForCoordinators)}
+                    onChange={(e) =>
+                      setAssessment((a) => ({
+                        ...a,
+                        teacherCompare: {
+                          ...a.teacherCompare,
+                          anonymizeForCoordinators: e.target.checked,
+                        },
+                      }))
+                    }
+                  />
+                  <span>Anonymise teacher names for co-ordinators (Teacher 1, Teacher 2…)</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={Boolean(assessment.teacherCompare.hidePeerDeltas)}
+                    onChange={(e) =>
+                      setAssessment((a) => ({
+                        ...a,
+                        teacherCompare: { ...a.teacherCompare, hidePeerDeltas: e.target.checked },
+                      }))
+                    }
+                  />
+                  <span>Hide “vs peers” deltas for co-ordinators</span>
+                </label>
+                <label className="flex items-start gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5"
+                    checked={Boolean(assessment.teacherCompare.developmentalFraming)}
+                    onChange={(e) =>
+                      setAssessment((a) => ({
+                        ...a,
+                        teacherCompare: {
+                          ...a.teacherCompare,
+                          developmentalFraming: e.target.checked,
+                        },
+                      }))
+                    }
+                  />
+                  <span>Show developmental framing note on Compare</span>
+                </label>
+              </section>
+
+              <div>
                 <label className="label">Grade bands (high → low)</label>
                 <div className="space-y-2">
                   {bands.map((b, i) => (
@@ -831,7 +1149,10 @@ export default function SchoolSettings() {
                       <input
                         className="field"
                         value={b.grade}
-                        onChange={(e) => updateBand(i, "grade", e.target.value)}
+                        onChange={(e) => {
+                          updateBand(i, "grade", e.target.value);
+                          setAssessment((a) => ({ ...a, gradingScheme: "CUSTOM" }));
+                        }}
                         placeholder="Grade"
                         required
                       />
@@ -843,9 +1164,10 @@ export default function SchoolSettings() {
                         required
                         value={b.min}
                         onKeyDown={rejectNegativeKey}
-                        onChange={(e) =>
-                          updateBand(i, "min", acceptNonNegativeInput(e.target.value, b.min))
-                        }
+                        onChange={(e) => {
+                          updateBand(i, "min", acceptNonNegativeInput(e.target.value, b.min));
+                          setAssessment((a) => ({ ...a, gradingScheme: "CUSTOM" }));
+                        }}
                         placeholder="Min %"
                       />
                     </div>

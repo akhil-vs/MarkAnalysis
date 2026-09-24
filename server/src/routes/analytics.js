@@ -620,7 +620,10 @@ analyticsRouter.get("/class/:id", async (req, res) => {
   });
 
   const extras = await enrichMarksInsights(approvedMarks, grading);
-  const passFail = passFailMatrix(approvedMarks, subjects.map((s) => s.name), { passPercent });
+  const passFail = passFailMatrix(approvedMarks, subjects.map((s) => s.name), {
+    passPercent,
+    assessmentPolicy: grading.assessmentPolicy,
+  });
 
   res.json({
     classSection: cls,

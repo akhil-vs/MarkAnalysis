@@ -11,6 +11,7 @@ import {
 import { loadExams } from "./examCatalog.js";
 import { summarizeRegister } from "./registerStatus.js";
 import { gradingHelpers, getGradingConfig } from "./gradingConfig.js";
+import { evaluateStudentPass } from "./assessmentPolicy.js";
 import {
   dualCeilingWarnings,
   examReadiness,
@@ -295,7 +296,7 @@ async function buildPrincipalSummary(examId) {
   if (!exam) return emptyHome("PRINCIPAL", { exams, reason: "NO_EXAM" });
 
   const grading = gradingHelpers(await getGradingConfig());
-  const { passPercent, gradeFn, distinctionMin, gradeBands, examWeights } = grading;
+  const { passPercent, gradeFn, distinctionMin, gradeBands, examWeights, assessmentPolicy } = grading;
 
   const [
     examMarks,
@@ -326,14 +327,28 @@ async function buildPrincipalSummary(examId) {
   const marks = examMarks
     .filter((m) => m.status === "APPROVED" && m.student?.status === "ACTIVE")
     .map((m) => ({ ...m, exam }));
-  const studentAvgs = studentTotals(groupBy(marks, (m) => m.studentId), { gradeFn });
+  const byStudent = groupBy(marks, (m) => m.studentId);
+  const studentAvgs = studentTotals(byStudent, { gradeFn });
   const scored = studentAvgs.filter((s) => s.avg != null);
+  let passCount = 0;
+  let failCount = 0;
+  for (const s of scored) {
+    const passEval = evaluateStudentPass(byStudent.get(s.studentId) || [], assessmentPolicy, {
+      passPercent,
+      average: s.avg,
+    });
+    if (passEval.passed === true) passCount += 1;
+    else if (passEval.passed === false) failCount += 1;
+  }
   const boardSummary = {
     distinction: scored.filter((s) => s.avg >= distinctionMin).length,
-    pass: scored.filter((s) => s.avg >= passPercent).length,
-    fail: scored.filter((s) => s.avg < passPercent).length,
+    pass: passCount,
+    fail: failCount,
     passPercent,
     distinctionMin,
+    subjectPassMode: assessmentPolicy?.subjectPassMode,
+    studentPassMode: assessmentPolicy?.studentPassMode,
+    gradingScheme: assessmentPolicy?.gradingScheme,
   };
   const kpis = {
     students: activeStudents,

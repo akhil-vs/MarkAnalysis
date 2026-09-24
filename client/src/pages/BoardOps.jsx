@@ -357,7 +357,7 @@ export default function BoardOps() {
     <div className="space-y-4">
       <PageHeader
         title={NAV_TITLES.boardOps}
-        subtitle="Exam paper calendar, report-card release, revaluations, and board packs"
+        subtitle="CBSE board-facing work: calendar, report-card release, revaluation, and upload packs. Day-to-day marks, CML, and hall tickets stay under Exam office."
         actions={
           <ExamSelect
             exams={exams}
@@ -369,6 +369,11 @@ export default function BoardOps() {
           />
         }
       />
+
+      <div className="rounded-xl border border-ink-900/10 bg-paper/70 px-3 py-2 text-sm text-ink-700/75">
+        <span className="font-medium text-ink-900">Exam office</span> runs the term (registers, approvals, consolidated lists, hall tickets).{" "}
+        <span className="font-medium text-ink-900">Board console</span> is for board-facing release and packs after those marks are ready.
+      </div>
 
       <TabBar tab={tab} onChange={setTab} />
       {error && <FieldError message={error} />}

@@ -25,6 +25,8 @@ export default function AnalysisCompare() {
   const tab = params.get("tab") === "teachers" ? "teachers" : "years";
   const [years, setYears] = useState(null);
   const [teachers, setTeachers] = useState(null);
+  const [teacherCompareMeta, setTeacherCompareMeta] = useState(null);
+  const [teacherCompareBlocked, setTeacherCompareBlocked] = useState("");
   const [examId, setExamId] = useState("");
   const [className, setClassName] = useState(params.get("className") || params.get("class") || "");
   const [subjectName, setSubjectName] = useState(params.get("subject") || "");
@@ -60,9 +62,23 @@ export default function AnalysisCompare() {
     if (id) q.set("examId", id);
     if (cls) q.set("className", cls);
     if (subject) q.set("subjectName", subject);
-    const res = await api(`/api/analytics/compare/teachers?${q}`);
-    setTeachers(res);
-    if (res.exam) setExamId(res.exam.id);
+    try {
+      const res = await api(`/api/analytics/compare/teachers?${q}`);
+      setTeachers(res);
+      setTeacherCompareMeta(res.teacherCompare || null);
+      setTeacherCompareBlocked("");
+      if (res.exam) setExamId(res.exam.id);
+    } catch (err) {
+      if (err.status === 403 || /principal/i.test(err.message || "")) {
+        setTeachers({ comparisons: [], empty: false, exams: years?.exams || [] });
+        setTeacherCompareBlocked(
+          err.message || "Teacher comparisons are limited to the principal for this school."
+        );
+        setTeacherCompareMeta(null);
+        return;
+      }
+      throw err;
+    }
   }
 
   async function loadAll(id = examId, cls = className, subject = subjectName) {
@@ -115,7 +131,7 @@ export default function AnalysisCompare() {
     <div>
       <PageHeader
         title={NAV_TITLES.analysisCompare}
-        subtitle="Previous years for the same exam type, and marks in the same subject across teachers"
+        subtitle="Previous years for the same exam type, and developmental same-subject teacher views"
         actions={
           <ExamSelect
             exams={years?.exams || teachers?.exams || []}
@@ -210,33 +226,57 @@ export default function AnalysisCompare() {
 
       {tab === "teachers" && teachers && (
         <div className="space-y-4">
-          {teachers.empty ? (
-            <EmptyNote>No exam data yet.</EmptyNote>
-          ) : !teachers.comparisons?.length ? (
-            <EmptyNote>
-              No subject currently has two or more teachers with marks for this exam
-              {className ? ` in Class ${className}` : ""}
-              {subjectName ? ` in ${subjectName}` : ""}.
-            </EmptyNote>
+          {teacherCompareBlocked ? (
+            <EmptyNote>{teacherCompareBlocked}</EmptyNote>
           ) : (
-            teachers.comparisons.map((block) => (
-              <Panel
-                key={block.name}
-                title={block.name}
-                action={
-                  <Link className="text-xs underline text-ink-700/60" to={paths.subjectByName(block.name)}>
-                    Full subject view
+            <>
+              {teacherCompareMeta?.developmentalFraming && (
+                <div className="rounded-xl border border-ink-900/10 bg-paper/70 px-3 py-2 text-sm text-ink-700/75">
+                  Use this view for coaching and CPD planning — not for public ranking. Prefer pairing gaps
+                  with observations under{" "}
+                  <Link className="underline" to="/cpd">
+                    CPD
                   </Link>
-                }
-              >
-                {block.leader && block.trailer && (
-                  <p className="text-sm text-ink-700/70 mb-3">
-                    {block.leader.teacher} leads at {block.leader.average}%. {block.trailer.teacher} is {block.spread} points behind.
-                  </p>
-                )}
-                <TeacherCompareTable rows={block.teachers} />
-              </Panel>
-            ))
+                  .
+                  {teacherCompareMeta.anonymize
+                    ? " Names are anonymised for your role."
+                    : ""}
+                </div>
+              )}
+              {teachers.empty ? (
+                <EmptyNote>No exam data yet.</EmptyNote>
+              ) : !teachers.comparisons?.length ? (
+                <EmptyNote>
+                  No subject currently has two or more teachers with marks for this exam
+                  {className ? ` in Class ${className}` : ""}
+                  {subjectName ? ` in ${subjectName}` : ""}.
+                </EmptyNote>
+              ) : (
+                teachers.comparisons.map((block) => (
+                  <Panel
+                    key={block.name}
+                    title={block.name}
+                    action={
+                      <Link className="text-xs underline text-ink-700/60" to={paths.subjectByName(block.name)}>
+                        Full subject view
+                      </Link>
+                    }
+                  >
+                    {block.leader && block.trailer && !teacherCompareMeta?.hidePeerDeltas && (
+                      <p className="text-sm text-ink-700/70 mb-3">
+                        Highest average: {block.leader.teacher} ({block.leader.average}%). Spread across
+                        teachers: {block.spread} points — review load and syllabus pace before drawing
+                        conclusions.
+                      </p>
+                    )}
+                    <TeacherCompareTable
+                      rows={block.teachers}
+                      hidePeerDeltas={Boolean(teacherCompareMeta?.hidePeerDeltas)}
+                    />
+                  </Panel>
+                ))
+              )}
+            </>
           )}
         </div>
       )}

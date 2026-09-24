@@ -5,6 +5,12 @@ import {
 } from "./grades.js";
 import { parsePercent } from "./numbers.js";
 import { getSchoolProfile } from "./school.js";
+import {
+  GRADING_SCHEMES,
+  gulfSubjectsSuggested,
+  normalizeAssessmentPolicy,
+  publicAssessmentPolicy,
+} from "./assessmentPolicy.js";
 
 export const DEFAULT_EXAM_WEIGHTS = {
   UNIT_TEST: 0.2,
@@ -57,11 +63,27 @@ function parseWeightMap(raw) {
 export function publicGradingConfig(profile) {
   const passPercent = Number(profile?.passPercent);
   const distinctionMin = Number(profile?.distinctionMin);
+  const assessment = publicAssessmentPolicy(profile);
   return {
     passPercent: Number.isFinite(passPercent) ? passPercent : DEFAULT_PASS_PERCENT,
     distinctionMin: Number.isFinite(distinctionMin) ? distinctionMin : DEFAULT_DISTINCTION_MIN,
     gradeBands: normalizeBands(profile?.gradeBands),
     examWeights: normalizeWeights(profile?.examWeights),
+    assessmentPolicy: assessment,
+    gradingScheme: assessment.gradingScheme,
+    subjectPassMode: assessment.subjectPassMode,
+    studentPassMode: assessment.studentPassMode,
+    theoryPassPercent: assessment.theoryPassPercent,
+    practicalPassPercent: assessment.practicalPassPercent,
+    region: assessment.region,
+    gulfExtras: assessment.gulfExtras,
+    teacherCompare: assessment.teacherCompare,
+    gulfSuggestedSubjects: gulfSubjectsSuggested(assessment),
+    schemes: Object.values(GRADING_SCHEMES).map((s) => ({
+      id: s.id,
+      label: s.label,
+      description: s.description,
+    })),
   };
 }
 
@@ -84,8 +106,10 @@ export function makeGradeFn(bands) {
 export function gradingHelpers(config) {
   const cfg = config || publicGradingConfig(null);
   const gradeFn = makeGradeFn(cfg.gradeBands);
+  const assessmentPolicy = normalizeAssessmentPolicy(cfg.assessmentPolicy || cfg);
   return {
     ...cfg,
+    assessmentPolicy,
     gradeFn,
     gradeFromPercent: gradeFn,
   };

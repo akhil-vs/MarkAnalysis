@@ -103,7 +103,11 @@ function teacherCompareSearchText(row) {
   return searchHaystack(row.teacher, row.classLabels, row.classLabel, row.average, row.passRate);
 }
 
-export function TeacherCompareTable({ rows = [], empty = "Need two or more teachers of this subject to compare." }) {
+export function TeacherCompareTable({
+  rows = [],
+  empty = "Need two or more teachers of this subject to compare.",
+  hidePeerDeltas = false,
+}) {
   const list = Array.isArray(rows) ? rows : rows.teachers || [];
   const table = useTableSearch(list, { getSearchText: teacherCompareSearchText });
   return (
@@ -126,7 +130,7 @@ export function TeacherCompareTable({ rows = [], empty = "Need two or more teach
                 <th>Classes</th>
                 <th>Average</th>
                 <th>Pass</th>
-                <th>vs peers</th>
+                {!hidePeerDeltas && <th>vs peers</th>}
               </tr>
             </thead>
             <tbody>
@@ -138,9 +142,11 @@ export function TeacherCompareTable({ rows = [], empty = "Need two or more teach
                   </td>
                   <td>{row.average ?? "—"}%</td>
                   <td>{row.passRate ?? "—"}%</td>
-                  <td className={row.delta > 0 ? "text-moss-600" : row.delta < 0 ? "text-clay-600" : ""}>
-                    {row.delta == null ? "—" : `${row.delta > 0 ? "+" : ""}${row.delta}`}
-                  </td>
+                  {!hidePeerDeltas && (
+                    <td className={row.delta > 0 ? "text-moss-600" : row.delta < 0 ? "text-clay-600" : ""}>
+                      {row.delta == null ? "—" : `${row.delta > 0 ? "+" : ""}${row.delta}`}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

@@ -115,6 +115,8 @@ model School {
   academicYears       Json?
   /// Active academic year label (must be one of academicYears when that list is non-empty).
   currentAcademicYear String?
+  /// CBSE/Gulf assessment policy: grading scheme, pass modes, region extras, teacher-compare rules.
+  assessmentPolicy Json?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 
@@ -217,6 +219,8 @@ model SubjectPoolItem {
   isElective        Boolean @default(false)
   /// When set, class subjects also collect practical marks.
   practicalMaxMarks Int?
+  /// Optional curriculum tag copied onto class subjects when selected.
+  category          String?
 
   tenant School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
@@ -235,6 +239,8 @@ model Subject {
   isElective        Boolean @default(false)
   /// When set, register also collects practical marks (additive with maxMarks).
   practicalMaxMarks Int?
+  /// Optional curriculum tag: CORE | GULF_ARABIC | GULF_ISLAMIC | GULF_UAE_SS | ELECTIVE | OTHER.
+  category          String?
 
   tenant            School @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   assignments       TeacherAssignment[]
