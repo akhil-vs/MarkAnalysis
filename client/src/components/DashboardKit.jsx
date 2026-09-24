@@ -118,6 +118,156 @@ export function EmptyNote({ children }) {
   return <p className="text-sm text-ink-700/60 py-4">{children}</p>;
 }
 
+/**
+ * Home desk when no exam (or teacher has no assignments) — never a blank page.
+ * Shows school setup counts and next-step links so leadership can schedule an exam.
+ */
+export function EmptyExamDashboard({
+  role,
+  name,
+  setup,
+  reason = "NO_EXAM",
+  help,
+}) {
+  const leadership = role === "PRINCIPAL" || role === "EXAM_COORDINATOR";
+  const noAssignments = reason === "NO_ASSIGNMENTS";
+  const kicker =
+    role === "TEACHER" ? "Teacher desk" : role === "EXAM_COORDINATOR" ? "Exam coordination" : "Principal desk";
+
+  const subtitle = noAssignments
+    ? "You are signed in, but no class or subject is assigned to you yet. Ask the principal to assign your papers under Staff."
+    : leadership
+      ? "No exam is scheduled yet. School analytics, upload queues, and registers will appear here once the first exam is on the calendar."
+      : "No exam is scheduled yet. Your registers, section strength, and watchlist will appear here when leadership schedules an exam.";
+
+  const steps = noAssignments
+    ? [
+        {
+          title: "Wait for an assignment",
+          body: "The principal links each teacher to class sections and subjects under Staff.",
+          to: null,
+        },
+        {
+          title: "Then open mark entry",
+          body: "Once assigned, your papers show here and under Mark register.",
+          to: "/marks",
+        },
+      ]
+    : leadership
+      ? [
+          {
+            title: "Confirm classes & subjects",
+            body: "Records should list every division and paper you teach before you schedule.",
+            to: "/manage",
+            cta: "Open records",
+          },
+          {
+            title: "Schedule the first exam",
+            body: "Add a term exam under Records → Exams. That becomes the working paper for this desk.",
+            to: "/manage?tab=Exams",
+            cta: "Schedule an exam",
+          },
+          {
+            title: "Assign teachers",
+            body: "Staff assignments drive pending uploads and teacher comparison on this desk.",
+            to: "/users",
+            cta: "Open staff",
+          },
+        ]
+      : [
+          {
+            title: "Wait for the exam calendar",
+            body: "Principals and coordinators schedule exams under Records. You will see them here automatically.",
+            to: null,
+          },
+          {
+            title: "Keep leave and notices handy",
+            body: "You can still request leave and read notices while exams are being set up.",
+            to: null,
+          },
+        ];
+
+  return (
+    <div>
+      <DashboardHero
+        kicker={kicker}
+        title={greeting(name)}
+        subtitle={subtitle}
+        help={help}
+        actions={
+          leadership && !noAssignments ? (
+            <Link className="btn-accent" to="/manage?tab=Exams">
+              Schedule an exam
+            </Link>
+          ) : null
+        }
+      />
+
+      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+        <Metric label="Classes" value={setup?.classes ?? 0} to={leadership ? "/manage" : undefined} />
+        <Metric label="Subjects" value={setup?.subjects ?? 0} to={leadership ? "/manage" : undefined} />
+        <Metric
+          label="Students on roll"
+          value={setup?.students ?? 0}
+          to={leadership ? "/manage?tab=Students" : undefined}
+        />
+        <Metric
+          label={leadership ? "Teachers" : "Your assignments"}
+          value={leadership ? (setup?.teachers ?? 0) : (setup?.assignments ?? 0)}
+          to={leadership ? "/users" : undefined}
+        />
+      </div>
+
+      <div className="grid lg:grid-cols-12 gap-4 mb-4">
+        <Panel
+          className="lg:col-span-7"
+          title={noAssignments ? "Getting assigned" : "Get this desk ready"}
+        >
+          <ol className="space-y-4">
+            {steps.map((step, i) => (
+              <li key={step.title} className="flex gap-3">
+                <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ink-900/8 text-xs font-medium tabular-nums">
+                  {i + 1}
+                </span>
+                <div className="min-w-0">
+                  <div className="text-sm font-medium text-ink-900">{step.title}</div>
+                  <p className="mt-0.5 text-sm text-ink-700/65">{step.body}</p>
+                  {step.to && step.cta && (
+                    <Link className="mt-1.5 inline-block text-xs underline text-ink-700/60" to={step.to}>
+                      {step.cta}
+                    </Link>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ol>
+        </Panel>
+
+        <Panel className="lg:col-span-5" title="What will show here">
+          {leadership ? (
+            <ul className="space-y-2 text-sm text-ink-700/70">
+              <li>School average, pass rate, and register readiness</li>
+              <li>Teachers still missing uploads or awaiting approval</li>
+              <li>Class, subject, and teacher leaderboards for the working exam</li>
+            </ul>
+          ) : (
+            <ul className="space-y-2 text-sm text-ink-700/70">
+              <li>Your class registers and how complete each one is</li>
+              <li>Section strength across the papers you teach</li>
+              <li>Students to watch and year-on-year movement</li>
+            </ul>
+          )}
+          <EmptyNote>
+            {noAssignments
+              ? "Nothing is blank forever — once you have an assignment, this desk fills in."
+              : "Nothing is blank forever — schedule an exam and this desk fills in."}
+          </EmptyNote>
+        </Panel>
+      </div>
+    </div>
+  );
+}
+
 export function DashboardHero({ kicker, title, subtitle, actions, help }) {
   return (
     <div className="mb-5 sm:mb-7 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-end sm:justify-between sm:gap-4">

@@ -38,12 +38,106 @@ import { cachedTenantLoad } from "./tenantCache.js";
 /** Max wait for embedding dashboard in the login response (ms). */
 export const LOGIN_DASHBOARD_BUDGET_MS = 350;
 
+/** Counts that still matter when no exam is scheduled — keeps home desks filled. */
+export async function loadSchoolSetupSnapshot() {
+  const [classes, subjects, students, teachers] = await Promise.all([
+    prisma.classSection.count(),
+    prisma.subject.count(),
+    prisma.student.count({ where: { status: "ACTIVE" } }),
+    prisma.user.count({ where: { role: "TEACHER", status: "ACTIVE" } }),
+  ]);
+  return { classes, subjects, students, teachers };
+}
+
+/**
+ * Shape a non-blank home payload when analytics cannot run (no exam / no assignments).
+ * Pure so unit tests can cover the contract without Prisma.
+ */
+export function emptyHomePayload({
+  role,
+  exams = [],
+  exam = null,
+  setup = { classes: 0, subjects: 0, students: 0, teachers: 0 },
+  reason = "NO_EXAM",
+  assignmentCount = 0,
+} = {}) {
+  const snapshot = {
+    classes: setup.classes ?? 0,
+    subjects: setup.subjects ?? 0,
+    students: setup.students ?? 0,
+    teachers: setup.teachers ?? 0,
+  };
+  if (role === "TEACHER") snapshot.assignments = assignmentCount;
+
+  return {
+    empty: true,
+    reason,
+    exams,
+    exam,
+    setup: snapshot,
+    kpis:
+      role === "PRINCIPAL"
+        ? {
+            students: snapshot.students,
+            teachers: snapshot.teachers,
+            classes: snapshot.classes,
+            schoolAverage: null,
+            passRate: null,
+          }
+        : role === "TEACHER"
+          ? {
+              sections: assignmentCount,
+              students: 0,
+              average: null,
+              pendingRegisters: 0,
+            }
+          : {
+              pendingTeacherCount: 0,
+              awaitingApprovalTeacherCount: 0,
+            },
+    pendingUploads: {
+      teachers: [],
+      pendingTeacherCount: 0,
+      awaitingApprovalTeacherCount: 0,
+      completeTeacherCount: 0,
+    },
+    registers: [],
+    radar: [],
+    watchlist: [],
+    yearComparison: [],
+    difficulty: [],
+    teacherBySubject: [],
+    correlations: [],
+    classes: [],
+    pendingDrafts: 0,
+  };
+}
+
+async function emptyHome(role, extra = {}) {
+  const setup = await loadSchoolSetupSnapshot();
+  return emptyHomePayload({ role, setup, ...extra });
+}
+
 async function buildTeacherHome(user, examId) {
   const { exams, exam } = await loadExams(examId);
-  if (!exam) return { empty: true };
+  if (!exam) {
+    const assignments = await getAssignments(user.id);
+    return emptyHome("TEACHER", {
+      exams,
+      reason: "NO_EXAM",
+      assignmentCount: assignments.length,
+    });
+  }
 
   const assignments = await getAssignments(user.id);
-  if (!assignments.length) return { empty: true, exams, exam };
+  if (!assignments.length) {
+    return emptyHome("TEACHER", {
+      exams,
+      exam,
+      reason: "NO_ASSIGNMENTS",
+      assignmentCount: 0,
+    });
+  }
 
   const classIds = [...new Set(assignments.map((a) => a.classSectionId))];
   const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
@@ -159,7 +253,7 @@ async function buildTeacherHome(user, examId) {
 
 async function buildCoordinatorHome(examId) {
   const { exams, exam } = await loadExams(examId);
-  if (!exam) return { empty: true };
+  if (!exam) return emptyHome("EXAM_COORDINATOR", { exams, reason: "NO_EXAM" });
 
   const [marks, subjects, classes, assignments, pending, pendingUploads] = await Promise.all([
     prisma.mark.findMany({
@@ -198,7 +292,7 @@ async function buildCoordinatorHome(examId) {
 
 async function buildPrincipalSummary(examId) {
   const { exams, exam } = await loadExams(examId);
-  if (!exam) return { empty: true };
+  if (!exam) return emptyHome("PRINCIPAL", { exams, reason: "NO_EXAM" });
 
   const grading = gradingHelpers(await getGradingConfig());
   const { passPercent, gradeFn, distinctionMin, gradeBands, examWeights } = grading;

@@ -18,6 +18,7 @@ import { YearComparison } from "../components/AnalysisPanels.jsx";
 import {
   BarTrack,
   DashboardHero,
+  EmptyExamDashboard,
   EmptyNote,
   Metric,
   Panel,
@@ -25,6 +26,7 @@ import {
   greeting,
 } from "../components/DashboardKit.jsx";
 import { useToast } from "../components/Toast.jsx";
+import { helpForPath } from "../lib/pageHelp.js";
 import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
 import { paths } from "../lib/nav.js";
 
@@ -246,6 +248,21 @@ export default function TeacherDashboard() {
 
   if (error) return <LoadError message={error} />;
   if (!data) return <LoadingState label="Loading your classes…" />;
+
+  if (data.empty) {
+    return (
+      <div>
+        <EmptyExamDashboard
+          role="TEACHER"
+          name={user.name}
+          setup={data.setup}
+          reason={data.reason}
+          help={helpForPath("/", user.role)}
+        />
+        <TeacherLeaveRequest userId={user.id} />
+      </div>
+    );
+  }
 
   const registers = data.registers || [];
   const unreadNotices = notices.filter((n) => !n.readAt);
