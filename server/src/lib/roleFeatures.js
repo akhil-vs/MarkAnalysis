@@ -66,6 +66,9 @@ export const PRINCIPAL_EXCLUDED_FEATURES = ["upload"];
  */
 export const OPTIONAL_MODULE_IDS = ["boardOps", "cpd"];
 
+/** Optional modules that stay in the schema/API but are not offered in the product UI. */
+export const HIDDEN_OPTIONAL_MODULE_IDS = ["boardOps"];
+
 export const DEFAULT_OPTIONAL_MODULES = Object.fromEntries(
   OPTIONAL_MODULE_IDS.map((id) => [id, false])
 );
@@ -140,12 +143,17 @@ export function isOptionalModuleId(id) {
 /** Normalize school optionalModules; missing keys default to hidden (false). */
 export function normalizeOptionalModules(raw) {
   const out = { ...DEFAULT_OPTIONAL_MODULES };
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return out;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) {
+    for (const id of HIDDEN_OPTIONAL_MODULE_IDS) out[id] = false;
+    return out;
+  }
   for (const id of OPTIONAL_MODULE_IDS) {
     if (Object.prototype.hasOwnProperty.call(raw, id)) {
       out[id] = Boolean(raw[id]);
     }
   }
+  // Board console is intentionally not product-facing for now.
+  for (const id of HIDDEN_OPTIONAL_MODULE_IDS) out[id] = false;
   return out;
 }
 
@@ -157,12 +165,17 @@ export function parseOptionalModulesPatch(raw) {
   if (raw == null || typeof raw !== "object" || Array.isArray(raw)) {
     return { error: "Optional modules map is required" };
   }
-  const modules = normalizeOptionalModules(raw);
   for (const key of Object.keys(raw)) {
     if (!OPTIONAL_MODULE_ID_SET.has(key)) {
       return { error: `Unknown optional module “${key}”` };
     }
   }
+  // Ignore attempts to enable hidden modules (e.g. Board console).
+  const scrubbed = { ...raw };
+  for (const id of HIDDEN_OPTIONAL_MODULE_IDS) {
+    if (Object.prototype.hasOwnProperty.call(scrubbed, id)) scrubbed[id] = false;
+  }
+  const modules = normalizeOptionalModules(scrubbed);
   return { modules };
 }
 

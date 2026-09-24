@@ -193,7 +193,7 @@ function profileFromApi(s) {
 function optionalModulesFromApi(s) {
   const raw = s?.optionalModules;
   return {
-    boardOps: Boolean(raw?.boardOps),
+    boardOps: false,
     cpd: Boolean(raw?.cpd),
   };
 }
@@ -802,28 +802,11 @@ export default function SchoolSettings() {
                 <section className="space-y-3">
                   <h3 className="font-serif text-xl">Optional modules</h3>
                   <p className="text-sm text-ink-700/65">
-                    Board console and CPD are hidden by default. Turn them on when your school is ready.
-                    Staff still need the matching permission under Staff → Role access. Day-to-day marks,
-                    approvals, CML, and hall tickets always live under <span className="font-medium">Exam office</span>.
+                    CPD is hidden by default. Turn it on when your school is ready. Staff still need
+                    the matching permission under Staff → Role access. Day-to-day marks, approvals,
+                    CML, and hall tickets always live under <span className="font-medium">Exam office</span>.
                   </p>
                   <div className="rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
-                    <label className="flex items-start gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        className="mt-0.5"
-                        checked={Boolean(optionalModules.boardOps)}
-                        onChange={(e) =>
-                          setOptionalModules((m) => ({ ...m, boardOps: e.target.checked }))
-                        }
-                      />
-                      <span>
-                        <span className="font-medium text-ink-900">Show Board console</span>
-                        <span className="block text-ink-700/60">
-                          CBSE board-facing calendar, report-card release, revaluation, and upload packs —
-                          separate from Exam office mark work.
-                        </span>
-                      </span>
-                    </label>
                     <label className="flex items-start gap-2 text-sm">
                       <input
                         type="checkbox"

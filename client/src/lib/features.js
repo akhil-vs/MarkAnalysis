@@ -35,7 +35,6 @@ export const FEATURE_GROUPS = [
       { id: "leaveApproval", label: "Leave approval" },
       { id: "assignSubstitutes", label: "Assign substitutes" },
       { id: "schoolProfile", label: "School profile" },
-      { id: "boardOps", label: "Board console" },
       { id: "cpd", label: "CPD" },
     ],
   },
@@ -43,6 +42,9 @@ export const FEATURE_GROUPS = [
 
 /** Hidden school-wide until principal enables under School profile → Optional modules. */
 export const OPTIONAL_MODULE_IDS = ["boardOps", "cpd"];
+
+/** Kept in the API schema but not offered in product UI (always treated as off). */
+export const HIDDEN_OPTIONAL_MODULE_IDS = ["boardOps"];
 
 export const ALWAYS_ON_FEATURES = ["dashboard", "profile", "help", "classInbox"];
 
@@ -79,5 +81,6 @@ export function featureForNavId(navId) {
 
 export function isOptionalModuleEnabled(optionalModules, featureId) {
   if (!OPTIONAL_MODULE_IDS.includes(featureId)) return true;
+  if (HIDDEN_OPTIONAL_MODULE_IDS.includes(featureId)) return false;
   return Boolean(optionalModules?.[featureId]);
 }
