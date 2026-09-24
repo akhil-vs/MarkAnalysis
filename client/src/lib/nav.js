@@ -58,7 +58,7 @@ export const NAV_LABELS = {
   records: "Records",
   timetables: "Timetables",
   schoolProfile: "School profile",
-  boardOps: "Board ops",
+  boardOps: "Board console",
   cpd: "CPD",
   help: "User manuals",
   profile: "Profile",
@@ -89,7 +89,7 @@ export const NAV_TITLES = {
   records: "School records",
   timetables: "Teacher timetables",
   schoolProfile: "School profile",
-  boardOps: "Board operations",
+  boardOps: "Board console",
   cpd: "Continuing professional development",
   help: "HELP — user manuals",
   profile: "Your profile",
@@ -131,7 +131,7 @@ export const NAV_GROUPS = [
   },
   {
     id: "marks",
-    label: "Marks",
+    label: "Exam office",
     items: [
       {
         id: "marks",

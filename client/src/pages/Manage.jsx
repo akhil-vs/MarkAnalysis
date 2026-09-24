@@ -431,7 +431,7 @@ function ClassesTab() {
 }
 
 function emptyPoolForm() {
-  return { name: "", maxMarks: 100, practicalMaxMarks: "", isElective: false };
+  return { name: "", maxMarks: 100, practicalMaxMarks: "", isElective: false, category: "" };
 }
 
 function poolSearchText(r) {
@@ -451,6 +451,7 @@ function SubjectsTab() {
   const [selectedPoolIds, setSelectedPoolIds] = useState([]);
   const [assignClassName, setAssignClassName] = useState("");
   const [classStudents, setClassStudents] = useState([]);
+  const [gulfSuggestions, setGulfSuggestions] = useState([]);
   const confirm = useConfirm();
   const [poolForm, setPoolForm] = useState(emptyPoolForm());
   const [formError, setFormError] = useState("");
@@ -472,15 +473,22 @@ function SubjectsTab() {
       .sort((a, b) => String(a.rollNo).localeCompare(String(b.rollNo), undefined, { numeric: true }));
   }, [classStudents, electiveSubject]);
 
+  const missingGulfSuggestions = useMemo(() => {
+    const names = new Set(pool.map((p) => String(p.name || "").toLowerCase()));
+    return gulfSuggestions.filter((s) => !names.has(String(s.name || "").toLowerCase()));
+  }, [pool, gulfSuggestions]);
+
   async function load() {
     setLoading(true);
     try {
-      const [poolItems, classes] = await Promise.all([
+      const [poolItems, classes, school] = await Promise.all([
         api("/api/subjects/pool"),
         api("/api/classes"),
+        api("/api/school").catch(() => null),
       ]);
       setPool(Array.isArray(poolItems) ? poolItems : []);
       setClassSections(classes);
+      setGulfSuggestions(school?.grading?.gulfSuggestedSubjects || []);
       const options = uniqueClassNames(classes);
       setAssignClassName((current) => {
         if (current && options.includes(current)) return current;
@@ -580,6 +588,7 @@ function SubjectsTab() {
         maxMarks: maxMarks.value,
         isElective: Boolean(poolForm.isElective),
         practicalMaxMarks: practicalMaxMarks.value,
+        ...(poolForm.category ? { category: poolForm.category } : {}),
       };
       if (editingPoolId) {
         await api(`/api/subjects/pool/${editingPoolId}`, { method: "PATCH", body });
@@ -694,8 +703,52 @@ function SubjectsTab() {
     }
   }
 
+  async function addGulfSuggestion(suggestion) {
+    setBusy(true);
+    try {
+      await api("/api/subjects/pool", {
+        method: "POST",
+        body: {
+          name: suggestion.name,
+          maxMarks: suggestion.maxMarks || 100,
+          isElective: Boolean(suggestion.isElective),
+          practicalMaxMarks: null,
+          category: suggestion.category || null,
+        },
+      });
+      toast.success(`Added ${suggestion.name} to the subject pool.`);
+      await load();
+    } catch (err) {
+      toast.error(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
+      {missingGulfSuggestions.length > 0 && (
+        <div className="rounded-xl border border-ink-900/10 bg-paper/70 px-3 py-3 space-y-2">
+          <h3 className="font-medium text-ink-900">Gulf host-country subjects</h3>
+          <p className="text-sm text-ink-700/65">
+            Your school profile has Gulf extras enabled. Add these to the pool, then assign them to
+            classes like any other subject.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {missingGulfSuggestions.map((s) => (
+              <button
+                key={s.name}
+                type="button"
+                className="btn-ghost text-sm"
+                disabled={busy}
+                onClick={() => addGulfSuggestion(s)}
+              >
+                Add {s.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
       <div className="grid lg:grid-cols-3 gap-4">
         <form className="card p-4 space-y-3" onSubmit={savePool}>
           <h3 className="font-serif text-lg">{editingPoolId ? "Edit pool subject" : "Add to subject pool"}</h3>

@@ -23,6 +23,10 @@ import {
 } from "../lib/gradingConfig.js";
 import { parseWorkingDays, publicWorkingDays } from "../lib/workingDays.js";
 import { parseOptionalModulesPatch } from "../lib/roleFeatures.js";
+import {
+  DEFAULT_ASSESSMENT_POLICY,
+  parseAssessmentPolicyPatch,
+} from "../lib/assessmentPolicy.js";
 
 export const schoolRouter = Router();
 schoolRouter.use(auth);
@@ -82,7 +86,7 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFea
   const workingDaysPatch = parseWorkingDays(req.body?.workingDays);
   if (workingDaysPatch.error) return res.status(400).json({ error: workingDaysPatch.error });
 
-  // Only principals can flip school-wide optional modules (Board ops / CPD).
+  // Only principals can flip school-wide optional modules (Board console / CPD).
   let optionalModulesData = {};
   if (req.body?.optionalModules !== undefined) {
     if (req.user.role !== "PRINCIPAL") {
@@ -97,13 +101,22 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFea
   const academicYearPatch = parseAcademicYearSettingsPatch(req.body || {}, profile);
   if (academicYearPatch.error) return res.status(400).json({ error: academicYearPatch.error });
 
+  const assessmentPatch = parseAssessmentPolicyPatch(req.body || {}, profile.assessmentPolicy);
+  if (assessmentPatch.error) return res.status(400).json({ error: assessmentPatch.error });
+
+  const gradingData = { ...gradingPatch.data };
+  if (assessmentPatch.gradingFromScheme) {
+    Object.assign(gradingData, assessmentPatch.gradingFromScheme);
+  }
+
   const updated = await prisma.school.update({
     where: { id: profile.id },
     omit: { logoBytes: true },
     data: {
       ...identity.data,
       ...(workingDaysPatch.value !== undefined && { workingDays: workingDaysPatch.value }),
-      ...gradingPatch.data,
+      ...gradingData,
+      ...(assessmentPatch.data !== undefined ? { assessmentPolicy: assessmentPatch.data } : {}),
       ...optionalModulesData,
       ...academicYearPatch.data,
     },
@@ -159,6 +172,7 @@ schoolRouter.post("/grading/reset", requireRole("PRINCIPAL", "EXAM_COORDINATOR")
       distinctionMin: DEFAULT_DISTINCTION_MIN,
       gradeBands: DEFAULT_GRADE_BANDS,
       examWeights: DEFAULT_EXAM_WEIGHTS,
+      assessmentPolicy: DEFAULT_ASSESSMENT_POLICY,
     },
   });
   invalidateSchoolProfileCache();

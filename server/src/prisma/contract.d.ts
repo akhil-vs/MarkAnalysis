@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'e77656044c13445c61749199135b6978876f1bc70850fd1b41679332f6dc293d'>;
+  StorageHashBase<'673a79cf07ebf860ede493573ab8713d26cb9936f7c7e4721e74f519c8d60f51'>;
 export type ExecutionHash =
   ExecutionHashBase<'a72b23d74a7c00bedc01aae8e1333dfa214b3303b25cb40bff7c9ec558b8b035'>;
 export type ProfileHash =
@@ -597,6 +597,7 @@ export type FieldOutputTypes = {
       readonly optionalModules: CodecTypes['pg/jsonb@1']['output'] | null;
       readonly academicYears: CodecTypes['pg/jsonb@1']['output'] | null;
       readonly currentAcademicYear: CodecTypes['pg/text@1']['output'] | null;
+      readonly assessmentPolicy: CodecTypes['pg/jsonb@1']['output'] | null;
     };
     readonly Student: {
       readonly id: CodecTypes['pg/text@1']['output'];
@@ -630,6 +631,7 @@ export type FieldOutputTypes = {
       readonly maxMarks: CodecTypes['pg/int4@1']['output'];
       readonly isElective: CodecTypes['pg/bool@1']['output'];
       readonly practicalMaxMarks: CodecTypes['pg/int4@1']['output'] | null;
+      readonly category: CodecTypes['pg/text@1']['output'] | null;
     };
     readonly SubjectPoolItem: {
       readonly id: CodecTypes['pg/text@1']['output'];
@@ -638,6 +640,7 @@ export type FieldOutputTypes = {
       readonly maxMarks: CodecTypes['pg/int4@1']['output'];
       readonly isElective: CodecTypes['pg/bool@1']['output'];
       readonly practicalMaxMarks: CodecTypes['pg/int4@1']['output'] | null;
+      readonly category: CodecTypes['pg/text@1']['output'] | null;
     };
     readonly TeacherAssignment: {
       readonly id: CodecTypes['pg/text@1']['output'];
@@ -1060,6 +1063,7 @@ export type FieldInputTypes = {
       readonly optionalModules: CodecTypes['pg/jsonb@1']['input'] | null;
       readonly academicYears: CodecTypes['pg/jsonb@1']['input'] | null;
       readonly currentAcademicYear: CodecTypes['pg/text@1']['input'] | null;
+      readonly assessmentPolicy: CodecTypes['pg/jsonb@1']['input'] | null;
     };
     readonly Student: {
       readonly id: CodecTypes['pg/text@1']['input'];
@@ -1093,6 +1097,7 @@ export type FieldInputTypes = {
       readonly maxMarks: CodecTypes['pg/int4@1']['input'];
       readonly isElective: CodecTypes['pg/bool@1']['input'];
       readonly practicalMaxMarks: CodecTypes['pg/int4@1']['input'] | null;
+      readonly category: CodecTypes['pg/text@1']['input'] | null;
     };
     readonly SubjectPoolItem: {
       readonly id: CodecTypes['pg/text@1']['input'];
@@ -1101,6 +1106,7 @@ export type FieldInputTypes = {
       readonly maxMarks: CodecTypes['pg/int4@1']['input'];
       readonly isElective: CodecTypes['pg/bool@1']['input'];
       readonly practicalMaxMarks: CodecTypes['pg/int4@1']['input'] | null;
+      readonly category: CodecTypes['pg/text@1']['input'] | null;
     };
     readonly TeacherAssignment: {
       readonly id: CodecTypes['pg/text@1']['input'];
@@ -1489,6 +1495,7 @@ export type StorageColumnTypes = {
       readonly address: CodecTypes['pg/text@1']['output'] | null;
       readonly affiliationNo: CodecTypes['pg/text@1']['output'] | null;
       readonly alternatePhone: CodecTypes['pg/text@1']['output'] | null;
+      readonly assessmentPolicy: CodecTypes['pg/jsonb@1']['output'] | null;
       readonly board: CodecTypes['pg/text@1']['output'] | null;
       readonly city: CodecTypes['pg/text@1']['output'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
@@ -1549,6 +1556,7 @@ export type StorageColumnTypes = {
       readonly tenantId: CodecTypes['pg/text@1']['output'];
     };
     readonly Subject: {
+      readonly category: CodecTypes['pg/text@1']['output'] | null;
       readonly className: CodecTypes['pg/text@1']['output'];
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly isElective: CodecTypes['pg/bool@1']['output'];
@@ -1558,6 +1566,7 @@ export type StorageColumnTypes = {
       readonly tenantId: CodecTypes['pg/text@1']['output'];
     };
     readonly SubjectPoolItem: {
+      readonly category: CodecTypes['pg/text@1']['output'] | null;
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly isElective: CodecTypes['pg/bool@1']['output'];
       readonly maxMarks: CodecTypes['pg/int4@1']['output'];
@@ -1952,6 +1961,7 @@ export type StorageColumnInputTypes = {
       readonly address: CodecTypes['pg/text@1']['input'] | null;
       readonly affiliationNo: CodecTypes['pg/text@1']['input'] | null;
       readonly alternatePhone: CodecTypes['pg/text@1']['input'] | null;
+      readonly assessmentPolicy: CodecTypes['pg/jsonb@1']['input'] | null;
       readonly board: CodecTypes['pg/text@1']['input'] | null;
       readonly city: CodecTypes['pg/text@1']['input'] | null;
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
@@ -2012,6 +2022,7 @@ export type StorageColumnInputTypes = {
       readonly tenantId: CodecTypes['pg/text@1']['input'];
     };
     readonly Subject: {
+      readonly category: CodecTypes['pg/text@1']['input'] | null;
       readonly className: CodecTypes['pg/text@1']['input'];
       readonly id: CodecTypes['pg/text@1']['input'];
       readonly isElective: CodecTypes['pg/bool@1']['input'];
@@ -2021,6 +2032,7 @@ export type StorageColumnInputTypes = {
       readonly tenantId: CodecTypes['pg/text@1']['input'];
     };
     readonly SubjectPoolItem: {
+      readonly category: CodecTypes['pg/text@1']['input'] | null;
       readonly id: CodecTypes['pg/text@1']['input'];
       readonly isElective: CodecTypes['pg/bool@1']['input'];
       readonly maxMarks: CodecTypes['pg/int4@1']['input'];
@@ -2133,6 +2145,7 @@ export namespace Models {
     optionalModules: CodecTypes['pg/jsonb@1']['output'] | null;
     academicYears: CodecTypes['pg/jsonb@1']['output'] | null;
     currentAcademicYear: CodecTypes['pg/text@1']['output'] | null;
+    assessmentPolicy: CodecTypes['pg/jsonb@1']['output'] | null;
     activityAudits: public_ActivityAudit[];
     assignments: public_TeacherAssignment[];
     boardPacks: public_BoardPack[];
@@ -2316,6 +2329,7 @@ export namespace Models {
     maxMarks: CodecTypes['pg/int4@1']['output'];
     isElective: CodecTypes['pg/bool@1']['output'];
     practicalMaxMarks: CodecTypes['pg/int4@1']['output'] | null;
+    category: CodecTypes['pg/text@1']['output'] | null;
     tenant: public_School;
     readonly [RelationKeys]?: 'tenant';
   };
@@ -2327,6 +2341,7 @@ export namespace Models {
     maxMarks: CodecTypes['pg/int4@1']['output'];
     isElective: CodecTypes['pg/bool@1']['output'];
     practicalMaxMarks: CodecTypes['pg/int4@1']['output'] | null;
+    category: CodecTypes['pg/text@1']['output'] | null;
     assignments: public_TeacherAssignment[];
     enrollments: public_StudentSubjectEnrollment[];
     markEntryRequests: public_MarkEntryAccessRequest[];
@@ -5739,6 +5754,11 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
                 };
+                readonly assessmentPolicy: {
+                  readonly nativeType: 'jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                };
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [
@@ -6033,6 +6053,11 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/int4@1';
                   readonly nullable: true;
                 };
+                readonly category: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [{ readonly columns: readonly ['tenantId', 'name', 'className'] }];
@@ -6093,6 +6118,11 @@ type ContractBase = Omit<
                 readonly practicalMaxMarks: {
                   readonly nativeType: 'int4';
                   readonly codecId: 'pg/int4@1';
+                  readonly nullable: true;
+                };
+                readonly category: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
                   readonly nullable: true;
                 };
               };
@@ -9630,6 +9660,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly assessmentPolicy: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
             };
             readonly relations: {
               readonly activityAudits: {
@@ -9974,6 +10008,7 @@ type ContractBase = Omit<
                 readonly optionalModules: { readonly column: 'optionalModules' };
                 readonly academicYears: { readonly column: 'academicYears' };
                 readonly currentAcademicYear: { readonly column: 'currentAcademicYear' };
+                readonly assessmentPolicy: { readonly column: 'assessmentPolicy' };
               };
             };
           };
@@ -10254,6 +10289,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly category: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
             };
             readonly relations: {
               readonly assignments: {
@@ -10365,6 +10404,7 @@ type ContractBase = Omit<
                 readonly maxMarks: { readonly column: 'maxMarks' };
                 readonly isElective: { readonly column: 'isElective' };
                 readonly practicalMaxMarks: { readonly column: 'practicalMaxMarks' };
+                readonly category: { readonly column: 'category' };
               };
             };
           };
@@ -10394,6 +10434,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/int4@1' };
               };
+              readonly category: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
             };
             readonly relations: {
               readonly tenant: {
@@ -10419,6 +10463,7 @@ type ContractBase = Omit<
                 readonly maxMarks: { readonly column: 'maxMarks' };
                 readonly isElective: { readonly column: 'isElective' };
                 readonly practicalMaxMarks: { readonly column: 'practicalMaxMarks' };
+                readonly category: { readonly column: 'category' };
               };
             };
           };

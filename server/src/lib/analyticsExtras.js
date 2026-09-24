@@ -1,4 +1,8 @@
 import {
+  evaluateMarkPass,
+  evaluateStudentPass,
+} from "./assessmentPolicy.js";
+import {
   gradeFromPercent as defaultGradeFromPercent,
   mean,
   median,
@@ -81,45 +85,69 @@ export function markBandHistogram(marks = []) {
   return bands;
 }
 
-export function distinctionFailLists(marks, { passPercent = 50, distinctionMin = 90, gradeFn = defaultGradeFromPercent } = {}) {
-  const studentAvgs = studentTotals(groupBy(marks, (m) => m.studentId));
+export function distinctionFailLists(
+  marks,
+  {
+    passPercent = 50,
+    distinctionMin = 90,
+    gradeFn = defaultGradeFromPercent,
+    assessmentPolicy = null,
+  } = {}
+) {
+  const byStudent = groupBy(marks, (m) => m.studentId);
+  const studentAvgs = studentTotals(byStudent);
   const ranked = applyTiedRanks(
-    studentAvgs.map((s) => ({
-      ...s,
-      percent: s.avg,
-      name: s.student?.name,
-      rollNo: s.student?.rollNo,
-      classLabel: s.student ? sectionLabel(s.student) : "—",
-      grade: gradeFn(s.avg),
-    })),
+    studentAvgs.map((s) => {
+      const studentMarks = byStudent.get(s.studentId) || [];
+      const passEval = evaluateStudentPass(studentMarks, assessmentPolicy, {
+        passPercent,
+        average: s.avg,
+      });
+      return {
+        ...s,
+        percent: s.avg,
+        name: s.student?.name,
+        rollNo: s.student?.rollNo,
+        classLabel: s.student ? sectionLabel(s.student) : "—",
+        grade: gradeFn(s.avg),
+        passed: passEval.passed,
+        failedSubjects: passEval.failedSubjects,
+      };
+    }),
     (r) => r.percent
   );
 
   const distinction = ranked.filter((s) => (s.avg ?? -1) >= distinctionMin);
-  const fail = ranked.filter((s) => s.avg != null && s.avg < passPercent).reverse();
+  const fail = ranked.filter((s) => s.passed === false).reverse();
+  const pass = ranked.filter((s) => s.passed === true);
 
   const bySubjectFail = [];
   const bySubject = groupBy(marks.filter(isScoredMark), (m) => m.subject?.name || "—");
   for (const [subject, list] of bySubject.entries()) {
-    const fails = list
-      .map((m) => ({
-        studentId: m.studentId,
-        name: m.student?.name,
-        rollNo: m.student?.rollNo,
-        classLabel: m.student ? sectionLabel(m.student) : "—",
-        percent: toPercentWith(m),
-        marks: m.marksObtained,
-        max: m.subject?.maxMarks,
-      }))
-      .filter((r) => r.percent != null && r.percent < passPercent)
-      .sort((a, b) => a.percent - b.percent);
-    if (fails.length) bySubjectFail.push({ subject, count: fails.length, students: fails.slice(0, 25) });
+    const failRows = list
+      .map((m) => {
+        const result = evaluateMarkPass(m, assessmentPolicy, { passPercent });
+        if (result.passed !== false) return null;
+        return {
+          studentId: m.studentId,
+          name: m.student?.name,
+          rollNo: m.student?.rollNo,
+          classLabel: m.student ? sectionLabel(m.student) : "—",
+          percent: result.overallPercent,
+          marks: m.marksObtained,
+          max: m.subject?.maxMarks,
+          reason: result.reason,
+        };
+      })
+      .filter(Boolean)
+      .sort((a, b) => (a.percent ?? 0) - (b.percent ?? 0));
+    if (failRows.length) bySubjectFail.push({ subject, count: failRows.length, students: failRows.slice(0, 25) });
   }
 
   return {
     counts: {
       distinction: distinction.length,
-      pass: ranked.filter((s) => s.avg != null && s.avg >= passPercent).length,
+      pass: pass.length,
       fail: fail.length,
       students: ranked.filter((s) => s.avg != null).length,
     },
@@ -183,7 +211,7 @@ export function divisionGapMatrix(marks, sections, subjectNames) {
   return { matrix, largestGaps: gaps.slice(0, 10), sections: sections.map((s) => s.section) };
 }
 
-export function passFailMatrix(marks, subjects, { passPercent = 50 } = {}) {
+export function passFailMatrix(marks, subjects, { passPercent = 50, assessmentPolicy = null } = {}) {
   const byName = groupBy(marks, (m) => m.subject?.name || "—");
   const byId = groupBy(marks, (m) => m.subjectId);
   return subjects.map((subject) => {
@@ -193,8 +221,13 @@ export function passFailMatrix(marks, subjects, { passPercent = 50 } = {}) {
         : byId.get(subject.id) || [];
     const scored = list.filter(isScoredMark);
     const percents = scored.map(toPercentWith).filter((p) => p != null);
-    const pass = percents.filter((p) => p >= passPercent).length;
-    const fail = percents.filter((p) => p < passPercent).length;
+    let pass = 0;
+    let fail = 0;
+    for (const m of scored) {
+      const result = evaluateMarkPass(m, assessmentPolicy, { passPercent });
+      if (result.passed === true) pass += 1;
+      else if (result.passed === false) fail += 1;
+    }
     return {
       subject: typeof subject === "string" ? subject : subject.name,
       pass,
@@ -202,9 +235,9 @@ export function passFailMatrix(marks, subjects, { passPercent = 50 } = {}) {
       absent: list.filter((m) => m.outcome === "ABSENT").length,
       exempt: list.filter((m) => m.outcome === "EXEMPT").length,
       withheld: list.filter((m) => m.outcome === "WITHHELD").length,
-      passRate: percents.length ? round1((pass / percents.length) * 100) : null,
+      passRate: scored.length ? round1((pass / scored.length) * 100) : null,
       average: percents.length ? round1(mean(percents)) : null,
-      count: percents.length,
+      count: scored.length,
     };
   });
 }

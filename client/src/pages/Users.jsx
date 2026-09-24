@@ -1554,7 +1554,7 @@ function RoleAccessModal({ roles, featureCatalog, optionalModules, initialRoleId
 
   const hiddenOptionalLabels = useMemo(() => {
     return OPTIONAL_MODULE_IDS.filter((id) => !isOptionalModuleEnabled(optionalModules, id)).map(
-      (id) => (id === "boardOps" ? "Board ops" : id === "cpd" ? "CPD" : id)
+      (id) => (id === "boardOps" ? "Board console" : id === "cpd" ? "CPD" : id)
     );
   }, [optionalModules]);
 
