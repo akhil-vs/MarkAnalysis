@@ -8,6 +8,7 @@
   "scripts": {
     "build": "cd server && npx prisma contract emit && cd ../client && npm run build",
     "vercel-build": "cd server && npx prisma contract emit && cd ../client && npm run build",
+    "lint": "node scripts/syntax-check.mjs",
     "docs:pdf": "node scripts/generate-user-manual-pdfs.js",
     "test:manual-automation": "node scripts/run-manual-automation.mjs",
     "test:manual-automation:prepare": "PREPARE_DB=1 SEED=1 node scripts/run-manual-automation.mjs",

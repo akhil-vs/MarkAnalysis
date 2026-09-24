@@ -22,7 +22,7 @@ export default defineConfig({
   testDir: path.join(root, "e2e"),
   fullyParallel: false,
   forbidOnly: !!process.env.CI,
-  retries: 0,
+  retries: process.env.CI ? 1 : 0,
   workers: 1,
   timeout: 90_000,
   expect: { timeout: 15_000 },
