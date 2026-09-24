@@ -54,8 +54,8 @@ async function schoolStatsForIds(schoolIds) {
       SELECT
         "tenantId" AS "schoolId",
         COUNT(*)::int AS "staffCount",
-        COUNT(*) FILTER (WHERE role = 'PRINCIPAL' AND status = 'ACTIVE')::int AS "principalCount",
-        COUNT(*) FILTER (WHERE status = 'PENDING')::int AS "pendingStaff"
+        COUNT(*) FILTER (WHERE role = 'PRINCIPAL'::"Role" AND status = 'ACTIVE'::"UserStatus")::int AS "principalCount",
+        COUNT(*) FILTER (WHERE status = 'PENDING'::"UserStatus")::int AS "pendingStaff"
       FROM "User"
       WHERE "tenantId" = ANY(${ids})
       GROUP BY "tenantId"
@@ -63,7 +63,7 @@ async function schoolStatsForIds(schoolIds) {
     prisma.$queryRaw`
       SELECT "tenantId" AS "schoolId", COUNT(*)::int AS "studentCount"
       FROM "Student"
-      WHERE "tenantId" = ANY(${ids}) AND status = 'ACTIVE'
+      WHERE "tenantId" = ANY(${ids}) AND status = 'ACTIVE'::"StudentStatus"
       GROUP BY "tenantId"
     `,
     prisma.$queryRaw`
