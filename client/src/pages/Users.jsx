@@ -12,7 +12,7 @@ import { FieldError } from "../components/FieldError.jsx";
 import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
 import { canAddCoordinator, canHoldClassroomAssignments, isLeadership } from "../lib/roles.js";
 import { NAV_TITLES } from "../lib/nav.js";
-import { FEATURE_GROUPS, OPTIONAL_MODULE_IDS, isOptionalModuleEnabled } from "../lib/features.js";
+import { FEATURE_GROUPS, HIDDEN_OPTIONAL_MODULE_IDS, OPTIONAL_MODULE_IDS, isOptionalModuleEnabled } from "../lib/features.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 
@@ -435,7 +435,7 @@ export default function Users() {
     setCanManageAccess(Boolean(data.canManageAccess));
     setFeatureCatalog(Array.isArray(data.features) ? data.features : []);
     setOptionalModules({
-      boardOps: Boolean(data.optionalModules?.boardOps),
+      boardOps: false,
       cpd: Boolean(data.optionalModules?.cpd),
     });
   }
@@ -1553,9 +1553,9 @@ function RoleAccessModal({ roles, featureCatalog, optionalModules, initialRoleId
   }, [roleId, roles]);
 
   const hiddenOptionalLabels = useMemo(() => {
-    return OPTIONAL_MODULE_IDS.filter((id) => !isOptionalModuleEnabled(optionalModules, id)).map(
-      (id) => (id === "boardOps" ? "Board console" : id === "cpd" ? "CPD" : id)
-    );
+    return OPTIONAL_MODULE_IDS.filter(
+      (id) => !HIDDEN_OPTIONAL_MODULE_IDS.includes(id) && !isOptionalModuleEnabled(optionalModules, id)
+    ).map((id) => (id === "cpd" ? "CPD" : id));
   }, [optionalModules]);
 
   const catalogGroups = useMemo(() => {

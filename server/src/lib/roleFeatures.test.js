@@ -32,11 +32,20 @@ describe("normalizeOptionalModules / parseOptionalModulesPatch", () => {
     assert.equal(normalizeOptionalModules(null).cpd, false);
   });
 
-  it("accepts a partial patch and rejects unknown keys", () => {
-    const ok = parseOptionalModulesPatch({ boardOps: true });
+  it("keeps Board console off even when a patch requests it on", () => {
+    assert.equal(normalizeOptionalModules({ boardOps: true, cpd: true }).boardOps, false);
+    assert.equal(normalizeOptionalModules({ boardOps: true, cpd: true }).cpd, true);
+    const ok = parseOptionalModulesPatch({ boardOps: true, cpd: true });
     assert.equal(ok.error, undefined);
-    assert.equal(ok.modules.boardOps, true);
-    assert.equal(ok.modules.cpd, false);
+    assert.equal(ok.modules.boardOps, false);
+    assert.equal(ok.modules.cpd, true);
+  });
+
+  it("accepts a partial CPD patch and rejects unknown keys", () => {
+    const ok = parseOptionalModulesPatch({ cpd: true });
+    assert.equal(ok.error, undefined);
+    assert.equal(ok.modules.boardOps, false);
+    assert.equal(ok.modules.cpd, true);
     assert.match(parseOptionalModulesPatch({ nope: true }).error, /Unknown optional module/);
   });
 });
@@ -52,11 +61,11 @@ describe("resolveAccessRoleKey / featuresForUser", () => {
     );
   });
 
-  it("gives principal every feature when optional modules are enabled", () => {
+  it("gives principal catalog features when CPD is enabled, not Board console", () => {
     const list = featuresForUser({ role: "PRINCIPAL" }, { optionalModules: modulesOn });
     assert.ok(list.includes("staff"));
     assert.ok(list.includes("dashboard"));
-    assert.ok(list.includes("boardOps"));
+    assert.equal(list.includes("boardOps"), false);
     assert.ok(list.includes("cpd"));
     assert.equal(list.includes("upload"), false);
     assert.ok(list.includes("marks"));
@@ -110,12 +119,12 @@ describe("resolveAccessRoleKey / featuresForUser", () => {
     assert.equal(list.includes("pendingUploads"), true);
   });
 
-  it("filters feature lists by optional modules", () => {
+  it("filters feature lists by optional modules and keeps Board console off", () => {
     const filtered = filterFeaturesByOptionalModules(
       ["dashboard", "boardOps", "cpd", "staff"],
       { boardOps: true, cpd: false }
     );
-    assert.deepEqual(filtered, ["dashboard", "boardOps", "staff"]);
+    assert.deepEqual(filtered, ["dashboard", "staff"]);
   });
 });
 
@@ -167,6 +176,10 @@ describe("enabledFeatureList / userHasFeature", () => {
     assert.equal(userHasFeature({ role: "PRINCIPAL" }, "boardOps"), false);
     assert.equal(
       userHasFeature({ role: "PRINCIPAL" }, "boardOps", { optionalModules: { boardOps: true } }),
+      false
+    );
+    assert.equal(
+      userHasFeature({ role: "PRINCIPAL" }, "cpd", { optionalModules: { cpd: true } }),
       true
     );
   });
