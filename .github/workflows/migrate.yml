@@ -27,8 +27,8 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
         run: |
           if [ -z "$DATABASE_URL" ]; then
-            echo "DATABASE_URL secret not set — skipping migrate"
-            exit 0
+            echo "::error::DATABASE_URL secret is not set — refusing to skip migrate on main"
+            exit 1
           fi
           npm ci
           npx prisma contract emit

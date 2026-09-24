@@ -70,6 +70,21 @@ let bootstrapPromise = null;
 let authBootstrapPromise = null;
 
 /**
+ * Whether the embedded SQL catch-up (`ensurePendingSchema`) may run.
+ * - SKIP_ENSURE_SCHEMA=true → never
+ * - FORCE_ENSURE_SCHEMA=true → always (even after a clean migrate)
+ * - default: run on Vercel fast-path, or as fallback when migrate fails/skips;
+ *   skip after a successful migrate (migrations are the source of truth)
+ */
+function allowEnsureSchema({ migrateOk } = {}) {
+  if (process.env.SKIP_ENSURE_SCHEMA === "true") return false;
+  if (process.env.FORCE_ENSURE_SCHEMA === "true") return true;
+  if (migrateOk) return false;
+  if (process.env.ALLOW_ENSURE_SCHEMA_FALLBACK === "false") return false;
+  return true;
+}
+
+/**
  * Prefer real migrations; fall back to ensurePendingSchema catch-up used on Vercel.
  * On Vercel, skip spawn-based migrate deploy by default (cold-start budget) and
  * apply the embedded catch-up so login/auth do not race a fire-and-forget boot.
@@ -80,10 +95,16 @@ export function bootstrapSchema() {
       const vercelFastPath =
         Boolean(process.env.VERCEL) && process.env.FORCE_MIGRATE_DEPLOY !== "true";
       if (vercelFastPath) {
-        await ensurePendingSchema();
+        if (allowEnsureSchema({ migrateOk: false })) {
+          await ensurePendingSchema();
+          return {
+            migrate: { ok: false, skipped: true, reason: "vercel-ensure-only" },
+            ensureSchema: true,
+          };
+        }
         return {
-          migrate: { ok: false, skipped: true, reason: "vercel-ensure-only" },
-          ensureSchema: true,
+          migrate: { ok: false, skipped: true, reason: "vercel-ensure-skipped" },
+          ensureSchema: false,
         };
       }
       const result = await runMigrateDeploy();
@@ -95,13 +116,18 @@ export function bootstrapSchema() {
             result.stderr || result.stdout
           );
         }
+        if (allowEnsureSchema({ migrateOk: false })) {
+          await ensurePendingSchema();
+          return { migrate: result, ensureSchema: true };
+        }
+        return { migrate: result, ensureSchema: false };
+      }
+      // Successful migrate: skip catch-up unless FORCE_ENSURE_SCHEMA=true.
+      if (allowEnsureSchema({ migrateOk: true })) {
         await ensurePendingSchema();
         return { migrate: result, ensureSchema: true };
       }
-      // Still run catch-up for any columns ensureSchema owns that might predate a
-      // migration landing on a lagging environment.
-      await ensurePendingSchema();
-      return { migrate: result, ensureSchema: true };
+      return { migrate: result, ensureSchema: false };
     })().catch((err) => {
       bootstrapPromise = null;
       throw err;

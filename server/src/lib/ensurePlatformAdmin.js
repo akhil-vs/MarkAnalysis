@@ -1,4 +1,4 @@
-import bcrypt from "bcryptjs";
+import { hashPassword, verifyPassword } from "./password.js";
 
 export const DEFAULT_PLATFORM_ADMIN_EMAIL = "admin@platform.edu";
 export const DEFAULT_PLATFORM_ADMIN_PASSWORD = "password123";
@@ -64,7 +64,7 @@ export async function ensurePlatformAdmin(db, env = process.env) {
 
     if (blockDefault) {
       try {
-        const usesDefault = await bcrypt.compare(
+        const usesDefault = await verifyPassword(
           DEFAULT_PLATFORM_ADMIN_PASSWORD,
           existing.passwordHash
         );
@@ -92,11 +92,11 @@ export async function ensurePlatformAdmin(db, env = process.env) {
     if (cfg.locked) {
       // Password stays as stored.
     } else if (cfg.resetPassword) {
-      data.passwordHash = await bcrypt.hash(cfg.password, 10);
+      data.passwordHash = await hashPassword(cfg.password);
     } else if (!cfg.productionLike) {
-      const matches = await bcrypt.compare(cfg.password, existing.passwordHash);
+      const matches = await verifyPassword(cfg.password, existing.passwordHash);
       if (!matches) {
-        data.passwordHash = await bcrypt.hash(cfg.password, 10);
+        data.passwordHash = await hashPassword(cfg.password);
       }
     }
 
@@ -116,7 +116,7 @@ export async function ensurePlatformAdmin(db, env = process.env) {
     return { skipped: true, reason: "default-password-blocked", user: null };
   }
 
-  const passwordHash = await bcrypt.hash(cfg.password, 10);
+  const passwordHash = await hashPassword(cfg.password);
   const user = await db.user.create({
     data: {
       name: "Platform Admin",

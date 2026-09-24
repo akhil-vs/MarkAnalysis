@@ -31,7 +31,7 @@ You land on the **Teacher desk**: your papers for the current exam, register sta
 - Switch exams with the **exam selector** (you share the same latest exam as leadership by default).
 - **Notices** appear on the desk and in the **bell** (deadlines, incomplete marklists, late-entry/edit decisions, staff messages). Open a notice to jump into the relevant register.
 - Metrics show your average, student count, sections, and how many registers still need finishing.
-- Class teachers see their section(s) called out when relevant.
+- Class teachers see **Class inbox** (pending papers for their sections) and can open consolidated lists when every paper is approved.
 - Open the **?** hint on any page for a short “what’s on this page” tip. Download this guide from **HELP → User manuals**.
 
 ### 2.1 My leave
@@ -96,6 +96,14 @@ Do not ask for late access unless a genuine correction is needed — grants are 
 1. Choose exam → your class → division.
 2. You only see the list when **every subject register** for that section is fully **approved**. Incomplete divisions are not shown to class teachers.
 3. Download Excel or PDF for your section’s official list once it is ready.
+
+## 4. Class teacher — inbox and consolidated lists
+
+If you are the **class teacher** for a section:
+
+1. Open **Marks → Class inbox** to see which subject papers are still missing marks or waiting for approval.
+2. Open a register (read-only for papers you do not teach) to check progress.
+3. When every subject is approved, open **Consolidated lists** for your section and download Excel/PDF.
 
 Leadership can preview incomplete lists; class teachers cannot.
 

@@ -70,7 +70,8 @@ describe("text form parsers", () => {
   });
 
   it("enforces password length, phone digits, and year shape", () => {
-    assert.match(parsePassword("short").error, /at least 8/);
+    assert.match(parsePassword("short").error, /at least 10/);
+    assert.equal(parsePassword("password123").error, undefined);
     assert.equal(parsePhone("123").error, "Enter a valid phone number");
     assert.equal(parseAcademicYear("2025").error, "Academic year must look like 2025-26");
     assert.equal(parseAcademicYear("2025-26").value, "2025-26");

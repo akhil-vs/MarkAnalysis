@@ -156,7 +156,6 @@ portalRouter.post(
 const portalSessionLimit = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 60,
-  keyFn: (req) => req.ip || req.headers["x-forwarded-for"] || "unknown",
   message: "Too many portal session attempts. Try again later.",
 });
 

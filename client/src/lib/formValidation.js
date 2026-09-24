@@ -18,7 +18,7 @@ export function parseEmail(value, { required = false, label = "Email" } = {}) {
   return { value: text };
 }
 
-export function parsePassword(value, { label = "Password", minLength = 8 } = {}) {
+export function parsePassword(value, { label = "Password", minLength = 10 } = {}) {
   const text = String(value ?? "");
   if (!text) return { error: `${label} is required` };
   if (text.length < minLength) {

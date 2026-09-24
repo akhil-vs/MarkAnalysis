@@ -1,5 +1,4 @@
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma.js";
 import { parseEmail } from "../lib/numbers.js";
 import { publicUser, signToken } from "../middleware/auth.js";
@@ -13,6 +12,7 @@ import { allocateJoinCode, allocateSchoolSlug, findSchoolByJoinCode } from "../l
 import { DEFAULT_PERIODS } from "../lib/periods.js";
 import { normalizeJoinCode } from "../lib/schoolIdentity.js";
 import { runWithoutTenant, runWithTenant } from "../lib/tenant.js";
+import { hashPassword, validatePasswordPolicy } from "../lib/password.js";
 import { logActivity } from "../lib/activityAudit.js";
 
 export const schoolsRouter = Router();
@@ -53,8 +53,9 @@ schoolsRouter.post("/register", registerLimit, async (req, res) => {
   if (!password) {
     return res.status(400).json({ error: "Password is required" });
   }
-  if (String(password).length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  {
+    const policyError = validatePasswordPolicy(password);
+    if (policyError) return res.status(400).json({ error: policyError });
   }
 
   const exists = await runWithoutTenant(() => prisma.user.findUnique({ where: { email: parsedEmail.value } }));
@@ -64,7 +65,7 @@ schoolsRouter.post("/register", registerLimit, async (req, res) => {
 
   const slug = await allocateSchoolSlug(schoolName);
   const joinCode = await allocateJoinCode();
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await hashPassword(password);
 
   let school;
   let principal;

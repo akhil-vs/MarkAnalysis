@@ -1,6 +1,5 @@
 import { randomBytes } from "node:crypto";
 import { Router } from "express";
-import bcrypt from "bcryptjs";
 import { prisma } from "../lib/prisma.js";
 import { parseEmail } from "../lib/numbers.js";
 import { logActivity } from "../lib/activityAudit.js";
@@ -27,6 +26,7 @@ import {
   listSchoolDataCategories,
   schoolDataCounts,
 } from "../lib/schoolDataDelete.js";
+import { hashPassword, validatePasswordPolicy } from "../lib/password.js";
 export const platformRouter = Router();
 platformRouter.use(auth);
 platformRouter.use(requirePlatformAdmin());
@@ -189,13 +189,16 @@ platformRouter.post("/schools", async (req, res) => {
     generatedPassword = tempPassword();
     password = generatedPassword;
   }
-  if (password.length < 8) {
-    return res.status(400).json({ error: "Principal password must be at least 8 characters" });
+  {
+    const policyError = validatePasswordPolicy(password);
+    if (policyError) {
+      return res.status(400).json({ error: policyError.replace(/^Password/, "Principal password") });
+    }
   }
 
   const principalSchoolId = String(req.body?.principalSchoolId || "").trim() || null;
   const joinCode = await allocateJoinCode();
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await hashPassword(password);
 
   const school = await runWithoutTenant(async () => {
     const created = await prisma.school.create({
@@ -321,8 +324,9 @@ platformRouter.post("/schools/:id/principal", async (req, res) => {
     generatedPassword = tempPassword();
     password = generatedPassword;
   }
-  if (password.length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  {
+    const policyError = validatePasswordPolicy(password);
+    if (policyError) return res.status(400).json({ error: policyError });
   }
   const schoolId = String(req.body?.schoolId || "").trim() || null;
   if (schoolId) {
@@ -330,7 +334,7 @@ platformRouter.post("/schools/:id/principal", async (req, res) => {
     if (taken) return res.status(409).json({ error: "Staff ID already registered at this school" });
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await hashPassword(password);
   const user = await runWithTenant(school.id, () =>
     prisma.user.create({
       data: {
@@ -374,14 +378,15 @@ platformRouter.post("/schools/:id/users/:userId/reset-password", async (req, res
     generatedPassword = tempPassword();
     password = generatedPassword;
   }
-  if (password.length < 8) {
-    return res.status(400).json({ error: "Password must be at least 8 characters" });
+  {
+    const policyError = validatePasswordPolicy(password);
+    if (policyError) return res.status(400).json({ error: policyError });
   }
 
   await prisma.user.update({
     where: { id: user.id },
     data: {
-      passwordHash: await bcrypt.hash(password, 10),
+      passwordHash: await hashPassword(password),
       mustChangePassword: true,
     },
   });
@@ -500,6 +505,10 @@ platformRouter.post("/mail/flush", async (_req, res) => {
 });
 
 platformRouter.get("/health/deep", async (_req, res) => {
-  const payload = await buildHealthPayload({ deep: true, includeOps: true });
+  const payload = await buildHealthPayload({
+    deep: true,
+    includeOps: true,
+    includeSchema: true,
+  });
   res.status(payload.ok ? 200 : 503).json(payload);
 });

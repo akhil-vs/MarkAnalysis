@@ -12,7 +12,7 @@ Remaining work that would make this suitable for a live school:
 - ~~**Weighted annual result** across unit / mid / final~~ (School profile exam weights + analytics insights)
 - ~~**Configurable grade bands** and pass percent (board-specific)~~ (School profile Analytics grading)
 - ~~**Electives / additional subjects** per student~~ (`Subject.isElective` + enrollments; register / CML skip non-enrolled)
-- ~~**Class-teacher inbox** for section pending papers~~ (read access + gated CML for class teachers; dedicated inbox still open)
+- ~~**Class-teacher inbox** for section pending papers~~ (dedicated `/class-inbox` + `/api/analytics/class-teacher-inbox`; class teachers only)
 - ~~**Moderation / grace marks** with audit reason~~ (`POST /api/marks/moderate` + Marks Entry Moderate)
 - ~~One-time consolidation max-marks lock for principal / exam coordinator~~ (Records → Exams → Lock for consolidation)
 - ~~Teacher daily / weekly / monthly timetables for principal and exam coordinator~~ (Timetables nav + views + seed periods)
@@ -33,9 +33,15 @@ Remaining work that would make this suitable for a live school:
 
 ## Live school / ops
 
-- ~~Real monitoring/health~~ (`GET /api/health` + `?deep=1` DB ping; platform deep health)
-- ~~Helmet/CSP + stronger auth (MFA)~~ (Helmet middleware, CSP report-only unless `CSP_ENFORCE`; TOTP MFA on Profile / login challenge)
-- ~~Backup/restore~~ (platform JSON backup download; merge restore of school profile + paper schedules)
+- ~~Real monitoring/health~~ (`GET /api/health` + `?deep=1` DB ping; platform deep health with schema inventory)
+- ~~Helmet/CSP + stronger auth (MFA)~~ (Helmet; CSP enforced in production/Vercel by default; TOTP MFA)
+- ~~Backup/restore~~ (platform JSON backup; photos & guardian contact omitted; row-count cap)
+- ~~Structured logging / optional Sentry~~ (`logger` + `SENTRY_DSN`)
+- ~~Rate-limit IP trust~~ (`trust proxy` + `clientIp`; no raw XFF spoofing)
+- ~~Migrate CI fails closed~~ when `DATABASE_URL` secret missing on main
+- ~~Password policy + bcryptjs unify~~ (min 10 + letter/number; shared `hashPassword`)
+- ~~Class-teacher inbox~~ (`/class-inbox`)
+- ~~Privacy / engineering / security docs~~ (`docs/PRIVACY.md`, `docs/ENGINEERING.md`, `SECURITY.md`, `LICENSE`, `CONTRIBUTING.md`)
 
 ## Board-school product
 

@@ -3,6 +3,7 @@
  * Uses Postgres when DATABASE_URL is set (shared across serverless instances);
  * falls back to per-process memory for unit tests / local without a DB.
  */
+import { clientIp } from "./clientIp.js";
 import { prisma } from "./prisma.js";
 
 const memoryHits = new Map();
@@ -59,7 +60,7 @@ async function consumeDatabase(key, windowMs) {
 export function rateLimit({
   windowMs = 15 * 60 * 1000,
   max = 30,
-  keyFn = (req) => req.ip || req.headers["x-forwarded-for"] || "unknown",
+  keyFn = (req) => clientIp(req),
   message = "Too many attempts. Try again later.",
 } = {}) {
   return async function rateLimitMiddleware(req, res, next) {
@@ -90,7 +91,7 @@ export function authAttemptKey(req) {
   const identity = String(body.email || body.schoolId || "")
     .trim()
     .toLowerCase();
-  const ip = req.ip || req.headers["x-forwarded-for"] || "unknown";
+  const ip = clientIp(req);
   return `${ip}|${identity}`;
 }
 

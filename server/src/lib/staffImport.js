@@ -1,14 +1,18 @@
 import { randomBytes } from "node:crypto";
 import { cell } from "./upload.js";
 import { parseEmail } from "./numbers.js";
+import { validatePasswordPolicy } from "./password.js";
 
 export const STAFF_IMPORT_HEADERS = ["Name", "Email", "School ID", "Password", "Role"];
 
-export function generateStaffTempPassword(length = 10) {
+export function generateStaffTempPassword(length = 12) {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
   const bytes = randomBytes(length);
   let out = "";
   for (let i = 0; i < length; i += 1) out += alphabet[bytes[i] % alphabet.length];
+  // Guarantee letter + digit for policy compliance.
+  if (!/[A-Za-z]/.test(out)) out = `A${out.slice(1)}`;
+  if (!/[0-9]/.test(out)) out = `${out.slice(0, -1)}7`;
   return out;
 }
 
@@ -63,8 +67,9 @@ export function mapStaffImportRows(rows, { generatePassword } = {}) {
     }
 
     const password = passwordRaw || fallbackPassword();
-    if (String(password).length < 8) {
-      errors.push({ row: line, error: "Password must be at least 8 characters" });
+    const policyError = validatePasswordPolicy(password);
+    if (policyError) {
+      errors.push({ row: line, error: policyError });
       return;
     }
 

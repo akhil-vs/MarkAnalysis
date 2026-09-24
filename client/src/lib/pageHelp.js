@@ -67,6 +67,11 @@ export const PAGE_HELP = {
     about: "Teachers who still have empty registers, and submitted papers waiting for your approval, for the selected exam. Each list is an accordion — expand a teacher under Still missing marks or Entered — awaiting your approval.",
     useful: "Clear this queue so school analytics and consolidated lists are complete. Expand a teacher to open the register, send a reminder, or approve submitted drafts.",
   },
+  classInbox: {
+    title: "What's on this page",
+    about: "Your class-teacher inbox: subject papers for your sections that still need marks or leadership approval.",
+    useful: "Chase subject teachers, then open Consolidated lists for your section once every paper is approved.",
+  },
   marks: {
     title: "What's on this page",
     about: "The mark register: enter marks by class and subject, save a draft, then submit for leadership approval. Use AB, EX, or WH for absent, exempt, or withheld. Papers with a practical max show Theory (Th) and Practical (Pr) columns — codes apply to theory only. Elective papers skip students who are not enrolled.",
