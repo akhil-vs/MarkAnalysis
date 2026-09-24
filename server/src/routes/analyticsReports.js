@@ -26,6 +26,12 @@ import {
 import { mean, round1 } from "../lib/grades.js";
 import { enrichMarksInsights } from "./analyticsInsights.js";
 import { loadExams } from "../lib/examCatalog.js";
+import {
+  ANALYTICS_MARK_SELECT,
+  loadApprovedMarksForExams,
+  loadPeerAssignmentsBySubjectName,
+  sameTypeExamIds,
+} from "../lib/analyticsMarks.js";
 
 function forbidIfTeacher(req, res) {
   if (!isLeadership(req.user.role)) {
@@ -50,14 +56,18 @@ export function registerAnalysisReports(router) {
     }
 
     const classIds = classes.map((c) => c.id);
-    const marks = await prisma.mark.findMany({
-      where: { examId: exam.id, status: "APPROVED", student: { classSectionId: { in: classIds } } },
-      include: { student: { include: { classSection: true } }, subject: true },
-    });
-    const allApproved = await prisma.mark.findMany({
-      where: { status: "APPROVED", student: { classSectionId: { in: classIds } } },
-      include: { student: { include: { classSection: true } }, subject: true, exam: true },
-    });
+    const examById = new Map(exams.map((e) => [e.id, e]));
+    const [marks, allApproved] = await Promise.all([
+      loadApprovedMarksForExams({
+        examIds: [exam.id],
+        classSectionIds: classIds,
+      }),
+      loadApprovedMarksForExams({
+        examIds: sameTypeExamIds(exams, exam),
+        classSectionIds: classIds,
+        attachExamById: examById,
+      }),
+    ]);
 
     const divisionWise = classes.map((cls) => ({
       id: cls.id,
@@ -113,27 +123,49 @@ export function registerAnalysisReports(router) {
     const grading = gradingHelpers(await getGradingConfig());
     const { passPercent, gradeFn, gradeBands } = grading;
     const sectionIds = sections.map((s) => s.id);
-    const marks = await prisma.mark.findMany({
-      where: { examId: exam.id, status: "APPROVED", student: { classSectionId: { in: sectionIds } } },
-      include: { student: { include: { classSection: true } }, subject: true },
-    });
-    const allApproved = await prisma.mark.findMany({
-      where: { status: "APPROVED", student: { classSectionId: { in: sectionIds } } },
-      include: { student: { include: { classSection: true } }, subject: true, exam: true },
-    });
-    const subjects = await prisma.subject.findMany({ where: { className }, orderBy: { name: "asc" } });
-    const allMarks = await prisma.mark.findMany({
-      where: { examId: exam.id, student: { classSectionId: { in: sectionIds } } },
-      include: { student: true, subject: true },
-    });
-    const assignments = await prisma.teacherAssignment.findMany({
-      where: { classSectionId: { in: sectionIds } },
-      include: { user: true, subject: true, classSection: true },
-    });
-    const activeStudents = await prisma.student.findMany({
-      where: { classSectionId: { in: sectionIds }, status: "ACTIVE" },
-      select: { id: true, classSectionId: true },
-    });
+    const examById = new Map(exams.map((e) => [e.id, e]));
+    const [marks, allApproved, subjects, allMarks, assignments, activeStudents] = await Promise.all([
+      loadApprovedMarksForExams({
+        examIds: [exam.id],
+        classSectionIds: sectionIds,
+      }),
+      loadApprovedMarksForExams({
+        examIds: sameTypeExamIds(exams, exam),
+        classSectionIds: sectionIds,
+        attachExamById: examById,
+      }),
+      prisma.subject.findMany({ where: { className }, orderBy: { name: "asc" } }),
+      prisma.mark.findMany({
+        where: { examId: exam.id, student: { classSectionId: { in: sectionIds } } },
+        select: {
+          studentId: true,
+          subjectId: true,
+          examId: true,
+          status: true,
+          marksObtained: true,
+          practicalMarks: true,
+          outcome: true,
+          student: { select: { id: true, classSectionId: true } },
+          subject: { select: { id: true, name: true, maxMarks: true, practicalMaxMarks: true } },
+        },
+      }),
+      prisma.teacherAssignment.findMany({
+        where: { classSectionId: { in: sectionIds } },
+        select: {
+          id: true,
+          userId: true,
+          classSectionId: true,
+          subjectId: true,
+          user: { select: { id: true, name: true } },
+          subject: { select: { id: true, name: true } },
+          classSection: { select: { id: true, className: true, section: true } },
+        },
+      }),
+      prisma.student.findMany({
+        where: { classSectionId: { in: sectionIds }, status: "ACTIVE" },
+        select: { id: true, classSectionId: true },
+      }),
+    ]);
     const studentsByClass = groupBy(activeStudents, (s) => s.classSectionId);
 
     const divisions = sections.map((cls) => {
@@ -229,18 +261,28 @@ export function registerAnalysisReports(router) {
     const { exams, exam } = await loadExams(req.query.examId);
     if (!exam) return res.json({ empty: true });
 
-    const subjects = await prisma.subject.findMany({ orderBy: [{ name: "asc" }, { className: "asc" }] });
-    const marks = await prisma.mark.findMany({
-      where: { examId: exam.id, status: "APPROVED" },
-      include: { student: { include: { classSection: true } }, subject: true },
-    });
-    const allApproved = await prisma.mark.findMany({
-      where: { status: "APPROVED" },
-      include: { student: { include: { classSection: true } }, subject: true, exam: true },
-    });
-    const assignments = await prisma.teacherAssignment.findMany({
-      include: { user: true, classSection: true, subject: true },
-    });
+    const examById = new Map(exams.map((e) => [e.id, e]));
+    const [subjects, marks, allApproved, assignments] = await Promise.all([
+      prisma.subject.findMany({
+        orderBy: [{ name: "asc" }, { className: "asc" }],
+        select: { id: true, name: true, className: true, maxMarks: true },
+      }),
+      loadApprovedMarksForExams({ examIds: [exam.id] }),
+      loadApprovedMarksForExams({
+        examIds: sameTypeExamIds(exams, exam),
+        attachExamById: examById,
+      }),
+      prisma.teacherAssignment.findMany({
+        select: {
+          userId: true,
+          classSectionId: true,
+          subjectId: true,
+          user: { select: { id: true, name: true } },
+          classSection: { select: { id: true, className: true, section: true } },
+          subject: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
 
     const schoolSubjects = [...new Set(subjects.map((s) => s.name))].map((name) => {
       const teacherIds = new Set(assignments.filter((a) => a.subject.name === name).map((a) => a.userId));
@@ -272,18 +314,26 @@ export function registerAnalysisReports(router) {
     if (!exam) return res.json({ empty: true, name, subjects: sameName });
 
     const subjectIds = sameName.map((s) => s.id);
-    const marks = await prisma.mark.findMany({
-      where: { examId: exam.id, subjectId: { in: subjectIds }, status: "APPROVED" },
-      include: { student: { include: { classSection: true } }, subject: true },
-    });
-    const allApproved = await prisma.mark.findMany({
-      where: { subjectId: { in: subjectIds }, status: "APPROVED" },
-      include: { student: { include: { classSection: true } }, subject: true, exam: true },
-    });
-    const assignments = await prisma.teacherAssignment.findMany({
-      where: { subjectId: { in: subjectIds } },
-      include: { user: true, classSection: true, subject: true },
-    });
+    const examById = new Map(exams.map((e) => [e.id, e]));
+    const [marks, allApproved, assignments] = await Promise.all([
+      loadApprovedMarksForExams({ examIds: [exam.id], subjectIds }),
+      loadApprovedMarksForExams({
+        examIds: sameTypeExamIds(exams, exam),
+        subjectIds,
+        attachExamById: examById,
+      }),
+      prisma.teacherAssignment.findMany({
+        where: { subjectId: { in: subjectIds } },
+        select: {
+          userId: true,
+          classSectionId: true,
+          subjectId: true,
+          user: { select: { id: true, name: true } },
+          classSection: { select: { id: true, className: true, section: true } },
+          subject: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
 
     const byClass = [...groupBy(marks, (m) => m.student.classSection.className).entries()].map(([className, list]) => ({
       className,
@@ -329,16 +379,28 @@ export function registerAnalysisReports(router) {
     const teachers = await prisma.user.findMany({
       where: { role: "TEACHER", status: "ACTIVE" },
       orderBy: { name: "asc" },
-      include: { assignments: { include: { classSection: true, subject: true } } },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        assignments: {
+          select: {
+            classSectionId: true,
+            subjectId: true,
+            classSection: { select: { id: true, className: true, section: true } },
+            subject: { select: { id: true, name: true } },
+          },
+        },
+      },
     });
-    const marks = await prisma.mark.findMany({
-      where: { examId: exam.id, status: "APPROVED" },
-      include: { student: { include: { classSection: true } }, subject: true },
-    });
-    const allApproved = await prisma.mark.findMany({
-      where: { status: "APPROVED" },
-      include: { student: { include: { classSection: true } }, subject: true, exam: true },
-    });
+    const examById = new Map(exams.map((e) => [e.id, e]));
+    const [marks, allApproved] = await Promise.all([
+      loadApprovedMarksForExams({ examIds: [exam.id] }),
+      loadApprovedMarksForExams({
+        examIds: sameTypeExamIds(exams, exam),
+        attachExamById: examById,
+      }),
+    ]);
 
     const rows = teachers.map((t) => {
       const percents = t.assignments.flatMap((a) =>
@@ -375,20 +437,38 @@ export function registerAnalysisReports(router) {
 
     const classIds = [...new Set(teacher.assignments.map((a) => a.classSectionId))];
     const subjectIds = [...new Set(teacher.assignments.map((a) => a.subjectId))];
-    const marks = await prisma.mark.findMany({
-      where: {
-        examId: exam.id,
-        status: { in: ["DRAFT", "APPROVED"] },
-        subjectId: { in: subjectIds.length ? subjectIds : ["__none__"] },
-        student: { classSectionId: { in: classIds.length ? classIds : ["__none__"] } },
-      },
-      include: { student: { include: { classSection: true } }, subject: true },
-    });
-    const allApproved = await prisma.mark.findMany({
-      where: { status: "APPROVED" },
-      include: { student: { include: { classSection: true } }, subject: true, exam: true },
-    });
-    const students = await prisma.student.findMany({ where: { classSectionId: { in: classIds } } });
+    const examById = new Map(exams.map((e) => [e.id, e]));
+    const emptyIds = ["__none__"];
+    const [marks, allApproved, students, peerBySubjectName, accessRequests] = await Promise.all([
+      prisma.mark.findMany({
+        where: {
+          examId: exam.id,
+          status: { in: ["DRAFT", "APPROVED"] },
+          subjectId: { in: subjectIds.length ? subjectIds : emptyIds },
+          student: { classSectionId: { in: classIds.length ? classIds : emptyIds } },
+        },
+        select: ANALYTICS_MARK_SELECT,
+      }),
+      loadApprovedMarksForExams({
+        examIds: sameTypeExamIds(exams, exam),
+        attachExamById: examById,
+      }),
+      prisma.student.findMany({
+        where: { classSectionId: { in: classIds.length ? classIds : emptyIds } },
+        select: {
+          id: true,
+          name: true,
+          rollNo: true,
+          status: true,
+          classSectionId: true,
+        },
+      }),
+      loadPeerAssignmentsBySubjectName(teacher.assignments.map((a) => a.subject.name)),
+      prisma.markEntryAccessRequest.findMany({
+        where: { examId: exam.id, teacherId: teacher.id },
+        select: { status: true, kind: true },
+      }),
+    ]);
 
     const ownMarks = (m) =>
       teacher.assignments.some((a) => a.subjectId === m.subjectId && a.classSectionId === m.student.classSectionId);
@@ -413,10 +493,7 @@ export function registerAnalysisReports(router) {
 
     const peerCompare = [];
     for (const name of [...new Set(teacher.assignments.map((a) => a.subject.name))]) {
-      const peers = await prisma.teacherAssignment.findMany({
-        where: { subject: { name } },
-        include: { user: true, classSection: true, subject: true },
-      });
+      const peers = peerBySubjectName.get(name) || [];
       const byTeacher = groupBy(peers, (a) => a.userId);
       if (byTeacher.size < 2) continue;
       const rows = [...byTeacher.entries()].map(([userId, list]) => {
@@ -455,9 +532,6 @@ export function registerAnalysisReports(router) {
       exam,
       studentsByClass
     );
-    const accessRequests = await prisma.markEntryAccessRequest.findMany({
-      where: { examId: exam.id, teacherId: teacher.id },
-    });
 
     res.json({
       teacher: { id: teacher.id, name: teacher.name, email: teacher.email },
@@ -503,17 +577,32 @@ export function registerAnalysisReports(router) {
 
     const className = req.query.className || null;
     const subjectName = req.query.subjectName || null;
-    const allApproved = await prisma.mark.findMany({
-      where: { status: "APPROVED" },
-      include: { student: { include: { classSection: true } }, subject: true, exam: true },
-    });
-    const classes = await prisma.classSection.findMany({
-      orderBy: [{ className: "asc" }, { section: "asc" }],
-    });
-    const subjects = await prisma.subject.findMany();
-    const assignments = await prisma.teacherAssignment.findMany({
-      include: { user: true, classSection: true, subject: true },
-    });
+    const examById = new Map(exams.map((e) => [e.id, e]));
+    const yearExamIds = sameTypeExamIds(exams, exam);
+
+    const [allApproved, classes, subjects, assignments] = await Promise.all([
+      loadApprovedMarksForExams({
+        examIds: yearExamIds,
+        classNames: className ? [className] : undefined,
+        subjectNames: subjectName ? [subjectName] : undefined,
+        attachExamById: examById,
+      }),
+      prisma.classSection.findMany({
+        orderBy: [{ className: "asc" }, { section: "asc" }],
+        select: { id: true, className: true, section: true },
+      }),
+      prisma.subject.findMany({ select: { id: true, name: true, className: true } }),
+      prisma.teacherAssignment.findMany({
+        select: {
+          userId: true,
+          classSectionId: true,
+          subjectId: true,
+          user: { select: { id: true, name: true } },
+          classSection: { select: { id: true, className: true, section: true } },
+          subject: { select: { id: true, name: true } },
+        },
+      }),
+    ]);
 
     const scoped = (m) => {
       if (className && m.student.classSection.className !== className) return false;
@@ -585,13 +674,19 @@ export function registerAnalysisReports(router) {
 
     const subjectName = req.query.subjectName || null;
     const className = req.query.className || null;
-    const assignments = await prisma.teacherAssignment.findMany({
-      include: { user: true, classSection: true, subject: true },
-    });
-    const marks = await prisma.mark.findMany({
-      where: { examId: exam.id, status: "APPROVED" },
-      include: { student: { include: { classSection: true } }, subject: true },
-    });
+    const [assignments, marks] = await Promise.all([
+      prisma.teacherAssignment.findMany({
+        select: {
+          userId: true,
+          classSectionId: true,
+          subjectId: true,
+          user: { select: { id: true, name: true } },
+          classSection: { select: { id: true, className: true, section: true } },
+          subject: { select: { id: true, name: true } },
+        },
+      }),
+      loadApprovedMarksForExams({ examIds: [exam.id] }),
+    ]);
 
     const comparisons = [...new Set(assignments.map((a) => a.subject.name))]
       .filter((n) => !subjectName || n === subjectName)

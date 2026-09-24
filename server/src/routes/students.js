@@ -193,60 +193,92 @@ studentsRouter.post("/upload", ...requireRecordsWrite, upload.single("file"), as
 
   let created = 0;
   let updated = 0;
-  for (const item of valid) {
-    const existing = await prisma.student.findUnique({
-      where: {
-        rollNo_classSectionId: { rollNo: item.rollNo, classSectionId: item.classSectionId },
-      },
-    });
-    await prisma.student.upsert({
-      where: {
-        rollNo_classSectionId: { rollNo: item.rollNo, classSectionId: item.classSectionId },
-      },
-      create: {
-        name: item.name,
+  const existingRows = await prisma.student.findMany({
+    where: {
+      OR: valid.map((item) => ({
         rollNo: item.rollNo,
-        admissionNo: item.admissionNo,
         classSectionId: item.classSectionId,
-        academicYear: academicYearFromDate(new Date()) || "2025-26",
-        status: "ACTIVE",
-        dob: item.dob,
-        guardianName: item.guardianName,
-        guardianPhone: item.guardianPhone,
-        tenantId: req.tenantId,
-      },
-      update: {
-        name: item.name,
-        admissionNo: item.admissionNo,
-        dob: item.dob,
-        guardianName: item.guardianName,
-        guardianPhone: item.guardianPhone,
-      },
-    });
-    if (existing) updated += 1;
-    else created += 1;
+      })),
+    },
+    select: { id: true, rollNo: true, classSectionId: true },
+  });
+  const existingKeys = new Set(existingRows.map((r) => `${r.classSectionId}:${r.rollNo}`));
+
+  // Batch upserts in chunks to cut round-trips vs per-row findUnique+upsert.
+  const CHUNK = 50;
+  for (let i = 0; i < valid.length; i += CHUNK) {
+    const chunk = valid.slice(i, i + CHUNK);
+    await Promise.all(
+      chunk.map(async (item) => {
+        const key = `${item.classSectionId}:${item.rollNo}`;
+        const wasExisting = existingKeys.has(key);
+        await prisma.student.upsert({
+          where: {
+            rollNo_classSectionId: { rollNo: item.rollNo, classSectionId: item.classSectionId },
+          },
+          create: {
+            name: item.name,
+            rollNo: item.rollNo,
+            admissionNo: item.admissionNo,
+            classSectionId: item.classSectionId,
+            academicYear: academicYearFromDate(new Date()) || "2025-26",
+            status: "ACTIVE",
+            dob: item.dob,
+            guardianName: item.guardianName,
+            guardianPhone: item.guardianPhone,
+            tenantId: req.tenantId,
+          },
+          update: {
+            name: item.name,
+            admissionNo: item.admissionNo,
+            dob: item.dob,
+            guardianName: item.guardianName,
+            guardianPhone: item.guardianPhone,
+          },
+        });
+        if (wasExisting) updated += 1;
+        else created += 1;
+      })
+    );
   }
 
   res.json({ preview: false, created, updated, errors });
 });
 
 studentsRouter.get("/", async (req, res) => {
-  const { classSectionId } = req.query;
+  const { classSectionId, classSectionIds } = req.query;
   let where = {};
-  if (classSectionId) where.classSectionId = classSectionId;
+  if (classSectionIds) {
+    const ids = String(classSectionIds)
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean);
+    if (ids.length) where.classSectionId = { in: ids };
+  } else if (classSectionId) {
+    where.classSectionId = classSectionId;
+  }
 
   if (req.user.role === "TEACHER") {
     const allowed = await getTeacherClassIds(req.user.userId);
     if (classSectionId && !allowed.includes(classSectionId)) {
       return res.status(403).json({ error: "Not assigned to this class" });
     }
-    where.classSectionId = classSectionId || { in: allowed };
+    if (where.classSectionId?.in) {
+      where.classSectionId = { in: where.classSectionId.in.filter((id) => allowed.includes(id)) };
+    } else {
+      where.classSectionId = classSectionId || { in: allowed };
+    }
   }
   if (req.query.status) where.status = req.query.status;
   else if (req.query.includeInactive !== "true") where.status = where.status || "ACTIVE";
   if (req.query.academicYear) where.academicYear = String(req.query.academicYear);
 
-  const paging = parsePageQuery(req.query);
+  const scopedClass =
+    Boolean(classSectionId) || Boolean(where.classSectionId?.in?.length) || Boolean(classSectionIds);
+  const paging = parsePageQuery(req.query, {
+    defaultPaged: !scopedClass,
+    defaultSize: 50,
+  });
   if (paging.q) {
     where.OR = [
       { name: { contains: paging.q, mode: "insensitive" } },

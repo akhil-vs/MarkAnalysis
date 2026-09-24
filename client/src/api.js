@@ -48,6 +48,19 @@ function cacheMeta(path) {
   const base = path.split("?")[0];
   if (CATALOG_PATHS.includes(base)) return { key: path, ttl: CATALOG_TTL_MS };
   if (base.startsWith("/api/analytics/insights/")) return { key: path, ttl: INSIGHT_TTL_MS };
+  if (
+    base === "/api/analytics/school" ||
+    base === "/api/analytics/teacher" ||
+    base === "/api/analytics/coordinator"
+  ) {
+    return { key: path, ttl: INSIGHT_TTL_MS };
+  }
+  if (base === "/api/notifications" || base === "/api/notifications/unread-count") {
+    return { key: path, ttl: 15_000 };
+  }
+  if (base === "/api/timetable/teachers" || base.startsWith("/api/timetable/teachers/")) {
+    return { key: path, ttl: 30_000 };
+  }
   return null;
 }
 
@@ -90,6 +103,16 @@ function invalidateForMutation(path) {
   }
   if (path.startsWith("/api/marks") || path.startsWith("/api/mark-access")) {
     invalidateApiCache("/api/analytics/insights");
+    invalidateApiCache("/api/analytics/school");
+    invalidateApiCache("/api/analytics/teacher");
+    invalidateApiCache("/api/analytics/coordinator");
+  }
+  if (path.startsWith("/api/notifications")) {
+    invalidateApiCache("/api/notifications");
+  }
+  if (path.startsWith("/api/timetable")) {
+    invalidateApiCache("/api/timetable/teachers");
+    invalidateApiCache("/api/timetable/periods");
   }
 }
 

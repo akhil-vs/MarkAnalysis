@@ -1542,6 +1542,25 @@ export async function ensureAssessmentPolicyColumns() {
   await recordMigration(ASSESSMENT_POLICY_MIGRATION, ASSESSMENT_POLICY_CHECKSUM);
 }
 
+const PERF_INDEXES_MIGRATION = "20260924120000_api_performance_indexes";
+const PERF_INDEXES_CHECKSUM = "api-performance-indexes-v1";
+
+const PERF_INDEX_STATEMENTS = [
+  `CREATE INDEX IF NOT EXISTS "Mark_tenantId_examId_status_idx" ON "Mark"("tenantId", "examId", "status")`,
+  `CREATE INDEX IF NOT EXISTS "ClassSection_classTeacherId_idx" ON "ClassSection"("classTeacherId")`,
+  `CREATE INDEX IF NOT EXISTS "TeacherAssignment_classSectionId_idx" ON "TeacherAssignment"("classSectionId")`,
+  `CREATE INDEX IF NOT EXISTS "TeacherAssignment_subjectId_idx" ON "TeacherAssignment"("subjectId")`,
+  `CREATE INDEX IF NOT EXISTS "Subject_tenantId_className_idx" ON "Subject"("tenantId", "className")`,
+  `CREATE INDEX IF NOT EXISTS "MarkAudit_markId_idx" ON "MarkAudit"("markId")`,
+  `CREATE INDEX IF NOT EXISTS "ActivityAudit_tenantId_timestamp_idx" ON "ActivityAudit"("tenantId", "timestamp")`,
+];
+
+/** Hot-path indexes for analytics, marks, and class-teacher inbox. */
+export async function ensurePerformanceIndexes() {
+  await applyStatements(PERF_INDEX_STATEMENTS);
+  await recordMigration(PERF_INDEXES_MIGRATION, PERF_INDEXES_CHECKSUM);
+}
+
 const TEACHER_LEAVE_MIGRATION = "20260922024500_teacher_leave_substitutes";
 const TEACHER_LEAVE_CHECKSUM = "teacher-leave-substitutes-catchup-v2";
 
@@ -1777,6 +1796,7 @@ export async function ensurePendingSchema() {
         await ensureExamIncludedClassesColumn();
         await ensureSchoolAcademicYearsColumns();
         await ensureAssessmentPolicyColumns();
+        await ensurePerformanceIndexes();
         await ensureTeacherLeaveSchema();
         await ensureMarkAccessKindUnique();
         return { skipped: true, reason: "migrations-present" };
@@ -1808,6 +1828,7 @@ export async function ensurePendingSchema() {
         ensureExamIncludedClassesColumn(),
         ensureSchoolAcademicYearsColumns(),
         ensureAssessmentPolicyColumns(),
+        ensurePerformanceIndexes(),
         ensureTeacherLeaveSchema(),
         ensureMarkAccessKindUnique(),
       ]);
@@ -1932,6 +1953,8 @@ export const __test = {
   EXAM_INCLUDED_CLASSES_CHECKSUM,
   EXAM_INCLUDED_CLASSES_STATEMENTS,
   ensureSchoolAcademicYearsColumns,
+  ensureAssessmentPolicyColumns,
+  ensurePerformanceIndexes,
   ACADEMIC_YEARS_MIGRATION,
   ACADEMIC_YEARS_CHECKSUM,
   ACADEMIC_YEARS_STATEMENTS,

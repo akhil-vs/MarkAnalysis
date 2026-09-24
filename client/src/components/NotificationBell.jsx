@@ -107,10 +107,15 @@ export function NotificationProvider({ children }) {
   return <NotificationContext.Provider value={value}>{children}</NotificationContext.Provider>;
 }
 
-function useNotifications() {
+export function useNotifications() {
   const ctx = useContext(NotificationContext);
   if (!ctx) throw new Error("NotificationBell requires NotificationProvider");
   return ctx;
+}
+
+/** Soft hook for pages that may render outside the provider. */
+export function useNotificationsOptional() {
+  return useContext(NotificationContext);
 }
 
 export default function NotificationBell() {

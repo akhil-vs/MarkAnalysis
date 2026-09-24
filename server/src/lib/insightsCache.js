@@ -15,6 +15,7 @@ export function insightsCacheKey(kind, ...parts) {
 
 export function invalidateInsightsCache() {
   invalidateCurrentTenantCache("insights:");
+  invalidateCurrentTenantCache("pending-uploads:");
 }
 
 export function cachedInsight(kind, parts, loader, opts = {}) {

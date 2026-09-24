@@ -10,6 +10,18 @@ describe("parsePageQuery", () => {
     assert.equal(parsed.pageSize, 25);
   });
 
+  it("supports defaultPaged when page is omitted", () => {
+    const parsed = parsePageQuery({}, { defaultPaged: true, defaultSize: 50 });
+    assert.equal(parsed.paged, true);
+    assert.equal(parsed.page, 1);
+    assert.equal(parsed.pageSize, 50);
+  });
+
+  it("pageSize=all forces unpaged even with defaultPaged", () => {
+    const parsed = parsePageQuery({ pageSize: "all" }, { defaultPaged: true });
+    assert.equal(parsed.paged, false);
+  });
+
   it("clamps page and pageSize", () => {
     const parsed = parsePageQuery({ page: "0", pageSize: "999" }, { maxSize: 100 });
     assert.equal(parsed.paged, true);

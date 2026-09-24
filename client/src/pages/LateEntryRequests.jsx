@@ -76,16 +76,27 @@ export default function LateEntryRequests() {
   }
 
   useEffect(() => {
-    api("/api/exams")
-      .then((e) => {
+    const fromUrl = searchParams.get("examId") || "";
+    const examsPromise = api("/api/exams");
+    const rowsPromise = fromUrl
+      ? (() => {
+          const params = new URLSearchParams();
+          params.set("examId", fromUrl);
+          if (status) params.set("status", status);
+          if (kind) params.set("kind", kind);
+          return api(`/api/mark-access?${params}`);
+        })()
+      : Promise.resolve(null);
+
+    Promise.all([examsPromise, rowsPromise])
+      .then(([e, rows]) => {
         setExams(e);
-        // Keep URL exam if valid; otherwise default to all exams (not the latest only).
-        const fromUrl = searchParams.get("examId") || "";
         if (fromUrl && e.some((x) => x.id === fromUrl)) {
           setExamId(fromUrl);
         } else if (fromUrl && !e.some((x) => x.id === fromUrl)) {
           setExamId("");
         }
+        if (rows) setRows(rows);
         setReady(true);
       })
       .catch((err) => {

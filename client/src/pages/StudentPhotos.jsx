@@ -89,7 +89,7 @@ export default function StudentPhotos() {
     if (classSectionId) params.set("classSectionId", classSectionId);
     setLoading(true);
     try {
-      const [sRes, c] = await Promise.all([api(`/api/students?${params}`), api("/api/classes")]);
+      const sRes = await api(`/api/students?${params}`);
       if (Array.isArray(sRes)) {
         setRows(sRes);
         setTotal(sRes.length);
@@ -99,11 +99,16 @@ export default function StudentPhotos() {
         setTotal(sRes.total || 0);
         setPageCount(sRes.pageCount || 1);
       }
-      setClasses(Array.isArray(c) ? c : c.items || []);
     } finally {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    api("/api/classes")
+      .then((c) => setClasses(Array.isArray(c) ? c : c.items || []))
+      .catch((err) => setError(err.message || "Could not load classes"));
+  }, []);
 
   useEffect(() => {
     load().catch((err) => setError(err.message || "Could not load students"));

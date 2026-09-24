@@ -236,7 +236,12 @@ export default function MarksEntry() {
     if (!classSectionId || !examId) return null;
     const q = new URLSearchParams({ classSectionId, examId });
     if (subjectId) q.set("subjectId", subjectId);
-    const data = await api(`/api/marks?${q}`);
+    const needCatalog = Boolean(subjectId) && subjectCatalogClassRef.current !== classSectionId;
+    const catalogQ = new URLSearchParams({ classSectionId, examId });
+    const [data, catalog] = await Promise.all([
+      api(`/api/marks?${q}`),
+      needCatalog ? api(`/api/marks?${catalogQ}`) : Promise.resolve(null),
+    ]);
 
     if (subjectId && !(data.subjects || []).some((s) => s.id === subjectId)) {
       const nextParams = new URLSearchParams(params);
@@ -252,8 +257,7 @@ export default function MarksEntry() {
       subjectCatalogClassRef.current = classSectionId;
       setSubjectOptions(subjectOptionsRef.current);
       setSubjectsReady(true);
-    } else if (subjectCatalogClassRef.current !== classSectionId) {
-      const catalog = await api(`/api/marks?${new URLSearchParams({ classSectionId, examId })}`);
+    } else if (catalog) {
       subjectOptionsRef.current = catalog.subjects || [];
       subjectCatalogClassRef.current = classSectionId;
       setSubjectOptions(subjectOptionsRef.current);

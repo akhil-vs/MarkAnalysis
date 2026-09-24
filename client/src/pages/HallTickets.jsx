@@ -160,19 +160,22 @@ export default function HallTickets() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await api("/api/exams");
+        const urlExamId = examId || params.get("examId") || "";
+        const examsPromise = api("/api/exams");
+        const statusPromise = urlExamId ? loadStatus(urlExamId) : Promise.resolve();
+        const [res] = await Promise.all([examsPromise, statusPromise]);
         if (cancelled) return;
         const list = Array.isArray(res) ? res : res?.items || [];
         setExams(list);
         const latest = list.length ? list[list.length - 1] : null;
-        const initial = examId || latest?.id || "";
+        const initial = urlExamId || latest?.id || "";
         if (initial && initial !== examId) {
           setExamId(initial);
           const next = new URLSearchParams(params);
           next.set("examId", initial);
           setParams(next, { replace: true });
         }
-        if (initial) await loadStatus(initial);
+        if (initial && initial !== urlExamId) await loadStatus(initial);
       } catch (e) {
         if (!cancelled) setError(e.message);
       }

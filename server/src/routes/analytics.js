@@ -41,6 +41,12 @@ import {
   subjectCoreSelect,
 } from "../lib/markSelects.js";
 import { buildHomeDashboardCached } from "../lib/homeDashboard.js";
+import {
+  ANALYTICS_HISTORY_SELECT,
+  catalogExamIds,
+  loadApprovedMarksForExams,
+} from "../lib/analyticsMarks.js";
+import { cachedTenantLoad } from "../lib/tenantCache.js";
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
@@ -105,6 +111,7 @@ analyticsRouter.get("/school", async (req, res) => {
     subjectId: true,
     examId: true,
     marksObtained: true,
+    practicalMarks: true,
     outcome: true,
     status: true,
     updatedAt: true,
@@ -118,29 +125,22 @@ analyticsRouter.get("/school", async (req, res) => {
         classSection: { select: { id: true, className: true, section: true } },
       },
     },
-    subject: { select: { id: true, name: true, className: true, maxMarks: true } },
+    subject: { select: { id: true, name: true, className: true, maxMarks: true, practicalMaxMarks: true } },
   };
+
+  const otherExamIds = wantDetail
+    ? catalogExamIds(exams).filter((id) => id !== exam.id)
+    : [];
 
   const sharedQueries = [
     prisma.mark.findMany({
       where: { examId: exam.id },
       select: markCoreSelect,
     }),
-    wantDetail
-      ? prisma.mark.findMany({
-          where: {
-            status: "APPROVED",
-            examId: { not: exam.id },
-            student: { status: "ACTIVE" },
-          },
-          select: {
-            studentId: true,
-            subjectId: true,
-            examId: true,
-            marksObtained: true,
-            outcome: true,
-            subject: { select: { maxMarks: true } },
-          },
+    wantDetail && otherExamIds.length
+      ? loadApprovedMarksForExams({
+          examIds: otherExamIds,
+          select: ANALYTICS_HISTORY_SELECT,
         })
       : Promise.resolve([]),
     prisma.classSection.findMany({
@@ -148,7 +148,7 @@ analyticsRouter.get("/school", async (req, res) => {
       include: { _count: { select: { students: { where: { status: "ACTIVE" } } } } },
     }),
     prisma.subject.findMany({
-      select: { id: true, name: true, className: true, maxMarks: true },
+      select: { id: true, name: true, className: true, maxMarks: true, practicalMaxMarks: true },
     }),
     prisma.teacherAssignment.findMany({
       select: {
@@ -189,6 +189,7 @@ analyticsRouter.get("/school", async (req, res) => {
     ? [
         ...marks,
         ...historyApproved
+          .filter((m) => m.student?.status === "ACTIVE")
           .map((m) => {
             const histExam = examById.get(m.examId);
             return histExam ? { ...m, exam: histExam } : null;
@@ -817,11 +818,12 @@ analyticsRouter.get("/awaiting-approvals", async (req, res) => {
   const countOnly =
     req.query.countOnly === "1" || req.query.countOnly === "true" || req.query.count === "1";
 
+  const tenantId = getTenantId();
+  if (!tenantId) {
+    return res.status(500).json({ error: "Missing tenant context" });
+  }
+
   if (countOnly) {
-    const tenantId = getTenantId();
-    if (!tenantId) {
-      return res.status(500).json({ error: "Missing tenant context" });
-    }
     const rows = await prisma.$queryRaw`
       SELECT COUNT(*)::int AS "count"
       FROM (
@@ -836,69 +838,88 @@ analyticsRouter.get("/awaiting-approvals", async (req, res) => {
     return res.json({ count: Number(rows?.[0]?.count) || 0, items: [] });
   }
 
-  const submitted = await prisma.mark.findMany({
-    where: { status: "SUBMITTED" },
-    select: {
-      examId: true,
-      subjectId: true,
-      enteredById: true,
-      student: {
-        select: {
-          classSectionId: true,
-          classSection: { select: { className: true, section: true } },
-        },
-      },
-      exam: { select: { id: true, name: true, date: true } },
-      subject: { select: { id: true, name: true } },
-      enteredBy: { select: { id: true, name: true, email: true } },
-    },
-  });
+  const rows = await prisma.$queryRaw`
+    SELECT
+      m."examId" AS "examId",
+      e.name AS "examName",
+      e.date AS "examDate",
+      s."classSectionId" AS "classSectionId",
+      cs."className" AS "className",
+      cs.section AS "section",
+      m."subjectId" AS "subjectId",
+      sub.name AS "subjectName",
+      m."enteredById" AS "teacherId",
+      u.name AS "teacherName",
+      u.email AS "teacherEmail",
+      COUNT(*)::int AS "submittedCount"
+    FROM "Mark" m
+    INNER JOIN "Student" s ON s.id = m."studentId"
+    INNER JOIN "ClassSection" cs ON cs.id = s."classSectionId"
+    INNER JOIN "Exam" e ON e.id = m."examId"
+    INNER JOIN "Subject" sub ON sub.id = m."subjectId"
+    INNER JOIN "User" u ON u.id = m."enteredById"
+    WHERE m.status = 'SUBMITTED'::"MarkStatus"
+      AND m."tenantId" = ${tenantId}
+    GROUP BY
+      m."examId", e.name, e.date,
+      s."classSectionId", cs."className", cs.section,
+      m."subjectId", sub.name,
+      m."enteredById", u.name, u.email
+  `;
 
-  const groups = new Map();
-  for (const mark of submitted) {
-    const classSectionId = mark.student.classSectionId;
-    const key = `${mark.examId}|${classSectionId}|${mark.subjectId}|${mark.enteredById}`;
-    const existing = groups.get(key);
-    if (existing) {
-      existing.submittedCount += 1;
-      continue;
-    }
-    const cs = mark.student.classSection;
-    groups.set(key, {
-      examId: mark.examId,
-      examName: mark.exam?.name || "Exam",
-      examDate: mark.exam?.date || null,
-      classSectionId,
-      classLabel: cs ? `${cs.className}-${cs.section}` : classSectionId,
-      subjectId: mark.subjectId,
-      subjectName: mark.subject?.name || "Subject",
-      teacherId: mark.enteredById,
-      teacherName: mark.enteredBy?.name || "Teacher",
-      teacherEmail: mark.enteredBy?.email || null,
-      submittedCount: 1,
+  const items = (rows || [])
+    .map((row) => ({
+      examId: row.examId,
+      examName: row.examName || "Exam",
+      examDate: row.examDate || null,
+      classSectionId: row.classSectionId,
+      classLabel: row.className && row.section ? `${row.className}-${row.section}` : row.classSectionId,
+      subjectId: row.subjectId,
+      subjectName: row.subjectName || "Subject",
+      teacherId: row.teacherId,
+      teacherName: row.teacherName || "Teacher",
+      teacherEmail: row.teacherEmail || null,
+      submittedCount: Number(row.submittedCount) || 0,
+    }))
+    .sort((a, b) => {
+      const dateA = a.examDate ? new Date(a.examDate).getTime() : 0;
+      const dateB = b.examDate ? new Date(b.examDate).getTime() : 0;
+      return (
+        dateB - dateA ||
+        a.teacherName.localeCompare(b.teacherName) ||
+        a.classLabel.localeCompare(b.classLabel) ||
+        a.subjectName.localeCompare(b.subjectName)
+      );
     });
-  }
-
-  const items = [...groups.values()].sort((a, b) => {
-    const dateA = a.examDate ? new Date(a.examDate).getTime() : 0;
-    const dateB = b.examDate ? new Date(b.examDate).getTime() : 0;
-    return (
-      dateB - dateA ||
-      a.teacherName.localeCompare(b.teacherName) ||
-      a.classLabel.localeCompare(b.classLabel) ||
-      a.subjectName.localeCompare(b.subjectName)
-    );
-  });
 
   res.json({ count: items.length, items });
 });
 
 export async function buildPendingUploads(exam, prefetched = null) {
+  const cacheKey = `pending-uploads:${exam.id}`;
+  if (!prefetched) {
+    return cachedTenantLoad(
+      cacheKey,
+      () => buildPendingUploadsUncached(exam, null),
+      { ttlMs: 45_000 }
+    );
+  }
+  return buildPendingUploadsUncached(exam, prefetched);
+}
+
+async function buildPendingUploadsUncached(exam, prefetched = null) {
   const [assignments, students, marks] = prefetched
     ? [prefetched.assignments, prefetched.students, prefetched.marks]
     : await Promise.all([
         prisma.teacherAssignment.findMany({
-          include: { user: true, classSection: true, subject: true },
+          select: {
+            userId: true,
+            classSectionId: true,
+            subjectId: true,
+            user: { select: { id: true, name: true, email: true } },
+            classSection: { select: { id: true, className: true, section: true } },
+            subject: { select: { id: true, name: true } },
+          },
         }),
         prisma.student.findMany({ where: { status: "ACTIVE" }, select: { id: true, classSectionId: true } }),
         prisma.mark.findMany({
