@@ -1,0 +1,128 @@
+[
+  {
+    "id": "column.public.School.assessmentPolicy",
+    "label": "Add column \"assessmentPolicy\" to \"School\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "assessmentPolicy",
+        "table": "School"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"assessmentPolicy\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "assessmentPolicy"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"assessmentPolicy\"",
+        "sql": "ALTER TABLE \"public\".\"School\" ADD COLUMN \"assessmentPolicy\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"assessmentPolicy\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "assessmentPolicy"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.Subject.category",
+    "label": "Add column \"category\" to \"Subject\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "category",
+        "table": "Subject"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"category\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Subject",
+          "category"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"category\"",
+        "sql": "ALTER TABLE \"public\".\"Subject\" ADD COLUMN \"category\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"category\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "Subject",
+          "category"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.SubjectPoolItem.category",
+    "label": "Add column \"category\" to \"SubjectPoolItem\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "category",
+        "table": "SubjectPoolItem"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"category\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SubjectPoolItem",
+          "category"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"category\"",
+        "sql": "ALTER TABLE \"public\".\"SubjectPoolItem\" ADD COLUMN \"category\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"category\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "SubjectPoolItem",
+          "category"
+        ]
+      }
+    ]
+  }
+]
