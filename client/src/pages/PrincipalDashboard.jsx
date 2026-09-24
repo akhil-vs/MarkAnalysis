@@ -22,6 +22,7 @@ import {
   BarTrack,
   ChartTooltip,
   DashboardHero,
+  EmptyExamDashboard,
   EmptyNote,
   GRADE_COLORS,
   Metric,
@@ -30,6 +31,7 @@ import {
   deltaLabel,
   greeting,
 } from "../components/DashboardKit.jsx";
+import { helpForPath } from "../lib/pageHelp.js";
 import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
@@ -132,7 +134,17 @@ export default function PrincipalDashboard() {
 
   if (error) return <LoadError message={error} />;
   if (!data) return <LoadingState label="Loading school view…" />;
-  if (data.empty) return <p>No exam data yet.</p>;
+  if (data.empty) {
+    return (
+      <EmptyExamDashboard
+        role={user.role}
+        name={user.name}
+        setup={data.setup}
+        reason={data.reason}
+        help={helpForPath(location.pathname, user.role)}
+      />
+    );
+  }
 
   const pending = (data.pendingUploads?.teachers || []).filter((t) => t.pending);
   const awaitingApproval = (data.pendingUploads?.teachers || []).filter((t) => t.awaitingApproval && !t.pending);
