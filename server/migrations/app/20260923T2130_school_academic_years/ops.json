@@ -1,0 +1,86 @@
+[
+  {
+    "id": "column.public.School.academicYears",
+    "label": "Add column \"academicYears\" to \"School\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "academicYears",
+        "table": "School"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"academicYears\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "academicYears"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"academicYears\"",
+        "sql": "ALTER TABLE \"public\".\"School\" ADD COLUMN \"academicYears\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"academicYears\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "academicYears"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.School.currentAcademicYear",
+    "label": "Add column \"currentAcademicYear\" to \"School\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "currentAcademicYear",
+        "table": "School"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"currentAcademicYear\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "currentAcademicYear"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"currentAcademicYear\"",
+        "sql": "ALTER TABLE \"public\".\"School\" ADD COLUMN \"currentAcademicYear\" text"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"currentAcademicYear\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "School",
+          "currentAcademicYear"
+        ]
+      }
+    ]
+  }
+]

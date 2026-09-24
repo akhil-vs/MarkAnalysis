@@ -116,6 +116,8 @@ export async function restoreBackup(document, { schoolId, mode = "merge" } = {})
         examWeights: src.examWeights ?? existing.examWeights,
         workingDays: src.workingDays ?? existing.workingDays,
         optionalModules: src.optionalModules ?? existing.optionalModules,
+        academicYears: src.academicYears ?? existing.academicYears,
+        currentAcademicYear: src.currentAcademicYear ?? existing.currentAcademicYear,
       },
     });
 

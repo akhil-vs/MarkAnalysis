@@ -8,6 +8,7 @@ import { FieldError, fieldClass } from "../components/FieldError.jsx";
 import {
   acceptNonNegativeInput,
   firstError,
+  parseAcademicYear,
   parseEmail,
   parseOptionalYear,
   parsePercent,
@@ -47,9 +48,10 @@ const EMPTY = {
 const TABS = [
   { id: "identity", label: "Identity & Affiliation", hint: "Sec 01–02" },
   { id: "campus", label: "Campus & Contact", hint: "Sec 03–04" },
-  { id: "modules", label: "Modules & Security", hint: "Sec 05" },
-  { id: "grading", label: "Grading Framework", hint: "Sec 06" },
-  { id: "schedule", label: "Bell Schedule & Timings", hint: "Sec 07" },
+  { id: "years", label: "Academic years", hint: "Sec 05" },
+  { id: "modules", label: "Modules & Security", hint: "Sec 06" },
+  { id: "grading", label: "Grading Framework", hint: "Sec 07" },
+  { id: "schedule", label: "Bell Schedule & Timings", hint: "Sec 08" },
 ];
 
 function tabFromLocation() {
@@ -263,6 +265,9 @@ export default function SchoolSettings() {
   const [distinctionMin, setDistinctionMin] = useState(90);
   const [bands, setBands] = useState(DEFAULT_BANDS);
   const [weights, setWeights] = useState({ UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 });
+  const [academicYears, setAcademicYears] = useState([]);
+  const [currentAcademicYear, setCurrentAcademicYear] = useState("");
+  const [newAcademicYear, setNewAcademicYear] = useState("");
 
   const [formError, setFormError] = useState("");
   const [tab, setTab] = useState(tabFromLocation);
@@ -277,6 +282,9 @@ export default function SchoolSettings() {
     setDistinctionMin(g.distinctionMin ?? 90);
     setBands(g.gradeBands?.length ? g.gradeBands : DEFAULT_BANDS);
     setWeights(g.examWeights || { UNIT_TEST: 0.2, MID_TERM: 0.3, FINAL: 0.5 });
+    const years = Array.isArray(s.academicYears) ? s.academicYears.filter(Boolean) : [];
+    setAcademicYears(years);
+    setCurrentAcademicYear(s.currentAcademicYear || years[0] || "");
   }
 
   useEffect(() => {
@@ -346,6 +354,13 @@ export default function SchoolSettings() {
       else selectTab("grading");
       return;
     }
+    if (currentAcademicYear && academicYears.length && !academicYears.includes(currentAcademicYear)) {
+      const msg = "Current academic year must be one of the saved years";
+      setFormError(msg);
+      toast.error(msg);
+      selectTab("years");
+      return;
+    }
     setFormError("");
     try {
       const saved = await api("/api/school", {
@@ -363,6 +378,8 @@ export default function SchoolSettings() {
             MID_TERM: Number(weights.MID_TERM),
             FINAL: Number(weights.FINAL),
           },
+          academicYears,
+          currentAcademicYear: currentAcademicYear || null,
           ...(user?.role === "PRINCIPAL" ? { optionalModules } : {}),
         },
       });
@@ -373,6 +390,30 @@ export default function SchoolSettings() {
       toast.success("School profile and grading settings saved.");
     } catch (err) {
       toast.error(err.message || "Could not save school profile");
+    }
+  }
+
+  function addAcademicYear() {
+    const parsed = parseAcademicYear(newAcademicYear, { required: true });
+    if (parsed.error) {
+      toast.error(parsed.error);
+      return;
+    }
+    if (academicYears.includes(parsed.value)) {
+      toast.error(`${parsed.value} is already saved`);
+      return;
+    }
+    const next = [parsed.value, ...academicYears].sort((a, b) => (a < b ? 1 : a > b ? -1 : 0));
+    setAcademicYears(next);
+    if (!currentAcademicYear) setCurrentAcademicYear(parsed.value);
+    setNewAcademicYear("");
+  }
+
+  function removeAcademicYear(yearLabel) {
+    const next = academicYears.filter((y) => y !== yearLabel);
+    setAcademicYears(next);
+    if (currentAcademicYear === yearLabel) {
+      setCurrentAcademicYear(next[0] || "");
     }
   }
 
@@ -404,7 +445,7 @@ export default function SchoolSettings() {
     <div>
       <PageHeader
         title={NAV_TITLES.schoolProfile}
-        subtitle="School identity, letterhead, working week, bell schedule, and grading used across reports and timetables"
+        subtitle="School identity, letterhead, academic years, working week, bell schedule, and grading used across reports and timetables"
       />
       <ProfileTabBar tab={tab} onChange={selectTab} />
 
@@ -605,6 +646,78 @@ export default function SchoolSettings() {
                     </div>
                   </div>
                 </div>
+              </section>
+            </div>
+          )}
+
+          {tab === "years" && (
+            <div role="tabpanel" aria-labelledby="school-profile-tab-years" className="space-y-5">
+              <section className="space-y-3">
+                <h3 className="font-serif text-xl">Academic years</h3>
+                <p className="text-sm text-ink-700/65">
+                  Create the years your school uses for students, exams, CPD, and analytics. Saved years
+                  appear as selection lists across the app. Mark one as current so new forms default to it.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2 sm:items-end">
+                  <div className="flex-1 min-w-0">
+                    <label className="label">Add academic year</label>
+                    <input
+                      className="field"
+                      placeholder="e.g. 2026-27"
+                      value={newAcademicYear}
+                      onChange={(e) => setNewAcademicYear(e.target.value)}
+                      pattern="\d{4}-\d{2}"
+                      title="Use a year like 2025-26"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addAcademicYear();
+                        }
+                      }}
+                    />
+                  </div>
+                  <button type="button" className="btn-ghost shrink-0" onClick={addAcademicYear}>
+                    Add year
+                  </button>
+                </div>
+                {!academicYears.length ? (
+                  <p className="text-sm text-ink-700/55 rounded-lg border border-dashed border-ink-900/15 bg-paper/50 px-3 py-4">
+                    No academic years saved yet. Add at least one so staff can pick years from a list
+                    instead of typing them.
+                  </p>
+                ) : (
+                  <ul className="divide-y divide-ink-900/10 rounded-xl border border-ink-900/10 bg-white/70">
+                    {academicYears.map((y) => (
+                      <li key={y} className="flex flex-wrap items-center gap-2 px-3 py-2.5">
+                        <label className="flex items-center gap-2 flex-1 min-w-0 text-sm">
+                          <input
+                            type="radio"
+                            name="currentAcademicYear"
+                            checked={currentAcademicYear === y}
+                            onChange={() => setCurrentAcademicYear(y)}
+                          />
+                          <span className="font-medium tabular-nums">{y}</span>
+                          {currentAcademicYear === y && (
+                            <span className="text-[11px] uppercase tracking-wide text-ink-700/55">
+                              Current
+                            </span>
+                          )}
+                        </label>
+                        <button
+                          type="button"
+                          className="btn-ghost text-sm"
+                          onClick={() => removeAcademicYear(y)}
+                        >
+                          Remove
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <p className="text-xs text-ink-700/55">
+                  Click Save profile to store the list. Removing a year does not delete existing student or
+                  exam records that already use it.
+                </p>
               </section>
             </div>
           )}

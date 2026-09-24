@@ -5,6 +5,11 @@ import { parseSlug, requireTenantId, runWithoutTenant } from "./tenant.js";
 import { invalidateInsightsCache } from "./insightsCache.js";
 import { CacheKeys, cachedTenantLoad, invalidateCurrentTenantCache } from "./tenantCache.js";
 import { normalizeOptionalModules } from "./roleFeatures.js";
+import {
+  parseAcademicYearsPatch,
+  parseCurrentAcademicYearPatch,
+  publicAcademicYears,
+} from "./academicYears.js";
 
 const OPTIONAL_TEXT_FIELDS = [
   "shortName",
@@ -221,8 +226,9 @@ export function parseLogoFile(file) {
 
 export function publicSchool(profile, { grading, workingDays, includeJoinCode = false } = {}) {
   if (!profile) return profile;
-  const { logoBytes, joinCode, optionalModules, ...rest } = profile;
+  const { logoBytes, joinCode, optionalModules, academicYears, currentAcademicYear, ...rest } = profile;
   const hasLogo = Boolean(rest.logoMimeType) && (logoBytes == null || logoBytes.length > 0);
+  const years = publicAcademicYears({ academicYears, currentAcademicYear });
   return {
     ...rest,
     hasLogo,
@@ -230,8 +236,42 @@ export function publicSchool(profile, { grading, workingDays, includeJoinCode = 
     optionalModules: normalizeOptionalModules(optionalModules),
     workingDays,
     grading,
+    academicYears: years.academicYears,
+    currentAcademicYear: years.currentAcademicYear,
     ...(includeJoinCode ? { joinCode } : {}),
   };
+}
+
+/**
+ * Parse academicYears + currentAcademicYear from a school PATCH body.
+ * Resolves current against the post-patch years list (body years when provided, else existing).
+ */
+export function parseAcademicYearSettingsPatch(body = {}, existing = {}) {
+  const yearsPatch = parseAcademicYearsPatch(body.academicYears);
+  if (yearsPatch.error) return { error: yearsPatch.error };
+
+  const nextYears =
+    yearsPatch.value !== undefined
+      ? yearsPatch.value
+      : publicAcademicYears(existing).academicYears;
+
+  const currentPatch = parseCurrentAcademicYearPatch(body.currentAcademicYear, nextYears);
+  if (currentPatch.error) return { error: currentPatch.error };
+
+  const data = {};
+  if (yearsPatch.value !== undefined) data.academicYears = yearsPatch.value;
+  if (currentPatch.value !== undefined) {
+    data.currentAcademicYear = currentPatch.value;
+  } else if (yearsPatch.value !== undefined) {
+    // Drop current if it is no longer in the saved list.
+    const existingCurrent = existing?.currentAcademicYear
+      ? String(existing.currentAcademicYear).trim()
+      : null;
+    if (existingCurrent && !yearsPatch.value.includes(existingCurrent)) {
+      data.currentAcademicYear = yearsPatch.value[0] || null;
+    }
+  }
+  return { data };
 }
 
 export async function allocateSchoolSlug(name) {

@@ -3,6 +3,8 @@ import { prisma } from "../lib/prisma.js";
 import { auth, requireFeature, requireRole } from "../middleware/auth.js";
 import { parseDeadlineInput } from "../lib/markAccess.js";
 import { academicYearFromDate } from "../lib/stats.js";
+import { assertAllowedAcademicYear } from "../lib/academicYears.js";
+import { getSchoolProfile } from "../lib/school.js";
 import { logActivity } from "../lib/activityAudit.js";
 import { ensureConsolidationSchema, ensureExamIncludedClassesColumn } from "../lib/ensureSchema.js";
 import { parsePositiveInt } from "../lib/numbers.js";
@@ -178,6 +180,8 @@ examsRouter.post("/", ...requireRecordsWrite, async (req, res) => {
   const year =
     (academicYear && String(academicYear).trim()) || academicYearFromDate(resolvedDate.value);
   if (!year) return res.status(400).json({ error: "Academic year is required" });
+  const yearCheck = assertAllowedAcademicYear(year, await getSchoolProfile());
+  if (!yearCheck.ok) return res.status(400).json({ error: yearCheck.error });
   const consol = await parseConsolidationMax(consolidationMaxMarks, { required: false });
   if (consol.error) return res.status(400).json({ error: consol.error });
 
@@ -187,7 +191,7 @@ examsRouter.post("/", ...requireRecordsWrite, async (req, res) => {
     data: {
       name,
       term,
-      academicYear: year,
+      academicYear: yearCheck.value,
       date: resolvedDate.value,
       type,
       tenantId: req.tenantId,
@@ -267,8 +271,12 @@ examsRouter.patch("/:id", ...requireRecordsWrite, async (req, res) => {
     ...(name && { name }),
     ...(term && { term }),
     ...(type && { type }),
-    ...(academicYear && { academicYear: String(academicYear).trim() }),
   };
+  if (academicYear) {
+    const yearCheck = assertAllowedAcademicYear(String(academicYear).trim(), await getSchoolProfile());
+    if (!yearCheck.ok) return res.status(400).json({ error: yearCheck.error });
+    data.academicYear = yearCheck.value;
+  }
   if (date) {
     const parsed = new Date(date);
     if (Number.isNaN(parsed.getTime())) return res.status(400).json({ error: "Invalid exam date" });

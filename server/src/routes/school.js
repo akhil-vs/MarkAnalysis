@@ -5,6 +5,7 @@ import {
   allocateJoinCode,
   getSchoolProfile,
   invalidateSchoolProfileCache,
+  parseAcademicYearSettingsPatch,
   parseLogoFile,
   parseSchoolIdentityPatch,
   publicSchool as serializeSchool,
@@ -93,6 +94,9 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFea
   }
 
   const profile = await getSchoolProfile();
+  const academicYearPatch = parseAcademicYearSettingsPatch(req.body || {}, profile);
+  if (academicYearPatch.error) return res.status(400).json({ error: academicYearPatch.error });
+
   const updated = await prisma.school.update({
     where: { id: profile.id },
     omit: { logoBytes: true },
@@ -101,6 +105,7 @@ schoolRouter.patch("/", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFea
       ...(workingDaysPatch.value !== undefined && { workingDays: workingDaysPatch.value }),
       ...gradingPatch.data,
       ...optionalModulesData,
+      ...academicYearPatch.data,
     },
   });
   invalidateSchoolProfileCache();

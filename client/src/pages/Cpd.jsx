@@ -6,6 +6,7 @@ import { PageHeader } from "../components/Layout.jsx";
 import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError } from "../components/FieldError.jsx";
+import { AcademicYearField } from "../components/AcademicYearField.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
 import { isLeadership } from "../lib/roles.js";
 
@@ -445,12 +446,10 @@ export default function Cpd() {
             </div>
             <div>
               <label className="label">Academic year</label>
-              <input
-                className="field"
+              <AcademicYearField
                 required
-                placeholder="2025-26"
                 value={planForm.academicYear}
-                onChange={(e) => setPlanForm({ ...planForm, academicYear: e.target.value })}
+                onChange={(v) => setPlanForm({ ...planForm, academicYear: v })}
               />
             </div>
             <div className="grid sm:grid-cols-2 gap-3">
@@ -670,13 +669,10 @@ export default function Cpd() {
               <div className="grid sm:grid-cols-2 gap-3">
                 <div>
                   <label className="label">Academic year</label>
-                  <input
-                    className="field"
+                  <AcademicYearField
                     required
                     value={appraisalForm.academicYear}
-                    onChange={(e) =>
-                      setAppraisalForm({ ...appraisalForm, academicYear: e.target.value })
-                    }
+                    onChange={(v) => setAppraisalForm({ ...appraisalForm, academicYear: v })}
                   />
                 </div>
                 <div>

@@ -3814,6 +3814,13 @@
           },
           "School": {
             "fields": {
+              "academicYears": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
+              },
               "address": {
                 "nullable": true,
                 "type": {
@@ -3853,6 +3860,13 @@
                 "nullable": false,
                 "type": {
                   "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "currentAcademicYear": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
               },
@@ -4494,6 +4508,9 @@
             },
             "storage": {
               "fields": {
+                "academicYears": {
+                  "column": "academicYears"
+                },
                 "address": {
                   "column": "address"
                 },
@@ -4511,6 +4528,9 @@
                 },
                 "createdAt": {
                   "column": "createdAt"
+                },
+                "currentAcademicYear": {
+                  "column": "currentAcademicYear"
                 },
                 "customStaffRoles": {
                   "column": "customStaffRoles"
@@ -10295,6 +10315,11 @@
             },
             "School": {
               "columns": {
+                "academicYears": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
+                },
                 "address": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -10328,6 +10353,11 @@
                   },
                   "nativeType": "timestamptz",
                   "nullable": false
+                },
+                "currentAcademicYear": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
                 },
                 "customStaffRoles": {
                   "codecId": "pg/jsonb@1",
@@ -12231,7 +12261,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "22f0464f32f75ae3278bc4cce02731b84a3e2be3729efa079ea44f16c4c5815c"
+    "storageHash": "e77656044c13445c61749199135b6978876f1bc70850fd1b41679332f6dc293d"
   },
   "execution": {
     "executionHash": "a72b23d74a7c00bedc01aae8e1333dfa214b3303b25cb40bff7c9ec558b8b035",

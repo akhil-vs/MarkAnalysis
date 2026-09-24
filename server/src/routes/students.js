@@ -5,8 +5,9 @@ import { prisma } from "../lib/prisma.js";
 import { auth, requireRole, requireFeature, getTeacherClassIds } from "../middleware/auth.js";
 import { cell, parseDob, parseSpreadsheet } from "../lib/upload.js";
 import { academicYearFromDate, nextAcademicYear, nextClassName } from "../lib/stats.js";
+import { assertAllowedAcademicYear } from "../lib/academicYears.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
-import { getSchoolLetterhead, LOGO_MAX_BYTES, parseLogoFile } from "../lib/school.js";
+import { getSchoolLetterhead, getSchoolProfile, LOGO_MAX_BYTES, parseLogoFile } from "../lib/school.js";
 import { publicStudent } from "../lib/hallTickets.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
@@ -508,13 +509,15 @@ studentsRouter.post("/", ...requireRecordsWrite, async (req, res) => {
     return res.status(400).json({ error: "Name, roll number, and class are required" });
   }
   const year = String(academicYear || "").trim() || academicYearFromDate(new Date()) || "2025-26";
+  const yearCheck = assertAllowedAcademicYear(year, await getSchoolProfile());
+  if (!yearCheck.ok) return res.status(400).json({ error: yearCheck.error });
   const created = await prisma.student.create({
     data: {
       name,
       rollNo: String(rollNo),
       admissionNo: String(admissionNo || "").trim() || null,
       classSectionId,
-      academicYear: year,
+      academicYear: yearCheck.value,
       status: "ACTIVE",
       dob: dob ? new Date(dob) : null,
       guardianName: guardianName || null,
@@ -538,19 +541,24 @@ studentsRouter.patch("/:id", ...requireRecordsWrite, async (req, res) => {
     status,
     admissionNo,
   } = req.body || {};
+  const data = {
+    ...(name && { name }),
+    ...(rollNo && { rollNo: String(rollNo) }),
+    ...(admissionNo !== undefined && { admissionNo: String(admissionNo || "").trim() || null }),
+    ...(classSectionId && { classSectionId }),
+    ...(status && ["ACTIVE", "PROMOTED", "TRANSFERRED", "LEFT"].includes(status) && { status }),
+    ...(dob !== undefined && { dob: dob ? new Date(dob) : null }),
+    ...(guardianName !== undefined && { guardianName }),
+    ...(guardianPhone !== undefined && { guardianPhone }),
+  };
+  if (academicYear) {
+    const yearCheck = assertAllowedAcademicYear(String(academicYear).trim(), await getSchoolProfile());
+    if (!yearCheck.ok) return res.status(400).json({ error: yearCheck.error });
+    data.academicYear = yearCheck.value;
+  }
   const updated = await prisma.student.update({
     where: { id: req.params.id },
-    data: {
-      ...(name && { name }),
-      ...(rollNo && { rollNo: String(rollNo) }),
-      ...(admissionNo !== undefined && { admissionNo: String(admissionNo || "").trim() || null }),
-      ...(classSectionId && { classSectionId }),
-      ...(academicYear && { academicYear: String(academicYear).trim() }),
-      ...(status && ["ACTIVE", "PROMOTED", "TRANSFERRED", "LEFT"].includes(status) && { status }),
-      ...(dob !== undefined && { dob: dob ? new Date(dob) : null }),
-      ...(guardianName !== undefined && { guardianName }),
-      ...(guardianPhone !== undefined && { guardianPhone }),
-    },
+    data,
     omit: { photoBytes: true },
   });
   res.json(omitPhoto(updated));
@@ -581,6 +589,8 @@ studentsRouter.post("/promote", ...requireRecordsWrite, async (req, res) => {
     nextAcademicYear(academicYearFromDate(new Date())) ||
     nextAcademicYear("2025-26");
   if (!destYear) return res.status(400).json({ error: "Destination academic year is required" });
+  const yearCheck = assertAllowedAcademicYear(destYear, await getSchoolProfile());
+  if (!yearCheck.ok) return res.status(400).json({ error: yearCheck.error });
 
   const ids = rows.map((r) => r.studentId).filter(Boolean);
   const source = await prisma.student.findMany({
@@ -609,7 +619,7 @@ studentsRouter.post("/promote", ...requireRecordsWrite, async (req, res) => {
         rollNo,
         admissionNo: student.admissionNo || null,
         classSectionId: toClassSectionId,
-        academicYear: destYear,
+        academicYear: yearCheck.value,
         status: "ACTIVE",
         dob: student.dob,
         guardianName: student.guardianName,
@@ -630,7 +640,7 @@ studentsRouter.post("/promote", ...requireRecordsWrite, async (req, res) => {
 
   res.status(201).json({
     promoted: created.length,
-    toYear: destYear,
+    toYear: yearCheck.value,
     toClass: `${toClass.className}-${toClass.section}`,
     suggestedNextClass: nextClassName(fromClass.className),
     students: created,

@@ -111,6 +111,10 @@ model School {
   roleFeatureAccess Json?
   /// School-wide optional modules: { boardOps, cpd }. Default off until principal enables.
   optionalModules Json?
+  /// Configured academic year labels for this school: ["2025-26", "2024-25", ...].
+  academicYears       Json?
+  /// Active academic year label (must be one of academicYears when that list is non-empty).
+  currentAcademicYear String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
 

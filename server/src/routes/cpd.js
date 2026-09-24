@@ -2,6 +2,8 @@ import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { auth, isLeadership, requireLeadership, requireFeature } from "../middleware/auth.js";
 import { logActivity } from "../lib/activityAudit.js";
+import { assertAllowedAcademicYear } from "../lib/academicYears.js";
+import { getSchoolProfile } from "../lib/school.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 
 export const cpdRouter = Router();
@@ -72,6 +74,8 @@ cpdRouter.post("/plans", async (req, res) => {
   if (!title || !academicYear) {
     return res.status(400).json({ error: "title and academicYear are required" });
   }
+  const yearCheck = assertAllowedAcademicYear(academicYear, await getSchoolProfile());
+  if (!yearCheck.ok) return res.status(400).json({ error: yearCheck.error });
 
   let teacherId = bodyTeacherId || req.user.userId;
   if (!assertTeacherOrLeadership(req, teacherId)) {
@@ -87,7 +91,7 @@ cpdRouter.post("/plans", async (req, res) => {
       teacherId,
       title: String(title).trim(),
       description: description != null && description !== "" ? String(description) : null,
-      academicYear: String(academicYear).trim(),
+      academicYear: yearCheck.value,
       targetHours:
         targetHours != null && targetHours !== "" && Number.isFinite(Number(targetHours))
           ? Number(targetHours)
@@ -131,9 +135,13 @@ cpdRouter.patch("/plans/:id", async (req, res) => {
     ...(description !== undefined && {
       description: description == null || description === "" ? null : String(description),
     }),
-    ...(academicYear != null && { academicYear: String(academicYear).trim() }),
     ...(status != null && { status: String(status).toUpperCase() }),
   };
+  if (academicYear != null) {
+    const yearCheck = assertAllowedAcademicYear(academicYear, await getSchoolProfile());
+    if (!yearCheck.ok) return res.status(400).json({ error: yearCheck.error });
+    data.academicYear = yearCheck.value;
+  }
   if (targetHours !== undefined) {
     data.targetHours =
       targetHours == null || targetHours === "" ? null : Number(targetHours);
@@ -316,6 +324,8 @@ cpdRouter.post("/appraisals", requireLeadership(), async (req, res) => {
   if (!teacherId || !academicYear) {
     return res.status(400).json({ error: "teacherId and academicYear are required" });
   }
+  const yearCheck = assertAllowedAcademicYear(academicYear, await getSchoolProfile());
+  if (!yearCheck.ok) return res.status(400).json({ error: yearCheck.error });
 
   let ratingVal = null;
   if (overallRating != null && overallRating !== "") {
@@ -330,7 +340,7 @@ cpdRouter.post("/appraisals", requireLeadership(), async (req, res) => {
       tenantId: req.tenantId,
       teacherId,
       appraiserId: req.user.userId,
-      academicYear: String(academicYear).trim(),
+      academicYear: yearCheck.value,
       periodLabel: periodLabel != null && periodLabel !== "" ? String(periodLabel) : null,
       overallRating: ratingVal,
       goalsMet: goalsMet != null && goalsMet !== "" ? String(goalsMet) : null,
@@ -368,7 +378,6 @@ cpdRouter.patch("/appraisals/:id", requireLeadership(), async (req, res) => {
   } = req.body || {};
 
   const data = {
-    ...(academicYear != null && { academicYear: String(academicYear).trim() }),
     ...(periodLabel !== undefined && {
       periodLabel: periodLabel == null || periodLabel === "" ? null : String(periodLabel),
     }),
@@ -385,6 +394,11 @@ cpdRouter.patch("/appraisals/:id", requireLeadership(), async (req, res) => {
       signedAt: signedAt ? new Date(signedAt) : null,
     }),
   };
+  if (academicYear != null) {
+    const yearCheck = assertAllowedAcademicYear(academicYear, await getSchoolProfile());
+    if (!yearCheck.ok) return res.status(400).json({ error: yearCheck.error });
+    data.academicYear = yearCheck.value;
+  }
   if (overallRating !== undefined) {
     data.overallRating =
       overallRating == null || overallRating === "" ? null : Number(overallRating);
