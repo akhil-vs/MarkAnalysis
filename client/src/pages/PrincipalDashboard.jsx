@@ -19,6 +19,7 @@ import { InlineLoading, LoadingState } from "../components/Spinner.jsx";
 import { useAuth } from "../auth.jsx";
 import Breadcrumb from "../components/Breadcrumb.jsx";
 import { ExamSelect } from "../components/ExamSelect.jsx";
+import { SchoolSectionSelect } from "../components/SchoolSectionSelect.jsx";
 import { YearComparison } from "../components/AnalysisPanels.jsx";
 import {
   BarTrack,
@@ -42,6 +43,7 @@ import { useToast } from "../components/Toast.jsx";
 import { yearDelta } from "../lib/exams.js";
 import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
 import { NAV_LABELS, paths } from "../lib/nav.js";
+import { normalizeSchoolSection, schoolSectionLabel } from "../lib/schoolSections.js";
 
 /** Strip trailing " · 2025-26" so the same exam type aligns across years. */
 function examTypeLabel(point) {
@@ -120,11 +122,14 @@ export default function PrincipalDashboard() {
   const homePath = dashboardApiPath("PRINCIPAL");
   const [data, setData] = useState(() => peekDashboardPrefetch(homePath, { userId: user?.id }));
   const [examId, setExamId] = useState(() => data?.exam?.id || "");
+  const [schoolSection, setSchoolSection] = useState(() =>
+    normalizeSchoolSection(data?.schoolSection || "ALL")
+  );
   const [error, setError] = useState("");
   const [notify, setNotify] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
 
-  async function loadDetail(summary) {
+  async function loadDetail(summary, section = schoolSection) {
     if (!summary?.exam?.id || summary.empty) return;
     setDetailLoading(true);
     try {
@@ -132,8 +137,10 @@ export default function PrincipalDashboard() {
         examId: summary.exam.id,
         include: "detail",
       });
+      if (section && section !== "ALL") detailQ.set("schoolSection", section);
       const detail = await api(`/api/analytics/school?${detailQ}`);
       setData((prev) => ({ ...(prev || {}), ...detail }));
+      if (detail.schoolSection) setSchoolSection(normalizeSchoolSection(detail.schoolSection));
     } catch {
       // summary already painted
     } finally {
@@ -141,22 +148,31 @@ export default function PrincipalDashboard() {
     }
   }
 
-  async function load(id) {
+  async function load(id, section = schoolSection) {
     setError("");
     const base = new URLSearchParams();
     if (id) base.set("examId", id);
     // Cold path: one round-trip for summary+detail instead of summary-then-detail waterfall.
     base.set("include", "summary,detail");
+    const nextSection = normalizeSchoolSection(section);
+    if (nextSection !== "ALL") base.set("schoolSection", nextSection);
     const path = `/api/analytics/school?${base}`;
     try {
       const payload = await api(path);
       setData(payload);
       setDetailLoading(false);
+      setSchoolSection(normalizeSchoolSection(payload.schoolSection || nextSection));
       if (payload.empty) return;
       if (payload.exam) setExamId(payload.exam.id);
     } catch (e) {
       if (!data) setError(e.message || "Could not load school view");
     }
+  }
+
+  function onSchoolSectionChange(next) {
+    const section = normalizeSchoolSection(next);
+    setSchoolSection(section);
+    load(examId, section);
   }
 
   useEffect(() => {
@@ -165,16 +181,21 @@ export default function PrincipalDashboard() {
     if (fresh) {
       setData(fresh);
       if (fresh.exam) setExamId(fresh.exam.id);
+      if (fresh.schoolSection) setSchoolSection(normalizeSchoolSection(fresh.schoolSection));
     }
     const summary = fresh || data;
     if (summary) {
-      loadDetail(summary);
+      loadDetail(summary, "ALL");
       revalidateDashboard(homePath, {
         userId: user?.id,
         email: user?.email,
         schoolId: user?.schoolId,
         onData: (next) => {
-          setData((prev) => ({ ...(prev || {}), ...next }));
+          setData((prev) => {
+            // Don't overwrite a non-All section view with whole-school revalidate.
+            if (normalizeSchoolSection(prev?.schoolSection) !== "ALL") return prev;
+            return { ...(prev || {}), ...next };
+          });
           if (next?.exam) setExamId(next.exam.id);
         },
       });
@@ -243,6 +264,9 @@ export default function PrincipalDashboard() {
     : user.role === "PRINCIPAL"
       ? "Principal desk"
       : "Exam coordination";
+  const sectionLabel = schoolSectionLabel(schoolSection, data.schoolSections);
+  const scopePhrase = schoolSection === "ALL" ? "School" : sectionLabel;
+  const averageLabel = schoolSection === "ALL" ? "School average" : "Section average";
 
   return (
     <div>
@@ -255,11 +279,11 @@ export default function PrincipalDashboard() {
 
       <DashboardHero
         title={greeting(user.name)}
-        subtitle={`${data.exam.name}${data.exam.term ? ` · ${data.exam.term}` : ""}: School average ${data.kpis.schoolAverage ?? "—"}% across ${data.kpis.students} students.`}
+        subtitle={`${data.exam.name}${data.exam.term ? ` · ${data.exam.term}` : ""}${schoolSection !== "ALL" ? ` · ${sectionLabel}` : ""}: ${scopePhrase} average ${data.kpis.schoolAverage ?? "—"}% across ${data.kpis.students} students.`}
         help={pageHelp}
         actions={
           <>
-            <ExamSelect exams={data.exams} value={examId} onChange={load} />
+            <ExamSelect exams={data.exams} value={examId} onChange={(id) => load(id, schoolSection)} />
             <Link className="btn-ghost" to="/analysis/deep">
               Deep insights
             </Link>
@@ -280,9 +304,18 @@ export default function PrincipalDashboard() {
         }
       />
 
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className="text-[11px] uppercase tracking-wider text-ink-700/50">Class level</span>
+        <SchoolSectionSelect
+          value={schoolSection}
+          options={data.schoolSections}
+          onChange={onSchoolSectionChange}
+        />
+      </div>
+
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
         <Metric
-          label="School average"
+          label={averageLabel}
           value={data.kpis.schoolAverage != null ? `${data.kpis.schoolAverage}%` : "—"}
           hint={trendDelta}
         />

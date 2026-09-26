@@ -35,9 +35,62 @@ import {
   teacherSubjectAverages,
 } from "./dashboardAgg.js";
 import { cachedTenantLoad } from "./tenantCache.js";
+import {
+  classNameInSchoolSection,
+  filterBySchoolSection,
+  normalizeSchoolSection,
+  schoolSectionPayload,
+} from "./schoolSections.js";
 
 /** Max wait for embedding dashboard in the login response (ms). */
 export const LOGIN_DASHBOARD_BUDGET_MS = 350;
+
+function markInSchoolSection(mark, section) {
+  return classNameInSchoolSection(mark?.student?.classSection?.className, section);
+}
+
+function recountPendingUploads(pendingUploads) {
+  const teachers = pendingUploads?.teachers || [];
+  return {
+    ...pendingUploads,
+    pendingTeacherCount: teachers.filter((t) => t.pending).length,
+    awaitingApprovalTeacherCount: teachers.filter((t) => t.awaitingApproval && !t.pending).length,
+    completeTeacherCount: teachers.filter((t) => !t.pending && !t.awaitingApproval).length,
+  };
+}
+
+/** Drop assignment rows outside the CBSE school section, then recompute teacher flags. */
+function filterPendingUploadsBySchoolSection(pendingUploads, section, classIdToName) {
+  const id = normalizeSchoolSection(section);
+  if (id === "ALL" || !pendingUploads?.teachers) return pendingUploads;
+  const teachers = pendingUploads.teachers
+    .map((t) => {
+      const assignments = (t.assignments || []).filter((a) => {
+        const className =
+          a.className ||
+          classIdToName?.get(a.classSectionId) ||
+          String(a.classLabel || "").split("-")[0];
+        return classNameInSchoolSection(className, id);
+      });
+      if (!assignments.length) return null;
+      const missingAssignments = assignments.filter((a) => a.missing > 0);
+      const awaitingApproval = assignments.filter(
+        (a) =>
+          a.status === "AWAITING_APPROVAL" ||
+          ((a.submitted ?? 0) > 0 && (a.approved ?? 0) < a.expected)
+      );
+      return {
+        ...t,
+        assignments,
+        pending: missingAssignments.length > 0,
+        awaitingApproval: awaitingApproval.length > 0,
+        missingAssignments: missingAssignments.length,
+        awaitingApprovalAssignments: awaitingApproval.length,
+      };
+    })
+    .filter(Boolean);
+  return recountPendingUploads({ ...pendingUploads, teachers });
+}
 
 /** Counts that still matter when no exam is scheduled — keeps home desks filled. */
 export async function loadSchoolSetupSnapshot() {
@@ -76,6 +129,24 @@ export function emptyHomePayload({
     exams,
     exam,
     setup: snapshot,
+    schoolSection: "ALL",
+    schoolSectionLabel: "Whole school",
+    schoolSections: [
+      { id: "ALL", label: "Whole school", shortLabel: "All", classRange: null },
+      { id: "PRIMARY", label: "Primary section", shortLabel: "Primary", classRange: { min: 1, max: 5 } },
+      {
+        id: "SECONDARY",
+        label: "Secondary section",
+        shortLabel: "Secondary",
+        classRange: { min: 6, max: 10 },
+      },
+      {
+        id: "SENIOR_SECONDARY",
+        label: "Senior secondary section",
+        shortLabel: "Sr. Secondary",
+        classRange: { min: 11, max: 12 },
+      },
+    ],
     kpis:
       role === "PRINCIPAL"
         ? {
@@ -252,60 +323,92 @@ async function buildTeacherHome(user, examId) {
   };
 }
 
-async function buildCoordinatorHome(examId) {
+async function buildCoordinatorHome(examId, schoolSection = "ALL") {
+  const section = normalizeSchoolSection(schoolSection);
   const { exams, exam } = await loadExams(examId);
-  if (!exam) return emptyHome("EXAM_COORDINATOR", { exams, reason: "NO_EXAM" });
+  if (!exam) {
+    return {
+      ...(await emptyHome("EXAM_COORDINATOR", { exams, reason: "NO_EXAM" })),
+      ...schoolSectionPayload(section, []),
+    };
+  }
 
-  const [marks, subjects, classes, assignments, pending, pendingUploads] = await Promise.all([
-    prisma.mark.findMany({
-      where: { examId: exam.id, status: "APPROVED" },
-      select: markAnalyticsSelect,
-    }),
-    prisma.subject.findMany({
-      orderBy: { name: "asc" },
-      select: subjectCoreSelect,
-    }),
-    prisma.classSection.findMany({
-      orderBy: [{ className: "asc" }, { section: "asc" }],
-      select: { id: true, className: true, section: true },
-    }),
-    prisma.teacherAssignment.findMany({
-      select: assignmentAnalyticsSelect,
-    }),
-    prisma.mark.count({ where: { examId: exam.id, status: "DRAFT" } }),
-    buildPendingUploads(exam),
-  ]);
+  const [marksRaw, subjectsRaw, classesRaw, assignmentsRaw, pending, pendingUploadsRaw] =
+    await Promise.all([
+      prisma.mark.findMany({
+        where: { examId: exam.id, status: "APPROVED" },
+        select: markAnalyticsSelect,
+      }),
+      prisma.subject.findMany({
+        orderBy: { name: "asc" },
+        select: subjectCoreSelect,
+      }),
+      prisma.classSection.findMany({
+        orderBy: [{ className: "asc" }, { section: "asc" }],
+        select: { id: true, className: true, section: true },
+      }),
+      prisma.teacherAssignment.findMany({
+        select: assignmentAnalyticsSelect,
+      }),
+      prisma.mark.count({ where: { examId: exam.id, status: "DRAFT" } }),
+      buildPendingUploads(exam),
+    ]);
+
+  const sectionMeta = schoolSectionPayload(
+    section,
+    classesRaw.map((c) => c.className)
+  );
+  const classes = filterBySchoolSection(classesRaw, section, (c) => c.className);
+  const classIdToName = new Map(classesRaw.map((c) => [c.id, c.className]));
+  const marks = marksRaw.filter((m) => markInSchoolSection(m, section));
+  const subjects = filterBySchoolSection(subjectsRaw, section, (s) => s.className);
+  const assignments = filterBySchoolSection(
+    assignmentsRaw,
+    section,
+    (a) => a.classSection?.className
+  );
+  const pendingUploads = filterPendingUploadsBySchoolSection(
+    pendingUploadsRaw,
+    section,
+    classIdToName
+  );
 
   const marksBySubject = indexMarksBySubject(marks);
   const marksByPaper = indexMarksByPaper(marks);
+  const subjectNames = [...new Set(marks.map((m) => m.subject?.name).filter(Boolean))];
 
   return {
     exam,
     exams,
+    ...sectionMeta,
     difficulty: subjectDifficulty(subjects, marksBySubject),
     teacherBySubject: teacherSubjectAverages(assignments, marksByPaper),
-    correlations: subjectCorrelations(marks, subjects.map((s) => s.name)),
+    correlations: subjectCorrelations(marks, subjectNames),
     classes,
     pendingDrafts: pending,
     pendingUploads: slimPendingUploads(pendingUploads),
   };
 }
 
-async function buildPrincipalSummary(examId) {
+async function buildPrincipalSummary(examId, schoolSection = "ALL") {
+  const section = normalizeSchoolSection(schoolSection);
   const { exams, exam } = await loadExams(examId);
-  if (!exam) return emptyHome("PRINCIPAL", { exams, reason: "NO_EXAM" });
+  if (!exam) {
+    return {
+      ...(await emptyHome("PRINCIPAL", { exams, reason: "NO_EXAM" })),
+      ...schoolSectionPayload(section, []),
+    };
+  }
 
   const grading = gradingHelpers(await getGradingConfig());
   const { passPercent, gradeFn, distinctionMin, gradeBands, examWeights, assessmentPolicy } = grading;
 
   const [
     examMarks,
-    classes,
-    subjects,
-    assignments,
-    activeStudents,
-    teacherCount,
-    activeStudentRows,
+    classesRaw,
+    subjectsRaw,
+    assignmentsRaw,
+    activeStudentRowsRaw,
     accessRequests,
   ] = await Promise.all([
     prisma.mark.findMany({ where: { examId: exam.id }, select: markAnalyticsSelect }),
@@ -315,8 +418,6 @@ async function buildPrincipalSummary(examId) {
     }),
     prisma.subject.findMany({ select: subjectCoreSelect }),
     prisma.teacherAssignment.findMany({ select: assignmentAnalyticsSelect }),
-    prisma.student.count({ where: { status: "ACTIVE" } }),
-    prisma.user.count({ where: { role: "TEACHER", status: "ACTIVE" } }),
     prisma.student.findMany({ where: { status: "ACTIVE" }, select: { id: true, classSectionId: true } }),
     prisma.markEntryAccessRequest.findMany({
       where: { examId: exam.id },
@@ -324,8 +425,28 @@ async function buildPrincipalSummary(examId) {
     }),
   ]);
 
+  const sectionMeta = schoolSectionPayload(
+    section,
+    classesRaw.map((c) => c.className)
+  );
+  const classIdToName = new Map(classesRaw.map((c) => [c.id, c.className]));
+  const classes = filterBySchoolSection(classesRaw, section, (c) => c.className);
+  const classIds = new Set(classes.map((c) => c.id));
+  const subjects = filterBySchoolSection(subjectsRaw, section, (s) => s.className);
+  const assignments = filterBySchoolSection(
+    assignmentsRaw,
+    section,
+    (a) => a.classSection?.className
+  );
+  const activeStudentRows = activeStudentRowsRaw.filter((s) => classIds.has(s.classSectionId));
+  const teacherCount =
+    section === "ALL"
+      ? await prisma.user.count({ where: { role: "TEACHER", status: "ACTIVE" } })
+      : new Set(assignments.map((a) => a.userId)).size;
+
   const marks = examMarks
     .filter((m) => m.status === "APPROVED" && m.student?.status === "ACTIVE")
+    .filter((m) => markInSchoolSection(m, section))
     .map((m) => ({ ...m, exam }));
   const byStudent = groupBy(marks, (m) => m.studentId);
   const studentAvgs = studentTotals(byStudent, { gradeFn });
@@ -351,7 +472,7 @@ async function buildPrincipalSummary(examId) {
     gradingScheme: assessmentPolicy?.gradingScheme,
   };
   const kpis = {
-    students: activeStudents,
+    students: activeStudentRows.length,
     teachers: teacherCount,
     classes: classes.length,
     schoolAverage: round1(mean(scored.map((s) => s.avg))),
@@ -360,23 +481,37 @@ async function buildPrincipalSummary(examId) {
       : 0,
   };
 
-  const [pendingUploads] = await Promise.all([
+  const scopedExamMarks =
+    section === "ALL"
+      ? examMarks
+      : examMarks.filter((m) => {
+          const cn =
+            m.student?.classSection?.className || classIdToName.get(m.student?.classSectionId);
+          return classNameInSchoolSection(cn, section);
+        });
+
+  const [pendingUploadsRaw] = await Promise.all([
     buildPendingUploads(exam, {
       assignments,
       students: activeStudentRows,
-      marks: examMarks.map((m) => ({
+      marks: scopedExamMarks.map((m) => ({
         studentId: m.studentId,
         subjectId: m.subjectId,
         status: m.status,
       })),
     }),
   ]);
+  const pendingUploads = filterPendingUploadsBySchoolSection(
+    pendingUploadsRaw,
+    section,
+    classIdToName
+  );
 
   const studentsByClass = groupBy(activeStudentRows, (s) => s.classSectionId);
   const readiness = examReadiness({
     exam,
     assignments,
-    marks: examMarks,
+    marks: scopedExamMarks,
     studentsByClass,
     accessRequests,
   });
@@ -385,6 +520,7 @@ async function buildPrincipalSummary(examId) {
   return {
     exam,
     exams,
+    ...sectionMeta,
     kpis,
     pendingUploads: slimPendingUploads(pendingUploads),
     outcomes: outcomeBreakdown(marks),
@@ -417,23 +553,24 @@ async function buildPrincipalSummary(examId) {
 }
 
 /** Build the role home dashboard payload (no HTTP). */
-export async function buildHomeDashboard(user, { examId } = {}) {
+export async function buildHomeDashboard(user, { examId, schoolSection } = {}) {
   if (!user?.role || user.role === "PLATFORM_ADMIN") return null;
   if (user.role === "TEACHER") return buildTeacherHome(user, examId);
-  if (user.role === "EXAM_COORDINATOR") return buildCoordinatorHome(examId);
-  if (user.role === "PRINCIPAL") return buildPrincipalSummary(examId);
+  if (user.role === "EXAM_COORDINATOR") return buildCoordinatorHome(examId, schoolSection);
+  if (user.role === "PRINCIPAL") return buildPrincipalSummary(examId, schoolSection);
   return null;
 }
 
 /** Short-TTL cache so login can overlap bcrypt with a warm dashboard hit. */
-export async function buildHomeDashboardCached(user, { examId } = {}) {
+export async function buildHomeDashboardCached(user, { examId, schoolSection } = {}) {
   if (!user?.role || user.role === "PLATFORM_ADMIN" || !user.tenantId) {
-    return buildHomeDashboard(user, { examId });
+    return buildHomeDashboard(user, { examId, schoolSection });
   }
   const examKey = examId || "default";
+  const sectionKey = normalizeSchoolSection(schoolSection);
   return cachedTenantLoad(
-    `home-dash:${user.role}:${user.id}:${examKey}`,
-    () => buildHomeDashboard(user, { examId }),
+    `home-dash:${user.role}:${user.id}:${examKey}:${sectionKey}`,
+    () => buildHomeDashboard(user, { examId, schoolSection: sectionKey }),
     { ttlMs: 45_000, tenantId: user.tenantId }
   );
 }
