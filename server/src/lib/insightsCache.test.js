@@ -44,4 +44,21 @@ describe("insightsCache", () => {
       assert.equal(third.n, 2);
     });
   });
+
+  it("invalidateInsightsCache also clears home-dash keys", async () => {
+    await runWithTenant("school-insights", async () => {
+      const { cachedTenantLoad } = await import("./tenantCache.js");
+      await cachedTenantLoad("home-dash:PRINCIPAL:u1:default", async () => ({ ok: true }), {
+        ttlMs: 45_000,
+      });
+      assert.ok(tenantCacheSize() >= 1);
+      invalidateInsightsCache();
+      let loads = 0;
+      await cachedTenantLoad("home-dash:PRINCIPAL:u1:default", async () => {
+        loads += 1;
+        return { ok: true };
+      });
+      assert.equal(loads, 1);
+    });
+  });
 });
