@@ -32,6 +32,7 @@ import {
   loadPeerAssignmentsBySubjectName,
   sameTypeExamIds,
 } from "../lib/analyticsMarks.js";
+import { cachedInsight } from "../lib/insightsCache.js";
 
 function forbidIfTeacher(req, res) {
   if (!isLeadership(req.user.role)) {
@@ -46,6 +47,9 @@ export function registerAnalysisReports(router) {
     const { exams, exam } = await loadExams(req.query.examId);
     if (!exam) return res.json({ empty: true });
 
+    const scope =
+      req.user.role === "TEACHER" ? `t:${req.user.userId}` : "lead";
+    const payload = await cachedInsight("report:classes-overview", [exam.id, scope], async () => {
     let classes = await prisma.classSection.findMany({
       orderBy: [{ className: "asc" }, { section: "asc" }],
       include: { _count: { select: { students: true } }, classTeacher: true },
@@ -99,7 +103,10 @@ export function registerAnalysisReports(router) {
       };
     });
 
-    res.json({ exam, exams, classWise, divisionWise });
+    return { exam, exams, classWise, divisionWise };
+    });
+
+    res.json(payload);
   });
 
   router.get("/class-group/:className", async (req, res) => {
@@ -261,6 +268,7 @@ export function registerAnalysisReports(router) {
     const { exams, exam } = await loadExams(req.query.examId);
     if (!exam) return res.json({ empty: true });
 
+    const payload = await cachedInsight("report:subjects-overview", [exam.id], async () => {
     const examById = new Map(exams.map((e) => [e.id, e]));
     const [subjects, marks, allApproved, assignments] = await Promise.all([
       prisma.subject.findMany({
@@ -301,7 +309,10 @@ export function registerAnalysisReports(router) {
       };
     });
 
-    res.json({ exam, exams, subjects: schoolSubjects });
+    return { exam, exams, subjects: schoolSubjects };
+    });
+
+    res.json(payload);
   });
 
   router.get("/subject-by-name/:name", async (req, res) => {
@@ -376,6 +387,7 @@ export function registerAnalysisReports(router) {
     const { exams, exam } = await loadExams(req.query.examId);
     if (!exam) return res.json({ empty: true });
 
+    const payload = await cachedInsight("report:staff", [exam.id], async () => {
     const teachers = await prisma.user.findMany({
       where: { role: "TEACHER", status: "ACTIVE" },
       orderBy: { name: "asc" },
@@ -419,7 +431,10 @@ export function registerAnalysisReports(router) {
       };
     });
 
-    res.json({ exam, exams, teachers: rows });
+    return { exam, exams, teachers: rows };
+    });
+
+    res.json(payload);
   });
 
   router.get("/staff/:userId", async (req, res) => {
@@ -435,8 +450,10 @@ export function registerAnalysisReports(router) {
     const { exams, exam } = await loadExams(req.query.examId);
     if (!exam) return res.json({ empty: true, teacher: { id: teacher.id, name: teacher.name } });
 
+    const payload = await cachedInsight("report:staff-detail", [exam.id, teacher.id], async () => {
     const classIds = [...new Set(teacher.assignments.map((a) => a.classSectionId))];
     const subjectIds = [...new Set(teacher.assignments.map((a) => a.subjectId))];
+    const subjectNames = [...new Set(teacher.assignments.map((a) => a.subject.name))];
     const examById = new Map(exams.map((e) => [e.id, e]));
     const emptyIds = ["__none__"];
     const [marks, allApproved, students, peerBySubjectName, accessRequests] = await Promise.all([
@@ -449,8 +466,10 @@ export function registerAnalysisReports(router) {
         },
         select: ANALYTICS_MARK_SELECT,
       }),
+      // Scope year/peer marks to this teacher's subject names (not whole-school history).
       loadApprovedMarksForExams({
         examIds: sameTypeExamIds(exams, exam),
+        subjectNames: subjectNames.length ? subjectNames : undefined,
         attachExamById: examById,
       }),
       prisma.student.findMany({
@@ -463,7 +482,7 @@ export function registerAnalysisReports(router) {
           classSectionId: true,
         },
       }),
-      loadPeerAssignmentsBySubjectName(teacher.assignments.map((a) => a.subject.name)),
+      loadPeerAssignmentsBySubjectName(subjectNames),
       prisma.markEntryAccessRequest.findMany({
         where: { examId: exam.id, teacherId: teacher.id },
         select: { status: true, kind: true },
@@ -533,7 +552,7 @@ export function registerAnalysisReports(router) {
       studentsByClass
     );
 
-    res.json({
+    return {
       teacher: { id: teacher.id, name: teacher.name, email: teacher.email },
       exam,
       exams,
@@ -567,7 +586,10 @@ export function registerAnalysisReports(router) {
         lateEntry: accessRequests.filter((r) => r.kind !== "EDIT").length,
         edit: accessRequests.filter((r) => r.kind === "EDIT").length,
       },
+    };
     });
+
+    res.json(payload);
   });
 
   router.get("/compare/years", async (req, res) => {
@@ -577,6 +599,10 @@ export function registerAnalysisReports(router) {
 
     const className = req.query.className || null;
     const subjectName = req.query.subjectName || null;
+    const payload = await cachedInsight(
+      "report:compare-years",
+      [exam.id, className || "", subjectName || ""],
+      async () => {
     const examById = new Map(exams.map((e) => [e.id, e]));
     const yearExamIds = sameTypeExamIds(exams, exam);
 
@@ -611,7 +637,7 @@ export function registerAnalysisReports(router) {
     };
 
     const classNames = [...new Set(classes.map((c) => c.className))].sort(compareClassNames);
-    res.json({
+    return {
       exam,
       exams,
       filters: { className, subjectName },
@@ -655,7 +681,11 @@ export function registerAnalysisReports(router) {
           };
         })
         .filter((t) => t.years.some((y) => y.count > 0)),
-    });
+    };
+      }
+    );
+
+    res.json(payload);
   });
 
   router.get("/compare/teachers", async (req, res) => {
@@ -674,6 +704,10 @@ export function registerAnalysisReports(router) {
 
     const subjectName = req.query.subjectName || null;
     const className = req.query.className || null;
+    const payload = await cachedInsight(
+      "report:compare-teachers",
+      [exam.id, subjectName || "", className || "", compareView.anonymize ? "anon" : "named"],
+      async () => {
     const [assignments, marks] = await Promise.all([
       prisma.teacherAssignment.findMany({
         select: {
@@ -716,7 +750,7 @@ export function registerAnalysisReports(router) {
       })
       .filter((s) => s.comparable);
 
-    res.json({
+    return {
       exam,
       exams,
       filters: { subjectName, className },
@@ -724,6 +758,10 @@ export function registerAnalysisReports(router) {
       classes: [...new Set(assignments.map((a) => a.classSection.className))].sort(),
       comparisons,
       teacherCompare: compareView,
-    });
+    };
+      }
+    );
+
+    res.json(payload);
   });
 }

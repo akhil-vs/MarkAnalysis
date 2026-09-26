@@ -47,6 +47,7 @@ import {
   loadApprovedMarksForExams,
 } from "../lib/analyticsMarks.js";
 import { cachedTenantLoad } from "../lib/tenantCache.js";
+import { cachedInsight } from "../lib/insightsCache.js";
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
@@ -102,6 +103,10 @@ analyticsRouter.get("/school", async (req, res) => {
   const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true });
 
+  // Full / detail school analytics is expensive (tens of thousands of mark rows).
+  // Short TTL + in-flight coalescing matches insights / home-dashboard behaviour.
+  const includeKey = wantAll ? "full" : [...includeParts].sort().join("+") || "full";
+  const result = await cachedInsight("report:school", [exam.id, includeKey], async () => {
   const grading = gradingHelpers(await getGradingConfig());
   const { passPercent, gradeFn, gradeBands, distinctionMin } = grading;
 
@@ -398,7 +403,10 @@ analyticsRouter.get("/school", async (req, res) => {
     });
   }
 
-  res.json(payload);
+  return payload;
+  });
+
+  return res.json(result);
 });
 
 
