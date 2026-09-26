@@ -72,7 +72,7 @@ export default function PendingAccessRequests({ className = "", limit = 8 }) {
       ) : error ? (
         <p className="text-sm text-clay-600">{error}</p>
       ) : shown.length === 0 ? (
-        <EmptyNote>No pending late-entry or edit requests across exams.</EmptyNote>
+        <EmptyNote>No pending access requests at the moment.</EmptyNote>
       ) : (
         <div className={`relative space-y-3 ${busyId ? "pointer-events-none" : ""}`}>
           {busyId && (
