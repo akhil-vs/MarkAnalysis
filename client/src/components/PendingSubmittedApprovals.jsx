@@ -93,7 +93,7 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
       ) : error ? (
         <p className="text-sm text-clay-600">{error}</p>
       ) : shown.length === 0 ? (
-        <EmptyNote>No submitted registers waiting for approval across exams.</EmptyNote>
+        <EmptyNote>No submissions currently waiting for approval.</EmptyNote>
       ) : (
         <div className={`relative space-y-3 ${busyKey ? "pointer-events-none" : ""}`}>
           {busyKey && (

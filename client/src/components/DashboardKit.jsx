@@ -45,10 +45,25 @@ export function ChartTooltip({ active, payload, label }) {
   );
 }
 
-export function Metric({ label, value, hint, tone, to }) {
+export function Metric({ label, value, hint, tone, to, badge }) {
   const body = (
     <div className={`card p-3.5 sm:p-5 h-full ${to ? "hover:border-clay-500 transition" : ""} ${tone === "alert" ? "border-clay-500/50 bg-[#fbf4ec]" : ""}`}>
-      <div className="text-[10px] sm:text-[11px] uppercase tracking-wider text-ink-700/55">{label}</div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="text-[10px] sm:text-[11px] uppercase tracking-wider text-ink-700/55">{label}</div>
+        {badge && (
+          <span
+            className={`shrink-0 text-[10px] font-semibold uppercase tracking-wide ${
+              badge.tone === "up"
+                ? "text-moss-600"
+                : badge.tone === "down" || badge.tone === "alert"
+                  ? "text-clay-600"
+                  : "text-ink-700/55"
+            }`}
+          >
+            {badge.text}
+          </span>
+        )}
+      </div>
       <div className={`mt-2 font-serif text-3xl sm:text-4xl leading-none ${tone === "alert" ? "text-clay-600" : ""}`}>
         {value ?? "—"}
       </div>

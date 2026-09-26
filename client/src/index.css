@@ -39,6 +39,10 @@ body {
   @apply btn bg-clay-500 text-white hover:bg-clay-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-clay-500;
 }
 
+.btn-moss {
+  @apply btn bg-moss-500 text-white hover:bg-moss-600 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-moss-500;
+}
+
 .btn-ghost {
   @apply btn border border-ink-900/15 bg-white/60 hover:bg-white disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-white/60;
 }
