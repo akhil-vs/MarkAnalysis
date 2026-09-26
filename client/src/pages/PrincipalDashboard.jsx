@@ -42,6 +42,12 @@ import { yearDelta } from "../lib/exams.js";
 import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
 import { NAV_LABELS, paths } from "../lib/nav.js";
 
+/** Strip trailing " · 2025-26" so the same exam type aligns across years. */
+function examTypeLabel(point) {
+  const raw = point?.examName || point?.term || "Exam";
+  return String(raw).replace(/\s*·\s*\d{4}\s*[-–]\s*\d{2,4}\s*$/, "").trim() || raw;
+}
+
 /** Pivot term averages into a dual-year series for the longitudinal chart. */
 function buildLongitudinalSeries(termTrend = [], currentYear) {
   if (!termTrend.length) return { rows: [], currentYear: null, baselineYear: null };
@@ -53,12 +59,15 @@ function buildLongitudinalSeries(termTrend = [], currentYear) {
 
   const byLabel = new Map();
   for (const point of termTrend) {
-    const label = point.examName || point.term || "Exam";
+    const label = examTypeLabel(point);
     if (!byLabel.has(label)) {
       byLabel.set(label, { label, date: point.date, current: null, baseline: null });
     }
     const row = byLabel.get(label);
-    if (point.date && (!row.date || new Date(point.date) < new Date(row.date))) {
+    // Prefer earlier dates within the active year so Unit → Mid → Final sorts correctly.
+    if (point.academicYear === activeYear && point.date) {
+      if (!row.date || new Date(point.date) < new Date(row.date)) row.date = point.date;
+    } else if (!row.date && point.date) {
       row.date = point.date;
     }
     if (point.academicYear === activeYear) row.current = point.average;
