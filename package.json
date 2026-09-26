@@ -10,6 +10,7 @@
     "vercel-build": "cd server && npx prisma contract emit && cd ../client && npm run build",
     "lint": "node scripts/syntax-check.mjs",
     "docs:pdf": "node scripts/generate-user-manual-pdfs.js",
+    "docs:pitch-pptx": "node scripts/generate-principal-pitch-pptx.mjs",
     "test:manual-automation": "node scripts/run-manual-automation.mjs",
     "test:manual-automation:prepare": "PREPARE_DB=1 SEED=1 node scripts/run-manual-automation.mjs",
     "test:e2e": "npx playwright test --config=e2e/playwright.config.js",
@@ -34,6 +35,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
+    "pptxgenjs": "^4.0.1",
     "prisma": "^8.0.0-rc.14"
   }
 }
