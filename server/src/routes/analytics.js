@@ -48,6 +48,12 @@ import {
 } from "../lib/analyticsMarks.js";
 import { cachedTenantLoad } from "../lib/tenantCache.js";
 import { cachedInsight } from "../lib/insightsCache.js";
+import {
+  classNameInSchoolSection,
+  filterBySchoolSection,
+  normalizeSchoolSection,
+  schoolSectionPayload,
+} from "../lib/schoolSections.js";
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
@@ -79,6 +85,7 @@ analyticsRouter.get("/school", async (req, res) => {
     return res.status(403).json({ error: "Forbidden" });
   }
 
+  const schoolSection = normalizeSchoolSection(req.query.schoolSection || req.query.section);
   const includeParts = String(req.query.include || "full")
     .split(",")
     .map((s) => s.trim().toLowerCase())
@@ -95,18 +102,18 @@ analyticsRouter.get("/school", async (req, res) => {
         role: "PRINCIPAL",
         tenantId: req.user.tenantId,
       },
-      { examId: req.query.examId || undefined }
+      { examId: req.query.examId || undefined, schoolSection }
     );
     return res.json(dash || { empty: true });
   }
 
   const { exams, exam } = await loadExams(req.query.examId);
-  if (!exam) return res.json({ empty: true });
+  if (!exam) return res.json({ empty: true, ...schoolSectionPayload(schoolSection, []) });
 
   // Full / detail school analytics is expensive (tens of thousands of mark rows).
   // Short TTL + in-flight coalescing matches insights / home-dashboard behaviour.
   const includeKey = wantAll ? "full" : [...includeParts].sort().join("+") || "full";
-  const result = await cachedInsight("report:school", [exam.id, includeKey], async () => {
+  const result = await cachedInsight("report:school", [exam.id, includeKey, schoolSection], async () => {
   const grading = gradingHelpers(await getGradingConfig());
   const { passPercent, gradeFn, gradeBands, distinctionMin } = grading;
 
@@ -175,18 +182,57 @@ analyticsRouter.get("/school", async (req, res) => {
   ];
 
   const [
-    examMarks,
-    historyApproved,
-    classes,
-    subjects,
-    assignments,
-    activeStudents,
-    teacherCount,
-    activeStudentRows,
+    examMarksRaw,
+    historyApprovedRaw,
+    classesRaw,
+    subjectsRaw,
+    assignmentsRaw,
+    activeStudentsAll,
+    teacherCountAll,
+    activeStudentRowsRaw,
     accessRequests,
   ] = await Promise.all(sharedQueries);
 
+  const sectionMeta = schoolSectionPayload(
+    schoolSection,
+    classesRaw.map((c) => c.className)
+  );
+  const classIdToName = new Map(classesRaw.map((c) => [c.id, c.className]));
+  const classes = filterBySchoolSection(classesRaw, schoolSection, (c) => c.className);
+  const classIds = new Set(classes.map((c) => c.id));
+  const subjects = filterBySchoolSection(subjectsRaw, schoolSection, (s) => s.className);
+  const assignments = filterBySchoolSection(
+    assignmentsRaw,
+    schoolSection,
+    (a) => a.classSection?.className
+  );
+  const activeStudentRows = activeStudentRowsRaw.filter((s) => classIds.has(s.classSectionId));
+  const teacherCount =
+    schoolSection === "ALL"
+      ? teacherCountAll
+      : new Set(assignments.map((a) => a.userId)).size;
+  const activeStudents =
+    schoolSection === "ALL" ? activeStudentsAll : activeStudentRows.length;
+
   const examById = new Map(exams.map((e) => [e.id, e]));
+  const examMarks =
+    schoolSection === "ALL"
+      ? examMarksRaw
+      : examMarksRaw.filter((m) =>
+          classNameInSchoolSection(
+            m.student?.classSection?.className || classIdToName.get(m.student?.classSectionId),
+            schoolSection
+          )
+        );
+  const historyApproved =
+    schoolSection === "ALL"
+      ? historyApprovedRaw
+      : historyApprovedRaw.filter((m) =>
+          classNameInSchoolSection(
+            m.student?.classSection?.className || classIdToName.get(m.student?.classSectionId),
+            schoolSection
+          )
+        );
   const marks = examMarks
     .filter((m) => m.status === "APPROVED" && m.student?.status === "ACTIVE")
     .map((m) => ({ ...m, exam }));
@@ -214,7 +260,7 @@ analyticsRouter.get("/school", async (req, res) => {
       : 0,
   };
 
-  const payload = {};
+  const payload = { ...sectionMeta };
 
   if (wantSummary) {
     const pendingUploads = await buildPendingUploads(exam, {
@@ -415,6 +461,7 @@ analyticsRouter.get("/coordinator", async (req, res) => {
   if (!isLeadership(req.user.role)) {
     return res.status(403).json({ error: "Forbidden" });
   }
+  const schoolSection = normalizeSchoolSection(req.query.schoolSection || req.query.section);
   // Same builder as login/home — principals opening this endpoint get the coordinator payload.
   const dash = await buildHomeDashboardCached(
     {
@@ -422,7 +469,7 @@ analyticsRouter.get("/coordinator", async (req, res) => {
       role: "EXAM_COORDINATOR",
       tenantId: req.user.tenantId,
     },
-    { examId: req.query.examId || undefined }
+    { examId: req.query.examId || undefined, schoolSection }
   );
   return res.json(dash || { empty: true });
 });
@@ -961,6 +1008,7 @@ async function buildPendingUploadsUncached(exam, prefetched = null) {
     }
     byTeacher.get(assignment.userId).assignments.push({
       classSectionId: assignment.classSectionId,
+      className: assignment.classSection.className,
       classLabel: `${assignment.classSection.className}-${assignment.classSection.section}`,
       subject: assignment.subject.name,
       subjectId: assignment.subjectId,

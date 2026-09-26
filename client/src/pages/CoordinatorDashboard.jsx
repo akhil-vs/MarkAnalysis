@@ -26,12 +26,14 @@ import {
 } from "../components/DashboardKit.jsx";
 import { helpForPath } from "../lib/pageHelp.js";
 import { ExamSelect } from "../components/ExamSelect.jsx";
+import { SchoolSectionSelect } from "../components/SchoolSectionSelect.jsx";
 import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
 import { paths } from "../lib/nav.js";
+import { normalizeSchoolSection, schoolSectionLabel } from "../lib/schoolSections.js";
 
 export default function CoordinatorDashboard() {
   const { user, optimistic } = useAuth();
@@ -39,19 +41,34 @@ export default function CoordinatorDashboard() {
   const homePath = dashboardApiPath("EXAM_COORDINATOR");
   const [data, setData] = useState(() => peekDashboardPrefetch(homePath, { userId: user?.id }));
   const [examId, setExamId] = useState(() => data?.exam?.id || "");
+  const [schoolSection, setSchoolSection] = useState(() =>
+    normalizeSchoolSection(data?.schoolSection || "ALL")
+  );
   const [notify, setNotify] = useState(null);
   const [error, setError] = useState("");
 
-  async function load(id) {
+  async function load(id, section = schoolSection) {
     setError("");
-    const path = `/api/analytics/coordinator${id ? `?examId=${id}` : ""}`;
+    const params = new URLSearchParams();
+    if (id) params.set("examId", id);
+    const nextSection = normalizeSchoolSection(section);
+    if (nextSection !== "ALL") params.set("schoolSection", nextSection);
+    const qs = params.toString();
+    const path = `/api/analytics/coordinator${qs ? `?${qs}` : ""}`;
     try {
       const res = await api(path);
       setData(res);
+      setSchoolSection(normalizeSchoolSection(res.schoolSection || nextSection));
       if (res.exam) setExamId(res.exam.id);
     } catch (err) {
       if (!data) setError(err.message || "Could not load coordinator view");
     }
+  }
+
+  function onSchoolSectionChange(next) {
+    const section = normalizeSchoolSection(next);
+    setSchoolSection(section);
+    load(examId, section);
   }
 
   useEffect(() => {
@@ -60,6 +77,7 @@ export default function CoordinatorDashboard() {
     if (fresh) {
       setData(fresh);
       if (fresh.exam) setExamId(fresh.exam.id);
+      if (fresh.schoolSection) setSchoolSection(normalizeSchoolSection(fresh.schoolSection));
     }
     if (fresh || data) {
       revalidateDashboard(homePath, {
@@ -67,7 +85,10 @@ export default function CoordinatorDashboard() {
         email: user?.email,
         schoolId: user?.schoolId,
         onData: (res) => {
-          setData(res);
+          setData((prev) => {
+            if (normalizeSchoolSection(prev?.schoolSection) !== "ALL") return prev;
+            return res;
+          });
           if (res?.exam) setExamId(res.exam.id);
         },
       });
@@ -103,17 +124,27 @@ export default function CoordinatorDashboard() {
   const easiest = [...difficulty].reverse().find((d) => d.average != null) || difficulty.at(-1);
   const teacherRows = [...(data.teacherBySubject || [])].sort((a, b) => (a.average ?? 999) - (b.average ?? 999));
   const awaitingCount = data.pendingUploads?.awaitingApprovalTeacherCount ?? 0;
+  const sectionLabel = schoolSectionLabel(schoolSection, data.schoolSections);
 
   return (
     <div>
       <DashboardHero
         kicker="Exam coordination"
         title={greeting(user.name)}
-        subtitle={`${data.exam.name} is the working exam. ${pending.length} teacher${pending.length === 1 ? "" : "s"} still have empty registers.`}
+        subtitle={`${data.exam.name} is the working exam${schoolSection !== "ALL" ? ` · ${sectionLabel}` : ""}. ${pending.length} teacher${pending.length === 1 ? "" : "s"} still have empty registers.`}
         actions={
-          <ExamSelect exams={data.exams} value={examId} onChange={load} />
+          <ExamSelect exams={data.exams} value={examId} onChange={(id) => load(id, schoolSection)} />
         }
       />
+
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className="text-[11px] uppercase tracking-wider text-ink-700/50">Class level</span>
+        <SchoolSectionSelect
+          value={schoolSection}
+          options={data.schoolSections}
+          onChange={onSchoolSectionChange}
+        />
+      </div>
 
       <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
         <Metric
