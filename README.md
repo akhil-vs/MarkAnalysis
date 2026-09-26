@@ -13,7 +13,7 @@ Step-by-step guides for each school role (also under **HELP → User manuals** i
 
 ## Principal meeting pitch
 
-Sales-ready pack for a principal briefing: [interactive presentation](docs/pitch/principal-meeting-presentation.html), [outreach & thank-you emails](docs/pitch/principal-outreach-email.md), and a [one-page leave-behind](docs/pitch/principal-leave-behind.md). See [docs/pitch/README.md](docs/pitch/README.md).
+Sales-ready pack for a principal briefing: [**download PowerPoint**](docs/pitch/School-Marks-Analytics-Principal-Pitch.pptx), [interactive HTML](docs/pitch/principal-meeting-presentation.html), [outreach & thank-you emails](docs/pitch/principal-outreach-email.md), and a [one-page leave-behind](docs/pitch/principal-leave-behind.md). See [docs/pitch/README.md](docs/pitch/README.md).
 
 Regenerate PDFs with `npm run docs:pdf`.
 

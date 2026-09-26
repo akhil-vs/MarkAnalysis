@@ -50,9 +50,9 @@ by video?
   • [Day, date] at [time]
   • [Day, date] at [time]
 
-If none of these suit, I am happy to follow your calendar. I have attached
-a short leave-behind summary; I can also send a one-page overview ahead of
-our conversation.
+If none of these suit, I am happy to follow your calendar. I have attached a short leave-behind summary and can share the
+PowerPoint briefing (School Marks Analytics — Principal Pitch) ahead of
+our conversation if helpful.
 
 Thank you for your time and for the work you do for your students.
 
@@ -88,7 +88,7 @@ As discussed, the proposed next step is a 2–4 week pilot on
 
 I am attaching:
 
-  1. The meeting presentation (or slide PDF)
+  1. The PowerPoint briefing (School-Marks-Analytics-Principal-Pitch.pptx)
   2. The one-page leave-behind
   3. A short pilot checklist for your confirmation
 

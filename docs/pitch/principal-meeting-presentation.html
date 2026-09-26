@@ -395,6 +395,22 @@
 
     .hint { opacity: 0.7; }
 
+    a.download-pptx {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      text-decoration: none;
+      border: 1px solid rgba(255,255,248,0.22);
+      background: rgba(255,255,255,0.1);
+      color: var(--cream);
+      border-radius: 0.7rem;
+      padding: 0.45rem 0.85rem;
+      font-weight: 600;
+      font-size: 0.85rem;
+      transition: background 0.2s ease;
+    }
+    a.download-pptx:hover { background: rgba(255,255,255,0.18); }
+
     .stat-row {
       display: grid;
       grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -731,6 +747,9 @@
     <footer class="footer-nav">
       <div class="hint">← → or click Next · P to present fullscreen · Esc to exit</div>
       <div class="nav-btns">
+        <a class="download-pptx" href="./School-Marks-Analytics-Principal-Pitch.pptx" download>
+          Download PPTX
+        </a>
         <button type="button" id="prevBtn" aria-label="Previous slide">Previous</button>
         <button type="button" class="primary" id="nextBtn" aria-label="Next slide">Next</button>
       </div>

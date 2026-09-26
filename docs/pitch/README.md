@@ -4,16 +4,17 @@ Professional materials for a **30–45 minute** conversation with a school princ
 
 | File | Use |
 |---|---|
-| [`principal-meeting-presentation.html`](./principal-meeting-presentation.html) | Interactive 8-slide deck for the meeting (open in a browser) |
+| [`School-Marks-Analytics-Principal-Pitch.pptx`](./School-Marks-Analytics-Principal-Pitch.pptx) | **Downloadable PowerPoint** (8 slides) for meetings and email attachments |
+| [`principal-meeting-presentation.html`](./principal-meeting-presentation.html) | Interactive browser deck (same narrative) |
 | [`principal-outreach-email.md`](./principal-outreach-email.md) | Cold outreach + same-day thank-you email drafts |
 | [`principal-leave-behind.md`](./principal-leave-behind.md) | One-page summary / pilot checklist to leave or attach |
 
 ## How to present
 
-1. Open `principal-meeting-presentation.html` in Chrome or Edge.
-2. Press **P** for fullscreen (or use the browser’s fullscreen).
+1. Prefer the **`.pptx`** in PowerPoint, Google Slides, or Keynote for campus meetings.
+2. Or open `principal-meeting-presentation.html` in Chrome or Edge — press **P** for fullscreen.
 3. Advance with **→**, **Space**, or **Next**; go back with **←**.
-4. Print to PDF from the browser if you need a handout version (`Ctrl/Cmd+P` — every slide is a page).
+4. Regenerate the PowerPoint after content edits: `npm run docs:pitch-pptx` (requires `pptxgenjs`).
 
 ## Suggested meeting flow
 
