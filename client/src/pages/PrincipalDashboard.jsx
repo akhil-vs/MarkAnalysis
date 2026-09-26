@@ -33,6 +33,7 @@ import {
   deltaLabel,
   greeting,
 } from "../components/DashboardKit.jsx";
+import CurricularPerformanceHub from "../components/CurricularPerformanceHub.jsx";
 import { helpForPath } from "../lib/pageHelp.js";
 import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
@@ -80,9 +81,23 @@ function buildLongitudinalSeries(termTrend = [], currentYear) {
 }
 
 function pendingLeftTone(count) {
-  if (count >= 3) return "text-clay-600";
-  if (count >= 1) return "text-[#b06a1a]";
-  return "text-ink-700/55";
+  if (count >= 3) return "bg-clay-500/15 text-clay-600 border-clay-500/30";
+  if (count >= 1) return "bg-[#b06a1a]/12 text-[#8a5214] border-[#b06a1a]/25";
+  return "bg-ink-900/5 text-ink-700/55 border-ink-900/10";
+}
+
+function PriorityBadge({ tone, children }) {
+  const cls =
+    tone === "priority"
+      ? "bg-clay-500 text-white"
+      : tone === "action"
+        ? "bg-[#b06a1a] text-white"
+        : "bg-ink-900/10 text-ink-700/70";
+  return (
+    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cls}`}>
+      {children}
+    </span>
+  );
 }
 
 function OutcomeRow({ label, value }) {
@@ -312,11 +327,11 @@ export default function PrincipalDashboard() {
           className="lg:col-span-5"
           title="Needs attention"
           action={
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 items-center">
               {(pending.length > 0 || awaitingApproval.length > 0) && (
                 <button
                   type="button"
-                  className="text-xs underline text-ink-700/60"
+                  className="btn-ghost text-xs !min-h-0 !py-1 !px-2.5"
                   onClick={() =>
                     setNotify({
                       kind: pending.length ? "INCOMPLETE" : "DEADLINE",
@@ -326,7 +341,7 @@ export default function PrincipalDashboard() {
                     })
                   }
                 >
-                  Notify all
+                  Notify all ({pending.length || awaitingApproval.length})
                 </button>
               )}
               <Link className="text-xs underline text-ink-700/60" to={paths.pendingUploads()}>
@@ -336,62 +351,84 @@ export default function PrincipalDashboard() {
           }
         >
           {pending.length || awaitingApproval.length ? (
-            <div className="space-y-1">
-              {awaitingApproval.map((t) => (
-                <div
-                  key={`await-${t.teacherId}`}
-                  className="flex items-start justify-between gap-3 rounded-lg px-1 py-2.5 -mx-1 hover:bg-white/50"
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{t.name}</div>
-                    <div className="text-[11px] text-ink-700/50 truncate">
-                      {t.assignments
-                        .filter(
-                          (a) =>
-                            a.status === "AWAITING_APPROVAL" ||
-                            ((a.submitted ?? 0) > 0 && (a.approved ?? 0) < a.expected)
-                        )
-                        .map((a) => `${a.classLabel} ${a.subject}`)
-                        .join(" · ")}
+            <div className="space-y-2">
+              {awaitingApproval.map((t) => {
+                const papers = t.assignments
+                  .filter(
+                    (a) =>
+                      a.status === "AWAITING_APPROVAL" ||
+                      ((a.submitted ?? 0) > 0 && (a.approved ?? 0) < a.expected)
+                  )
+                  .map((a) => `${a.classLabel} ${a.subject}`)
+                  .join(" · ");
+                return (
+                  <div
+                    key={`await-${t.teacherId}`}
+                    className="rounded-xl border border-clay-500/20 bg-[#fbf4ec]/80 px-3 py-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <PriorityBadge tone="action">Action Req.</PriorityBadge>
+                          <span className="text-sm font-medium truncate">{t.name}</span>
+                        </div>
+                        <div className="text-[11px] text-ink-700/50 truncate">{papers}</div>
+                      </div>
+                      <span className="shrink-0 inline-flex items-center rounded-md border border-clay-500/30 bg-clay-500/10 px-2 py-0.5 text-[11px] font-semibold text-clay-600 whitespace-nowrap">
+                        Awaiting approval
+                      </span>
                     </div>
                   </div>
-                  <div className="text-xs text-clay-600 whitespace-nowrap shrink-0">Awaiting approval</div>
-                </div>
-              ))}
-              {pending.map((t) => (
-                <div
-                  key={t.teacherId}
-                  className="flex items-start justify-between gap-3 rounded-lg px-1 py-2.5 -mx-1 hover:bg-white/50"
-                >
-                  <div className="min-w-0">
-                    <div className="text-sm font-medium truncate">{t.name}</div>
-                    <div className="text-[11px] text-ink-700/50 truncate">
-                      {t.assignments.filter((a) => a.missing > 0).map((a) => `${a.classLabel} ${a.subject}`).join(" · ")}
+                );
+              })}
+              {pending.map((t) => {
+                const left = t.missingAssignments ?? 0;
+                const papers = t.assignments
+                  .filter((a) => a.missing > 0)
+                  .map((a) => `${a.classLabel} ${a.subject}`)
+                  .join(" · ");
+                return (
+                  <div
+                    key={t.teacherId}
+                    className="rounded-xl border border-ink-900/10 bg-white/55 px-3 py-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
+                          <PriorityBadge tone={left >= 3 ? "priority" : "action"}>
+                            {left >= 3 ? "Priority" : "Action Req."}
+                          </PriorityBadge>
+                          <span className="text-sm font-medium truncate">{t.name}</span>
+                        </div>
+                        <div className="text-[11px] text-ink-700/50 truncate">{papers}</div>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span
+                          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap tabular-nums ${pendingLeftTone(left)}`}
+                        >
+                          {left} left
+                        </span>
+                        <button
+                          type="button"
+                          className="btn-ghost text-xs !min-h-0 !py-1 !px-2.5"
+                          onClick={() =>
+                            setNotify({
+                              kind: "INCOMPLETE",
+                              examId,
+                              audience: "SELECTED",
+                              teacherIds: [t.teacherId],
+                              teacherName: t.name,
+                              exams: data.exams,
+                            })
+                          }
+                        >
+                          Notify
+                        </button>
+                      </div>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 shrink-0">
-                    <span className={`text-xs font-medium whitespace-nowrap ${pendingLeftTone(t.missingAssignments)}`}>
-                      {t.missingAssignments} left
-                    </span>
-                    <button
-                      type="button"
-                      className="btn-ghost text-xs !min-h-0 !py-1 !px-2.5"
-                      onClick={() =>
-                        setNotify({
-                          kind: "INCOMPLETE",
-                          examId,
-                          audience: "SELECTED",
-                          teacherIds: [t.teacherId],
-                          teacherName: t.name,
-                          exams: data.exams,
-                        })
-                      }
-                    >
-                      Notify
-                    </button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           ) : (
             <EmptyNote>No missing registers for this exam.</EmptyNote>
@@ -464,151 +501,84 @@ export default function PrincipalDashboard() {
         </Panel>
       </div>
 
-      <div className="grid lg:grid-cols-12 gap-4 mb-4">
-        <Panel
-          className="lg:col-span-5"
-          title="Class-wise"
-          action={
-            <Link className="text-xs underline text-ink-700/60" to="/analysis/classes">
-              All classes
-            </Link>
-          }
-        >
-          <div className="space-y-4">
-            {(data.classWise || []).map((s) => (
-              <Link key={s.className} to={paths.classGroup(s.className)} className="block group">
-                <div className="flex items-baseline justify-between text-sm mb-1.5 gap-2">
-                  <span className="font-medium group-hover:underline">{s.label}</span>
-                  <span className="tabular-nums text-ink-700/70 shrink-0">
-                    {s.average ?? "—"}% · {s.passRate}% pass
-                  </span>
-                </div>
-                <BarTrack value={s.average} color="#3d6b4f" />
-              </Link>
-            ))}
-            {!data.classWise?.length && (
-              <EmptyNote>{detailLoading ? "Loading classes…" : "No class groups yet."}</EmptyNote>
-            )}
-          </div>
-        </Panel>
+      <CurricularPerformanceHub
+        classWise={data.classWise || []}
+        sections={sections}
+        subjectWise={data.subjectWise || []}
+        teachers={teachers}
+        schoolAverage={data.kpis?.schoolAverage}
+        detailLoading={detailLoading}
+      />
 
-        <Panel className="lg:col-span-7" title="Division-wise">
-          {sections.length ? (
-            <div className="grid sm:grid-cols-2 gap-x-6 gap-y-1">
-              {sections.map((s) => (
-                <Link
-                  key={s.id}
-                  to={paths.classSection(s.id)}
-                  className="flex items-baseline justify-between gap-3 rounded-lg px-1 py-2 -mx-1 text-sm hover:bg-white/50 group"
-                >
-                  <span className="font-medium group-hover:underline truncate">{s.label}</span>
-                  <span className="tabular-nums text-ink-700/70 shrink-0">
-                    {s.average ?? "—"}% · {s.passRate}%
-                  </span>
-                </Link>
-              ))}
-            </div>
-          ) : (
-            <EmptyNote>{detailLoading ? "Loading divisions…" : "No divisions yet."}</EmptyNote>
-          )}
-        </Panel>
-      </div>
-
-      <div className="grid lg:grid-cols-12 gap-4 mb-4">
-        <Panel
-          className="lg:col-span-7"
-          title="Subject-wise"
-          action={
-            <Link className="text-xs underline text-ink-700/60" to="/analysis/subjects">
-              All subjects
-            </Link>
-          }
-        >
-          <div className="space-y-3">
-            {(data.subjectWise || []).map((s) => (
-              <Link key={s.name} to={paths.subjectByName(s.name)} className="block group">
-                <div className="flex items-baseline justify-between text-sm mb-1.5 gap-2">
-                  <span className="font-medium group-hover:underline truncate">{s.name}</span>
-                  <span className="tabular-nums text-ink-700/70 shrink-0">
-                    {s.average ?? "—"}% · {s.passRate ?? "—"}% pass
-                  </span>
-                </div>
-                <BarTrack value={s.average} />
-              </Link>
-            ))}
-            {!data.subjectWise?.length && (
-              <EmptyNote>{detailLoading ? "Loading subjects…" : "No subject averages yet."}</EmptyNote>
-            )}
-          </div>
-        </Panel>
-        <Panel className="lg:col-span-5" title="Grade mix">
-          {grades.length ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={grades}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
-                <XAxis dataKey="grade" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
-                <Tooltip content={<ChartTooltip />} />
-                <Bar dataKey="count" name="Students" radius={[4, 4, 0, 0]}>
-                  {grades.map((g) => (
-                    <Cell key={g.grade} fill={GRADE_COLORS[g.grade] || "#1b2437"} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <EmptyNote>{detailLoading ? "Loading grade mix…" : "No grade distribution yet."}</EmptyNote>
-          )}
-        </Panel>
-      </div>
-
-      {(data.markBands?.length > 0 || data.outcomes || detailLoading) && (
-        <div className="grid lg:grid-cols-12 gap-4 mb-4">
-          <Panel
-            className="lg:col-span-7"
-            title="Mark-band distribution"
-            action={
-              <Link className="text-xs underline text-ink-700/60" to="/analysis/deep?tab=outcomes">
-                Distinction & fail lists
-              </Link>
-            }
-          >
-            {data.markBands?.length ? (
+      {(grades.length > 0 || detailLoading) && (
+        <div className="mb-4">
+          <Panel title="Grade mix">
+            {grades.length ? (
               <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={data.markBands}>
+                <BarChart data={grades}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
-                  <XAxis dataKey="key" tick={{ fontSize: 11 }} />
+                  <XAxis dataKey="grade" tick={{ fontSize: 12 }} />
                   <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
                   <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="count" name="Marks" fill="#1b2437" radius={[4, 4, 0, 0]} />
+                  <Bar dataKey="count" name="Students" radius={[4, 4, 0, 0]}>
+                    {grades.map((g) => (
+                      <Cell key={g.grade} fill={GRADE_COLORS[g.grade] || "#1b2437"} />
+                    ))}
+                  </Bar>
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <EmptyNote>{detailLoading ? "Loading mark bands…" : "No scored marks to band yet."}</EmptyNote>
-            )}
-          </Panel>
-          <Panel className="lg:col-span-5" title="Outcomes">
-            {data.outcomes ? (
-              <div className="space-y-3">
-                <OutcomeRow label="Scored" value={data.outcomes.rates?.scored} />
-                <OutcomeRow label="Absent" value={data.outcomes.rates?.absent} />
-                <OutcomeRow label="Exempt" value={data.outcomes.rates?.exempt} />
-                <OutcomeRow label="Withheld" value={data.outcomes.rates?.withheld} />
-                {outcomeTotal > 0 && (
-                  <div className="pt-3 mt-1 border-t border-ink-900/10 text-xs text-ink-700/55">
-                    <span className="font-medium text-ink-900 tabular-nums">
-                      {data.outcomes.SCORED ?? 0}/{outcomeTotal}
-                    </span>{" "}
-                    registered marks
-                  </div>
-                )}
-              </div>
-            ) : (
-              <EmptyNote>{detailLoading ? "Loading outcomes…" : "No outcome data yet."}</EmptyNote>
+              <EmptyNote>{detailLoading ? "Loading grade mix…" : "No grade distribution yet."}</EmptyNote>
             )}
           </Panel>
         </div>
       )}
+
+      <div className="grid lg:grid-cols-12 gap-4 mb-4">
+        <Panel
+          className="lg:col-span-7"
+          title="Mark-band distribution"
+          action={
+            <Link className="text-xs underline text-ink-700/60" to="/analysis/deep?tab=outcomes">
+              Distinction & fail lists
+            </Link>
+          }
+        >
+          {data.markBands?.length ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={data.markBands}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
+                <XAxis dataKey="key" tick={{ fontSize: 11 }} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
+                <Tooltip content={<ChartTooltip />} />
+                <Bar dataKey="count" name="Marks" fill="#1b2437" radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <EmptyNote>{detailLoading ? "Loading mark bands…" : "No scored marks to band yet."}</EmptyNote>
+          )}
+        </Panel>
+        <Panel className="lg:col-span-5" title="Outcomes">
+          {data.outcomes ? (
+            <div className="space-y-3">
+              <OutcomeRow label="Scored" value={data.outcomes.rates?.scored} />
+              <OutcomeRow label="Absent" value={data.outcomes.rates?.absent} />
+              <OutcomeRow label="Exempt" value={data.outcomes.rates?.exempt} />
+              <OutcomeRow label="Withheld" value={data.outcomes.rates?.withheld} />
+              {outcomeTotal > 0 && (
+                <div className="pt-3 mt-1 border-t border-ink-900/10 text-xs text-ink-700/55">
+                  <span className="font-medium text-ink-900 tabular-nums">
+                    {data.outcomes.SCORED ?? 0}/{outcomeTotal}
+                  </span>{" "}
+                  registered marks
+                </div>
+              )}
+            </div>
+          ) : (
+            <EmptyNote>{detailLoading ? "Loading outcomes…" : "No outcome data yet."}</EmptyNote>
+          )}
+        </Panel>
+      </div>
 
       <div className="mb-4">
         <YearComparison series={data.yearComparison} title="Same exam type versus previous years" />
