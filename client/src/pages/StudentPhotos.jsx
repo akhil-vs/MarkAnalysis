@@ -407,6 +407,63 @@ export default function StudentPhotos() {
             },
             total,
           }}
+          mobile={(pageRows) =>
+            pageRows.map((r) => {
+              const rowBusy = busyId === r.id;
+              return (
+                <div key={r.id} className="rounded-xl border border-ink-900/10 bg-white/70 px-3 py-3 flex gap-3">
+                  <StudentPhotoThumb
+                    studentId={r.id}
+                    hasPhoto={Boolean(r.hasPhoto)}
+                    nonce={photoNonce}
+                  />
+                  <div className="min-w-0 flex-1 space-y-2">
+                    <div>
+                      <div className="font-medium text-ink-900">{r.name}</div>
+                      <div className="text-xs text-ink-700/55">
+                        Roll {r.rollNo}
+                        {r.admissionNo ? ` · ${r.admissionNo}` : ""}
+                        {" · "}
+                        {r.classSection
+                          ? `${r.classSection.className}-${r.classSection.section}`
+                          : "—"}
+                      </div>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <label
+                        className={`btn-ghost inline-flex cursor-pointer items-center text-xs ${
+                          rowBusy || bulkBusy ? "pointer-events-none opacity-60" : ""
+                        }`}
+                      >
+                        <BusyLabel busy={rowBusy} idle="Add photo" busyText="Saving…" />
+                        <input
+                          type="file"
+                          accept="image/png,image/jpeg"
+                          className="sr-only"
+                          disabled={anyBusy}
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            e.target.value = "";
+                            if (file) uploadPhoto(r, file);
+                          }}
+                        />
+                      </label>
+                      {r.hasPhoto && (
+                        <button
+                          type="button"
+                          className="btn-ghost text-xs"
+                          disabled={anyBusy}
+                          onClick={() => clearPhoto(r)}
+                        >
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              );
+            })
+          }
         >
           {(page) => (
             <table className="table">
@@ -415,7 +472,7 @@ export default function StudentPhotos() {
                   <th>Photo</th>
                   <th>Roll</th>
                   <th>Name</th>
-                  <th>Admission</th>
+                  <th className="hidden sm:table-cell">Admission</th>
                   <th>Class</th>
                   <th></th>
                 </tr>
@@ -434,7 +491,7 @@ export default function StudentPhotos() {
                       </td>
                       <td>{r.rollNo}</td>
                       <td>{r.name}</td>
-                      <td>{r.admissionNo || "—"}</td>
+                      <td className="hidden sm:table-cell">{r.admissionNo || "—"}</td>
                       <td>
                         {r.classSection
                           ? `${r.classSection.className}-${r.classSection.section}`

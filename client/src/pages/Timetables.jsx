@@ -18,6 +18,7 @@ import {
   teacherSubjectOptions,
 } from "../lib/teacherTimetableFilters.js";
 import { useDragScroll } from "../lib/useDragScroll.js";
+import { useMediaQuery } from "../lib/useMediaQuery.js";
 
 const ALL_MODES = [
   { id: "teachers", label: "Teachers", needs: ["timetables", "leaveApproval", "assignSubstitutes"] },
@@ -558,48 +559,84 @@ function TeacherAccordionTimetable({ teacherId }) {
       {error && <p className="text-sm text-clay-600">{error}</p>}
       {!data && !error && <InlineLoading label="Loading timetable…" />}
       {data && grid && (
-        <div className="overflow-x-auto">
-          {(data.entries || []).length === 0 ? (
-            <EmptyNote>No weekly periods yet. Open the full page to add slots.</EmptyNote>
-          ) : (
-            <table className="w-full text-sm border-separate border-spacing-1 min-w-[40rem]">
-              <thead>
-                <tr>
-                  <th className="text-left font-medium text-ink-700/70 px-2 py-1 w-24">Period</th>
-                  {grid.days.map((day) => (
-                    <th key={day} className="text-left font-medium text-ink-700/70 px-2 py-1">
-                      {data.dayNames?.[day]}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {(data.periods || []).map((period) => (
-                  <tr key={period.id}>
-                    <td className="align-top px-2 py-1">
-                      <div className="font-medium">{period.name}</div>
-                      <div className="text-[11px] text-ink-700/50">
-                        {period.startTime}–{period.endTime}
-                      </div>
-                    </td>
-                    {grid.days.map((day) => (
-                      <td key={`${day}-${period.id}`} className="align-top">
-                        {period.isBreak ? (
-                          <div className="min-h-[2.5rem] rounded-lg bg-moss-500/10 px-2 py-1.5 text-xs text-moss-600">
-                            {period.name}
-                          </div>
-                        ) : (
-                          <CompactEntryCell entries={grid.map.get(`${day}|${period.id}`)} />
-                        )}
-                      </td>
-                    ))}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          )}
+        <CompactWeeklyGrid data={data} grid={grid} />
+      )}
+    </div>
+  );
+}
+
+function CompactWeeklyGrid({ data, grid }) {
+  const isMdUp = useMediaQuery("(min-width: 768px)");
+  const [mobileDay, setMobileDay] = useState(() => grid.days[0]);
+  const visibleDays = isMdUp ? grid.days : [mobileDay || grid.days[0]];
+
+  useEffect(() => {
+    if (!grid.days.includes(mobileDay)) setMobileDay(grid.days[0]);
+  }, [grid.days, mobileDay]);
+
+  return (
+    <div>
+      {!isMdUp && (
+        <div className="mb-2 flex gap-1.5 overflow-x-auto pb-1">
+          {grid.days.map((day) => (
+            <button
+              key={day}
+              type="button"
+              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium ${
+                mobileDay === day ? "bg-ink-900 text-cream" : "border border-ink-900/15 bg-white/60"
+              }`}
+              onClick={() => setMobileDay(day)}
+            >
+              {data.dayNames?.[day]}
+            </button>
+          ))}
         </div>
       )}
+      <div className="scroll-x scroll-x-hint">
+        {(data.entries || []).length === 0 ? (
+          <EmptyNote>No weekly periods yet. Open the full page to add slots.</EmptyNote>
+        ) : (
+          <table
+            className={`w-full text-sm border-separate border-spacing-1 ${isMdUp ? "min-w-[40rem]" : "min-w-0"}`}
+          >
+            <thead>
+              <tr>
+                <th className="text-left font-medium text-ink-700/70 px-2 py-1 w-24 sticky left-0 bg-cream z-[1]">
+                  Period
+                </th>
+                {visibleDays.map((day) => (
+                  <th key={day} className="text-left font-medium text-ink-700/70 px-2 py-1 min-w-[7rem]">
+                    {data.dayNames?.[day]}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {(data.periods || []).map((period) => (
+                <tr key={period.id}>
+                  <td className="align-top px-2 py-1 sticky left-0 bg-cream z-[1]">
+                    <div className="font-medium">{period.name}</div>
+                    <div className="text-[11px] text-ink-700/50">
+                      {period.startTime}–{period.endTime}
+                    </div>
+                  </td>
+                  {visibleDays.map((day) => (
+                    <td key={`${day}-${period.id}`} className="align-top">
+                      {period.isBreak ? (
+                        <div className="min-h-[2.5rem] rounded-lg bg-moss-500/10 px-2 py-1.5 text-xs text-moss-600">
+                          {period.name}
+                        </div>
+                      ) : (
+                        <CompactEntryCell entries={grid.map.get(`${day}|${period.id}`)} />
+                      )}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div>
     </div>
   );
 }
@@ -1029,6 +1066,7 @@ function DailyBoard({ date, onDateChange, onPutOnLeave, canAssignCover }) {
   const [assignSlot, setAssignSlot] = useState(null);
   const [reloadKey, setReloadKey] = useState(0);
   const dragScroll = useDragScroll({ axis: "x" });
+  const isMdUp = useMediaQuery("(min-width: 768px)");
 
   useEffect(() => {
     let cancelled = false;
@@ -1088,38 +1126,14 @@ function DailyBoard({ date, onDateChange, onPutOnLeave, canAssignCover }) {
         <>
           <p className="mb-3 text-sm text-ink-700/65">
             {filteredTeachers.length} teachers · green cells are free that period
-            {" · "}
-            click and drag to scroll periods
+            {isMdUp ? " · click and drag to scroll periods" : " · tap a period cell below"}
           </p>
-          <div
-            {...dragScroll.containerProps}
-            data-daily-board-scroll=""
-            className={`card overflow-x-auto p-2 sm:p-3 select-none ${
-              dragScroll.dragging ? "cursor-grabbing" : "cursor-grab"
-            }`}
-            role="region"
-            aria-label="Daily board. Click and drag to scroll across periods."
-          >
-            <table className="w-full text-sm border-separate border-spacing-1 min-w-[48rem]">
-              <thead>
-                <tr>
-                  <th className="text-left font-medium text-ink-700/70 px-2 py-1 sticky left-0 bg-cream z-10 min-w-[9rem]">
-                    Teacher
-                  </th>
-                  {(data.periods || []).map((period) => (
-                    <th key={period.id} className="text-left font-medium text-ink-700/70 px-2 py-1 min-w-[7.5rem]">
-                      <div>{period.name}</div>
-                      <div className="text-[11px] font-normal text-ink-700/50">
-                        {period.startTime}–{period.endTime}
-                      </div>
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredTeachers.map((teacher) => (
-                  <tr key={teacher.id}>
-                    <td className="align-top px-2 py-1 sticky left-0 bg-cream z-10">
+          {!isMdUp ? (
+            <div className="space-y-3">
+              {filteredTeachers.map((teacher) => (
+                <div key={teacher.id} className="card p-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
                       <Link
                         to={`/timetables/teachers/${teacher.id}?view=daily&date=${date}`}
                         className="font-medium hover:text-clay-600"
@@ -1131,47 +1145,127 @@ function DailyBoard({ date, onDateChange, onPutOnLeave, canAssignCover }) {
                         {teacher.taughtCount} period{teacher.taughtCount === 1 ? "" : "s"}
                         {" · "}
                         {formatTaughtHours(teacher.taughtMinutes)}
-                        {(teacher.extraCount > 0 || teacher.extraMinutes > 0) && (
-                          <span className="ml-1.5 font-medium text-sky-700">
-                            {" "}
-                            +{teacher.extraCount} extra · {formatTaughtHours(teacher.extraMinutes)}
-                          </span>
-                        )}
                       </div>
-                      {!teacher.onLeave && onPutOnLeave && (
-                        <button
-                          type="button"
-                          className="mt-1 text-[11px] text-ink-700/55 hover:text-clay-600"
-                          onClick={() => onPutOnLeave(teacher.id)}
-                        >
-                          Put on leave
-                        </button>
-                      )}
-                    </td>
-                    {(data.periods || []).map((period) => (
-                      <td key={`${teacher.id}-${period.id}`} className="align-top">
-                        {period.isBreak ? (
-                          <div className="min-h-[3.25rem] rounded-lg bg-ink-900/[0.04] px-2 py-2 text-xs text-ink-700/45">
-                            {period.name}
+                    </div>
+                    {!teacher.onLeave && onPutOnLeave && (
+                      <button
+                        type="button"
+                        className="shrink-0 text-[11px] text-ink-700/55 hover:text-clay-600"
+                        onClick={() => onPutOnLeave(teacher.id)}
+                      >
+                        Put on leave
+                      </button>
+                    )}
+                  </div>
+                  <ul className="space-y-1.5">
+                    {(data.periods || [])
+                      .filter((p) => !p.isBreak)
+                      .map((period) => (
+                        <li key={period.id} className="flex gap-2 items-start">
+                          <div className="w-16 shrink-0 text-[11px] text-ink-700/55 pt-1">
+                            <div className="font-medium text-ink-800">{period.name}</div>
+                            <div>
+                              {period.startTime}
+                            </div>
                           </div>
-                        ) : (
-                          <SlotCell
-                            entries={teacher.entriesByPeriodId?.[period.id]}
-                            onAssignCover={canAssignCover ? (entry) => setAssignSlot(entry) : null}
-                          />
-                        )}
-                      </td>
+                          <div className="min-w-0 flex-1">
+                            <SlotCell
+                              entries={teacher.entriesByPeriodId?.[period.id]}
+                              onAssignCover={canAssignCover ? (entry) => setAssignSlot(entry) : null}
+                            />
+                          </div>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              ))}
+              {!filteredTeachers.length && (
+                <EmptyNote>No teachers match your filter.</EmptyNote>
+              )}
+            </div>
+          ) : (
+            <div
+              {...dragScroll.containerProps}
+              data-daily-board-scroll=""
+              className={`card scroll-x scroll-x-hint p-2 sm:p-3 select-none ${
+                dragScroll.dragging ? "cursor-grabbing" : "cursor-grab"
+              }`}
+              role="region"
+              aria-label="Daily board. Click and drag to scroll across periods."
+            >
+              <table className="w-full text-sm border-separate border-spacing-1 min-w-[48rem]">
+                <thead>
+                  <tr>
+                    <th className="text-left font-medium text-ink-700/70 px-2 py-1 sticky left-0 bg-cream z-10 min-w-[9rem]">
+                      Teacher
+                    </th>
+                    {(data.periods || []).map((period) => (
+                      <th key={period.id} className="text-left font-medium text-ink-700/70 px-2 py-1 min-w-[7.5rem]">
+                        <div>{period.name}</div>
+                        <div className="text-[11px] font-normal text-ink-700/50">
+                          {period.startTime}–{period.endTime}
+                        </div>
+                      </th>
                     ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {!filteredTeachers.length && (
-              <div className="p-4">
-                <EmptyNote>No teachers match your filter.</EmptyNote>
-              </div>
-            )}
-          </div>
+                </thead>
+                <tbody>
+                  {filteredTeachers.map((teacher) => (
+                    <tr key={teacher.id}>
+                      <td className="align-top px-2 py-1 sticky left-0 bg-cream z-10">
+                        <Link
+                          to={`/timetables/teachers/${teacher.id}?view=daily&date=${date}`}
+                          className="font-medium hover:text-clay-600"
+                        >
+                          {teacher.name}
+                        </Link>
+                        <div className="text-[11px] text-ink-700/50">
+                          {teacher.onLeave && <span className="text-clay-600 font-medium">Leave · </span>}
+                          {teacher.taughtCount} period{teacher.taughtCount === 1 ? "" : "s"}
+                          {" · "}
+                          {formatTaughtHours(teacher.taughtMinutes)}
+                          {(teacher.extraCount > 0 || teacher.extraMinutes > 0) && (
+                            <span className="ml-1.5 font-medium text-sky-700">
+                              {" "}
+                              +{teacher.extraCount} extra · {formatTaughtHours(teacher.extraMinutes)}
+                            </span>
+                          )}
+                        </div>
+                        {!teacher.onLeave && onPutOnLeave && (
+                          <button
+                            type="button"
+                            className="mt-1 text-[11px] text-ink-700/55 hover:text-clay-600"
+                            onClick={() => onPutOnLeave(teacher.id)}
+                          >
+                            Put on leave
+                          </button>
+                        )}
+                      </td>
+                      {(data.periods || []).map((period) => (
+                        <td key={`${teacher.id}-${period.id}`} className="align-top">
+                          {period.isBreak ? (
+                            <div className="min-h-[3.25rem] rounded-lg bg-ink-900/[0.04] px-2 py-2 text-xs text-ink-700/45">
+                              {period.name}
+                            </div>
+                          ) : (
+                            <SlotCell
+                              entries={teacher.entriesByPeriodId?.[period.id]}
+                              onAssignCover={canAssignCover ? (entry) => setAssignSlot(entry) : null}
+                            />
+                          )}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {!filteredTeachers.length && (
+                <div className="p-4">
+                  <EmptyNote>No teachers match your filter.</EmptyNote>
+                </div>
+              )}
+            </div>
+          )}
         </>
       )}
 

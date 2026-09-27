@@ -313,7 +313,7 @@ export default function PrincipalDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+      <div className="kpi-grid mb-5">
         <Metric
           label={averageLabel}
           value={data.kpis.schoolAverage != null ? `${data.kpis.schoolAverage}%` : "—"}

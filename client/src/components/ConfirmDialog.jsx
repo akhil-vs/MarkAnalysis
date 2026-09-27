@@ -33,8 +33,13 @@ export function ConfirmProvider({ children }) {
     function onKey(e) {
       if (e.key === "Escape") close(false);
     }
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      document.removeEventListener("keydown", onKey);
+    };
   }, [dialog]);
 
   return (
@@ -42,7 +47,7 @@ export function ConfirmProvider({ children }) {
       {children}
       {dialog &&
         createPortal(
-          <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center p-0 sm:p-4">
             <button
               type="button"
               className="absolute inset-0 bg-ink-950/45"
@@ -54,21 +59,21 @@ export function ConfirmProvider({ children }) {
               aria-modal="true"
               aria-labelledby="confirm-title"
               aria-describedby="confirm-message"
-              className="relative w-full max-w-md rounded-2xl border border-ink-900/10 bg-cream p-5 shadow-2xl"
+              className="relative w-full sm:max-w-md max-h-[92dvh] overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-ink-900/10 bg-cream p-5 shadow-2xl safe-pb"
             >
               <h2 id="confirm-title" className="font-serif text-2xl text-ink-900">
                 {dialog.title}
               </h2>
-              <p id="confirm-message" className="mt-2 text-sm leading-relaxed text-ink-700/80">
+              <p id="confirm-message" className="mt-2 text-sm leading-relaxed text-ink-700/80 break-words">
                 {dialog.message}
               </p>
-              <div className="mt-5 flex flex-wrap justify-end gap-2">
-                <button type="button" className="btn-ghost" onClick={() => close(false)}>
+              <div className="mt-5 flex flex-col-reverse sm:flex-row sm:flex-wrap sm:justify-end gap-2">
+                <button type="button" className="btn-ghost w-full sm:w-auto" onClick={() => close(false)}>
                   {dialog.cancelLabel}
                 </button>
                 <button
                   type="button"
-                  className={dialog.tone === "danger" ? "btn-primary !bg-clay-600 hover:!bg-clay-700" : "btn-primary"}
+                  className={`w-full sm:w-auto ${dialog.tone === "danger" ? "btn-primary !bg-clay-600 hover:!bg-clay-700" : "btn-primary"}`}
                   onClick={() => close(true)}
                   autoFocus
                 >

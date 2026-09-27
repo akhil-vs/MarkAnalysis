@@ -415,100 +415,182 @@ export function SchoolScheduleEditor() {
         )}
       </div>
 
-      <div className="card overflow-x-auto">
-        <table className="table min-w-[40rem]">
-          <thead>
-            <tr>
-              <th className="w-12">#</th>
-              <th>Name</th>
-              <th>Start</th>
-              <th>End</th>
-              <th>Break</th>
-              <th>Slots</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row, index) => (
-              <tr key={row.key} className={row.isBreak ? "bg-ink-900/[0.03]" : undefined}>
-                <td className="align-middle text-ink-700/55">{index + 1}</td>
-                <td className="align-middle">
+      <div className="card overflow-hidden">
+        {/* Mobile period cards */}
+        <ul className="md:hidden divide-y divide-ink-900/8">
+          {rows.map((row, index) => (
+            <li key={row.key} className={`p-3 space-y-2 ${row.isBreak ? "bg-ink-900/[0.03]" : ""}`}>
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-xs text-ink-700/50">#{index + 1}</span>
+                <label className="inline-flex items-center gap-2 text-sm">
                   <input
-                    className="field"
-                    value={row.name}
-                    onChange={(e) => updateRow(row.key, { name: e.target.value })}
+                    type="checkbox"
+                    checked={row.isBreak}
+                    onChange={(e) => updateRow(row.key, { isBreak: e.target.checked })}
                     disabled={busy}
-                    aria-label={`Period ${index + 1} name`}
                   />
-                </td>
-                <td className="align-middle">
+                  Break
+                </label>
+              </div>
+              <input
+                className="field"
+                value={row.name}
+                onChange={(e) => updateRow(row.key, { name: e.target.value })}
+                disabled={busy}
+                aria-label={`Period ${index + 1} name`}
+                placeholder="Period name"
+              />
+              <div className="grid grid-cols-2 gap-2">
+                <label className="block min-w-0">
+                  <span className="label">Start</span>
                   <input
                     type="time"
-                    className="field"
+                    className="field w-full"
                     value={row.startTime}
                     onChange={(e) => updateRow(row.key, { startTime: e.target.value })}
                     disabled={busy}
-                    aria-label={`${row.name || `Period ${index + 1}`} start time`}
                   />
-                </td>
-                <td className="align-middle">
+                </label>
+                <label className="block min-w-0">
+                  <span className="label">End</span>
                   <input
                     type="time"
-                    className="field"
+                    className="field w-full"
                     value={row.endTime}
                     onChange={(e) => updateRow(row.key, { endTime: e.target.value })}
                     disabled={busy}
-                    aria-label={`${row.name || `Period ${index + 1}`} end time`}
                   />
-                </td>
-                <td className="align-middle">
-                  <label className="inline-flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={row.isBreak}
-                      onChange={(e) => updateRow(row.key, { isBreak: e.target.checked })}
-                      disabled={busy}
-                    />
-                    Break
-                  </label>
-                </td>
-                <td className="align-middle text-sm text-ink-700/60">
-                  {row.isBreak ? "—" : row.entryCount}
-                </td>
-                <td className="align-middle">
-                  <div className="flex flex-wrap justify-end gap-1">
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      onClick={() => moveRow(row.key, -1)}
-                      disabled={busy || index === 0}
-                      aria-label="Move up"
-                    >
-                      Up
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      onClick={() => moveRow(row.key, 1)}
-                      disabled={busy || index === rows.length - 1}
-                      aria-label="Move down"
-                    >
-                      Down
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      onClick={() => removeRow(row)}
-                      disabled={busy || rows.length <= 1}
-                    >
-                      Remove
-                    </button>
-                  </div>
-                </td>
+                </label>
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="text-xs text-ink-700/55">
+                  {row.isBreak ? "Break slot" : `${row.entryCount} timetable slot${row.entryCount === 1 ? "" : "s"}`}
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  <button
+                    type="button"
+                    className="btn-ghost text-xs"
+                    onClick={() => moveRow(row.key, -1)}
+                    disabled={busy || index === 0}
+                  >
+                    Up
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost text-xs"
+                    onClick={() => moveRow(row.key, 1)}
+                    disabled={busy || index === rows.length - 1}
+                  >
+                    Down
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-ghost text-xs"
+                    onClick={() => removeRow(row)}
+                    disabled={busy || rows.length <= 1}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            </li>
+          ))}
+        </ul>
+        <div className="hidden md:block scroll-x">
+          <table className="table min-w-[40rem]">
+            <thead>
+              <tr>
+                <th className="w-12">#</th>
+                <th>Name</th>
+                <th>Start</th>
+                <th>End</th>
+                <th>Break</th>
+                <th>Slots</th>
+                <th className="text-right">Actions</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {rows.map((row, index) => (
+                <tr key={row.key} className={row.isBreak ? "bg-ink-900/[0.03]" : undefined}>
+                  <td className="align-middle text-ink-700/55">{index + 1}</td>
+                  <td className="align-middle">
+                    <input
+                      className="field"
+                      value={row.name}
+                      onChange={(e) => updateRow(row.key, { name: e.target.value })}
+                      disabled={busy}
+                      aria-label={`Period ${index + 1} name`}
+                    />
+                  </td>
+                  <td className="align-middle">
+                    <input
+                      type="time"
+                      className="field"
+                      value={row.startTime}
+                      onChange={(e) => updateRow(row.key, { startTime: e.target.value })}
+                      disabled={busy}
+                      aria-label={`${row.name || `Period ${index + 1}`} start time`}
+                    />
+                  </td>
+                  <td className="align-middle">
+                    <input
+                      type="time"
+                      className="field"
+                      value={row.endTime}
+                      onChange={(e) => updateRow(row.key, { endTime: e.target.value })}
+                      disabled={busy}
+                      aria-label={`${row.name || `Period ${index + 1}`} end time`}
+                    />
+                  </td>
+                  <td className="align-middle">
+                    <label className="inline-flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        checked={row.isBreak}
+                        onChange={(e) => updateRow(row.key, { isBreak: e.target.checked })}
+                        disabled={busy}
+                      />
+                      Break
+                    </label>
+                  </td>
+                  <td className="align-middle text-sm text-ink-700/60">
+                    {row.isBreak ? "—" : row.entryCount}
+                  </td>
+                  <td className="align-middle">
+                    <div className="flex flex-wrap justify-end gap-1">
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => moveRow(row.key, -1)}
+                        disabled={busy || index === 0}
+                        aria-label="Move up"
+                      >
+                        Up
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => moveRow(row.key, 1)}
+                        disabled={busy || index === rows.length - 1}
+                        aria-label="Move down"
+                      >
+                        Down
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-ghost"
+                        onClick={() => removeRow(row)}
+                        disabled={busy || rows.length <= 1}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

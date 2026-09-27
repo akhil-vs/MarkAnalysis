@@ -174,9 +174,13 @@ export default function LateEntryRequests() {
       <PageHeader
         title={NAV_TITLES.accessRequests}
         subtitle="Approve late entry after the deadline or edit access for submitted registers — across every exam."
-        actions={
-          <>
-            <select className="field-filter" value={examId} onChange={(e) => setExamId(e.target.value)}>
+      />
+
+      <div className="card mb-4 p-3">
+        <div className="flex flex-wrap items-end gap-2.5">
+          <label className="block min-w-0 grow basis-[calc(50%-0.35rem)] sm:grow-0 sm:basis-auto">
+            <span className="label">Exam</span>
+            <select className="field-filter w-full sm:w-auto" value={examId} onChange={(e) => setExamId(e.target.value)}>
               <option value="">All exams</option>
               {exams.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -184,21 +188,26 @@ export default function LateEntryRequests() {
                 </option>
               ))}
             </select>
-            <select className="field-filter" value={status} onChange={(e) => setStatus(e.target.value)}>
+          </label>
+          <label className="block min-w-0 grow basis-[calc(50%-0.35rem)] sm:grow-0 sm:basis-auto">
+            <span className="label">Status</span>
+            <select className="field-filter w-full sm:w-auto" value={status} onChange={(e) => setStatus(e.target.value)}>
               <option value="PENDING">Pending</option>
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
               <option value="">All statuses</option>
             </select>
-            <select className="field-filter" value={kind} onChange={(e) => setKind(e.target.value)}>
+          </label>
+          <label className="block min-w-0 grow basis-[calc(50%-0.35rem)] sm:grow-0 sm:basis-auto">
+            <span className="label">Kind</span>
+            <select className="field-filter w-full sm:w-auto" value={kind} onChange={(e) => setKind(e.target.value)}>
               <option value="">All kinds</option>
               <option value="LATE_ENTRY">Late entry</option>
               <option value="EDIT">Edit</option>
             </select>
-          </>
-        }
-      />
-
+          </label>
+        </div>
+      </div>
 
       <div className="card overflow-hidden">
         {loading && !rows.length ? (
@@ -220,6 +229,54 @@ export default function LateEntryRequests() {
               empty="No mark access requests."
               busy={Boolean(busyId) || loading}
               busyLabel={busyId ? "Updating request…" : "Loading requests…"}
+              mobile={(page) =>
+                page.map((r) => (
+                  <div key={r.id} className="rounded-xl border border-ink-900/10 bg-white/70 px-3 py-3 space-y-2">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <div className="font-medium text-ink-900">{r.teacher?.name || "—"}</div>
+                        <div className="text-xs text-ink-700/60 mt-0.5 break-words">
+                          {r.classLabel || r.classSectionId} · {r.subject?.name || "—"}
+                        </div>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className={kindTone(r.kind)}>{kindLabel(r.kind)}</span>
+                        <span className={statusTone(r.status)}>{statusLabel(r.status)}</span>
+                      </div>
+                    </div>
+                    <div className="text-xs text-ink-700/55 break-words">
+                      {r.exam?.name || "—"}
+                      {r.requestedAt ? ` · ${new Date(r.requestedAt).toLocaleString()}` : ""}
+                    </div>
+                    {r.reviewedAt && (
+                      <div className="text-xs text-ink-700/50">
+                        Reviewed {new Date(r.reviewedAt).toLocaleString()}
+                        {r.reviewedBy?.name ? ` by ${r.reviewedBy.name}` : ""}
+                      </div>
+                    )}
+                    {r.status === "PENDING" && (
+                      <div className="flex flex-wrap gap-2 pt-1">
+                        <button
+                          type="button"
+                          className="btn-primary flex-1 min-w-[7rem]"
+                          disabled={Boolean(busyId)}
+                          onClick={() => review(r.id, "APPROVED")}
+                        >
+                          <BusyLabel busy={busyId === r.id} idle="Approve" busyText="Saving…" />
+                        </button>
+                        <button
+                          type="button"
+                          className="btn-ghost flex-1 min-w-[7rem]"
+                          disabled={Boolean(busyId)}
+                          onClick={() => review(r.id, "REJECTED")}
+                        >
+                          Reject
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))
+              }
             >
               {(page) => (
                 <table className="table">

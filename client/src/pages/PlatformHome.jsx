@@ -87,7 +87,7 @@ export default function PlatformHome() {
           </Link>
         }
       />
-      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-3 mb-6">
+      <div className="kpi-grid-6 mb-6">
         <Kpi label="Schools" value={kpis.schools} to="/platform/schools" />
         <Kpi label="Active" value={kpis.activeSchools} to="/platform/schools?status=ACTIVE" />
         <Kpi label="Suspended" value={kpis.suspendedSchools} to="/platform/schools?status=SUSPENDED" warn={kpis.suspendedSchools > 0} />

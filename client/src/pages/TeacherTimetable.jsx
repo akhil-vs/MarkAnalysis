@@ -8,6 +8,7 @@ import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { schoolWeekRangeContaining, shiftDate } from "../lib/schoolWeek.js";
 import { isLeadership } from "../lib/roles.js";
+import { useMediaQuery } from "../lib/useMediaQuery.js";
 
 const VIEWS = [
   { id: "daily", label: "Daily" },
@@ -723,64 +724,98 @@ function DailyView({ data, leadership, busy, editingId, onEdit, onRemove }) {
 }
 
 function WeeklyView({ data, grid, teachingPeriods, onEdit, onAdd, editingId, draftSlot }) {
+  const isMdUp = useMediaQuery("(min-width: 768px)");
+  const [mobileDay, setMobileDay] = useState(() => grid.days[0]);
+  const visibleDays = isMdUp ? grid.days : [mobileDay || grid.days[0]];
+
+  useEffect(() => {
+    if (!grid.days.includes(mobileDay)) {
+      setMobileDay(grid.days[0]);
+    }
+  }, [grid.days, mobileDay]);
+
   if (!teachingPeriods.length) {
     return <EmptyNote>No school periods defined yet.</EmptyNote>;
   }
   return (
-    <div className="card overflow-x-auto p-2 sm:p-3">
+    <div className="card overflow-hidden p-2 sm:p-3">
       {onAdd && (
         <p className="mb-2 px-2 text-sm text-ink-700/65">
           Click an empty slot to add a period, or click a class to edit it.
         </p>
       )}
-      <table className="w-full text-sm border-separate border-spacing-1 min-w-[52rem]">
-        <thead>
-          <tr>
-            <th className="text-left font-medium text-ink-700/70 px-2 py-1 w-28">Period</th>
-            {grid.days.map((d) => (
-              <th key={d} className="text-left font-medium text-ink-700/70 px-2 py-1">
-                {data.dayNames?.[d]}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {(data.periods || []).map((period) => (
-            <tr key={period.id}>
-              <td className="align-top px-2 py-1">
-                <div className="font-medium">{period.name}</div>
-                <div className="text-[11px] text-ink-700/50">
-                  {period.startTime}–{period.endTime}
-                </div>
-              </td>
-              {grid.days.map((day) => {
-                const adding =
-                  Boolean(draftSlot) &&
-                  !editingId &&
-                  Number(draftSlot.dayOfWeek) === Number(day) &&
-                  draftSlot.periodId === period.id;
-                return (
-                  <td key={`${day}-${period.id}`} className="align-top">
-                    {period.isBreak ? (
-                      <div className="min-h-[3.25rem] rounded-lg bg-moss-500/10 px-2 py-2 text-xs text-moss-600">
-                        {period.name}
-                      </div>
-                    ) : (
-                      <EntryCell
-                        entries={grid.map.get(`${day}|${period.id}`)}
-                        onEdit={onEdit}
-                        onAdd={onAdd ? () => onAdd(day, period.id) : undefined}
-                        editingId={editingId}
-                        adding={adding}
-                      />
-                    )}
-                  </td>
-                );
-              })}
-            </tr>
+      {!isMdUp && (
+        <div className="mb-3 flex gap-1.5 overflow-x-auto px-1 pb-1">
+          {grid.days.map((d) => (
+            <button
+              key={d}
+              type="button"
+              className={`shrink-0 rounded-lg px-3 py-2 text-sm font-medium ${
+                mobileDay === d ? "bg-ink-900 text-cream" : "border border-ink-900/15 bg-white/60"
+              }`}
+              onClick={() => setMobileDay(d)}
+            >
+              {data.dayNames?.[d] || d}
+            </button>
           ))}
-        </tbody>
-      </table>
+        </div>
+      )}
+      <div className="scroll-x scroll-x-hint">
+        <table
+          className={`w-full text-sm border-separate border-spacing-1 ${
+            isMdUp ? "min-w-[52rem]" : "min-w-0"
+          }`}
+        >
+          <thead>
+            <tr>
+              <th className="text-left font-medium text-ink-700/70 px-2 py-1 w-28 sticky left-0 bg-cream z-[1]">
+                Period
+              </th>
+              {visibleDays.map((d) => (
+                <th key={d} className="text-left font-medium text-ink-700/70 px-2 py-1 min-w-[8rem]">
+                  {data.dayNames?.[d]}
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(data.periods || []).map((period) => (
+              <tr key={period.id}>
+                <td className="align-top px-2 py-1 sticky left-0 bg-cream z-[1]">
+                  <div className="font-medium">{period.name}</div>
+                  <div className="text-[11px] text-ink-700/50">
+                    {period.startTime}–{period.endTime}
+                  </div>
+                </td>
+                {visibleDays.map((day) => {
+                  const adding =
+                    Boolean(draftSlot) &&
+                    !editingId &&
+                    Number(draftSlot.dayOfWeek) === Number(day) &&
+                    draftSlot.periodId === period.id;
+                  return (
+                    <td key={`${day}-${period.id}`} className="align-top">
+                      {period.isBreak ? (
+                        <div className="min-h-[3.25rem] rounded-lg bg-moss-500/10 px-2 py-2 text-xs text-moss-600">
+                          {period.name}
+                        </div>
+                      ) : (
+                        <EntryCell
+                          entries={grid.map.get(`${day}|${period.id}`)}
+                          onEdit={onEdit}
+                          onAdd={onAdd ? () => onAdd(day, period.id) : undefined}
+                          editingId={editingId}
+                          adding={adding}
+                        />
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

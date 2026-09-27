@@ -1,6 +1,6 @@
 /**
  * Compact search + optional filter controls for tables.
- * On sm+ screens, search and filter selects stay on one row; they stack on very small screens.
+ * Search and filters wrap on all breakpoints so toolbars never force horizontal page scroll.
  */
 export function TableToolbar({
   q,
@@ -14,10 +14,10 @@ export function TableToolbar({
   const showCount = typeof matched === "number" && typeof total === "number" && (q?.trim() || matched !== total);
 
   return (
-    <div className={`flex flex-wrap items-center gap-2 sm:flex-nowrap ${className}`}>
+    <div className={`flex flex-wrap items-center gap-2 ${className}`}>
       <input
         type="search"
-        className="field-search shrink-0 basis-full sm:basis-auto"
+        className="field-search shrink min-w-0 basis-full sm:basis-auto sm:max-w-[18rem]"
         placeholder={placeholder}
         value={q}
         onChange={(e) => setQ(e.target.value)}

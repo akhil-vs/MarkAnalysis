@@ -71,7 +71,7 @@ export default function TeacherAnalytics() {
         </p>
       )}
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+      <div className="kpi-grid mb-5">
         <Metric
           label={data.kpis?.provisional ? "Average (draft)" : "Average"}
           value={data.kpis.average != null ? `${data.kpis.average}%` : "—"}

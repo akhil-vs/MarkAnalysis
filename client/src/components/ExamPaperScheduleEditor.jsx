@@ -269,8 +269,51 @@ export default function ExamPaperScheduleEditor({
                 ? ` · ${classDatedCount} of ${classRows.length} dated · ${classTimedCount} timed`
                 : " · none dated yet"}
             </div>
-            <div className="max-h-80 overflow-auto">
-              <table className="table">
+            <div className="max-h-80 overflow-auto scroll-x">
+              {/* Mobile: stacked subject schedule cards */}
+              <ul className="md:hidden space-y-3 p-1">
+                {classRows.map((row) => (
+                  <li key={row.subjectId} className="rounded-xl border border-ink-900/10 bg-white/70 p-3 space-y-2">
+                    <div className="font-medium text-sm text-ink-900">{row.subjectName}</div>
+                    <label className="block">
+                      <span className="label">Date</span>
+                      <input
+                        type="date"
+                        className="field w-full"
+                        value={row.paperDate}
+                        disabled={disabled}
+                        onChange={(e) => patchRow(row.subjectId, { paperDate: e.target.value })}
+                        aria-label={`Date for ${row.subjectName} class ${row.className}`}
+                      />
+                    </label>
+                    <div className="grid grid-cols-2 gap-2">
+                      <label className="block min-w-0">
+                        <span className="label">Start</span>
+                        <input
+                          type="time"
+                          className="field w-full"
+                          value={row.startTime}
+                          disabled={disabled}
+                          onChange={(e) => patchRow(row.subjectId, { startTime: e.target.value })}
+                          aria-label={`Start time for ${row.subjectName}`}
+                        />
+                      </label>
+                      <label className="block min-w-0">
+                        <span className="label">End</span>
+                        <input
+                          type="time"
+                          className="field w-full"
+                          value={row.endTime}
+                          disabled={disabled}
+                          onChange={(e) => patchRow(row.subjectId, { endTime: e.target.value })}
+                          aria-label={`End time for ${row.subjectName}`}
+                        />
+                      </label>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+              <table className="table hidden md:table">
                 <thead>
                   <tr>
                     <th>Subject</th>

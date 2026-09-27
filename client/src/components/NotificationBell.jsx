@@ -135,7 +135,7 @@ export default function NotificationBell() {
     function place() {
       const rect = buttonRef.current.getBoundingClientRect();
       const margin = 8;
-      const width = Math.min(320, window.innerWidth - margin * 2);
+      const width = Math.min(360, window.innerWidth - margin * 2);
       const narrow = window.innerWidth < 640;
       let left;
       let top;
@@ -258,14 +258,14 @@ export default function NotificationBell() {
                   >
                     <div className="flex items-start gap-2">
                       {!item.readAt && <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-clay-500" />}
-                      <div className={item.readAt ? "pl-3.5" : ""}>
-                        <div className="text-sm font-medium leading-snug">{item.title}</div>
+                      <div className={`min-w-0 ${item.readAt ? "pl-3.5" : ""}`}>
+                        <div className="text-sm font-medium leading-snug break-words">{item.title}</div>
                         {typeLabel(item.type) && (
                           <div className="mt-0.5 text-[10px] uppercase tracking-wide text-clay-500/90">
                             {typeLabel(item.type)}
                           </div>
                         )}
-                        <div className="mt-0.5 text-xs text-cream/60 leading-snug">{item.body}</div>
+                        <div className="mt-0.5 text-xs text-cream/60 leading-snug break-words">{item.body}</div>
                         <div className="mt-1 text-[10px] text-cream/40">{relativeTime(item.createdAt)}</div>
                       </div>
                     </div>

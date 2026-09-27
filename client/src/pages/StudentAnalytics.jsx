@@ -136,7 +136,7 @@ export default function StudentAnalytics() {
           </>
         }
       />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="kpi-grid-lg mb-6">
         <Kpi label="Latest average" value={data.latestAverage != null ? `${data.latestAverage}%` : "—"} />
         <Kpi label="Effective avg (scored)" value={data.effectiveAverage != null ? `${data.effectiveAverage}%` : "—"} />
         <Kpi label="Class rank" value={data.rank ? `${data.rank} / ${data.classSize}` : "—"} />

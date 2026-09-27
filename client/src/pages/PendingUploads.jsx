@@ -107,7 +107,7 @@ export default function PendingUploads() {
           </>
         }
       />
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="kpi-grid-lg mb-6">
         <Kpi label="Teachers pending" value={data.pendingTeacherCount} warn={data.pendingTeacherCount > 0} />
         <Kpi
           label="Awaiting approval"
@@ -323,6 +323,47 @@ function TeacherAccordion({ teacher: t, mode, examId, open, onToggle, onApproved
             empty="No rows."
             busy={Boolean(busyKey)}
             busyLabel="Approving marks…"
+            mobile={(page) =>
+              page.map((a) => {
+                const key = `${a.classSectionId}-${a.subjectId || a.subject}`;
+                return (
+                  <div key={key} className="rounded-xl border border-ink-900/10 bg-white/80 px-3 py-3 space-y-2">
+                    <div className="font-medium text-ink-900">{a.classLabel}</div>
+                    <div className="text-sm text-ink-700/70">{a.subject}</div>
+                    <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-700/55">
+                      <span>
+                        Entered {a.uploaded}/{a.expected}
+                      </span>
+                      <span>Submitted {a.submitted ?? 0}</span>
+                      <span>Approved {a.approved ?? 0}</span>
+                      <span>Draft {a.draft ?? 0}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-2 pt-1">
+                      <Link
+                        className="btn-ghost flex-1 min-w-[7rem] text-center text-xs"
+                        to={paths.marks({
+                          classSectionId: a.classSectionId,
+                          examId,
+                          subjectId: a.subjectId || undefined,
+                        })}
+                      >
+                        Open register
+                      </Link>
+                      {mode === "awaiting" && a.subjectId && (
+                        <button
+                          type="button"
+                          className="btn-accent flex-1 min-w-[7rem]"
+                          disabled={Boolean(busyKey)}
+                          onClick={() => approveRegister(a)}
+                        >
+                          <BusyLabel busy={busyKey === key} idle="Approve" busyText="Approving…" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            }
           >
             {(page) => (
               <table className="table">
