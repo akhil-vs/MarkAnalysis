@@ -641,7 +641,7 @@ function PromotionTab({ data }) {
   if (data.empty) return <EmptyNote>{data.message || "Need promotion lineage across years."}</EmptyNote>;
   return (
     <>
-      <div className="kpi-grid mb-4">
+      <div className="grid grid-cols-1 min-[380px]:grid-cols-2 xl:grid-cols-3 gap-3 mb-4">
         <Metric label="Promoted students" value={data.count ?? 0} />
         <Metric label="Average Δ" value={data.averageDelta != null ? `${data.averageDelta > 0 ? "+" : ""}${data.averageDelta}` : "—"} />
         <Metric label="Years" value={`${data.fromYear} → ${data.toYear}`} />
