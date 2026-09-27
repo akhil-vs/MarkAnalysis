@@ -285,7 +285,7 @@ export default function PlatformSchoolDetail() {
         <span className={statusClass(school.status)}>{school.status === "SUSPENDED" ? "Suspended" : "Active"}</span>
         {school.pendingStaff > 0 && <span className="text-sm text-ink-700/70">{school.pendingStaff} pending staff</span>}
       </div>
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-6">
+      <div className="kpi-grid-lg mb-6">
         <Kpi label="Staff" value={school.staffCount} />
         <Kpi label="Students" value={school.studentCount} />
         <Kpi label="Classes" value={school.classCount} />

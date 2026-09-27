@@ -15,23 +15,10 @@ import { formatMarkCell, markInputIssue, parseMarkInput } from "../lib/markCodes
 import { rejectNegativeKey } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
+import { useMediaQuery } from "../lib/useMediaQuery.js";
 
 function markStudentSearchText(s) {
   return searchHaystack(s.name, s.rollNo);
-}
-
-function useMediaQuery(query) {
-  const [matches, setMatches] = useState(() =>
-    typeof window !== "undefined" ? window.matchMedia(query).matches : false
-  );
-  useEffect(() => {
-    const mq = window.matchMedia(query);
-    const onChange = () => setMatches(mq.matches);
-    onChange();
-    mq.addEventListener("change", onChange);
-    return () => mq.removeEventListener("change", onChange);
-  }, [query]);
-  return matches;
 }
 
 function StatusChip({ status, dirty }) {
@@ -1054,7 +1041,7 @@ export default function MarksEntry() {
         }
       />
 
-      <div className="lg:hidden sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 -mx-4 mb-4 border-b border-ink-900/10 bg-paper/95 px-4 py-2.5 backdrop-blur">
+      <div className="lg:hidden sticky top-[calc(3.5rem+env(safe-area-inset-top,0px))] z-20 -mx-3 sm:-mx-6 mb-4 border-b border-ink-900/10 bg-paper/95 px-3 sm:px-6 py-2.5 backdrop-blur">
         <div className="flex flex-wrap gap-2">
           {!leadership && (
             <button

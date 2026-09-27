@@ -479,8 +479,8 @@ export default function Layout() {
           {sidebar}
         </aside>
 
-        <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-y-contain pt-[calc(3.5rem+env(safe-area-inset-top,0px))] lg:pt-0">
-          <div className="max-w-7xl mx-auto px-4 py-5 sm:px-6 sm:py-8">
+        <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-y-contain overflow-x-clip pt-[calc(3.5rem+env(safe-area-inset-top,0px))] lg:pt-0">
+          <div className="max-w-7xl mx-auto w-full min-w-0 px-3 py-4 sm:px-6 sm:py-8">
             <Outlet />
           </div>
         </main>

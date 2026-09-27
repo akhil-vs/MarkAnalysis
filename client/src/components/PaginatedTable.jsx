@@ -107,6 +107,8 @@ export function PaginatedTable({
   busy = false,
   busyLabel = "Updating…",
   children,
+  /** Optional mobile card/list renderer. Shown below md; desktop table stays in `children`. */
+  mobile,
   /** When set, pagination is controlled by the parent (server-side). */
   server,
 }) {
@@ -123,13 +125,26 @@ export function PaginatedTable({
       }
     : client;
 
+  const tableContent = children(pagination.slice, pagination);
+  const mobileContent = typeof mobile === "function" ? mobile(pagination.slice, pagination) : null;
+
   return (
     <div className={`relative ${className}`}>
+      {mobileContent != null && (
+        <div
+          className={`md:hidden px-3 py-2 space-y-2 transition-opacity ${busy ? "pointer-events-none opacity-50" : ""}`}
+          aria-busy={busy || undefined}
+        >
+          {mobileContent}
+        </div>
+      )}
       <div
-        className={`overflow-x-auto transition-opacity ${busy ? "pointer-events-none opacity-50" : ""}`}
+        className={`scroll-x scroll-x-hint transition-opacity ${mobileContent != null ? "hidden md:block" : ""} ${
+          busy ? "pointer-events-none opacity-50" : ""
+        }`}
         aria-busy={busy || undefined}
       >
-        {children(pagination.slice, pagination)}
+        {tableContent}
       </div>
       {busy && (
         <div

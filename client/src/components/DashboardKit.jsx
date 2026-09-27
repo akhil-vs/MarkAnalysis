@@ -218,7 +218,7 @@ export function EmptyExamDashboard({
         }
       />
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+      <div className="kpi-grid mb-5">
         <Metric label="Classes" value={setup?.classes ?? 0} to={leadership ? "/manage" : undefined} />
         <Metric label="Subjects" value={setup?.subjects ?? 0} to={leadership ? "/manage" : undefined} />
         <Metric

@@ -146,7 +146,7 @@ export default function CoordinatorDashboard() {
         />
       </div>
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+      <div className="kpi-grid mb-5">
         <Metric
           label="Teachers pending upload"
           value={data.pendingUploads?.pendingTeacherCount ?? 0}

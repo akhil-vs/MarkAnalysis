@@ -373,7 +373,7 @@ export default function TeacherDashboard() {
 
       <TeacherLeaveRequest userId={user.id} />
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+      <div className="kpi-grid mb-5">
         <Metric label="Your average" value={data.kpis?.average != null ? `${data.kpis.average}%` : "—"} />
         <Metric label="Students" value={data.kpis?.students ?? "—"} />
         <Metric label="Sections" value={data.kpis?.sections ?? "—"} />

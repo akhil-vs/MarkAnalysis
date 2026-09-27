@@ -81,19 +81,25 @@ function buildInsightRequest(tab, { examId, className, fromYear, toYear, academi
 
 function TabBar({ tab, setTab }) {
   return (
-    <div className="flex flex-wrap gap-2 mb-4">
+    <div
+      className="flex gap-2 mb-4 overflow-x-auto pb-1 -mx-1 px-1"
+      role="tablist"
+      aria-label="Deep insight views"
+    >
       {TABS.map((t) => {
         const active = tab === t.id;
         return (
           <div
             key={t.id}
-            className={`inline-flex items-center rounded-lg min-h-[2.75rem] sm:min-h-0 ${
+            className={`inline-flex shrink-0 items-center rounded-lg min-h-[2.75rem] sm:min-h-0 ${
               active ? "bg-ink-900 text-cream" : "border border-ink-900/15 bg-white/60 hover:bg-white"
             }`}
           >
             <button
               type="button"
-              className="px-3.5 py-2.5 sm:py-2 text-sm font-medium"
+              role="tab"
+              aria-selected={active}
+              className="px-3.5 py-2.5 sm:py-2 text-sm font-medium whitespace-nowrap"
               onClick={() => setTab(t.id)}
             >
               {t.label}
@@ -365,7 +371,7 @@ function OutcomesTab({ data }) {
   const rates = data.outcomes?.rates || {};
   return (
     <>
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+      <div className="kpi-grid mb-4">
         <Metric label="Scored" value={`${rates.scored ?? 0}%`} />
         <Metric label="Absent" value={`${rates.absent ?? 0}%`} />
         <Metric label="Distinction" value={data.lists?.counts?.distinction ?? 0} />
@@ -414,7 +420,7 @@ function ReadinessTab({ data }) {
   const k = data.kpis || {};
   return (
     <>
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+      <div className="kpi-grid mb-4">
         <Metric label="Registers approved" value={`${k.approvedPct ?? 0}%`} />
         <Metric label="Awaiting approval" value={k.awaiting ?? 0} tone={k.awaiting ? "alert" : undefined} />
         <Metric label="Past deadline incomplete" value={k.breached ?? 0} tone={k.breached ? "alert" : undefined} />
@@ -605,7 +611,7 @@ function ImprovementTab({ data }) {
       <p className="text-sm text-ink-700/70 mb-3">
         Compared with {data.previous?.label} ({data.previous?.academicYear || "—"})
       </p>
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+      <div className="kpi-grid mb-4">
         <Metric label="Compared" value={s.compared ?? 0} />
         <Metric label="Improving" value={s.improving ?? 0} />
         <Metric label="Declining" value={s.declining ?? 0} />
@@ -635,7 +641,7 @@ function PromotionTab({ data }) {
   if (data.empty) return <EmptyNote>{data.message || "Need promotion lineage across years."}</EmptyNote>;
   return (
     <>
-      <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 mb-4">
+      <div className="kpi-grid mb-4">
         <Metric label="Promoted students" value={data.count ?? 0} />
         <Metric label="Average Δ" value={data.averageDelta != null ? `${data.averageDelta > 0 ? "+" : ""}${data.averageDelta}` : "—"} />
         <Metric label="Years" value={`${data.fromYear} → ${data.toYear}`} />
@@ -761,7 +767,7 @@ function WeightedTab({ data }) {
   const w = data.weights || {};
   return (
     <>
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-4">
+      <div className="kpi-grid mb-4">
         <Metric label="Students scored" value={data.summary?.students ?? 0} />
         <Metric label="Composite avg" value={data.summary?.average != null ? `${data.summary.average}%` : "—"} />
         <Metric label="Distinction" value={data.summary?.distinction ?? 0} />

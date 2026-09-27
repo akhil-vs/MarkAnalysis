@@ -549,6 +549,53 @@ function CmlStudentTable({ students, subjects, resetKey, busy = false, busyLabel
         empty="No students in this class."
         busy={busy}
         busyLabel={busyLabel}
+        mobile={(page) =>
+          page.map((row) => (
+            <div key={row.studentId} className="rounded-xl border border-ink-900/10 bg-white/70 px-3 py-3 space-y-2">
+              <div className="flex items-start justify-between gap-2">
+                <div className="min-w-0">
+                  <Link className="font-medium underline break-words" to={paths.student(row.studentId)}>
+                    {row.name}
+                  </Link>
+                  <div className="text-xs text-ink-700/55 mt-0.5">
+                    Roll {row.rollNo}
+                    {row.rank != null ? ` · Rank ${row.rank}` : ""}
+                  </div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="font-serif text-lg leading-none">{row.percent ?? "—"}{row.percent != null ? "%" : ""}</div>
+                  <div className="text-xs text-ink-700/55 mt-0.5">{row.grade || "—"}</div>
+                </div>
+              </div>
+              <div className="text-xs text-ink-700/55">Total {row.total ?? "—"}</div>
+              <div className="flex flex-wrap gap-1.5">
+                {subjects.map((s) => {
+                  const cell = row.bySubject[s.id];
+                  let display = "—";
+                  let tone = "bg-ink-900/5 text-ink-700/45";
+                  if (cell && cell.status !== "MISSING") {
+                    display = cell.display || cell.marks;
+                    if (cell.status === "DRAFT" || cell.status === "SUBMITTED") {
+                      tone = "bg-clay-500/15 text-clay-600";
+                    } else {
+                      tone = "bg-moss-500/10 text-moss-600";
+                    }
+                  }
+                  return (
+                    <span
+                      key={s.id}
+                      className={`inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[11px] ${tone}`}
+                      title={s.name}
+                    >
+                      <span className="font-medium opacity-70">{s.name}</span>
+                      {display}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          ))
+        }
       >
         {(page) => (
           <table className="table">

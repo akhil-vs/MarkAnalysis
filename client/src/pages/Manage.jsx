@@ -1477,6 +1477,47 @@ function StudentsTab() {
             empty="No students yet."
             busy={busy || loading}
             busyLabel={loading ? "Loading students…" : "Updating students…"}
+            mobile={(pageRows) =>
+              pageRows.map((r) => (
+                <div key={r.id} className="rounded-xl border border-ink-900/10 bg-white/70 px-3 py-3 space-y-2">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-medium text-ink-900">{r.name}</div>
+                      <div className="text-xs text-ink-700/55 mt-0.5">
+                        Roll {r.rollNo}
+                        {r.admissionNo ? ` · Adm ${r.admissionNo}` : ""}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-xs font-medium text-ink-700/70">
+                      {r.classSection.className}-{r.classSection.section}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-ink-700/55">
+                    <span>{r.academicYear || "—"}</span>
+                    <span>{r.dob ? new Date(r.dob).toLocaleDateString() : "No DOB"}</span>
+                    <span>{r.hasPhoto ? "Photo on file" : "No photo"}</span>
+                  </div>
+                  {(r.guardianName || r.guardianPhone) && (
+                    <div className="text-xs text-ink-700/60 break-words">
+                      {[r.guardianName, r.guardianPhone].filter(Boolean).join(" · ")}
+                    </div>
+                  )}
+                  <div className="flex flex-wrap gap-2 pt-1">
+                    <button type="button" className="btn-ghost flex-1 min-w-[5.5rem] text-xs" onClick={() => startEdit(r)} disabled={busy}>
+                      Edit
+                    </button>
+                    {canIssuePortal && (
+                      <button type="button" className="btn-ghost flex-1 min-w-[5.5rem] text-xs" onClick={() => issuePortalLink(r)} disabled={busy}>
+                        Portal link
+                      </button>
+                    )}
+                    <button type="button" className="btn-ghost flex-1 min-w-[5.5rem] text-xs text-clay-600" onClick={() => remove(r)} disabled={busy}>
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))
+            }
           >
             {(page) => (
               <table className="table">
@@ -1484,13 +1525,13 @@ function StudentsTab() {
                   <tr>
                     <th>Roll</th>
                     <th>Name</th>
-                    <th>Admission</th>
-                    <th>Photo</th>
+                    <th className="hidden lg:table-cell">Admission</th>
+                    <th className="hidden xl:table-cell">Photo</th>
                     <th>Class</th>
-                    <th>Year</th>
-                    <th>DOB</th>
-                    <th>Guardian</th>
-                    <th>Phone</th>
+                    <th className="hidden md:table-cell">Year</th>
+                    <th className="hidden xl:table-cell">DOB</th>
+                    <th className="hidden lg:table-cell">Guardian</th>
+                    <th className="hidden xl:table-cell">Phone</th>
                     <th></th>
                   </tr>
                 </thead>
@@ -1499,13 +1540,13 @@ function StudentsTab() {
                     <tr key={r.id}>
                       <td>{r.rollNo}</td>
                       <td>{r.name}</td>
-                      <td>{r.admissionNo || "—"}</td>
-                      <td>{r.hasPhoto ? "Yes" : "—"}</td>
+                      <td className="hidden lg:table-cell">{r.admissionNo || "—"}</td>
+                      <td className="hidden xl:table-cell">{r.hasPhoto ? "Yes" : "—"}</td>
                       <td>{r.classSection.className}-{r.classSection.section}</td>
-                      <td>{r.academicYear || "—"}</td>
-                      <td>{r.dob ? new Date(r.dob).toLocaleDateString() : "—"}</td>
-                      <td>{r.guardianName || "—"}</td>
-                      <td>{r.guardianPhone || "—"}</td>
+                      <td className="hidden md:table-cell">{r.academicYear || "—"}</td>
+                      <td className="hidden xl:table-cell">{r.dob ? new Date(r.dob).toLocaleDateString() : "—"}</td>
+                      <td className="hidden lg:table-cell">{r.guardianName || "—"}</td>
+                      <td className="hidden xl:table-cell">{r.guardianPhone || "—"}</td>
                       <td className="whitespace-nowrap space-x-2">
                         <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
                         {canIssuePortal && (

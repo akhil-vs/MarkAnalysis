@@ -167,7 +167,7 @@ export default function ClassGroupAnalytics() {
         actions={<ExamSelect exams={data.exams} value={examId} onChange={load} />}
       />
 
-      <div className="grid grid-cols-2 xl:grid-cols-4 gap-3 mb-5">
+      <div className="kpi-grid mb-5">
         <Metric label="Class average" value={data.kpis.average != null ? `${data.kpis.average}%` : "—"} />
         <Metric label="Pass rate" value={data.kpis.passRate != null ? `${data.kpis.passRate}%` : "—"} />
         <Metric label="Students" value={data.kpis.students} />

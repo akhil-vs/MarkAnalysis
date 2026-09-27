@@ -244,6 +244,45 @@ export default function AuditLog() {
           }}
           resetKey={`${examId}:${scope}:${table.q}:${table.filters.role || ""}:${table.filters.actorId || ""}`}
           empty={examId ? "No activity recorded for this exam yet." : "No activity recorded yet."}
+          mobile={(pageRows) =>
+            pageRows.map((r) => (
+              <div key={r.id} className="rounded-xl border border-ink-900/10 bg-white/70 px-3 py-3 space-y-1.5">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <div className="font-medium text-ink-900">{r.actor?.name || "—"}</div>
+                    {r.actor?.role && (
+                      <span className={`${roleChipClass(r.actor.role)} mt-1 inline-flex`}>
+                        {r.actor.roleLabel || ROLE_LABEL[r.actor.role] || r.actor.role}
+                      </span>
+                    )}
+                  </div>
+                  <div className="text-[11px] text-ink-700/50 shrink-0">
+                    {new Date(r.timestamp).toLocaleString()}
+                  </div>
+                </div>
+                <div className="text-sm font-medium text-ink-800">{r.actionLabel || r.action}</div>
+                <div className="text-sm text-ink-700/70 break-words">
+                  {r.source === "mark" ? (
+                    <>
+                      {r.student ? `${r.student.rollNo} ${r.student.name}` : "—"}
+                      {(r.subject?.name || r.exam?.name) && (
+                        <span className="block text-xs text-ink-700/50 mt-0.5">
+                          {[r.subject?.name, r.exam?.name].filter(Boolean).join(" · ")}
+                        </span>
+                      )}
+                    </>
+                  ) : (
+                    r.summary
+                  )}
+                </div>
+                {r.source === "mark" && (r.oldLabel != null || r.newLabel != null) && (
+                  <div className="text-xs text-ink-700/55">
+                    {r.oldLabel ?? "—"} → {r.newLabel ?? "—"}
+                  </div>
+                )}
+              </div>
+            ))
+          }
         >
           {(page) => (
             <table className="table">
@@ -253,14 +292,14 @@ export default function AuditLog() {
                   <th>Who</th>
                   <th>Action</th>
                   <th>Details</th>
-                  <th>Old</th>
-                  <th>New</th>
+                  <th className="hidden lg:table-cell">Old</th>
+                  <th className="hidden lg:table-cell">New</th>
                 </tr>
               </thead>
               <tbody>
                 {page.map((r) => (
                   <tr key={r.id}>
-                    <td>{new Date(r.timestamp).toLocaleString()}</td>
+                    <td className="whitespace-nowrap text-xs sm:text-sm">{new Date(r.timestamp).toLocaleString()}</td>
                     <td>
                       <div className="font-medium text-ink-900">{r.actor?.name || "—"}</div>
                       {r.actor?.role && (
@@ -284,8 +323,8 @@ export default function AuditLog() {
                         <div className="text-sm">{r.summary}</div>
                       )}
                     </td>
-                    <td>{r.source === "mark" ? (r.oldLabel ?? "—") : "—"}</td>
-                    <td>{r.source === "mark" ? (r.newLabel ?? "—") : "—"}</td>
+                    <td className="hidden lg:table-cell">{r.source === "mark" ? (r.oldLabel ?? "—") : "—"}</td>
+                    <td className="hidden lg:table-cell">{r.source === "mark" ? (r.newLabel ?? "—") : "—"}</td>
                   </tr>
                 ))}
               </tbody>

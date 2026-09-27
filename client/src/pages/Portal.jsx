@@ -158,14 +158,14 @@ export default function Portal() {
 
         {report && (
           <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-900/10 bg-white/80 shadow-sm">
-            <div className="border-b border-emerald-900/10 px-5 py-4">
-              <p className="font-medium">
+            <div className="border-b border-emerald-900/10 px-4 sm:px-5 py-4">
+              <p className="font-medium break-words">
                 {report.student.name}{" "}
                 <span className="text-ink-700/60">
                   · Roll {report.student.rollNo} · {report.student.classLabel}
                 </span>
               </p>
-              <p className="text-sm text-ink-700/70">
+              <p className="text-sm text-ink-700/70 break-words">
                 {report.exam.name} ({report.exam.term}) · {report.exam.academicYear}
               </p>
               {report.overallPercent != null && (
@@ -174,35 +174,55 @@ export default function Portal() {
                 </p>
               )}
             </div>
-            <table className="w-full text-left text-sm">
-              <thead className="bg-emerald-950/[0.04] text-ink-700/70">
-                <tr>
-                  <th className="px-5 py-2 font-medium">Subject</th>
-                  <th className="px-3 py-2 font-medium">Marks</th>
-                  <th className="px-3 py-2 font-medium">Max</th>
-                  <th className="px-3 py-2 font-medium">%</th>
-                  <th className="px-5 py-2 font-medium">Grade</th>
-                </tr>
-              </thead>
-              <tbody>
-                {report.subjects.length === 0 && (
+            {/* Mobile stacked subject cards */}
+            <ul className="md:hidden divide-y divide-emerald-900/5">
+              {report.subjects.length === 0 && (
+                <li className="px-4 py-6 text-sm text-ink-700/60">No approved marks for this exam yet.</li>
+              )}
+              {report.subjects.map((row) => (
+                <li key={row.subjectId} className="px-4 py-3">
+                  <div className="font-medium text-ink-900">{row.subjectName}</div>
+                  <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-700/75">
+                    <span>
+                      {row.display} / {row.maxMarks}
+                    </span>
+                    <span>{row.percent != null ? `${row.percent}%` : "—"}</span>
+                    <span>Grade {row.grade || "—"}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="hidden md:block scroll-x">
+              <table className="w-full text-left text-sm">
+                <thead className="bg-emerald-950/[0.04] text-ink-700/70">
                   <tr>
-                    <td className="px-5 py-6 text-ink-700/60" colSpan={5}>
-                      No approved marks for this exam yet.
-                    </td>
+                    <th className="px-5 py-2 font-medium">Subject</th>
+                    <th className="px-3 py-2 font-medium">Marks</th>
+                    <th className="px-3 py-2 font-medium">Max</th>
+                    <th className="px-3 py-2 font-medium">%</th>
+                    <th className="px-5 py-2 font-medium">Grade</th>
                   </tr>
-                )}
-                {report.subjects.map((row) => (
-                  <tr key={row.subjectId} className="border-t border-emerald-900/5">
-                    <td className="px-5 py-2">{row.subjectName}</td>
-                    <td className="px-3 py-2">{row.display}</td>
-                    <td className="px-3 py-2">{row.maxMarks}</td>
-                    <td className="px-3 py-2">{row.percent ?? "—"}</td>
-                    <td className="px-5 py-2">{row.grade || "—"}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {report.subjects.length === 0 && (
+                    <tr>
+                      <td className="px-5 py-6 text-ink-700/60" colSpan={5}>
+                        No approved marks for this exam yet.
+                      </td>
+                    </tr>
+                  )}
+                  {report.subjects.map((row) => (
+                    <tr key={row.subjectId} className="border-t border-emerald-900/5">
+                      <td className="px-5 py-2">{row.subjectName}</td>
+                      <td className="px-3 py-2">{row.display}</td>
+                      <td className="px-3 py-2">{row.maxMarks}</td>
+                      <td className="px-3 py-2">{row.percent ?? "—"}</td>
+                      <td className="px-5 py-2">{row.grade || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
