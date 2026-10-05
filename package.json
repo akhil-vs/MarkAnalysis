@@ -14,7 +14,8 @@
     "test:manual-automation:prepare": "PREPARE_DB=1 SEED=1 node scripts/run-manual-automation.mjs",
     "test:e2e": "npx playwright test --config=e2e/playwright.config.js",
     "test:e2e:report": "npx playwright show-report reports/playwright-html",
-    "test:app": "npm run test:manual-automation && npm run test:e2e"
+    "test:app": "npm run test:manual-automation && npm run test:e2e",
+    "docs:pitch-pptx": "node scripts/generate-principal-pitch-pptx.mjs"
   },
   "dependencies": {
     "@prisma/cli-engine": "^0.3.0",
@@ -34,6 +35,7 @@
   },
   "devDependencies": {
     "@playwright/test": "^1.55.0",
+    "pptxgenjs": "^4.0.1",
     "prisma": "^8.0.0-rc.14"
   }
 }

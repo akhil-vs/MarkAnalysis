@@ -34,9 +34,9 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'673a79cf07ebf860ede493573ab8713d26cb9936f7c7e4721e74f519c8d60f51'>;
+  StorageHashBase<'1aef990e895981fa2d44e7baf398ecf7a77fc141377f63abdd9a21b17dee09f3'>;
 export type ExecutionHash =
-  ExecutionHashBase<'a72b23d74a7c00bedc01aae8e1333dfa214b3303b25cb40bff7c9ec558b8b035'>;
+  ExecutionHashBase<'e3f5bde3c11a8a42958df84dc1248a0f5f43b66be23c468cc6cea6a6e16e1803'>;
 export type ProfileHash =
   ProfileHashBase<'3916f444a8a17ad749191acf9e08dad97d1a327b88c2f1d45d12f240296aa8b2'>;
 
@@ -505,6 +505,28 @@ export type FieldOutputTypes = {
       readonly endTime: CodecTypes['pg/text@1']['output'];
       readonly isBreak: CodecTypes['pg/bool@1']['output'];
     };
+    readonly PilotRequest: {
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly schoolName: CodecTypes['pg/text@1']['output'];
+      readonly board: CodecTypes['pg/text@1']['output'] | null;
+      readonly contactName: CodecTypes['pg/text@1']['output'];
+      readonly contactEmail: CodecTypes['pg/text@1']['output'];
+      readonly contactPhone: CodecTypes['pg/text@1']['output'] | null;
+      readonly roleTitle: CodecTypes['pg/text@1']['output'] | null;
+      readonly examNameOrType: CodecTypes['pg/text@1']['output'] | null;
+      readonly targetClasses: CodecTypes['pg/text@1']['output'] | null;
+      readonly preferredStartDate: CodecTypes['pg/text@1']['output'] | null;
+      readonly notes: CodecTypes['pg/text@1']['output'] | null;
+      readonly status: 'PENDING' | 'CONTACTED' | 'DECLINED' | 'PROVISIONED';
+      readonly schoolId: CodecTypes['pg/text@1']['output'] | null;
+      readonly reviewedById: CodecTypes['pg/text@1']['output'] | null;
+      readonly reviewedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+      readonly reviewNote: CodecTypes['pg/text@1']['output'] | null;
+      readonly sourceIp: CodecTypes['pg/text@1']['output'] | null;
+      readonly userAgent: CodecTypes['pg/text@1']['output'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    };
     readonly PortalAccessLink: {
       readonly id: CodecTypes['pg/text@1']['output'];
       readonly tenantId: CodecTypes['pg/text@1']['output'];
@@ -970,6 +992,28 @@ export type FieldInputTypes = {
       readonly startTime: CodecTypes['pg/text@1']['input'];
       readonly endTime: CodecTypes['pg/text@1']['input'];
       readonly isBreak: CodecTypes['pg/bool@1']['input'];
+    };
+    readonly PilotRequest: {
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly schoolName: CodecTypes['pg/text@1']['input'];
+      readonly board: CodecTypes['pg/text@1']['input'] | null;
+      readonly contactName: CodecTypes['pg/text@1']['input'];
+      readonly contactEmail: CodecTypes['pg/text@1']['input'];
+      readonly contactPhone: CodecTypes['pg/text@1']['input'] | null;
+      readonly roleTitle: CodecTypes['pg/text@1']['input'] | null;
+      readonly examNameOrType: CodecTypes['pg/text@1']['input'] | null;
+      readonly targetClasses: CodecTypes['pg/text@1']['input'] | null;
+      readonly preferredStartDate: CodecTypes['pg/text@1']['input'] | null;
+      readonly notes: CodecTypes['pg/text@1']['input'] | null;
+      readonly status: 'PENDING' | 'CONTACTED' | 'DECLINED' | 'PROVISIONED';
+      readonly schoolId: CodecTypes['pg/text@1']['input'] | null;
+      readonly reviewedById: CodecTypes['pg/text@1']['input'] | null;
+      readonly reviewedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+      readonly reviewNote: CodecTypes['pg/text@1']['input'] | null;
+      readonly sourceIp: CodecTypes['pg/text@1']['input'] | null;
+      readonly userAgent: CodecTypes['pg/text@1']['input'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
     };
     readonly PortalAccessLink: {
       readonly id: CodecTypes['pg/text@1']['input'];
@@ -1437,6 +1481,28 @@ export type StorageColumnTypes = {
       readonly startTime: CodecTypes['pg/text@1']['output'];
       readonly tenantId: CodecTypes['pg/text@1']['output'];
     };
+    readonly PilotRequest: {
+      readonly board: CodecTypes['pg/text@1']['output'] | null;
+      readonly contactEmail: CodecTypes['pg/text@1']['output'];
+      readonly contactName: CodecTypes['pg/text@1']['output'];
+      readonly contactPhone: CodecTypes['pg/text@1']['output'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly examNameOrType: CodecTypes['pg/text@1']['output'] | null;
+      readonly id: CodecTypes['pg/text@1']['output'];
+      readonly notes: CodecTypes['pg/text@1']['output'] | null;
+      readonly preferredStartDate: CodecTypes['pg/text@1']['output'] | null;
+      readonly reviewedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+      readonly reviewedById: CodecTypes['pg/text@1']['output'] | null;
+      readonly reviewNote: CodecTypes['pg/text@1']['output'] | null;
+      readonly roleTitle: CodecTypes['pg/text@1']['output'] | null;
+      readonly schoolId: CodecTypes['pg/text@1']['output'] | null;
+      readonly schoolName: CodecTypes['pg/text@1']['output'];
+      readonly sourceIp: CodecTypes['pg/text@1']['output'] | null;
+      readonly status: 'PENDING' | 'CONTACTED' | 'DECLINED' | 'PROVISIONED';
+      readonly targetClasses: CodecTypes['pg/text@1']['output'] | null;
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+      readonly userAgent: CodecTypes['pg/text@1']['output'] | null;
+    };
     readonly PortalAccessLink: {
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
       readonly createdById: CodecTypes['pg/text@1']['output'];
@@ -1903,6 +1969,28 @@ export type StorageColumnInputTypes = {
       readonly startTime: CodecTypes['pg/text@1']['input'];
       readonly tenantId: CodecTypes['pg/text@1']['input'];
     };
+    readonly PilotRequest: {
+      readonly board: CodecTypes['pg/text@1']['input'] | null;
+      readonly contactEmail: CodecTypes['pg/text@1']['input'];
+      readonly contactName: CodecTypes['pg/text@1']['input'];
+      readonly contactPhone: CodecTypes['pg/text@1']['input'] | null;
+      readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly examNameOrType: CodecTypes['pg/text@1']['input'] | null;
+      readonly id: CodecTypes['pg/text@1']['input'];
+      readonly notes: CodecTypes['pg/text@1']['input'] | null;
+      readonly preferredStartDate: CodecTypes['pg/text@1']['input'] | null;
+      readonly reviewedAt: CodecTypes['pg/timestamptz-string@1']['input'] | null;
+      readonly reviewedById: CodecTypes['pg/text@1']['input'] | null;
+      readonly reviewNote: CodecTypes['pg/text@1']['input'] | null;
+      readonly roleTitle: CodecTypes['pg/text@1']['input'] | null;
+      readonly schoolId: CodecTypes['pg/text@1']['input'] | null;
+      readonly schoolName: CodecTypes['pg/text@1']['input'];
+      readonly sourceIp: CodecTypes['pg/text@1']['input'] | null;
+      readonly status: 'PENDING' | 'CONTACTED' | 'DECLINED' | 'PROVISIONED';
+      readonly targetClasses: CodecTypes['pg/text@1']['input'] | null;
+      readonly updatedAt: CodecTypes['pg/timestamptz-string@1']['input'];
+      readonly userAgent: CodecTypes['pg/text@1']['input'] | null;
+    };
     readonly PortalAccessLink: {
       readonly createdAt: CodecTypes['pg/timestamptz-string@1']['input'];
       readonly createdById: CodecTypes['pg/text@1']['input'];
@@ -2163,6 +2251,7 @@ export namespace Models {
     marks: public_Mark[];
     notifications: public_Notification[];
     periods: public_Period[];
+    pilotRequests: public_PilotRequest[];
     portalLinks: public_PortalAccessLink[];
     reportCardReleases: public_ReportCardRelease[];
     revaluationRequests: public_RevaluationRequest[];
@@ -2192,6 +2281,7 @@ export namespace Models {
       | 'marks'
       | 'notifications'
       | 'periods'
+      | 'pilotRequests'
       | 'portalLinks'
       | 'reportCardReleases'
       | 'revaluationRequests'
@@ -2241,6 +2331,7 @@ export namespace Models {
     markEntryRequests: public_MarkEntryAccessRequest[];
     notifications: public_Notification[];
     originalSubstitutions: public_TimetableSubstitution[];
+    pilotRequestsReviewed: public_PilotRequest[];
     portalLinks: public_PortalAccessLink[];
     refreshTokens: public_RefreshToken[];
     reportCardSigned: public_ReportCardRelease[];
@@ -2274,6 +2365,7 @@ export namespace Models {
       | 'markEntryRequests'
       | 'notifications'
       | 'originalSubstitutions'
+      | 'pilotRequestsReviewed'
       | 'portalLinks'
       | 'refreshTokens'
       | 'reportCardSigned'
@@ -2883,6 +2975,31 @@ export namespace Models {
     tenant: public_School | null;
     readonly [RelationKeys]?: 'tenant';
   };
+  export type public_PilotRequest = {
+    id: CodecTypes['pg/text@1']['output'];
+    schoolName: CodecTypes['pg/text@1']['output'];
+    board: CodecTypes['pg/text@1']['output'] | null;
+    contactName: CodecTypes['pg/text@1']['output'];
+    contactEmail: CodecTypes['pg/text@1']['output'];
+    contactPhone: CodecTypes['pg/text@1']['output'] | null;
+    roleTitle: CodecTypes['pg/text@1']['output'] | null;
+    examNameOrType: CodecTypes['pg/text@1']['output'] | null;
+    targetClasses: CodecTypes['pg/text@1']['output'] | null;
+    preferredStartDate: CodecTypes['pg/text@1']['output'] | null;
+    notes: CodecTypes['pg/text@1']['output'] | null;
+    status: 'PENDING' | 'CONTACTED' | 'DECLINED' | 'PROVISIONED';
+    schoolId: CodecTypes['pg/text@1']['output'] | null;
+    reviewedById: CodecTypes['pg/text@1']['output'] | null;
+    reviewedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
+    reviewNote: CodecTypes['pg/text@1']['output'] | null;
+    sourceIp: CodecTypes['pg/text@1']['output'] | null;
+    userAgent: CodecTypes['pg/text@1']['output'] | null;
+    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
+    reviewedBy: public_User | null;
+    school: public_School | null;
+    readonly [RelationKeys]?: 'reviewedBy' | 'school';
+  };
 }
 
 export declare const models: {
@@ -2917,6 +3034,7 @@ export declare const models: {
     CpdAppraisal: Models.public_CpdAppraisal;
     CpdCertificate: Models.public_CpdCertificate;
     EmailOutbox: Models.public_EmailOutbox;
+    PilotRequest: Models.public_PilotRequest;
   };
 };
 
@@ -3008,6 +3126,12 @@ type ContractBase = Omit<
                   readonly name: 'ActivityAudit_tenantId_idx_c93ed4f1';
                   readonly prefix: 'ActivityAudit_tenantId_idx';
                   readonly columns: readonly ['tenantId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'ActivityAudit_tenantId_timestamp_idx_699dc902';
+                  readonly prefix: 'ActivityAudit_tenantId_timestamp_idx';
+                  readonly columns: readonly ['tenantId', 'timestamp'];
                   readonly unique: false;
                 },
                 {
@@ -4427,6 +4551,12 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'Mark_tenantId_examId_status_idx_75eb183c';
+                  readonly prefix: 'Mark_tenantId_examId_status_idx';
+                  readonly columns: readonly ['tenantId', 'examId', 'status'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Mark_subjectId_idx_84df2a1d';
                   readonly prefix: 'Mark_subjectId_idx';
                   readonly columns: readonly ['subjectId'];
@@ -4984,6 +5114,170 @@ type ContractBase = Omit<
                   readonly target: {
                     readonly namespaceId: 'public' & NamespaceId;
                     readonly tableName: 'School';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+              ];
+            };
+            readonly PilotRequest: {
+              columns: {
+                readonly id: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly schoolName: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly board: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly contactName: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly contactEmail: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: false;
+                };
+                readonly contactPhone: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly roleTitle: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly examNameOrType: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly targetClasses: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly preferredStartDate: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly notes: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly status: {
+                  readonly nativeType: 'PilotRequestStatus';
+                  readonly codecId: 'pg/enum@1';
+                  readonly nullable: false;
+                  readonly default: {
+                    readonly kind: 'literal';
+                    readonly value: DefaultLiteralValue<'pg/enum@1', 'PENDING'>;
+                  };
+                  readonly typeParams: { readonly typeName: 'PilotRequestStatus' };
+                };
+                readonly schoolId: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly reviewedById: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly reviewedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: true;
+                };
+                readonly reviewNote: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly sourceIp: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly userAgent: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly createdAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                  readonly default: { readonly kind: 'function'; readonly expression: 'now()' };
+                };
+                readonly updatedAt: {
+                  readonly nativeType: 'timestamptz';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                  readonly nullable: false;
+                };
+              };
+              primaryKey: { readonly columns: readonly ['id'] };
+              uniques: readonly [];
+              indexes: readonly [
+                {
+                  readonly name: 'PilotRequest_status_createdAt_idx_58610442';
+                  readonly prefix: 'PilotRequest_status_createdAt_idx';
+                  readonly columns: readonly ['status', 'createdAt'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'PilotRequest_contactEmail_createdAt_idx_0cbf81e4';
+                  readonly prefix: 'PilotRequest_contactEmail_createdAt_idx';
+                  readonly columns: readonly ['contactEmail', 'createdAt'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'PilotRequest_schoolId_idx_82b454d7';
+                  readonly prefix: 'PilotRequest_schoolId_idx';
+                  readonly columns: readonly ['schoolId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'PilotRequest_reviewedById_idx_e2835478';
+                  readonly prefix: 'PilotRequest_reviewedById_idx';
+                  readonly columns: readonly ['reviewedById'];
+                  readonly unique: false;
+                },
+              ];
+              foreignKeys: readonly [
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'PilotRequest';
+                    readonly columns: readonly ['schoolId'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'School';
+                    readonly columns: readonly ['id'];
+                  };
+                },
+                {
+                  readonly source: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'PilotRequest';
+                    readonly columns: readonly ['reviewedById'];
+                  };
+                  readonly target: {
+                    readonly namespaceId: 'public' & NamespaceId;
+                    readonly tableName: 'User';
                     readonly columns: readonly ['id'];
                   };
                 },
@@ -6068,6 +6362,12 @@ type ContractBase = Omit<
                   readonly columns: readonly ['tenantId'];
                   readonly unique: false;
                 },
+                {
+                  readonly name: 'Subject_tenantId_className_idx_530d6bbe';
+                  readonly prefix: 'Subject_tenantId_className_idx';
+                  readonly columns: readonly ['tenantId', 'className'];
+                  readonly unique: false;
+                },
               ];
               foreignKeys: readonly [
                 {
@@ -6191,12 +6491,6 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
-                  readonly name: 'TeacherAssignment_userId_idx_a489d58a';
-                  readonly prefix: 'TeacherAssignment_userId_idx';
-                  readonly columns: readonly ['userId'];
-                  readonly unique: false;
-                },
-                {
                   readonly name: 'TeacherAssignment_classSectionId_idx_095a6e92';
                   readonly prefix: 'TeacherAssignment_classSectionId_idx';
                   readonly columns: readonly ['classSectionId'];
@@ -6206,6 +6500,12 @@ type ContractBase = Omit<
                   readonly name: 'TeacherAssignment_subjectId_idx_84df2a1d';
                   readonly prefix: 'TeacherAssignment_subjectId_idx';
                   readonly columns: readonly ['subjectId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherAssignment_userId_idx_a489d58a';
+                  readonly prefix: 'TeacherAssignment_userId_idx';
+                  readonly columns: readonly ['userId'];
                   readonly unique: false;
                 },
               ];
@@ -7035,6 +7335,10 @@ type ContractBase = Omit<
                 'CPD_NOTICE',
               ];
             };
+            readonly PilotRequestStatus: {
+              readonly kind: 'valueSet';
+              readonly values: readonly ['PENDING', 'CONTACTED', 'DECLINED', 'PROVISIONED'];
+            };
             readonly ReportCardStatus: {
               readonly kind: 'valueSet';
               readonly values: readonly ['DRAFT', 'PUBLISHED', 'SIGNED_OFF'];
@@ -7167,6 +7471,10 @@ type ContractBase = Omit<
     readonly EmailOutbox: {
       readonly namespace: 'public' & NamespaceId;
       readonly model: 'EmailOutbox';
+    };
+    readonly PilotRequest: {
+      readonly namespace: 'public' & NamespaceId;
+      readonly model: 'PilotRequest';
     };
   };
   readonly domain: {
@@ -9028,6 +9336,152 @@ type ContractBase = Omit<
               };
             };
           };
+          readonly PilotRequest: {
+            readonly fields: {
+              readonly id: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly schoolName: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly board: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly contactName: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly contactEmail: {
+                readonly nullable: false;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly contactPhone: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly roleTitle: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly examNameOrType: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly targetClasses: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly preferredStartDate: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly notes: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly status: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/enum@1';
+                  readonly typeParams: { readonly typeName: 'PilotRequestStatus' };
+                };
+              };
+              readonly schoolId: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly reviewedById: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly reviewedAt: {
+                readonly nullable: true;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly reviewNote: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly sourceIp: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly userAgent: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly createdAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+              readonly updatedAt: {
+                readonly nullable: false;
+                readonly type: {
+                  readonly kind: 'scalar';
+                  readonly codecId: 'pg/timestamptz-string@1';
+                };
+              };
+            };
+            readonly relations: {
+              readonly reviewedBy: {
+                readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['reviewedById'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+              readonly school: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'School';
+                };
+                readonly cardinality: 'N:1';
+                readonly nullable: true;
+                readonly on: {
+                  readonly localFields: readonly ['schoolId'];
+                  readonly targetFields: readonly ['id'];
+                };
+              };
+            };
+            readonly storage: {
+              readonly table: 'PilotRequest';
+              readonly namespaceId: 'public';
+              readonly fields: {
+                readonly id: { readonly column: 'id' };
+                readonly schoolName: { readonly column: 'schoolName' };
+                readonly board: { readonly column: 'board' };
+                readonly contactName: { readonly column: 'contactName' };
+                readonly contactEmail: { readonly column: 'contactEmail' };
+                readonly contactPhone: { readonly column: 'contactPhone' };
+                readonly roleTitle: { readonly column: 'roleTitle' };
+                readonly examNameOrType: { readonly column: 'examNameOrType' };
+                readonly targetClasses: { readonly column: 'targetClasses' };
+                readonly preferredStartDate: { readonly column: 'preferredStartDate' };
+                readonly notes: { readonly column: 'notes' };
+                readonly status: { readonly column: 'status' };
+                readonly schoolId: { readonly column: 'schoolId' };
+                readonly reviewedById: { readonly column: 'reviewedById' };
+                readonly reviewedAt: { readonly column: 'reviewedAt' };
+                readonly reviewNote: { readonly column: 'reviewNote' };
+                readonly sourceIp: { readonly column: 'sourceIp' };
+                readonly userAgent: { readonly column: 'userAgent' };
+                readonly createdAt: { readonly column: 'createdAt' };
+                readonly updatedAt: { readonly column: 'updatedAt' };
+              };
+            };
+          };
           readonly PortalAccessLink: {
             readonly fields: {
               readonly id: {
@@ -9845,6 +10299,17 @@ type ContractBase = Omit<
                 readonly on: {
                   readonly localFields: readonly ['id'];
                   readonly targetFields: readonly ['tenantId'];
+                };
+              };
+              readonly pilotRequests: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'PilotRequest';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['schoolId'];
                 };
               };
               readonly portalLinks: {
@@ -11251,6 +11716,17 @@ type ContractBase = Omit<
                   readonly targetFields: readonly ['originalTeacherId'];
                 };
               };
+              readonly pilotRequestsReviewed: {
+                readonly to: {
+                  readonly namespace: 'public' & NamespaceId;
+                  readonly model: 'PilotRequest';
+                };
+                readonly cardinality: '1:N';
+                readonly on: {
+                  readonly localFields: readonly ['id'];
+                  readonly targetFields: readonly ['reviewedById'];
+                };
+              };
               readonly portalLinks: {
                 readonly to: {
                   readonly namespace: 'public' & NamespaceId;
@@ -11574,6 +12050,23 @@ type ContractBase = Omit<
             readonly column: 'id';
           };
           readonly onCreate: { readonly kind: 'generator'; readonly id: 'cuid2' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'PilotRequest';
+            readonly column: 'id';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'cuid2' };
+        },
+        {
+          readonly ref: {
+            readonly namespace: 'public';
+            readonly table: 'PilotRequest';
+            readonly column: 'updatedAt';
+          };
+          readonly onCreate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
+          readonly onUpdate: { readonly kind: 'generator'; readonly id: 'timestampNow' };
         },
         {
           readonly ref: {

@@ -167,6 +167,11 @@ export const PAGE_HELP = {
     about: "Provision a new school: identity, a unique school code used at sign-up, and the first principal account.",
     useful: "Share the school code with staff so they can request access, and give the principal their password once — they must change it on first sign-in.",
   },
+  platformPilots: {
+    title: "What's on this page",
+    about: "School pilot requests submitted from the public site: contact details, exam scope, and status (pending, contacted, declined, or provisioned).",
+    useful: "Open a request to mark it contacted, decline it, or provision a private campus for that school. Provisioning creates the school and principal account the same way as Add school.",
+  },
   platformSchoolDetail: {
     title: "What's on this page",
     about: "One campus: identity and board details, principals, suspend or reactivate access, and Delete school data — selected categories (marks, exams, students, classes, timetables, staff, and more) or the entire school record.",

@@ -55,6 +55,13 @@ native_enum MarkEntryAccessStatus {
   REJECTED = "REJECTED"
 }
 
+native_enum PilotRequestStatus {
+  PENDING = "PENDING"
+  CONTACTED = "CONTACTED"
+  DECLINED = "DECLINED"
+  PROVISIONED = "PROVISIONED"
+}
+
 /// One tenant: a school that owns users, records, and settings.
 model School {
   id             String       @id @default(cuid(2))
@@ -141,6 +148,7 @@ model School {
   hallTicketIssues      HallTicketIssue[]
   teacherLeaves         TeacherLeave[]
   timetableSubstitutions TimetableSubstitution[]
+  pilotRequests         PilotRequest[]
   @@map("School")
 }
 
@@ -199,6 +207,7 @@ model User {
   originalSubstitutions TimetableSubstitution[] @relation("OriginalTeacher")
   coverSubstitutions TimetableSubstitution[]   @relation("SubstituteTeacher")
   substitutionsAssigned TimetableSubstitution[] @relation("SubstitutionAssigner")
+  pilotRequestsReviewed PilotRequest[]         @relation("PilotRequestReviewer")
 
   @@unique([tenantId, schoolId])
   @@index([tenantId])
@@ -998,5 +1007,36 @@ model EmailOutbox {
   @@index([status, createdAt])
   @@index([tenantId, createdAt])
   @@map("EmailOutbox")
+}
+
+/// Public school-pilot enquiry. Platform admin reviews and provisions a campus.
+model PilotRequest {
+  id                 String                     @id @default(cuid(2))
+  schoolName         String
+  board              String?
+  contactName        String
+  contactEmail       String
+  contactPhone       String?
+  roleTitle          String?
+  examNameOrType     String?
+  targetClasses      String?
+  preferredStartDate String?
+  notes              String?
+  status             pg.enum(PilotRequestStatus) @default("PENDING")
+  schoolId           String?
+  reviewedById       String?
+  reviewedAt         TimestamptzString?
+  reviewNote         String?
+  sourceIp           String?
+  userAgent          String?
+  createdAt          TimestamptzString @default(now())
+  updatedAt temporal.updatedAtString()
+
+  school     School? @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  reviewedBy User?   @relation("PilotRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([contactEmail, createdAt])
+  @@map("PilotRequest")
 }
 

@@ -57,7 +57,13 @@ test.describe("Cross-role marks cycle (manuals exam workflow)", () => {
     if (!SHOW_PUBLIC_REGISTRATION) {
       await expect(page.locator('a[href="/register-school"]')).toHaveCount(0);
       await expect(page.locator('a[href="/signup"]')).toHaveCount(0);
+      await expect(page.getByRole("link", { name: /request.*pilot|school pilot/i }).first()).toBeVisible();
+      await expect(page.getByRole("link", { name: /^privacy$/i }).first()).toBeVisible();
     }
+    await page.goto("/request-pilot");
+    await expect(page.getByRole("heading", { name: /school marks analytics/i })).toBeVisible();
+    await page.goto("/privacy");
+    await expect(page.getByRole("heading", { name: /privacy/i })).toBeVisible();
     await page.goto("/login");
     await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
     if (!SHOW_PUBLIC_REGISTRATION) {

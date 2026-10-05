@@ -13,6 +13,20 @@ Step-by-step guides for each school role (also under **HELP → User manuals** i
 
 Regenerate PDFs with `npm run docs:pdf`.
 
+## School pilots & pitching
+
+Public plans/registration CTAs stay **off** (`SHOW_PUBLIC_*`) so onboarding is invite / sales-led. Use:
+
+- [School pilot readiness](docs/SCHOOL_PILOT_READINESS.md) — branding verdict, go-live checklist, recommended pilot shape
+- [Principal pitch pack](docs/pitch/README.md) — PPTX, HTML deck, outreach email, leave-behind
+- In-app **Request a school pilot** (`/request-pilot`) and **Privacy** (`/privacy`) on the public site
+
+Optional build-time contact: `VITE_PILOT_CONTACT_EMAIL` (mailto) or `VITE_PILOT_CONTACT_URL` (defaults to PencilLabs).
+
+Public pilot form posts to `POST /api/pilot-requests`. Platform admins review and provision under **School pilots** (`/platform/pilot-requests`). Set `PILOT_NOTIFY_EMAIL` (or `VITE_PILOT_CONTACT_EMAIL`) so submissions also queue an email.
+
+Regenerate the PowerPoint with `npm run docs:pitch-pptx`.
+
 ## Stack
 
 - React + Vite + Tailwind CSS + Recharts
@@ -97,6 +111,8 @@ Set these on the Vercel project (or host env) before going live:
 | `CLIENT_ORIGIN` | no* | Comma-separated SPA origins. \*Not needed when the SPA and `/api` share one Vercel deployment |
 | `COOKIE_SECURE` | no | Force `Secure` cookies; auto-on when `VERCEL` or `NODE_ENV=production` |
 | `VITE_ENABLE_DEMO_LOGIN` | no | Build-time; leave unset/`false` so demo one-click logins stay hidden |
+| `VITE_PILOT_CONTACT_EMAIL` | no | Build-time mailto for “Request a school pilot” (else vendor site URL) |
+| `VITE_PILOT_CONTACT_URL` | no | Build-time URL override for pilot CTA (default PencilLabs site) |
 | `PLATFORM_ADMIN_PASSWORD` | prod | Required to create the platform admin on first boot. Never use the documented seed password (`password123`) in production |
 | `PLATFORM_ADMIN_PASSWORD_LOCKED` | prod | Set `true` after the admin password is set so boot cannot rotate it |
 | `ENSURE_PLATFORM_ADMIN` | no | Set `false` to skip boot-time admin ensure entirely |

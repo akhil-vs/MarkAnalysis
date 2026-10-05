@@ -11,6 +11,8 @@ const Login = lazy(() => import("./pages/Login.jsx"));
 const Portal = lazy(() => import("./pages/Portal.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const RegisterSchool = lazy(() => import("./pages/RegisterSchool.jsx"));
+const RequestPilot = lazy(() => import("./pages/RequestPilot.jsx"));
+const Privacy = lazy(() => import("./pages/Privacy.jsx"));
 const Pending = lazy(() => import("./pages/Pending.jsx"));
 const PrincipalDashboard = lazy(() => import("./pages/PrincipalDashboard.jsx"));
 const CoordinatorDashboard = lazy(() => import("./pages/CoordinatorDashboard.jsx"));
@@ -50,6 +52,7 @@ const PlatformHome = lazy(() => import("./pages/PlatformHome.jsx"));
 const PlatformSchools = lazy(() => import("./pages/PlatformSchools.jsx"));
 const PlatformSchoolNew = lazy(() => import("./pages/PlatformSchoolNew.jsx"));
 const PlatformSchoolDetail = lazy(() => import("./pages/PlatformSchoolDetail.jsx"));
+const PlatformPilotRequests = lazy(() => import("./pages/PlatformPilotRequests.jsx"));
 
 function PageFallback() {
   return <LoadingState label="Loading…" />;
@@ -143,6 +146,8 @@ export default function App() {
         <Route path="/portal" element={<Portal />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/register-school" element={<RegisterSchool />} />
+        <Route path="/request-pilot" element={<RequestPilot />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="/pending" element={<Pending />} />
         <Route path="/" element={<AppHome />}>
           <Route index element={<Home />} />
@@ -225,6 +230,7 @@ export default function App() {
           <Route path="platform/schools" element={<Guarded route="platform/schools"><PlatformSchools /></Guarded>} />
           <Route path="platform/schools/new" element={<Guarded route="platform/schools/new"><PlatformSchoolNew /></Guarded>} />
           <Route path="platform/schools/:id" element={<Guarded route="platform/schools/:id"><PlatformSchoolDetail /></Guarded>} />
+          <Route path="platform/pilot-requests" element={<Guarded route="platform/pilot-requests"><PlatformPilotRequests /></Guarded>} />
           {/* Legacy bookmarks */}
           <Route path="students/:id" element={<RedirectStudents />} />
           <Route path="classes/:id" element={<RedirectClasses />} />

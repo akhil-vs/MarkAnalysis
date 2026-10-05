@@ -232,7 +232,7 @@ function SchoolBrand({ school, compact = false }) {
     };
   }, [school?.hasLogo, school?.updatedAt]);
 
-  const title = school?.shortName || school?.name || "Marks Analytics";
+  const title = school?.shortName || school?.name || "School Marks Analytics";
   const subtitle = school?.shortName && school?.name ? school.name : "School performance suite";
 
   return (
