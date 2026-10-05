@@ -6,8 +6,14 @@ Professional materials for a **30–45 minute** conversation with a school princ
 |---|---|
 | [`School-Marks-Analytics-Principal-Pitch.pptx`](./School-Marks-Analytics-Principal-Pitch.pptx) | **Downloadable PowerPoint** (8 slides) for meetings and email attachments |
 | [`principal-meeting-presentation.html`](./principal-meeting-presentation.html) | Interactive browser deck (same narrative) |
-| [`principal-outreach-email.md`](./principal-outreach-email.md) | Cold outreach + same-day thank-you email drafts |
+| [`principal-outreach-email.md`](./principal-outreach-email.md) | Cold outreach + thank-you + post-provision drafts |
 | [`principal-leave-behind.md`](./principal-leave-behind.md) | One-page summary / pilot checklist to leave or attach |
+
+Related ops docs (not for the meeting table):
+
+- [`../SCHOOL_PILOT_READINESS.md`](../SCHOOL_PILOT_READINESS.md) — branding verdict, production checklist, provision path
+- Public site: `/request-pilot` (form) · `/privacy` · `/login`
+- Platform console: **School pilots** (`/platform/pilot-requests`) → review → **Provision school**
 
 ## How to present
 
@@ -25,7 +31,17 @@ Professional materials for a **30–45 minute** conversation with a school princ
 | 12–28 min | Live product demo |
 | 28–45 min | Objections, pilot ask (slides 7–8), next steps |
 
-Send the outreach email first. Attach only the leave-behind for cold contact; send the full deck after the meeting with the thank-you note.
+Send the outreach email first. Attach only the leave-behind for cold contact; send the full deck after the meeting with the thank-you note. Point interested schools to **Request a school pilot** on the live site (`/request-pilot`) so the enquiry lands in the platform inbox.
+
+## How a pilot starts (current product)
+
+1. School submits `/request-pilot` (or you capture the same details in person).
+2. Platform admin opens **School pilots**, marks contacted / declines, or **Provisions** the campus.
+3. Principal receives credentials + join code; staff request access at `/signup`.
+4. Run **one exam** for a small set of classes for **2–4 weeks**.
+5. Success: official consolidated mark list without a spreadsheet merge.
+
+Public self-serve registration and pricing CTAs stay **off** (`SHOW_PUBLIC_*`) — onboarding is invite / sales-led.
 
 ## Product one-liner
 

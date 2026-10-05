@@ -6,7 +6,7 @@ Assessment for approaching schools on a **test / pilot** basis with School Marks
 
 **Ready for controlled school pilots** (invite-led, platform-provisioned campuses), not for open self-serve marketplace launch.
 
-Product, security, and ops foundations are in place. Public registration and pricing CTAs stay off by design. Remaining work is mostly commercial packaging, legal review per jurisdiction, and operator discipline on production env vars.
+Product, security, and ops foundations are in place. Public registration and pricing CTAs stay off by design. Schools request a trial via `/request-pilot`; platform admins review and provision under **School pilots**. Remaining work is mostly commercial packaging, legal review per jurisdiction, and operator discipline on production env vars.
 
 | Area | Status | Notes |
 |---|---|---|
@@ -45,6 +45,19 @@ Product, security, and ops foundations are in place. Public registration and pri
 - [ ] School profile logo/name set on the pilot campus before showing PDF/Excel outputs
 - [ ] Pitch deck + leave-behind printed or attached (`docs/pitch/`)
 
+## How a pilot starts (product path)
+
+1. School submits **Request a school pilot** at `/request-pilot` (or you capture the same details in a meeting).
+2. API stores `PilotRequest` (`POST /api/pilot-requests`, rate-limited). Optional notify email via `PILOT_NOTIFY_EMAIL` / `VITE_PILOT_CONTACT_EMAIL`.
+3. Platform admin opens **School pilots** (`/platform/pilot-requests`) — mark contacted, decline, or **Provision school**.
+4. Provisioning creates the campus + principal (must change password) and links the request as `PROVISIONED`.
+5. Principal signs in, sets school profile / letterhead, shares the **join code**; staff use `/signup`.
+6. Run one exam for a small class set; success = official CML without spreadsheet merge.
+
+Do **not** re-enable `SHOW_PUBLIC_REGISTRATION` for the first cohort. `/register-school` remains available for operators who deliberately flip the flag, but sales-led GTM uses the pilot form + platform provision.
+
+Outreach templates: [`docs/pitch/`](./pitch/README.md).
+
 ## Go-live checklist (production host)
 
 Operators must complete [SECURITY.md](../SECURITY.md) and:
@@ -53,11 +66,11 @@ Operators must complete [SECURITY.md](../SECURITY.md) and:
 - [ ] `PLATFORM_ADMIN_PASSWORD` set; then `PLATFORM_ADMIN_PASSWORD_LOCKED=true`
 - [ ] `VITE_ENABLE_DEMO_LOGIN` unset/`false` on the production build
 - [ ] `CLIENT_ORIGIN` includes every real SPA origin (custom domains)
-- [ ] Optional: `VITE_PILOT_CONTACT_EMAIL` for mailto pilots; else contact uses PencilLabs site
-- [ ] Optional: `SMTP_*` for digests; otherwise accept outbox “skipped”
+- [ ] `PILOT_NOTIFY_EMAIL` (preferred) or `VITE_PILOT_CONTACT_EMAIL` so form submissions queue email
+- [ ] Optional: `SMTP_*` for digests and pilot notify delivery; otherwise accept outbox “skipped”
 - [ ] Optional: `SENTRY_DSN` for error reporting
-- [ ] Deep health `GET /api/health?deep=1` returns `db.ok: true` after migrate
-- [ ] Platform admin can create the pilot school and principal without seed passwords
+- [ ] Deep health `GET /api/health?deep=1` returns `db.ok: true` after migrate / catch-up (`PilotRequest` table present)
+- [ ] Platform admin can provision from **School pilots** without seed passwords
 - [ ] Confirm lawful basis / consent for student marks & photos with the school
 
 ## Recommended pilot shape
@@ -65,8 +78,6 @@ Operators must complete [SECURITY.md](../SECURITY.md) and:
 **Duration:** 2–4 weeks  
 **Scope:** one exam · one grade or section set  
 **Success:** co-ordinator produces an **official** consolidated list without a spreadsheet merge  
-
-Provision via **platform console** (do not re-enable public registration for the first cohort). Use `docs/pitch/principal-outreach-email.md` and `principal-leave-behind.md` for the approach.
 
 ## Intentionally deferred for v1 pilots
 
