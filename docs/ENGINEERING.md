@@ -17,6 +17,14 @@
 - Passwords: min 10 chars, letter + number (`validatePasswordPolicy`). Hashing via `bcryptjs` (`hashPassword` / `verifyPassword`).
 - Optional error reporting: set `SENTRY_DSN` and install `@sentry/node`.
 
+## School pilots
+
+- Public form: `POST /api/pilot-requests` (rate-limited) → `PilotRequest` rows.
+- Platform admin: `GET/PATCH /api/platform/pilot-requests`, `POST .../provision` (creates school + principal).
+- Schema catch-up: `ensurePilotRequestsSchema` in `ensureSchema.js` (also listed in `CATCHUP_MIGRATION_NAMES`).
+- Notify: `queueEmail` with `kind: "pilot_request"` when `PILOT_NOTIFY_EMAIL` or `VITE_PILOT_CONTACT_EMAIL` is set.
+- Sales materials: [`docs/pitch/`](./pitch/README.md) · readiness: [`docs/SCHOOL_PILOT_READINESS.md`](./SCHOOL_PILOT_READINESS.md).
+
 ## Observability
 
 - Structured JSON logs (`LOG_LEVEL=debug|info|warn|error`)
@@ -32,7 +40,7 @@ Production dependencies currently track **Prisma ORM 8 release candidates** (`pr
 
 - Object storage / CDN for student photos (still DB bytes)
 - Shared Redis (or similar) cache for multi-instance analytics
-- Billing / entitlements (pricing UI exists; public plans CTAs remain off — sales-led / invite-only GTM)
+- Billing / entitlements (pricing UI exists; public plans CTAs remain off — sales-led / invite-only GTM via `/request-pilot`)
 - Full OpenAPI document (version header is the interim contract marker)
 
-See also [PRIVACY.md](./PRIVACY.md) and [SECURITY.md](../SECURITY.md).
+See also [PRIVACY.md](./PRIVACY.md), [SCHOOL_PILOT_READINESS.md](./SCHOOL_PILOT_READINESS.md), and [SECURITY.md](../SECURITY.md).

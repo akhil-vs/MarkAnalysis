@@ -8,11 +8,11 @@ The principal owns school setup, staff access, leave and cover, mark approval, l
 
 ## 1. Sign in and home desk
 
-1. Open the app login page.
+1. Open the app login page (`/login`). If your school is on an invite-led pilot, use the principal email and temporary password from PencilLabs / the platform operator — you will be asked to change the password on first sign-in.
 2. Enter your **email**, **school ID**, and **password**.
 3. If MFA is enabled, enter the 6-digit authenticator code (or a recovery code).
 
-You land on the **Principal desk** (`/`): school average, pass rate, distinction/fail counts, register readiness, pending uploads, submitted papers waiting for approval, and shortcuts into Deep insights and Consolidated lists.
+You land on the **Principal desk** (`/`): school average, pass rate, distinction/fail counts, register readiness, pending uploads, submitted papers waiting for approval, Curricular Performance Hub shortcuts, and links into Deep insights and Consolidated lists.
 
 - Use the **exam selector** at the top to switch the working exam. Teachers and leadership share the same latest exam by default.
 - Open the **?** hint on any page for a short “what’s on this page” tip (and **How it is useful**).
