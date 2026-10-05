@@ -11,6 +11,8 @@ const Login = lazy(() => import("./pages/Login.jsx"));
 const Portal = lazy(() => import("./pages/Portal.jsx"));
 const Signup = lazy(() => import("./pages/Signup.jsx"));
 const RegisterSchool = lazy(() => import("./pages/RegisterSchool.jsx"));
+const RequestPilot = lazy(() => import("./pages/RequestPilot.jsx"));
+const Privacy = lazy(() => import("./pages/Privacy.jsx"));
 const Pending = lazy(() => import("./pages/Pending.jsx"));
 const PrincipalDashboard = lazy(() => import("./pages/PrincipalDashboard.jsx"));
 const CoordinatorDashboard = lazy(() => import("./pages/CoordinatorDashboard.jsx"));
@@ -143,6 +145,8 @@ export default function App() {
         <Route path="/portal" element={<Portal />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/register-school" element={<RegisterSchool />} />
+        <Route path="/request-pilot" element={<RequestPilot />} />
+        <Route path="/privacy" element={<Privacy />} />
         <Route path="/pending" element={<Pending />} />
         <Route path="/" element={<AppHome />}>
           <Route index element={<Home />} />

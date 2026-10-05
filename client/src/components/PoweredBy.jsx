@@ -1,4 +1,4 @@
-const PENCIL_LABS_URL = "https://www.pencillabs.space/";
+import { VENDOR_NAME, VENDOR_URL } from "../lib/branding.js";
 
 export default function PoweredBy({ tone = "light" }) {
   const muted = tone === "dark" ? "text-cream/40 hover:text-cream/70" : "text-ink-700/45 hover:text-ink-700/70";
@@ -8,14 +8,14 @@ export default function PoweredBy({ tone = "light" }) {
     <p className={`text-[11px] leading-snug ${muted}`}>
       Powered by{" "}
       <a
-        href={PENCIL_LABS_URL}
+        href={VENDOR_URL}
         target="_blank"
         rel="noopener noreferrer"
         className={link}
       >
-        PencilLabs
+        {VENDOR_NAME}
       </a>{" "}
-      @ 2026
+      © 2026
     </p>
   );
 }

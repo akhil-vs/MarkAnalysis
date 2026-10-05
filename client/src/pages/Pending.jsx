@@ -1,11 +1,12 @@
 import { Link } from "react-router-dom";
 import PoweredBy from "../components/PoweredBy.jsx";
+import { PRODUCT_SHORT_NAME } from "../lib/branding.js";
 
 export default function Pending() {
   return (
     <div className="min-h-[100dvh] flex items-center justify-center p-4 sm:p-8">
       <div className="card max-w-lg w-full p-6 sm:p-8 text-center">
-        <div className="font-serif text-xl text-ink-900 mb-4">Marks Analytics</div>
+        <div className="font-serif text-xl text-ink-900 mb-4">{PRODUCT_SHORT_NAME}</div>
         <h1 className="font-serif text-2xl sm:text-3xl">Awaiting approval</h1>
         <p className="mt-3 text-ink-700/70">
           Your account is with the principal. You can sign in once it is activated.

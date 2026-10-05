@@ -6,6 +6,10 @@ import { BusyLabel } from "../components/Spinner.jsx";
 import { firstError, parseEmail, parseJoinCode, parsePassword, requiredText } from "../lib/formValidation.js";
 import { preloadDashboardModules } from "../lib/dashboardPrefetch.js";
 import { SHOW_PUBLIC_REGISTRATION } from "../lib/publicAccess.js";
+import {
+  PRODUCT_SHORT_NAME,
+  PRODUCT_TAGLINE,
+} from "../lib/branding.js";
 import PoweredBy from "../components/PoweredBy.jsx";
 
 const DEMO_PASSWORD = "password123";
@@ -346,10 +350,10 @@ export function AuthShell({ title, subtitle, children }) {
     <div className="min-h-[100dvh] grid lg:grid-cols-2">
       <div className="hidden lg:flex flex-col justify-between bg-ink-950 text-cream p-12">
         <Link to="/" className="font-serif text-2xl hover:text-cream/90">
-          Marks Analytics
+          {PRODUCT_SHORT_NAME}
         </Link>
         <div>
-          <h2 className="font-serif text-4xl leading-tight">See the school, not just the scores.</h2>
+          <h2 className="font-serif text-4xl leading-tight">{PRODUCT_TAGLINE}</h2>
           <p className="mt-4 text-cream/70 max-w-md">
             Role-aware dashboards for principals, exam coordinators, and teachers — and a platform console
             to provision and manage every school.
@@ -366,9 +370,9 @@ export function AuthShell({ title, subtitle, children }) {
         <div className="w-full max-w-md">
           <div className="lg:hidden mb-6">
             <Link to="/" className="font-serif text-2xl text-ink-900">
-              Marks Analytics
+              {PRODUCT_SHORT_NAME}
             </Link>
-            <p className="mt-1 text-sm text-ink-700/65">School performance suite</p>
+            <p className="mt-1 text-sm text-ink-700/65">School Marks Analytics</p>
           </div>
           <h1 className="font-serif text-2xl sm:text-3xl">{title}</h1>
           <p className="mt-1 mb-6 text-sm text-ink-700/70">{subtitle}</p>

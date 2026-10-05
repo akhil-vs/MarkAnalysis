@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import PoweredBy from "../components/PoweredBy.jsx";
 import {
+  PRODUCT_BLURB,
+  PRODUCT_NAME,
+  PRODUCT_SHORT_NAME,
+  PRODUCT_TAGLINE,
+} from "../lib/branding.js";
+import {
   PRICING_REGIONS,
   detectPricingRegionId,
   formatCampusPrice,
@@ -107,7 +113,7 @@ export default function Landing() {
       <header className="landing-nav absolute inset-x-0 top-0 z-20 safe-pt">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-4 min-[400px]:px-5 sm:gap-4 sm:px-8 sm:py-5 lg:px-12">
           <a href="#top" className="min-w-0 shrink font-serif text-base text-cream min-[400px]:text-lg sm:text-xl">
-            Marks Analytics
+            {PRODUCT_SHORT_NAME}
           </a>
           <nav className="flex shrink-0 items-center gap-1.5 min-[400px]:gap-2 sm:gap-3">
             <a
@@ -121,23 +127,35 @@ export default function Landing() {
                 Plans
               </a>
             )}
+            {!SHOW_PUBLIC_REGISTRATION && (
+              <Link
+                to="/request-pilot"
+                className="hidden text-sm text-cream/70 hover:text-cream md:inline"
+              >
+                School pilot
+              </Link>
+            )}
             <Link
               to="/login"
-              className={
-                SHOW_PUBLIC_REGISTRATION
-                  ? "btn-ghost border-cream/25 bg-transparent px-2.5 py-2 text-xs text-cream hover:bg-cream/10 min-[400px]:px-3.5 min-[400px]:text-sm"
-                  : "btn-accent px-2.5 py-2 text-xs min-[400px]:px-3.5 min-[400px]:text-sm"
-              }
+              className="btn-ghost border-cream/25 bg-transparent px-2.5 py-2 text-xs text-cream hover:bg-cream/10 min-[400px]:px-3.5 min-[400px]:text-sm"
             >
               Sign in
             </Link>
-            {SHOW_PUBLIC_REGISTRATION && (
+            {SHOW_PUBLIC_REGISTRATION ? (
               <Link
                 to="/register-school"
                 className="btn-accent px-2.5 py-2 text-xs min-[400px]:px-3.5 min-[400px]:text-sm"
               >
                 <span className="min-[400px]:hidden">Register</span>
                 <span className="hidden min-[400px]:inline">Register school</span>
+              </Link>
+            ) : (
+              <Link
+                to="/request-pilot"
+                className="btn-accent px-2.5 py-2 text-xs min-[400px]:px-3.5 min-[400px]:text-sm"
+              >
+                <span className="min-[400px]:hidden">Pilot</span>
+                <span className="hidden min-[400px]:inline">Request pilot</span>
               </Link>
             )}
           </nav>
@@ -149,28 +167,27 @@ export default function Landing() {
         <div className="relative mx-auto grid min-h-[100dvh] max-w-6xl grid-cols-1 items-center gap-8 px-4 pb-12 pt-[5.5rem] min-[400px]:px-5 sm:gap-10 sm:px-8 sm:pb-16 sm:pt-28 lg:grid-cols-[1.05fr_0.95fr] lg:gap-12 lg:px-12 lg:pb-20 lg:pt-24">
           <div className="landing-fade-up w-full max-w-xl">
             <p className="font-serif text-[2rem] leading-[1.05] tracking-tight min-[400px]:text-4xl sm:text-5xl lg:text-6xl">
-              Marks Analytics
+              {PRODUCT_NAME}
             </p>
             <h1 className="mt-4 font-serif text-xl leading-snug text-cream/95 min-[400px]:mt-5 min-[400px]:text-2xl sm:text-3xl lg:text-[2.15rem]">
-              See the school, not just the scores.
+              {PRODUCT_TAGLINE}
             </h1>
             <p className="mt-3 max-w-md text-sm leading-relaxed text-cream/70 min-[400px]:mt-4 min-[400px]:text-base sm:text-lg">
-              Role-based marks, approvals, timetables, and analytics for principals, exam
-              coordinators, and teachers — built for live campuses.
+              {PRODUCT_BLURB}
             </p>
             <div className="mt-6 flex flex-wrap items-center gap-2.5 min-[400px]:mt-8 min-[400px]:gap-3">
-              {SHOW_PUBLIC_REGISTRATION && (
+              {SHOW_PUBLIC_REGISTRATION ? (
                 <Link to="/register-school" className="btn-accent px-4 min-[400px]:px-5">
                   Register your school
+                </Link>
+              ) : (
+                <Link to="/request-pilot" className="btn-accent px-4 min-[400px]:px-5">
+                  Request a school pilot
                 </Link>
               )}
               <Link
                 to="/login"
-                className={
-                  SHOW_PUBLIC_REGISTRATION
-                    ? "btn border border-cream/30 bg-transparent text-cream hover:bg-cream/10"
-                    : "btn-accent px-4 min-[400px]:px-5"
-                }
+                className="btn border border-cream/30 bg-transparent text-cream hover:bg-cream/10"
               >
                 Sign in
               </Link>
@@ -309,7 +326,7 @@ export default function Landing() {
             <p className="mt-3 text-sm text-cream/70 sm:text-base">
               {SHOW_PUBLIC_REGISTRATION
                 ? "Create the principal account, invite staff with a join code, and run the next exam cycle without shared spreadsheets."
-                : "Sign in to run the next exam cycle without shared spreadsheets."}
+                : "Invite-led pilots keep each campus controlled. Request a trial exam cycle, or sign in if your school is already provisioned."}
             </p>
             <div className="mt-6 flex flex-wrap gap-2.5 sm:mt-8 sm:gap-3">
               {SHOW_PUBLIC_REGISTRATION ? (
@@ -325,9 +342,17 @@ export default function Landing() {
                   </Link>
                 </>
               ) : (
-                <Link to="/login" className="btn-accent px-4 sm:px-5">
-                  Sign in
-                </Link>
+                <>
+                  <Link to="/request-pilot" className="btn-accent px-4 sm:px-5">
+                    Request a school pilot
+                  </Link>
+                  <Link
+                    to="/login"
+                    className="btn border border-cream/25 bg-transparent text-cream hover:bg-cream/10"
+                  >
+                    Sign in
+                  </Link>
+                </>
               )}
             </div>
           </div>
@@ -337,18 +362,25 @@ export default function Landing() {
       <footer className="safe-pb border-t border-ink-900/10 px-4 py-8 min-[400px]:px-5 sm:px-8 lg:px-12">
         <div className="mx-auto flex max-w-6xl flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
           <div className="min-w-0">
-            <div className="font-serif text-lg text-ink-900">Marks Analytics</div>
+            <div className="font-serif text-lg text-ink-900">{PRODUCT_NAME}</div>
             <p className="mt-1 text-sm text-ink-700/60">School performance suite</p>
           </div>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-ink-700/70">
             <Link className="hover:text-ink-900" to="/login">
               Sign in
             </Link>
-            {SHOW_PUBLIC_REGISTRATION && (
+            {SHOW_PUBLIC_REGISTRATION ? (
               <Link className="hover:text-ink-900" to="/register-school">
                 Register school
               </Link>
+            ) : (
+              <Link className="hover:text-ink-900" to="/request-pilot">
+                School pilot
+              </Link>
             )}
+            <Link className="hover:text-ink-900" to="/privacy">
+              Privacy
+            </Link>
             <a className="hover:text-ink-900" href="/portal">
               Parent portal
             </a>
