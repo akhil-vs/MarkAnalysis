@@ -104,9 +104,8 @@ export default function RequestPilot() {
             <li>Preferred pilot start date and follow-up window</li>
           </ul>
           <p className="mt-5 text-sm text-cream/55">
-            Outreach templates and a principal leave-behind live in the repo under{" "}
-            <span className="text-cream/80">docs/pitch/</span>. {VENDOR_NAME} can walk the
-            live demo with you.
+            {VENDOR_NAME} can share a short leave-behind and walk a live demo with you on
+            campus or by video.
           </p>
         </section>
 
