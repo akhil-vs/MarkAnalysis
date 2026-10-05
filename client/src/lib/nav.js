@@ -66,6 +66,7 @@ export const NAV_LABELS = {
   platformDashboard: "Overview",
   platformSchools: "All schools",
   platformSchoolNew: "Add school",
+  platformPilots: "School pilots",
 };
 
 export const NAV_TITLES = {
@@ -98,6 +99,7 @@ export const NAV_TITLES = {
   platformDashboard: "Platform overview",
   platformSchools: "Schools",
   platformSchoolNew: "Add a school",
+  platformPilots: "School pilots",
 };
 
 export const NAV_BODIES = {
@@ -386,6 +388,13 @@ export const PLATFORM_NAV_GROUPS = [
         to: "/platform/schools/new",
         label: NAV_LABELS.platformSchoolNew,
         icon: "staff",
+        roles: "platform",
+      },
+      {
+        id: "platformPilots",
+        to: "/platform/pilot-requests",
+        label: NAV_LABELS.platformPilots,
+        icon: "pending",
         roles: "platform",
       },
     ],

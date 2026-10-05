@@ -14,8 +14,9 @@ Product, security, and ops foundations are in place. Public registration and pri
 | Multi-tenant school isolation | Ready | Join codes; platform provision / suspend |
 | Auth & session hardening | Ready | httpOnly cookies, MFA, rate limits, deploy guards |
 | Role manuals / in-app help | Ready | Principal, co-ordinator, teacher PDFs |
-| Landing & trust surfaces | Ready for pilots | Pilot request + privacy pages; plans/registration hidden |
+| Landing & trust surfaces | Ready for pilots | Pilot request form + privacy pages; plans/registration hidden |
 | Principal outreach pack | Ready | `docs/pitch/` (PPTX, HTML, email, leave-behind) |
+| Pilot request inbox | Ready | Platform **School pilots** — review, decline, or provision campus |
 | Open self-serve GTM / billing | Deferred | Pricing UI exists; CTAs off (`SHOW_PUBLIC_*`) |
 | Legal / DPA per school | Operator | Confirm board policy before real student data |
 

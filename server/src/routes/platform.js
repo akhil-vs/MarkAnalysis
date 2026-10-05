@@ -27,6 +27,11 @@ import {
   schoolDataCounts,
 } from "../lib/schoolDataDelete.js";
 import { hashPassword, validatePasswordPolicy } from "../lib/password.js";
+import { ensurePilotRequestsSchema } from "../lib/ensureSchema.js";
+import {
+  isPilotRequestStatus,
+  publicPilotRequest,
+} from "../lib/pilotRequest.js";
 export const platformRouter = Router();
 platformRouter.use(auth);
 platformRouter.use(requirePlatformAdmin());
@@ -127,14 +132,16 @@ function tempPassword() {
 }
 
 platformRouter.get("/overview", async (_req, res) => {
-  const [schools, activeSchools, suspendedSchools, staff, students, pendingStaff] = await Promise.all([
-    prisma.school.count(),
-    prisma.school.count({ where: { status: "ACTIVE" } }),
-    prisma.school.count({ where: { status: "SUSPENDED" } }),
-    prisma.user.count({ where: { role: { not: "PLATFORM_ADMIN" } } }),
-    prisma.student.count({ where: { status: "ACTIVE" } }),
-    prisma.user.count({ where: { status: "PENDING", role: { not: "PLATFORM_ADMIN" } } }),
-  ]);
+  const [schools, activeSchools, suspendedSchools, staff, students, pendingStaff, pendingPilots] =
+    await Promise.all([
+      prisma.school.count(),
+      prisma.school.count({ where: { status: "ACTIVE" } }),
+      prisma.school.count({ where: { status: "SUSPENDED" } }),
+      prisma.user.count({ where: { role: { not: "PLATFORM_ADMIN" } } }),
+      prisma.student.count({ where: { status: "ACTIVE" } }),
+      prisma.user.count({ where: { status: "PENDING", role: { not: "PLATFORM_ADMIN" } } }),
+      prisma.pilotRequest.count({ where: { status: "PENDING" } }).catch(() => 0),
+    ]);
   const recent = await prisma.school.findMany({
     orderBy: { createdAt: "desc" },
     take: 8,
@@ -163,6 +170,7 @@ platformRouter.get("/overview", async (_req, res) => {
       staff,
       students,
       pendingStaff,
+      pendingPilots,
     },
     recent: withCounts,
   });
@@ -585,4 +593,197 @@ platformRouter.get("/health/deep", async (_req, res) => {
     includeSchema: true,
   });
   res.status(payload.ok ? 200 : 503).json(payload);
+});
+
+platformRouter.get("/pilot-requests", async (req, res) => {
+  await ensurePilotRequestsSchema();
+  const status = req.query.status;
+  const where = {
+    ...(isPilotRequestStatus(status) ? { status } : {}),
+  };
+  const paging = parsePageQuery(req.query, { defaultPaged: true, defaultSize: 50 });
+  if (paging.q) {
+    where.OR = [
+      { schoolName: { contains: paging.q, mode: "insensitive" } },
+      { contactName: { contains: paging.q, mode: "insensitive" } },
+      { contactEmail: { contains: paging.q, mode: "insensitive" } },
+      { board: { contains: paging.q, mode: "insensitive" } },
+    ];
+  }
+  const orderBy = [{ createdAt: "desc" }];
+  const [total, rows] = await Promise.all([
+    prisma.pilotRequest.count({ where }),
+    prisma.pilotRequest.findMany({
+      where,
+      orderBy,
+      skip: paging.skip,
+      take: paging.take,
+    }),
+  ]);
+  res.json(
+    pageResult({
+      items: rows.map(publicPilotRequest),
+      total,
+      page: paging.page,
+      pageSize: paging.pageSize,
+    })
+  );
+});
+
+platformRouter.get("/pilot-requests/:id", async (req, res) => {
+  await ensurePilotRequestsSchema();
+  const row = await prisma.pilotRequest.findUnique({ where: { id: req.params.id } });
+  if (!row) return res.status(404).json({ error: "Pilot request not found" });
+  res.json(publicPilotRequest(row));
+});
+
+platformRouter.patch("/pilot-requests/:id", async (req, res) => {
+  await ensurePilotRequestsSchema();
+  const row = await prisma.pilotRequest.findUnique({ where: { id: req.params.id } });
+  if (!row) return res.status(404).json({ error: "Pilot request not found" });
+
+  const nextStatus = req.body?.status != null ? String(req.body.status) : null;
+  if (nextStatus && !isPilotRequestStatus(nextStatus)) {
+    return res.status(400).json({ error: "Invalid status" });
+  }
+  if (nextStatus === "PROVISIONED" && !row.schoolId && !req.body?.schoolId) {
+    return res.status(400).json({
+      error: "Provision the school first, or set schoolId when marking provisioned",
+    });
+  }
+
+  const schoolId =
+    req.body?.schoolId != null ? optionalTrim(req.body.schoolId) : undefined;
+  if (schoolId) {
+    const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { id: true } });
+    if (!school) return res.status(404).json({ error: "School not found" });
+  }
+
+  const updated = await prisma.pilotRequest.update({
+    where: { id: row.id },
+    data: {
+      ...(nextStatus ? { status: nextStatus } : {}),
+      ...(schoolId !== undefined ? { schoolId } : {}),
+      ...(req.body?.reviewNote !== undefined
+        ? { reviewNote: optionalTrim(req.body.reviewNote) }
+        : {}),
+      reviewedById: req.user.userId,
+      reviewedAt: new Date().toISOString(),
+    },
+  });
+  res.json(publicPilotRequest(updated));
+});
+
+platformRouter.post("/pilot-requests/:id/provision", async (req, res) => {
+  await ensurePilotRequestsSchema();
+  const row = await prisma.pilotRequest.findUnique({ where: { id: req.params.id } });
+  if (!row) return res.status(404).json({ error: "Pilot request not found" });
+  if (row.status === "PROVISIONED" && row.schoolId) {
+    return res.status(409).json({ error: "This pilot request is already provisioned", schoolId: row.schoolId });
+  }
+  if (row.status === "DECLINED") {
+    return res.status(400).json({ error: "Declined requests cannot be provisioned" });
+  }
+
+  const body = {
+    name: req.body?.name || row.schoolName,
+    slug: req.body?.slug || slugifyName(row.schoolName),
+    board: req.body?.board || row.board || "",
+    affiliationNo: req.body?.affiliationNo || "",
+    address: req.body?.address || "",
+    phone: req.body?.phone || row.contactPhone || "",
+    email: req.body?.email || row.contactEmail || "",
+    principalName: req.body?.principalName || row.contactName,
+    principalEmail: req.body?.principalEmail || row.contactEmail,
+    principalSchoolId: req.body?.principalSchoolId || "",
+    principalPassword: req.body?.principalPassword || "",
+  };
+
+  const parsed = schoolCreateData(body);
+  if (parsed.error) return res.status(400).json({ error: parsed.error });
+
+  const slugTaken = await prisma.school.findUnique({ where: { slug: parsed.value.slug } });
+  if (slugTaken) return res.status(409).json({ error: "School code already in use" });
+
+  const principalName = String(body.principalName || "").trim();
+  const principalEmail = parseEmail(body.principalEmail, { required: true, label: "Principal email" });
+  if (!principalName) return res.status(400).json({ error: "Principal name is required" });
+  if (principalEmail.error) return res.status(400).json({ error: principalEmail.error });
+
+  const existingEmail = await prisma.user.findUnique({ where: { email: principalEmail.value } });
+  if (existingEmail) return res.status(409).json({ error: "Principal email already registered" });
+
+  let password = String(body.principalPassword || "");
+  let generatedPassword = null;
+  if (!password) {
+    generatedPassword = tempPassword();
+    password = generatedPassword;
+  }
+  {
+    const policyError = validatePasswordPolicy(password);
+    if (policyError) {
+      return res.status(400).json({ error: policyError.replace(/^Password/, "Principal password") });
+    }
+  }
+
+  const passwordHash = await hashPassword(password);
+  const joinCode = await allocateJoinCode();
+
+  const { school, principal } = await runWithoutTenant(async () => {
+    const schoolRow = await prisma.school.create({
+      data: {
+        ...parsed.value,
+        joinCode,
+      },
+    });
+    const principalRow = await prisma.user.create({
+      data: {
+        tenantId: schoolRow.id,
+        name: principalName,
+        email: principalEmail.value,
+        schoolId: body.principalSchoolId ? String(body.principalSchoolId).trim() : null,
+        passwordHash,
+        role: "PRINCIPAL",
+        status: "ACTIVE",
+        mustChangePassword: true,
+      },
+    });
+    if (DEFAULT_PERIODS.length) {
+      await prisma.period.createMany({
+        data: DEFAULT_PERIODS.map((period) => ({ ...period, tenantId: schoolRow.id })),
+      });
+    }
+    return { school: schoolRow, principal: principalRow };
+  });
+
+  await runWithTenant(school.id, () =>
+    logActivity({
+      actorId: req.user.userId,
+      action: "USER_CREATED",
+      summary: `Provisioned pilot school ${school.name}`,
+      meta: { schoolId: school.id, pilotRequestId: row.id, slug: school.slug },
+    })
+  );
+
+  const updated = await prisma.pilotRequest.update({
+    where: { id: row.id },
+    data: {
+      status: "PROVISIONED",
+      schoolId: school.id,
+      reviewedById: req.user.userId,
+      reviewedAt: new Date().toISOString(),
+      reviewNote: optionalTrim(req.body?.reviewNote) || row.reviewNote,
+    },
+  });
+
+  res.status(201).json({
+    ...publicSchool(school),
+    joinCode: school.joinCode,
+    principal: publicUser(principal),
+    generatedPassword,
+    message: generatedPassword
+      ? "Pilot school provisioned. Share the generated password with the principal."
+      : "Pilot school provisioned.",
+    pilotRequest: publicPilotRequest(updated),
+  });
 });

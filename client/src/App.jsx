@@ -52,6 +52,7 @@ const PlatformHome = lazy(() => import("./pages/PlatformHome.jsx"));
 const PlatformSchools = lazy(() => import("./pages/PlatformSchools.jsx"));
 const PlatformSchoolNew = lazy(() => import("./pages/PlatformSchoolNew.jsx"));
 const PlatformSchoolDetail = lazy(() => import("./pages/PlatformSchoolDetail.jsx"));
+const PlatformPilotRequests = lazy(() => import("./pages/PlatformPilotRequests.jsx"));
 
 function PageFallback() {
   return <LoadingState label="Loading…" />;
@@ -229,6 +230,7 @@ export default function App() {
           <Route path="platform/schools" element={<Guarded route="platform/schools"><PlatformSchools /></Guarded>} />
           <Route path="platform/schools/new" element={<Guarded route="platform/schools/new"><PlatformSchoolNew /></Guarded>} />
           <Route path="platform/schools/:id" element={<Guarded route="platform/schools/:id"><PlatformSchoolDetail /></Guarded>} />
+          <Route path="platform/pilot-requests" element={<Guarded route="platform/pilot-requests"><PlatformPilotRequests /></Guarded>} />
           {/* Legacy bookmarks */}
           <Route path="students/:id" element={<RedirectStudents />} />
           <Route path="classes/:id" element={<RedirectClasses />} />

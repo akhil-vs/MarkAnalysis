@@ -1,14 +1,30 @@
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import PoweredBy from "../components/PoweredBy.jsx";
+import { FieldError, fieldClass } from "../components/FieldError.jsx";
+import { BusyLabel } from "../components/Spinner.jsx";
+import { api } from "../api.js";
 import {
   PRODUCT_BLURB,
   PRODUCT_NAME,
   PRODUCT_SHORT_NAME,
   PRODUCT_TAGLINE,
   VENDOR_NAME,
-  pilotContactHref,
-  pilotContactLabel,
 } from "../lib/branding.js";
+import { firstError, parseEmail, requiredText } from "../lib/formValidation.js";
+
+const EMPTY = {
+  schoolName: "",
+  board: "",
+  contactName: "",
+  contactEmail: "",
+  contactPhone: "",
+  roleTitle: "Principal",
+  examNameOrType: "",
+  targetClasses: "",
+  preferredStartDate: "",
+  notes: "",
+};
 
 const PILOT_STEPS = [
   {
@@ -17,7 +33,7 @@ const PILOT_STEPS = [
   },
   {
     title: "We provision your campus",
-    body: "Platform admin creates the school, principal account, and join code. Public self-serve registration stays off for controlled pilots.",
+    body: "After review, platform admin creates the school, principal account, and join code. Public self-serve registration stays off for controlled pilots.",
   },
   {
     title: "Staff join with your code",
@@ -30,9 +46,50 @@ const PILOT_STEPS = [
 ];
 
 export default function RequestPilot() {
-  const contactHref = pilotContactHref();
-  const contactLabel = pilotContactLabel();
-  const external = contactHref.startsWith("http");
+  const [form, setForm] = useState(EMPTY);
+  const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [done, setDone] = useState(null);
+
+  function set(key, value) {
+    setForm((f) => ({ ...f, [key]: value }));
+  }
+
+  async function onSubmit(e) {
+    e.preventDefault();
+    setError("");
+    const schoolName = requiredText(form.schoolName, "School name");
+    const contactName = requiredText(form.contactName, "Your name");
+    const contactEmail = parseEmail(form.contactEmail, { required: true, label: "Email" });
+    const err = firstError(schoolName, contactName, contactEmail);
+    if (err) {
+      setError(err);
+      return;
+    }
+    setBusy(true);
+    try {
+      const data = await api("/api/pilot-requests", {
+        method: "POST",
+        body: {
+          schoolName: schoolName.value,
+          board: form.board.trim(),
+          contactName: contactName.value,
+          contactEmail: contactEmail.value,
+          contactPhone: form.contactPhone.trim(),
+          roleTitle: form.roleTitle.trim(),
+          examNameOrType: form.examNameOrType.trim(),
+          targetClasses: form.targetClasses.trim(),
+          preferredStartDate: form.preferredStartDate.trim(),
+          notes: form.notes.trim(),
+        },
+      });
+      setDone(data);
+    } catch (err) {
+      setError(err.message || "Could not submit your request");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return (
     <div className="min-h-[100dvh] bg-paper text-ink-900">
@@ -59,21 +116,145 @@ export default function RequestPilot() {
         <h1 className="mt-2 font-serif text-3xl leading-tight sm:text-4xl">{PRODUCT_NAME}</h1>
         <p className="mt-3 font-serif text-xl text-ink-800 sm:text-2xl">{PRODUCT_TAGLINE}</p>
         <p className="mt-4 max-w-2xl text-sm leading-relaxed text-ink-700/75 sm:text-base">
-          {PRODUCT_BLURB} Pilots are invite-led so your campus stays isolated and supported.
+          {PRODUCT_BLURB} A pilot is a short, invite-led trial for one campus and one exam cycle.
         </p>
 
-        <div className="mt-8 flex flex-wrap gap-3">
-          <a
-            href={contactHref}
-            className="btn-accent px-4"
-            {...(external ? { target: "_blank", rel: "noopener noreferrer" } : {})}
-          >
-            {contactLabel}
-          </a>
-          <Link to="/login" className="btn-ghost px-4">
-            Already provisioned? Sign in
-          </Link>
-        </div>
+        {done ? (
+          <section className="mt-10 rounded-2xl border border-moss-500/30 bg-moss-500/10 px-5 py-8 sm:px-8">
+            <h2 className="font-serif text-2xl text-ink-900">Request received</h2>
+            <p className="mt-3 text-sm leading-relaxed text-ink-700/80 sm:text-base">
+              {done.message || "Thanks — we will follow up shortly."}
+            </p>
+            <div className="mt-6 flex flex-wrap gap-3">
+              <Link to="/login" className="btn-accent px-4">
+                Sign in
+              </Link>
+              <Link to="/" className="btn-ghost px-4">
+                Back to home
+              </Link>
+            </div>
+          </section>
+        ) : (
+          <form onSubmit={onSubmit} className="mt-10 space-y-5 rounded-2xl border border-ink-900/10 bg-cream/60 p-5 sm:p-8">
+            <h2 className="font-serif text-2xl">Request a school pilot</h2>
+            <p className="text-sm text-ink-700/70">
+              Tell us about your school. {VENDOR_NAME} reviews each request and provisions a private campus if it is a fit.
+            </p>
+
+            <div className="grid gap-4 sm:grid-cols-2">
+              <label className="block sm:col-span-2">
+                <span className="label">School name</span>
+                <input
+                  className={fieldClass(error && !form.schoolName.trim())}
+                  value={form.schoolName}
+                  onChange={(e) => set("schoolName", e.target.value)}
+                  required
+                  disabled={busy}
+                />
+              </label>
+              <label className="block">
+                <span className="label">Board (optional)</span>
+                <input
+                  className="field"
+                  placeholder="CBSE, ICSE, State…"
+                  value={form.board}
+                  onChange={(e) => set("board", e.target.value)}
+                  disabled={busy}
+                />
+              </label>
+              <label className="block">
+                <span className="label">Your role</span>
+                <input
+                  className="field"
+                  placeholder="Principal / Exam co-ordinator"
+                  value={form.roleTitle}
+                  onChange={(e) => set("roleTitle", e.target.value)}
+                  disabled={busy}
+                />
+              </label>
+              <label className="block">
+                <span className="label">Your name</span>
+                <input
+                  className={fieldClass(error && !form.contactName.trim())}
+                  value={form.contactName}
+                  onChange={(e) => set("contactName", e.target.value)}
+                  required
+                  disabled={busy}
+                />
+              </label>
+              <label className="block">
+                <span className="label">Work email</span>
+                <input
+                  type="email"
+                  className={fieldClass(error && !form.contactEmail.trim())}
+                  value={form.contactEmail}
+                  onChange={(e) => set("contactEmail", e.target.value)}
+                  required
+                  disabled={busy}
+                />
+              </label>
+              <label className="block">
+                <span className="label">Phone (optional)</span>
+                <input
+                  className="field"
+                  value={form.contactPhone}
+                  onChange={(e) => set("contactPhone", e.target.value)}
+                  disabled={busy}
+                />
+              </label>
+              <label className="block">
+                <span className="label">Preferred start</span>
+                <input
+                  className="field"
+                  placeholder="e.g. mid-November"
+                  value={form.preferredStartDate}
+                  onChange={(e) => set("preferredStartDate", e.target.value)}
+                  disabled={busy}
+                />
+              </label>
+              <label className="block">
+                <span className="label">Exam / cycle</span>
+                <input
+                  className="field"
+                  placeholder="Unit test / Mid-term / Final"
+                  value={form.examNameOrType}
+                  onChange={(e) => set("examNameOrType", e.target.value)}
+                  disabled={busy}
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="label">Classes / sections</span>
+                <input
+                  className="field"
+                  placeholder="e.g. Class 9–10, divisions A–B"
+                  value={form.targetClasses}
+                  onChange={(e) => set("targetClasses", e.target.value)}
+                  disabled={busy}
+                />
+              </label>
+              <label className="block sm:col-span-2">
+                <span className="label">Notes (optional)</span>
+                <textarea
+                  className="field min-h-[6rem]"
+                  value={form.notes}
+                  onChange={(e) => set("notes", e.target.value)}
+                  disabled={busy}
+                />
+              </label>
+            </div>
+
+            <FieldError message={error} />
+
+            <div className="flex flex-wrap gap-3 pt-1">
+              <button type="submit" className="btn-accent px-4" disabled={busy}>
+                <BusyLabel busy={busy} idle="Submit pilot request" busyText="Sending…" />
+              </button>
+              <Link to="/login" className="btn-ghost px-4">
+                Already provisioned? Sign in
+              </Link>
+            </div>
+          </form>
+        )}
 
         <section className="mt-12">
           <h2 className="font-serif text-2xl">Suggested 2–4 week pilot</h2>
@@ -93,20 +274,6 @@ export default function RequestPilot() {
               </li>
             ))}
           </ol>
-        </section>
-
-        <section className="mt-12 rounded-2xl bg-ink-950 px-5 py-8 text-cream sm:px-8">
-          <h2 className="font-serif text-2xl">What to bring to the first call</h2>
-          <ul className="mt-4 space-y-2 text-sm text-cream/75 sm:text-base">
-            <li>Exam name / type and target classes</li>
-            <li>Champion exam co-ordinator (and optional class teacher)</li>
-            <li>School display name, address, and crest for letterheads</li>
-            <li>Preferred pilot start date and follow-up window</li>
-          </ul>
-          <p className="mt-5 text-sm text-cream/55">
-            {VENDOR_NAME} can share a short leave-behind and walk a live demo with you on
-            campus or by video.
-          </p>
         </section>
 
         <div className="mt-10">

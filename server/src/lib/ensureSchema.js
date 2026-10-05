@@ -1693,6 +1693,67 @@ export async function ensureTeacherLeaveSchema() {
   await recordMigration(TEACHER_LEAVE_MIGRATION, TEACHER_LEAVE_CHECKSUM);
 }
 
+const PILOT_REQUEST_MIGRATION = "20261005120000_pilot_requests";
+const PILOT_REQUEST_CHECKSUM = "pilot-requests-catchup-v1";
+
+const PILOT_REQUEST_ENUM_CREATE = [
+  `DO $$ BEGIN CREATE TYPE "PilotRequestStatus" AS ENUM ('PENDING', 'CONTACTED', 'DECLINED', 'PROVISIONED'); EXCEPTION WHEN duplicate_object THEN NULL; END $$`,
+];
+
+const PILOT_REQUEST_TABLE_STATEMENTS = [
+  `CREATE TABLE IF NOT EXISTS "PilotRequest" (
+    "id" TEXT NOT NULL,
+    "schoolName" TEXT NOT NULL,
+    "board" TEXT,
+    "contactName" TEXT NOT NULL,
+    "contactEmail" TEXT NOT NULL,
+    "contactPhone" TEXT,
+    "roleTitle" TEXT,
+    "examNameOrType" TEXT,
+    "targetClasses" TEXT,
+    "preferredStartDate" TEXT,
+    "notes" TEXT,
+    "status" "PilotRequestStatus" NOT NULL DEFAULT 'PENDING',
+    "schoolId" TEXT,
+    "reviewedById" TEXT,
+    "reviewedAt" TIMESTAMPTZ,
+    "reviewNote" TEXT,
+    "sourceIp" TEXT,
+    "userAgent" TEXT,
+    "createdAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT "PilotRequest_pkey" PRIMARY KEY ("id")
+  )`,
+  `CREATE INDEX IF NOT EXISTS "PilotRequest_status_createdAt_idx" ON "PilotRequest" ("status", "createdAt")`,
+  `CREATE INDEX IF NOT EXISTS "PilotRequest_contactEmail_createdAt_idx" ON "PilotRequest" ("contactEmail", "createdAt")`,
+];
+
+const PILOT_REQUEST_FK_STATEMENTS = [
+  `ALTER TABLE "PilotRequest" ADD CONSTRAINT "PilotRequest_schoolId_fkey" FOREIGN KEY ("schoolId") REFERENCES "School"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+  `ALTER TABLE "PilotRequest" ADD CONSTRAINT "PilotRequest_reviewedById_fkey" FOREIGN KEY ("reviewedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE`,
+];
+
+/**
+ * Public school-pilot enquiry table for invite-led onboarding.
+ */
+export async function ensurePilotRequestsSchema() {
+  const hasTable = await tableExists("PilotRequest");
+  if (hasTable) {
+    await recordMigration(PILOT_REQUEST_MIGRATION, PILOT_REQUEST_CHECKSUM);
+    return;
+  }
+  await applyStatements(PILOT_REQUEST_ENUM_CREATE);
+  await applyStatements(PILOT_REQUEST_TABLE_STATEMENTS);
+  for (const stmt of PILOT_REQUEST_FK_STATEMENTS) {
+    try {
+      await applyStatements([stmt]);
+    } catch {
+      // Constraint may already exist from a prior partial catch-up.
+    }
+  }
+  await recordMigration(PILOT_REQUEST_MIGRATION, PILOT_REQUEST_CHECKSUM);
+}
+
 export const CATCHUP_MIGRATION_NAMES = [
   TIMETABLE_MIGRATION,
   MULTI_CLASS_PERIOD_MIGRATION,
@@ -1715,6 +1776,7 @@ export const CATCHUP_MIGRATION_NAMES = [
   LIVE_OPS_MIGRATION,
   SCHOOL_PROFILE_DETAILS_MIGRATION,
   PLATFORM_ADMIN_MIGRATION,
+  PILOT_REQUEST_MIGRATION,
 ];
 
 /** Subset required before login / refresh / me can safely query User + RefreshToken. */
@@ -1798,6 +1860,7 @@ export async function ensurePendingSchema() {
         await ensureAssessmentPolicyColumns();
         await ensurePerformanceIndexes();
         await ensureTeacherLeaveSchema();
+        await ensurePilotRequestsSchema();
         await ensureMarkAccessKindUnique();
         return { skipped: true, reason: "migrations-present" };
       }
@@ -1830,6 +1893,7 @@ export async function ensurePendingSchema() {
         ensureAssessmentPolicyColumns(),
         ensurePerformanceIndexes(),
         ensureTeacherLeaveSchema(),
+        ensurePilotRequestsSchema(),
         ensureMarkAccessKindUnique(),
       ]);
       // Exam ceilings backfill from Subject.consolidationMaxMarks and copy the

@@ -23,6 +23,8 @@ Public plans/registration CTAs stay **off** (`SHOW_PUBLIC_*`) so onboarding is i
 
 Optional build-time contact: `VITE_PILOT_CONTACT_EMAIL` (mailto) or `VITE_PILOT_CONTACT_URL` (defaults to PencilLabs).
 
+Public pilot form posts to `POST /api/pilot-requests`. Platform admins review and provision under **School pilots** (`/platform/pilot-requests`). Set `PILOT_NOTIFY_EMAIL` (or `VITE_PILOT_CONTACT_EMAIL`) so submissions also queue an email.
+
 Regenerate the PowerPoint with `npm run docs:pitch-pptx`.
 
 ## Stack

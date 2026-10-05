@@ -92,8 +92,13 @@ export default function PlatformHome() {
         <Kpi label="Active" value={kpis.activeSchools} to="/platform/schools?status=ACTIVE" />
         <Kpi label="Suspended" value={kpis.suspendedSchools} to="/platform/schools?status=SUSPENDED" warn={kpis.suspendedSchools > 0} />
         <Kpi label="Staff" value={kpis.staff} />
-        <Kpi label="Students" value={kpis.students} />
         <Kpi label="Pending staff" value={kpis.pendingStaff} warn={kpis.pendingStaff > 0} />
+        <Kpi
+          label="Pilot requests"
+          value={kpis.pendingPilots}
+          to="/platform/pilot-requests?status=PENDING"
+          warn={kpis.pendingPilots > 0}
+        />
       </div>
 
       <section className="card p-4 mb-6 space-y-3">

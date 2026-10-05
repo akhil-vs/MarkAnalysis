@@ -68,6 +68,10 @@
       "model": "Period",
       "namespace": "public"
     },
+    "PilotRequest": {
+      "model": "PilotRequest",
+      "namespace": "public"
+    },
     "PortalAccessLink": {
       "model": "PortalAccessLink",
       "namespace": "public"
@@ -3083,6 +3087,253 @@
               "table": "Period"
             }
           },
+          "PilotRequest": {
+            "fields": {
+              "board": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "contactEmail": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "contactName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "contactPhone": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "createdAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "examNameOrType": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "id": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "notes": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "preferredStartDate": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewNote": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewedAt": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "reviewedById": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "roleTitle": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "schoolId": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "schoolName": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "sourceIp": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "status": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/enum@1",
+                  "kind": "scalar",
+                  "typeParams": {
+                    "typeName": "PilotRequestStatus"
+                  }
+                }
+              },
+              "targetClasses": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "updatedAt": {
+                "nullable": false,
+                "type": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "kind": "scalar"
+                }
+              },
+              "userAgent": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              }
+            },
+            "relations": {
+              "reviewedBy": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "reviewedById"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "User",
+                  "namespace": "public"
+                }
+              },
+              "school": {
+                "cardinality": "N:1",
+                "nullable": true,
+                "on": {
+                  "localFields": [
+                    "schoolId"
+                  ],
+                  "targetFields": [
+                    "id"
+                  ]
+                },
+                "to": {
+                  "model": "School",
+                  "namespace": "public"
+                }
+              }
+            },
+            "storage": {
+              "fields": {
+                "board": {
+                  "column": "board"
+                },
+                "contactEmail": {
+                  "column": "contactEmail"
+                },
+                "contactName": {
+                  "column": "contactName"
+                },
+                "contactPhone": {
+                  "column": "contactPhone"
+                },
+                "createdAt": {
+                  "column": "createdAt"
+                },
+                "examNameOrType": {
+                  "column": "examNameOrType"
+                },
+                "id": {
+                  "column": "id"
+                },
+                "notes": {
+                  "column": "notes"
+                },
+                "preferredStartDate": {
+                  "column": "preferredStartDate"
+                },
+                "reviewNote": {
+                  "column": "reviewNote"
+                },
+                "reviewedAt": {
+                  "column": "reviewedAt"
+                },
+                "reviewedById": {
+                  "column": "reviewedById"
+                },
+                "roleTitle": {
+                  "column": "roleTitle"
+                },
+                "schoolId": {
+                  "column": "schoolId"
+                },
+                "schoolName": {
+                  "column": "schoolName"
+                },
+                "sourceIp": {
+                  "column": "sourceIp"
+                },
+                "status": {
+                  "column": "status"
+                },
+                "targetClasses": {
+                  "column": "targetClasses"
+                },
+                "updatedAt": {
+                  "column": "updatedAt"
+                },
+                "userAgent": {
+                  "column": "userAgent"
+                }
+              },
+              "namespaceId": "public",
+              "table": "PilotRequest"
+            }
+          },
           "PortalAccessLink": {
             "fields": {
               "createdAt": {
@@ -4344,6 +4595,21 @@
                 },
                 "to": {
                   "model": "Period",
+                  "namespace": "public"
+                }
+              },
+              "pilotRequests": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "schoolId"
+                  ]
+                },
+                "to": {
+                  "model": "PilotRequest",
                   "namespace": "public"
                 }
               },
@@ -6547,6 +6813,21 @@
                   "namespace": "public"
                 }
               },
+              "pilotRequestsReviewed": {
+                "cardinality": "1:N",
+                "on": {
+                  "localFields": [
+                    "id"
+                  ],
+                  "targetFields": [
+                    "reviewedById"
+                  ]
+                },
+                "to": {
+                  "model": "PilotRequest",
+                  "namespace": "public"
+                }
+              },
               "portalLinks": {
                 "cardinality": "1:N",
                 "on": {
@@ -6903,6 +7184,16 @@
               ],
               "typeName": "NotificationType"
             },
+            "PilotRequestStatus": {
+              "kind": "postgres-enum",
+              "members": [
+                "PENDING",
+                "CONTACTED",
+                "DECLINED",
+                "PROVISIONED"
+              ],
+              "typeName": "PilotRequestStatus"
+            },
             "ReportCardStatus": {
               "kind": "postgres-enum",
               "members": [
@@ -7085,6 +7376,15 @@
                   ],
                   "name": "ActivityAudit_tenantId_idx_c93ed4f1",
                   "prefix": "ActivityAudit_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "timestamp"
+                  ],
+                  "name": "ActivityAudit_tenantId_timestamp_idx_699dc902",
+                  "prefix": "ActivityAudit_tenantId_timestamp_idx",
                   "unique": false
                 },
                 {
@@ -8957,6 +9257,16 @@
                 },
                 {
                   "columns": [
+                    "tenantId",
+                    "examId",
+                    "status"
+                  ],
+                  "name": "Mark_tenantId_examId_status_idx_75eb183c",
+                  "prefix": "Mark_tenantId_examId_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "tenantId"
                   ],
                   "name": "Mark_tenantId_idx_c93ed4f1",
@@ -9604,6 +9914,205 @@
                   ]
                 }
               ]
+            },
+            "PilotRequest": {
+              "columns": {
+                "board": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "contactEmail": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "contactName": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "contactPhone": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "createdAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "default": {
+                    "expression": "now()",
+                    "kind": "function"
+                  },
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "examNameOrType": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "id": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "notes": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "preferredStartDate": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "reviewNote": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "reviewedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": true
+                },
+                "reviewedById": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "roleTitle": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "schoolId": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "schoolName": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": false
+                },
+                "sourceIp": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "status": {
+                  "codecId": "pg/enum@1",
+                  "default": {
+                    "kind": "literal",
+                    "value": "PENDING"
+                  },
+                  "nativeType": "PilotRequestStatus",
+                  "nullable": false,
+                  "typeParams": {
+                    "typeName": "PilotRequestStatus"
+                  },
+                  "valueSet": {
+                    "entityKind": "valueSet",
+                    "entityName": "PilotRequestStatus",
+                    "namespaceId": "public",
+                    "plane": "storage"
+                  }
+                },
+                "targetClasses": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "updatedAt": {
+                  "codecId": "pg/timestamptz-string@1",
+                  "nativeType": "timestamptz",
+                  "nullable": false
+                },
+                "userAgent": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                }
+              },
+              "foreignKeys": [
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "schoolId"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "PilotRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "School"
+                  }
+                },
+                {
+                  "onDelete": "setNull",
+                  "source": {
+                    "columns": [
+                      "reviewedById"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "PilotRequest"
+                  },
+                  "target": {
+                    "columns": [
+                      "id"
+                    ],
+                    "namespaceId": "public",
+                    "tableName": "User"
+                  }
+                }
+              ],
+              "indexes": [
+                {
+                  "columns": [
+                    "contactEmail",
+                    "createdAt"
+                  ],
+                  "name": "PilotRequest_contactEmail_createdAt_idx_0cbf81e4",
+                  "prefix": "PilotRequest_contactEmail_createdAt_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "reviewedById"
+                  ],
+                  "name": "PilotRequest_reviewedById_idx_e2835478",
+                  "prefix": "PilotRequest_reviewedById_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "schoolId"
+                  ],
+                  "name": "PilotRequest_schoolId_idx_82b454d7",
+                  "prefix": "PilotRequest_schoolId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "status",
+                    "createdAt"
+                  ],
+                  "name": "PilotRequest_status_createdAt_idx_58610442",
+                  "prefix": "PilotRequest_status_createdAt_idx",
+                  "unique": false
+                }
+              ],
+              "primaryKey": {
+                "columns": [
+                  "id"
+                ]
+              },
+              "uniques": []
             },
             "PortalAccessLink": {
               "checks": [
@@ -10982,6 +11491,15 @@
               "indexes": [
                 {
                   "columns": [
+                    "tenantId",
+                    "className"
+                  ],
+                  "name": "Subject_tenantId_className_idx_530d6bbe",
+                  "prefix": "Subject_tenantId_className_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "tenantId"
                   ],
                   "name": "Subject_tenantId_idx_c93ed4f1",
@@ -12250,6 +12768,15 @@
                 "CPD_NOTICE"
               ]
             },
+            "PilotRequestStatus": {
+              "kind": "valueSet",
+              "values": [
+                "PENDING",
+                "CONTACTED",
+                "DECLINED",
+                "PROVISIONED"
+              ]
+            },
             "ReportCardStatus": {
               "kind": "valueSet",
               "values": [
@@ -12306,10 +12833,10 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "673a79cf07ebf860ede493573ab8713d26cb9936f7c7e4721e74f519c8d60f51"
+    "storageHash": "1aef990e895981fa2d44e7baf398ecf7a77fc141377f63abdd9a21b17dee09f3"
   },
   "execution": {
-    "executionHash": "a72b23d74a7c00bedc01aae8e1333dfa214b3303b25cb40bff7c9ec558b8b035",
+    "executionHash": "e3f5bde3c11a8a42958df84dc1248a0f5f43b66be23c468cc6cea6a6e16e1803",
     "mutations": {
       "defaults": [
         {
@@ -12546,6 +13073,32 @@
             "column": "id",
             "namespace": "public",
             "table": "Period"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "cuid2",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "id",
+            "namespace": "public",
+            "table": "PilotRequest"
+          }
+        },
+        {
+          "onCreate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "onUpdate": {
+            "id": "timestampNow",
+            "kind": "generator"
+          },
+          "ref": {
+            "column": "updatedAt",
+            "namespace": "public",
+            "table": "PilotRequest"
           }
         },
         {
