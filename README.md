@@ -17,15 +17,14 @@ Regenerate PDFs with `npm run docs:pdf`.
 
 Public plans/registration CTAs stay **off** (`SHOW_PUBLIC_*`) so onboarding is invite / sales-led. Use:
 
-- [School pilot readiness](docs/SCHOOL_PILOT_READINESS.md) — branding verdict, go-live checklist, recommended pilot shape
-- [Principal pitch pack](docs/pitch/README.md) — PPTX, HTML deck, outreach email, leave-behind
+- [School pilot readiness](docs/SCHOOL_PILOT_READINESS.md) — branding verdict, go-live checklist, form → provision path
+- [Principal pitch pack](docs/pitch/README.md) — PPTX, HTML deck, outreach / thank-you / post-provision emails, leave-behind
 - In-app **Request a school pilot** (`/request-pilot`) and **Privacy** (`/privacy`) on the public site
+- Platform **School pilots** (`/platform/pilot-requests`) to review and provision campuses
 
-Optional build-time contact: `VITE_PILOT_CONTACT_EMAIL` (mailto) or `VITE_PILOT_CONTACT_URL` (defaults to PencilLabs).
+Set `PILOT_NOTIFY_EMAIL` (or `VITE_PILOT_CONTACT_EMAIL`) so form submissions queue email. Optional `VITE_PILOT_CONTACT_URL` overrides the vendor link when email is unset.
 
-Public pilot form posts to `POST /api/pilot-requests`. Platform admins review and provision under **School pilots** (`/platform/pilot-requests`). Set `PILOT_NOTIFY_EMAIL` (or `VITE_PILOT_CONTACT_EMAIL`) so submissions also queue an email.
-
-Regenerate the PowerPoint with `npm run docs:pitch-pptx`.
+Regenerate the PowerPoint with `npm run docs:pitch-pptx` after editing pitch content.
 
 ## Stack
 

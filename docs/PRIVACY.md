@@ -11,15 +11,17 @@ This platform stores **student and staff personal data** (names, emails, dates o
 | Student photos | Staff with Student photos feature | Binary in DB; **omitted from platform backups** |
 | Guardian email / address / phone | Staff (scoped) | **Omitted from platform backups** |
 | Parent portal | Holder of issued link token | Read-only approved marks for linked students |
+| School pilot requests | Platform admin | Contact name, email, phone, school details from `/request-pilot` |
 
 ## Operator obligations
 
 1. **Lawful basis / consent** — Confirm your board/school policy covers processing of student marks and photos before go-live (FERPA, GDPR, DPDP, or local equivalent).
-2. **Retention** — Define how long marks, photos, and portal links are kept after a student leaves. Use platform school data delete tools for campus offboarding.
+2. **Retention** — Define how long marks, photos, and portal links are kept after a student leaves. Use platform school data delete tools for campus offboarding. Define how long unanswered **pilot requests** are retained.
 3. **Access** — Prefer least privilege via Staff → Role access; enable MFA for leadership.
 4. **Exports** — Platform JSON backups omit passwords, MFA secrets, logos, student photos, and guardian contact fields. Store any downloaded backup encrypted at rest.
 5. **Parent portal** — Issue time-limited links; revoke when no longer needed. Share links only with guardians.
 6. **DSAR / deletion** — Leadership can remove school data categories via the platform console; coordinate legal review for individual student erasure requests.
+7. **Pilot enquiries** — Treat `/request-pilot` submissions as sales/contact data; only platform admins should access the **School pilots** inbox.
 
 ## Application controls already in place
 

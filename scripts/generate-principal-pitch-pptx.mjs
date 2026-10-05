@@ -400,7 +400,7 @@ function panel(slide, { x, y, w, h, fill = COLORS.white, line = COLORS.line }) {
         "School profile & branding",
         "Staff access & role permissions",
         "Approve or moderate registers",
-        "Leadership insights & audit trail",
+        "Leadership insights & Curricular Hub",
         "Official CML & hall tickets",
       ],
     ],
@@ -409,7 +409,7 @@ function panel(slide, { x, y, w, h, fill = COLORS.white, line = COLORS.line }) {
       [
         "Records, exams & paper dates",
         "Chase pending uploads",
-        "Enter marks when covering gaps",
+        "Timetables, leave & cover",
         "Approve registers day-to-day",
         "Produce CML & hall tickets",
       ],
@@ -480,7 +480,7 @@ function panel(slide, { x, y, w, h, fill = COLORS.white, line = COLORS.line }) {
   const outcomes = [
     ["Pending uploads, early", "See empty registers and papers waiting for approval. Notify teachers by deadline or incomplete mark list — without ten WhatsApp threads."],
     ["Official only when ready", "Preview downloads stay watermarked. Official consolidated lists unlock only when every subject in the division is approved."],
-    ["Insights that travel upstairs", "Class, subject, teacher, and year-on-year views — plus Deep insights for readiness, division gaps, and improvement cohorts."],
+    ["Insights that travel upstairs", "Class, subject, teacher, and year-on-year views — plus Deep insights and the Curricular Performance Hub for readiness and board-facing reads."],
     ["Parent-ready outputs", "Hall tickets with photos and paper dates. Report cards with your letterhead. Read-only portal links for approved marks only."],
   ];
   outcomes.forEach(([title, body], i) => {
@@ -537,8 +537,8 @@ function panel(slide, { x, y, w, h, fill = COLORS.white, line = COLORS.line }) {
   const steps = [
     ["0–8 min", "Listen.", "Confirm how marks move today — who enters, who finalises, where things break."],
     ["8–12 min", "Pitch.", "One workflow: draft → approve → official outputs and analytics."],
-    ["12–28 min", "Live demo.", "Pending uploads → approve → consolidated list → school letterhead & staff join code."],
-    ["28–45 min", "Fit & ask.", "Objections, pilot scope, named champion, and a start date."],
+    ["12–28 min", "Live demo.", "Pending uploads → approve → consolidated list → letterhead, join code, and (optional) hall tickets."],
+    ["28–45 min", "Fit & ask.", "Objections, pilot scope, named champion, start date — or submit Request a school pilot on the site."],
   ];
   steps.forEach(([time, title, body], i) => {
     const y = 1.6 + i * 1.2;
@@ -593,22 +593,22 @@ function panel(slide, { x, y, w, h, fill = COLORS.white, line = COLORS.line }) {
     color: COLORS.navy,
   });
   s.addText(
-    "One grade or section set. Your exam co-ordinator owns the calendar and approvals. One class teacher enters marks. We support setup in week one.",
+    "Invite-led campus (not open public signup). One grade or section set. Your exam co-ordinator owns the calendar and approvals. We provision the school after you request a pilot — then support setup in week one.",
     {
       x: 0.7,
       y: 1.5,
       w: 12,
-      h: 0.55,
+      h: 0.7,
       fontSize: 15,
       fontFace: "Calibri",
       color: COLORS.muted,
     },
   );
 
-  panel(s, { x: 0.7, y: 2.3, w: 5.9, h: 4.2 });
+  panel(s, { x: 0.7, y: 2.4, w: 5.9, h: 4.1 });
   s.addText("Pilot success looks like", {
     x: 0.95,
-    y: 2.55,
+    y: 2.65,
     w: 5.4,
     h: 0.4,
     fontSize: 18,
@@ -624,7 +624,7 @@ function panel(slide, { x, y, w, h, fill = COLORS.white, line = COLORS.line }) {
     ],
     {
       x: 0.95,
-      y: 3.2,
+      y: 3.3,
       w: 5.4,
       h: 2.8,
       fontSize: 15,
@@ -634,10 +634,10 @@ function panel(slide, { x, y, w, h, fill = COLORS.white, line = COLORS.line }) {
     },
   );
 
-  panel(s, { x: 6.85, y: 2.3, w: 5.9, h: 4.2 });
-  s.addText("What we need from you", {
+  panel(s, { x: 6.85, y: 2.4, w: 5.9, h: 4.1 });
+  s.addText("How we start", {
     x: 7.1,
-    y: 2.55,
+    y: 2.65,
     w: 5.4,
     h: 0.4,
     fontSize: 18,
@@ -647,14 +647,14 @@ function panel(slide, { x, y, w, h, fill = COLORS.white, line = COLORS.line }) {
   });
   s.addText(
     [
-      { text: "Pilot start date and exam name", options: { bullet: true } },
-      { text: "Classes / sections in scope", options: { bullet: true } },
-      { text: "Named co-ordinator + one class teacher", options: { bullet: true } },
-      { text: "School display name and logo for letterhead", options: { bullet: true } },
+      { text: "Submit Request a school pilot on the product site", options: { bullet: true } },
+      { text: "We review and provision a private campus", options: { bullet: true } },
+      { text: "You receive principal login + staff join code", options: { bullet: true } },
+      { text: "Confirm exam, classes, co-ordinator, and logo", options: { bullet: true } },
     ],
     {
       x: 7.1,
-      y: 3.2,
+      y: 3.3,
       w: 5.4,
       h: 2.8,
       fontSize: 15,
@@ -689,9 +689,9 @@ function panel(slide, { x, y, w, h, fill = COLORS.white, line = COLORS.line }) {
   });
 
   const asks = [
-    "Nominate the principal and exam co-ordinator as leadership accounts.",
-    "Confirm board grading rules — pass percent, distinction, grade bands.",
-    "Schedule a setup window for classes, subjects, roll, and teacher assignments.",
+    "Submit or confirm a school pilot request so we can provision your private campus.",
+    "Nominate the principal and exam co-ordinator; share the staff join code with teachers.",
+    "Schedule a setup window for profile, classes, subjects, roll, and teacher assignments.",
     "Treat the next scheduled exam as the first live cycle — CML and hall tickets from approved registers only.",
   ];
   asks.forEach((text, i) => {

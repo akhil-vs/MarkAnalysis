@@ -37,8 +37,12 @@ npm run docs:pdf
 
 ## Getting access
 
-1. **New school** — register at `/register-school` (creates the school and an active principal).
-2. **Staff** — open `/signup`, enter the school’s **join code** (from **School profile**), and wait for the principal (or leadership) to activate the account.
+Default go-to-market is **invite-led** (public registration CTAs stay off):
+
+1. **New school (pilot)** — submit **Request a school pilot** at `/request-pilot`, or ask PencilLabs / the platform operator to provision a campus. The principal receives a login and temporary password (change on first sign-in).
+2. **Staff** — open `/signup`, enter the school’s **join code** (from **School profile → Modules & Security**), and wait for the principal (or leadership) to activate the account.
 3. **Sign in** — use your email, school ID, and password. Enable MFA under **Profile** for stronger security.
+
+Operators who re-enable public registration (`SHOW_PUBLIC_REGISTRATION`) can also use `/register-school` for self-serve campus creation. Parent / student access uses principal-issued portal links — see [Portal guide](./portal.md).
 
 Passwords reset by leadership may require a change on the next login.

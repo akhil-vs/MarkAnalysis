@@ -1,6 +1,8 @@
 # Outreach email — school principal
 
-Copy, personalise the bracketed fields, and send **before** the meeting. A shorter thank-you variant sits at the bottom for the same-day follow-up.
+Copy, personalise the bracketed fields, and send **before** the meeting. Thank-you and post-provision variants sit below.
+
+Replace `[Product URL]` with your live site root (for example `https://your-domain.example`). The pilot form is at `[Product URL]/request-pilot`.
 
 ---
 
@@ -38,6 +40,7 @@ School Marks Analytics addresses that with one controlled workflow:
     outputs all draw from the same approved data
   • Your school name, address, and crest print as letterhead on every download
   • Staff join with a school code that only you control
+  • Timetables, leave cover, and leadership insights sit in the same workspace
 
 I would value 30–45 minutes with you (and, if convenient, your exam
 co-ordinator) to walk through a live demonstration and discuss whether a
@@ -50,9 +53,14 @@ by video?
   • [Day, date] at [time]
   • [Day, date] at [time]
 
-If none of these suit, I am happy to follow your calendar. I have attached a short leave-behind summary and can share the
-PowerPoint briefing (School Marks Analytics — Principal Pitch) ahead of
-our conversation if helpful.
+If none of these suit, I am happy to follow your calendar. You can also
+register interest at [Product URL]/request-pilot — we review each request
+and provision a private campus when it is a fit (invite-led; not open
+self-serve signup).
+
+I have attached a short leave-behind summary and can share the PowerPoint
+briefing (School Marks Analytics — Principal Pitch) ahead of our
+conversation if helpful.
 
 Thank you for your time and for the work you do for your students.
 
@@ -93,7 +101,9 @@ I am attaching:
   3. A short pilot checklist for your confirmation
 
 If the scope above is correct, kindly reply with a preferred start date
-and we will schedule a 30-minute setup call with your co-ordinator.
+(or submit/confirm details at [Product URL]/request-pilot). We will then
+provision your private campus, share the principal login and staff join
+code, and schedule a 30-minute setup call with your co-ordinator.
 
 Please do not hesitate to share any sample mark list or board format you
 would like us to mirror during the pilot.
@@ -107,11 +117,49 @@ With appreciation,
 
 ---
 
+## Email draft (after the campus is provisioned)
+
+```text
+Subject: [School Name] pilot campus is ready — next steps
+
+Dear Principal [Last Name],
+
+Your School Marks Analytics pilot campus is ready.
+
+  • Sign in: [Product URL]/login
+  • Principal email: [principal email]
+  • Temporary password: [generated password] (change on first sign-in)
+  • Staff join code: [join code] — share with teachers and your co-ordinator
+    so they can request access at [Product URL]/signup
+
+Suggested first session (about 30 minutes with your co-ordinator):
+
+  1. School profile — display name, address, crest for letterheads
+  2. Classes, subjects, and the pilot exam
+  3. Teacher assignments for the papers in scope
+  4. Approve one sample register and open Consolidated lists
+
+Role manuals are under HELP → User manuals after you sign in. Privacy
+notes for operators are at [Product URL]/privacy.
+
+Please reply if anything in the setup looks wrong — we are happy to
+adjust before teachers start entering marks.
+
+With regards,
+
+[Your Full Name]
+[Title], PencilLabs
+[Phone]  ·  [Email]
+```
+
+---
+
 ## Tone checklist before you send
 
 - [ ] School name spelled correctly; principal title and surname verified
+- [ ] `[Product URL]` replaced with the live site
 - [ ] No pricing unless they already asked — keep this email about time and control
 - [ ] No jargon (multi-tenant, MFA, stack) unless writing to IT
-- [ ] Offer two or three concrete meeting slots
+- [ ] Offer two or three concrete meeting slots (meeting request) or clear setup steps (post-provision)
 - [ ] Attach only the one-pager for cold outreach; send the full deck after the meeting
 - [ ] Sign off with a real phone number someone will answer
