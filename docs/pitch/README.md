@@ -12,6 +12,8 @@ Professional materials for a **30–45 minute** conversation with a school princ
 Related ops docs (not for the meeting table):
 
 - [`../SCHOOL_PILOT_READINESS.md`](../SCHOOL_PILOT_READINESS.md) — branding verdict, production checklist, provision path
+- [`../marketing/email-gtm-plan.md`](../marketing/email-gtm-plan.md) — email-first GTM plan (ICP, funnel, calendar, metrics)
+- [`../marketing/email-sequences.md`](../marketing/email-sequences.md) — bumps, inbound SLA, activation, expansion copy
 - Public site: `/request-pilot` (form) · `/privacy` · `/login`
 - Platform console: **School pilots** (`/platform/pilot-requests`) → review → **Provision school**
 
