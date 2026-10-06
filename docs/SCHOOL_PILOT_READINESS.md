@@ -79,6 +79,8 @@ Operators must complete [SECURITY.md](../SECURITY.md) and:
 **Scope:** one exam · one grade or section set  
 **Success:** co-ordinator produces an **official** consolidated list without a spreadsheet merge  
 
+Approach via `docs/pitch/` (outreach + leave-behind). Full email-first GTM: [`marketing/email-gtm-plan.md`](./marketing/email-gtm-plan.md).
+
 ## Intentionally deferred for v1 pilots
 
 - Billing / entitlements enforcement

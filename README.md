@@ -19,6 +19,7 @@ Public plans/registration CTAs stay **off** (`SHOW_PUBLIC_*`) so onboarding is i
 
 - [School pilot readiness](docs/SCHOOL_PILOT_READINESS.md) — branding verdict, go-live checklist, form → provision path
 - [Principal pitch pack](docs/pitch/README.md) — PPTX, HTML deck, outreach / thank-you / post-provision emails, leave-behind
+- [Email GTM plan](docs/marketing/email-gtm-plan.md) — email-first marketing plan, sequences, and 90-day execution
 - In-app **Request a school pilot** (`/request-pilot`) and **Privacy** (`/privacy`) on the public site
 - Platform **School pilots** (`/platform/pilot-requests`) to review and provision campuses
 

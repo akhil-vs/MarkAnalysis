@@ -4,6 +4,8 @@ Copy, personalise the bracketed fields, and send **before** the meeting. Thank-y
 
 Replace `[Product URL]` with your live site root (for example `https://your-domain.example`). The pilot form is at `[Product URL]/request-pilot`.
 
+For the full email GTM plan (ICP, cadence, metrics) and follow-up / activation / expansion drafts, see [`../marketing/email-gtm-plan.md`](../marketing/email-gtm-plan.md) and [`../marketing/email-sequences.md`](../marketing/email-sequences.md).
+
 ---
 
 ## Subject line options
