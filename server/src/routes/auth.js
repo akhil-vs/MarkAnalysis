@@ -35,7 +35,6 @@ import { ensureAuthSchema, resetAuthSchemaEnsure } from "../lib/ensureSchema.js"
 import { isSchemaDriftError } from "../lib/httpErrors.js";
 import { hashPassword, validatePasswordPolicy, verifyPassword } from "../lib/password.js";
 import {
-  buildHomeDashboardCached,
   buildHomeDashboardForLogin,
   homeDashboardPath,
 } from "../lib/homeDashboard.js";
@@ -166,12 +165,14 @@ async function establishSession(req, res, user, prefetched = null) {
     prefetched?.session
       ? Promise.resolve(prefetched.session)
       : loadUserSession(user.id),
-    // Prefer a warm prefetch; if the login budget timed out (dashboard: null),
-    // rebuild once after the password check so cold CI/prod still embeds a desk.
-    prefetched?.dashboard
+    // Dashboard embed is best-effort under LOGIN_DASHBOARD_BUDGET_MS.
+    // If the login prefetch timed out (dashboard: null), do not block the
+    // response on a full rebuild — SPA has dashboardPath + prefetchDashboard.
+    // Paths without a prefetch bundle (e.g. MFA) still use the soft budget.
+    prefetched && "dashboard" in prefetched
       ? Promise.resolve(prefetched.dashboard)
       : dashPath
-        ? buildHomeDashboardCached(user).catch(() => null)
+        ? buildHomeDashboardForLogin(user).catch(() => null)
         : Promise.resolve(null),
   ]);
   setAccessCookie(res, access);
@@ -180,7 +181,8 @@ async function establishSession(req, res, user, prefetched = null) {
   if (session) {
     return {
       ...session,
-      ...(dashboard ? { dashboard, dashboardPath: dashPath } : {}),
+      ...(dashPath ? { dashboardPath: dashPath } : {}),
+      ...(dashboard ? { dashboard } : {}),
     };
   }
 
@@ -198,7 +200,8 @@ async function establishSession(req, res, user, prefetched = null) {
     user: publicUser(user, school),
     assignments: [],
     classTeacherOf: [],
-    ...(dashboard ? { dashboard, dashboardPath: dashPath } : {}),
+    ...(dashPath ? { dashboardPath: dashPath } : {}),
+    ...(dashboard ? { dashboard } : {}),
   };
 }
 

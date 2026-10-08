@@ -10,6 +10,9 @@ import {
 import { enrollmentKeySet } from "./electiveEnrollment.js";
 import { listExamsBasic } from "./examCatalog.js";
 import { safeDownloadName } from "./downloadName.js";
+import { cachedTenantLoad } from "./tenantCache.js";
+
+const CONSOLIDATED_STATUS_TTL_MS = 45_000;
 
 export { applyExamConsolidationMax, buildConsolidatedStudentRows } from "./consolidatedRows.js";
 export {
@@ -108,11 +111,20 @@ export async function buildClassConsolidated(classSectionId, examId) {
  * Class readiness for the Consolidated lists sidebar — batched queries only.
  * Avoids calling buildClassConsolidated per class (that rebuilds full student
  * rows/ranks and was timing out near Vercel's 30s function limit).
+ * Short TTL cache; invalidated with insights/home-dash on mark mutations.
  */
 export async function buildConsolidatedStatus(examId) {
   const { exams, exam } = await pickExam(examId);
   if (!exam) return { empty: true, exams };
 
+  return cachedTenantLoad(
+    `consolidated-status:${exam.id}`,
+    () => buildConsolidatedStatusUncached(exam, exams),
+    { ttlMs: CONSOLIDATED_STATUS_TTL_MS }
+  );
+}
+
+async function buildConsolidatedStatusUncached(exam, exams) {
   const [classes, students, subjects, assignments, marks] = await Promise.all([
     prisma.classSection.findMany({
       orderBy: [{ className: "asc" }, { section: "asc" }],
