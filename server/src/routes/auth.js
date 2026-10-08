@@ -166,7 +166,9 @@ async function establishSession(req, res, user, prefetched = null) {
     prefetched?.session
       ? Promise.resolve(prefetched.session)
       : loadUserSession(user.id),
-    prefetched && "dashboard" in prefetched
+    // Prefer a warm prefetch; if the login budget timed out (dashboard: null),
+    // rebuild once after the password check so cold CI/prod still embeds a desk.
+    prefetched?.dashboard
       ? Promise.resolve(prefetched.dashboard)
       : dashPath
         ? buildHomeDashboardCached(user).catch(() => null)

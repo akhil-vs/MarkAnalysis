@@ -76,6 +76,7 @@ jobs:
       CLIENT_ORIGIN: http://127.0.0.1
       COOKIE_SECURE: "false"
       SEED_FORCE_PASSWORD_CHANGE: "false"
+      LOGIN_DASHBOARD_BUDGET_MS: "2500"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

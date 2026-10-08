@@ -64,11 +64,11 @@ test.describe("Exam co-ordinator manual — complete application workflow", () =
     await expectPageTitle(page, "Bulk upload");
   });
 
-  test("§3.3 Pending uploads", async ({ page }) => {
+  test("§3.3 Mark progress", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
-    await goNav(page, "Pending uploads");
+    await goNav(page, "Mark progress");
     await expect(page).toHaveURL(/\/pending-uploads/);
-    await expectPageTitle(page, "Pending");
+    await expectPageTitle(page, "Mark progress");
     await expect(page.locator("main")).toContainText(/Still missing marks|awaiting your approval|Every assigned teacher/i);
     const trigger = page.locator("main .accordion-trigger").first();
     if (await trigger.count()) {
@@ -81,8 +81,8 @@ test.describe("Exam co-ordinator manual — complete application workflow", () =
   test("§3.4 Access requests", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
     await goNav(page, "Access requests");
-    await expect(page).toHaveURL(/\/late-entry/);
-    await expectPageTitle(page, "Access request");
+    await expect(page).toHaveURL(/\/approvals/);
+    await expectPageTitle(page, "Approvals");
   });
 
   test("§3.6–§3.7 Consolidated lists & hall tickets", async ({ page }) => {

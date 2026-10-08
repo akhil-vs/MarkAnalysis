@@ -57,9 +57,9 @@ test.describe("Teacher manual — complete application workflow", () => {
       await expectNavLink(page, "Deep insights", { visible: false });
     });
 
-    test("Teacher cannot open Pending uploads / Staff / Records / Audit", async ({ page }) => {
+    test("Teacher cannot open Mark progress / Staff / Records / Audit", async ({ page }) => {
       await goRoute(page, ROUTES.dashboard);
-      await expectNavLink(page, "Pending uploads", { visible: false });
+      await expectNavLink(page, "Mark progress", { visible: false });
       await expectNavLink(page, "Staff", { visible: false });
       await expectNavLink(page, "Records", { visible: false });
       await expectNavLink(page, "Audit log", { visible: false });

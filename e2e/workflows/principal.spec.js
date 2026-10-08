@@ -84,11 +84,11 @@ test.describe("Principal manual — complete application workflow", () => {
     await expect(page.locator("main").getByRole("button", { name: /Save leave/i })).toBeVisible();
   });
 
-  test("§3.1 Pending uploads — chase & approve queue", async ({ page }) => {
+  test("§3.1 Mark progress — chase & approve queue", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
-    await goNav(page, "Pending uploads");
+    await goNav(page, "Mark progress");
     await expect(page).toHaveURL(/\/pending-uploads/);
-    await expectPageTitle(page, "Pending");
+    await expectPageTitle(page, "Mark progress");
     await expect(page.locator("main")).toContainText(/Still missing marks|awaiting your approval|Every assigned teacher/i);
     const trigger = page.locator("main .accordion-trigger").first();
     if (await trigger.count()) {
@@ -101,8 +101,8 @@ test.describe("Principal manual — complete application workflow", () => {
   test("§3.2 Access requests inbox", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
     await goNav(page, "Access requests");
-    await expect(page).toHaveURL(/\/late-entry/);
-    await expectPageTitle(page, "Access request");
+    await expect(page).toHaveURL(/\/approvals/);
+    await expectPageTitle(page, "Approvals");
   });
 
   test("§3.4 Consolidated lists", async ({ page }) => {
