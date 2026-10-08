@@ -13,6 +13,7 @@ import { canEnterMarks, isLeadership } from "../lib/roles.js";
 import { defaultExamId, examLabel } from "../lib/exams.js";
 import { formatMarkCell, markInputIssue, parseMarkInput } from "../lib/markCodes.js";
 import { rejectNegativeKey } from "../lib/formValidation.js";
+import { apiErrorMessage } from "../lib/apiErrorMessage.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import { useMediaQuery } from "../lib/useMediaQuery.js";
@@ -693,7 +694,7 @@ export default function MarksEntry() {
         toast.info(reloadErr.message || "Submitted — refresh if the register looks stale");
       }
     } catch (err) {
-      toast.error(err.message || "Could not submit marks");
+      toast.error(apiErrorMessage(err, "Could not submit marks"));
     } finally {
       setSubmitting(false);
     }

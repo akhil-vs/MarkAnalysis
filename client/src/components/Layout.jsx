@@ -8,6 +8,7 @@ import { PageHelpHint } from "./HelpHint.jsx";
 import NotificationBell, { NotificationProvider } from "./NotificationBell.jsx";
 import PoweredBy from "./PoweredBy.jsx";
 import WorkspaceChip from "./WorkspaceChip.jsx";
+import MobileTaskBar from "./MobileTaskBar.jsx";
 
 const ROLE_LABEL = {
   PLATFORM_ADMIN: "Platform admin",
@@ -250,7 +251,7 @@ function SchoolBrand({ school, compact = false }) {
 }
 
 export default function Layout() {
-  const { user, logout, classTeacherOf, features, optimistic } = useAuth();
+  const { user, logout, classTeacherOf, features, capabilities, optimistic } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(null);
@@ -261,7 +262,7 @@ export default function Layout() {
   const leadership = isLeadership(user.role);
   const platform = isPlatformAdmin(user.role);
   const analysisOpen = isAnalysisPath(location.pathname);
-  const groups = navGroupsForRole(user.role, { classTeacherOf, features });
+  const groups = navGroupsForRole(user.role, { classTeacherOf, features, capabilities });
 
   const badges = { pending: pendingCount, lateEntry: lateEntryCount };
 
@@ -494,7 +495,9 @@ export default function Layout() {
             )}
             <Outlet />
           </div>
+          <div className="h-16 lg:hidden" aria-hidden="true" />
         </main>
+        <MobileTaskBar />
       </div>
     </NotificationProvider>
   );

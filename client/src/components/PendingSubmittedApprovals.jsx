@@ -80,8 +80,8 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
       className={className}
       title="Submitted marks to approve"
       action={
-        <Link className="text-xs underline text-ink-700/60" to={paths.pendingUploads()}>
-          {list.length ? `View all (${list.length})` : "Open upload queue"}
+        <Link className="text-xs underline text-ink-700/60" to={paths.approvals()}>
+          {list.length ? `View all (${list.length})` : "Open approvals"}
         </Link>
       }
     >

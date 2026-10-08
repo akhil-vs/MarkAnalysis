@@ -6,8 +6,10 @@ import { prisma } from "../lib/prisma.js";
 import { auth, getAssignments, isLeadership, requireFeature, requireRole, teacherCanAccess } from "../middleware/auth.js";
 import {
   assertTeacherMarkEntryAccess,
+  EDIT_LOCKED_BLOCKED,
   getMarkEntryAccessMap,
   isLockedMarkStatus,
+  LATE_ENTRY_BLOCKED,
   mutateBlockFromAccess,
 } from "../lib/markAccess.js";
 import { auditValueFor, describeAuditValue, formatMarkCell, parseMarkInput } from "../lib/markCodes.js";
@@ -39,6 +41,17 @@ import { invalidateInsightsCache } from "../lib/insightsCache.js";
 import { publicStudent } from "../lib/hallTickets.js";
 import { studentListOmit } from "../lib/markSelects.js";
 import { contentDispositionAttachment } from "../lib/downloadName.js";
+import { MARK_ERROR, markErrorBody } from "../lib/markErrorCodes.js";
+
+function blockedMarkResponse(message) {
+  if (message === LATE_ENTRY_BLOCKED) {
+    return markErrorBody(MARK_ERROR.PAST_DEADLINE, message);
+  }
+  if (message === EDIT_LOCKED_BLOCKED) {
+    return markErrorBody(MARK_ERROR.EDIT_LOCKED, message);
+  }
+  return markErrorBody(MARK_ERROR.FORBIDDEN, message);
+}
 
 const WRITE_CHUNK = 25;
 
@@ -515,7 +528,7 @@ marksRouter.post("/upload", requireFeature("upload"), upload.single("file"), asy
     for (const subjectId of validSubjectIds) {
       const blocked = mutateBlockFromAccess(entryAccess.bySubject?.[subjectId], null);
       if (blocked) {
-        return res.status(403).json({ error: blocked });
+        return res.status(403).json(blockedMarkResponse(blocked));
       }
     }
     for (const item of valid) {
@@ -526,7 +539,7 @@ marksRouter.post("/upload", requireFeature("upload"), upload.single("file"), asy
           existing.status
         );
         if (editBlocked) {
-          return res.status(403).json({ error: editBlocked });
+          return res.status(403).json(blockedMarkResponse(editBlocked));
         }
       }
     }
@@ -605,9 +618,9 @@ marksRouter.post("/submit", requireFeature("marks"), async (req, res) => {
       classSectionId,
       subjectId,
     });
-    if (blocked) return res.status(403).json({ error: blocked });
+    if (blocked) return res.status(403).json(blockedMarkResponse(blocked));
   } else if (!isLeadership(req.user.role)) {
-    return res.status(403).json({ error: "Forbidden" });
+    return res.status(403).json(markErrorBody(MARK_ERROR.FORBIDDEN, "Forbidden"));
   }
 
   const examRecord = await prisma.exam.findUnique({ where: { id: examId } });
@@ -636,7 +649,9 @@ marksRouter.post("/submit", requireFeature("marks"), async (req, res) => {
     select: { id: true },
   });
   if (!drafts.length) {
-    return res.status(400).json({ error: "No draft marks to submit for this register" });
+    return res.status(400).json(
+      markErrorBody(MARK_ERROR.NO_DRAFTS, "No draft marks to submit for this register")
+    );
   }
 
   const result = await prisma.mark.updateMany({

@@ -17,12 +17,11 @@ export function pendingUploadsLink({ examId } = {}) {
 }
 
 export function accessRequestsLink({ status = "PENDING", kind, examId } = {}) {
-  const params = new URLSearchParams();
-  if (status) params.set("status", status);
+  const params = new URLSearchParams({ tab: "access" });
+  if (status && status !== "PENDING") params.set("status", status);
   if (kind) params.set("kind", kind);
   if (examId) params.set("examId", examId);
-  const q = params.toString();
-  return q ? `/late-entry?${q}` : "/late-entry";
+  return `/approvals?${params}`;
 }
 
 export function classSectionAnalysisLink(id) {

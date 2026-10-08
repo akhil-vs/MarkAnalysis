@@ -157,7 +157,7 @@ export default function CoordinatorDashboard() {
         <Metric
           label="Awaiting approval"
           value={awaitingCount}
-          to={paths.pendingUploads()}
+          to={paths.approvals()}
           tone={awaitingCount ? "alert" : undefined}
           hint={{
             text: awaitingCount ? "Submitted — needs your approve" : "Nothing waiting",
