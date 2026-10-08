@@ -1847,6 +1847,8 @@ export async function ensureAuthSchema() {
       await ensureCustomStaffRolesColumns();
       await ensureRoleFeatureAccessColumn();
       await ensureOptionalModulesColumn();
+      // Session payload resolves User.workspace — must exist before login /me selects User.
+      await ensureUserWorkspaceColumn();
       if (await catchupsAlreadyApplied(AUTH_CATCHUP_MIGRATION_NAMES)) return;
       await Promise.all([ensureMustChangePasswordColumn(), ensureRefreshTokenTable()]);
       await ensureMultiTenantSchools();
@@ -2040,6 +2042,9 @@ export const __test = {
   ensureAssessmentPolicyColumns,
   ensureUserWorkspaceColumn,
   ensurePerformanceIndexes,
+  USER_WORKSPACE_MIGRATION,
+  USER_WORKSPACE_CHECKSUM,
+  USER_WORKSPACE_STATEMENTS,
   ACADEMIC_YEARS_MIGRATION,
   ACADEMIC_YEARS_CHECKSUM,
   ACADEMIC_YEARS_STATEMENTS,

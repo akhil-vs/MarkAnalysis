@@ -1,6 +1,7 @@
 import { prisma } from "./prisma.js";
 import { loadExams } from "./examCatalog.js";
 import { normalizeSchoolSection } from "./schoolSections.js";
+import { ensureUserWorkspaceColumn } from "./ensureSchema.js";
 
 /** Normalize raw User.workspace JSON into a stable shape. */
 export function normalizeWorkspace(raw) {
@@ -22,6 +23,7 @@ export async function resolveWorkspace({
 } = {}) {
   let preference = stored != null ? normalizeWorkspace(stored) : null;
   if (!preference && userId) {
+    await ensureUserWorkspaceColumn();
     const row = await prisma.user.findUnique({
       where: { id: userId },
       select: { workspace: true },
@@ -54,6 +56,7 @@ export async function resolveWorkspace({
 
 /** Persist workspace preference for a user (partial update). */
 export async function saveWorkspace(userId, patch = {}) {
+  await ensureUserWorkspaceColumn();
   const row = await prisma.user.findUnique({
     where: { id: userId },
     select: { workspace: true },
