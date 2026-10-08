@@ -24,12 +24,18 @@ export const paths = {
   pendingUploads: ({ examId } = {}) =>
     examId ? `/pending-uploads?examId=${encodeURIComponent(examId)}` : "/pending-uploads",
   accessRequests: ({ status = "PENDING", kind, examId } = {}) => {
-    const params = new URLSearchParams();
-    if (status) params.set("status", status);
+    const params = new URLSearchParams({ tab: "access" });
+    if (status && status !== "PENDING") params.set("status", status);
     if (kind) params.set("kind", kind);
     if (examId) params.set("examId", examId);
+    return `/approvals?${params}`;
+  },
+  approvals: ({ tab = "registers", examId } = {}) => {
+    const params = new URLSearchParams();
+    if (tab && tab !== "registers") params.set("tab", tab);
+    if (examId) params.set("examId", examId);
     const q = params.toString();
-    return q ? `/late-entry?${q}` : "/late-entry";
+    return q ? `/approvals?${q}` : "/approvals";
   },
   compareTeachers: (subject) =>
     `/analysis/compare?tab=teachers&subject=${encodeURIComponent(subject)}`,
@@ -51,6 +57,7 @@ export const NAV_LABELS = {
   marks: "Mark register",
   upload: "Bulk upload",
   accessRequests: "Access requests",
+  approvals: "Approvals",
   consolidated: "Consolidated lists",
   hallTickets: "Hall tickets",
   studentPhotos: "Student photos",
@@ -84,6 +91,7 @@ export const NAV_TITLES = {
   marks: "Mark register",
   upload: "Bulk upload",
   accessRequests: "Access requests",
+  approvals: "Approvals",
   consolidated: "Consolidated mark lists",
   hallTickets: "Hall tickets",
   studentPhotos: "Student photos",
@@ -169,8 +177,16 @@ export const NAV_GROUPS = [
         roles: "classTeacher",
       },
       {
+        id: "approvals",
+        to: "/approvals",
+        label: NAV_LABELS.approvals,
+        icon: "pending",
+        roles: "leadership",
+        badgeKey: "pending",
+      },
+      {
         id: "accessRequests",
-        to: "/late-entry",
+        to: "/approvals?tab=access",
         label: NAV_LABELS.accessRequests,
         icon: "late",
         roles: "leadership",
@@ -443,6 +459,7 @@ export const EXTRA_ROUTE_GUARDS = {
   "analysis/subjects/:id": "leadership",
   "timetables/teachers/:id": "all",
   "platform/schools/:id": "platform",
+  approvals: "leadership",
 };
 
 export function roleAllows(itemRoles, userRole, { classTeacherOf = [] } = {}) {

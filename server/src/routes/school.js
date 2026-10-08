@@ -64,6 +64,12 @@ schoolRouter.get("/", async (req, res) => {
   res.json(schoolJson(req, profile));
 });
 
+schoolRouter.get("/setup-status", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (_req, res) => {
+  const { loadSetupStatus } = await import("../lib/setupStatus.js");
+  const status = await loadSetupStatus();
+  res.json(status);
+});
+
 schoolRouter.get("/logo", async (_req, res) => {
   const profile = await getSchoolProfile({ includeLogo: true });
   const raw = profile.logoBytes;

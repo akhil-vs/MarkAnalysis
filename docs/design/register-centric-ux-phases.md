@@ -45,17 +45,17 @@ Branch: `cursor/register-centric-ux-a625`.
 
 ### Backend
 
-- [ ] `GET /api/approvals/inbox?tab=registers|access`
-- [ ] `POST /api/approvals/registers/approve` (batched register keys, capped)
-- [ ] `GET /api/school/setup-status` — ordered steps with `href` + `blocking`
+- [x] `GET /api/approvals/inbox?tab=registers|access`
+- [x] `POST /api/approvals/registers/approve` (batched register keys, capped)
+- [x] `GET /api/school/setup-status` — ordered steps with `href` + `blocking`
 - [ ] Audit notification `link` builders for exam/class/subject params
 - [ ] Keep `/api/analytics/awaiting-approvals` + `/api/mark-access` as aliases
 
 ### Frontend
 
-- [ ] `/approvals` unified page (tabs); desk strip links here
-- [ ] Redirect `/late-entry` → `/access-requests` (or `/approvals?tab=access`)
-- [ ] Empty/home checklist from setup-status
+- [x] `/approvals` unified page (tabs); desk strip links here
+- [x] Redirect `/late-entry` → `/access-requests` (or `/approvals?tab=access`)
+- [x] Empty/home checklist from setup-status
 - [ ] Rename Pending uploads nav label toward “Mark progress” if not folded in
 
 ### Done when
