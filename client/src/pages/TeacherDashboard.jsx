@@ -30,6 +30,7 @@ import { useNotificationsOptional } from "../components/NotificationBell.jsx";
 import { helpForPath } from "../lib/pageHelp.js";
 import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
 import { paths } from "../lib/nav.js";
+import { useWorkspaceOptional } from "../workspace.jsx";
 
 const COLORS = ["#1b2437", "#c45c26", "#3d6b4f", "#7a5c3a"];
 
@@ -182,10 +183,12 @@ function TeacherLeaveRequest({ userId }) {
 
 export default function TeacherDashboard() {
   const { user, assignments, classTeacherOf, optimistic } = useAuth();
+  const workspace = useWorkspaceOptional();
   const notifications = useNotificationsOptional();
   const homePath = dashboardApiPath("TEACHER");
   const [data, setData] = useState(() => peekDashboardPrefetch(homePath, { userId: user?.id }));
-  const [examId, setExamId] = useState(() => data?.exam?.id || "");
+  const [examId, setExamId] = useState(() => workspace?.examId || data?.exam?.id || "");
+  const [nextActions, setNextActions] = useState([]);
   const [notices, setNotices] = useState([]);
   const [error, setError] = useState("");
 
@@ -195,9 +198,24 @@ export default function TeacherDashboard() {
     try {
       const res = await api(path);
       setData(res);
-      if (res.exam) setExamId(res.exam.id);
+      if (res.exam) {
+        setExamId(res.exam.id);
+        if (workspace?.setExamId && res.exam.id !== workspace.examId) {
+          workspace.setExamId(res.exam.id).catch(() => {});
+        }
+      }
     } catch (err) {
       if (!data) setError(err.message || "Could not load your classes");
+    }
+  }
+
+  async function loadRegisters(id) {
+    try {
+      const q = id ? `?examId=${encodeURIComponent(id)}` : "";
+      const res = await api(`/api/registers${q}`);
+      setNextActions(res.nextActions || []);
+    } catch {
+      setNextActions([]);
     }
   }
 
@@ -241,9 +259,23 @@ export default function TeacherDashboard() {
       load("");
     }
     const noticeTimer = window.setTimeout(loadNotices, 0);
-    return () => window.clearTimeout(noticeTimer);
+    const regTimer = window.setTimeout(() => loadRegisters(workspace?.examId || examId || ""), 0);
+    return () => {
+      window.clearTimeout(noticeTimer);
+      window.clearTimeout(regTimer);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount / optimistic flip
   }, [optimistic]);
+
+  useEffect(() => {
+    if (optimistic) return;
+    if (workspace?.examId && workspace.examId !== examId) {
+      setExamId(workspace.examId);
+      load(workspace.examId);
+      loadRegisters(workspace.examId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync shell exam into desk
+  }, [workspace?.examId]);
 
   async function openNotice(notice) {
     if (!notice.readAt) {
@@ -312,10 +344,40 @@ export default function TeacherDashboard() {
         subtitle={`${subjectName} across ${data.kpis?.sections ?? registers.length} section${(data.kpis?.sections ?? 0) === 1 ? "" : "s"}. ${data.exam?.name || "No exam"} is the current paper.`}
         actions={
           data.exams?.length ? (
-            <ExamSelect exams={data.exams} value={examId} onChange={load} />
+            <ExamSelect
+              exams={data.exams}
+              value={examId}
+              onChange={(id) => {
+                load(id);
+                loadRegisters(id);
+                workspace?.setExamId?.(id);
+              }}
+            />
           ) : null
         }
       />
+
+      {nextActions.length > 0 && (
+        <Panel className="mb-5" title="Next actions">
+          <div className="space-y-2">
+            {nextActions.map((item) => (
+              <Link
+                key={item.key}
+                to={item.marksPath || "/marks"}
+                className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-clay-500/25 bg-[#fbf4ec] px-4 py-3 transition hover:border-clay-500/50"
+              >
+                <div>
+                  <div className="font-medium text-ink-900">{item.label}</div>
+                  <div className="mt-0.5 text-xs text-ink-700/60">
+                    {item.classLabel} · {item.subject}
+                  </div>
+                </div>
+                <span className="mark-chip mark-chip-dirty">{item.action}</span>
+              </Link>
+            ))}
+          </div>
+        </Panel>
+      )}
 
       {dashboardNotices.length > 0 && (
         <Panel
@@ -370,8 +432,6 @@ export default function TeacherDashboard() {
           </div>
         </Panel>
       )}
-
-      <TeacherLeaveRequest userId={user.id} />
 
       <div className="kpi-grid mb-5">
         <Metric label="Your average" value={data.kpis?.average != null ? `${data.kpis.average}%` : "—"} />
@@ -495,6 +555,8 @@ export default function TeacherDashboard() {
           <EmptyNote>No one in your sections is currently flagged as at risk or declining.</EmptyNote>
         )}
       </Panel>
+
+      <TeacherLeaveRequest userId={user.id} />
     </div>
   );
 }

@@ -1,0 +1,462 @@
+[
+  {
+    "id": "createNativeEnumType.PilotRequestStatus",
+    "label": "Create enum type \"PilotRequestStatus\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "type",
+        "name": "PilotRequestStatus"
+      }
+    },
+    "precheck": [],
+    "execute": [
+      {
+        "description": "create enum type \"PilotRequestStatus\"",
+        "sql": "CREATE TYPE \"public\".\"PilotRequestStatus\" AS ENUM ('PENDING', 'CONTACTED', 'DECLINED', 'PROVISIONED')",
+        "params": []
+      }
+    ],
+    "postcheck": []
+  },
+  {
+    "id": "table.PilotRequest",
+    "label": "Create table \"PilotRequest\"",
+    "summary": "Creates table \"PilotRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "table",
+        "name": "PilotRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure table \"PilotRequest\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PilotRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create table \"PilotRequest\"",
+        "sql": "CREATE TABLE \"public\".\"PilotRequest\" (\n  \"board\" text,\n  \"contactEmail\" text NOT NULL,\n  \"contactName\" text NOT NULL,\n  \"contactPhone\" text,\n  \"createdAt\" timestamptz DEFAULT (now()) NOT NULL,\n  \"examNameOrType\" text,\n  \"id\" text NOT NULL,\n  \"notes\" text,\n  \"preferredStartDate\" text,\n  \"reviewNote\" text,\n  \"reviewedAt\" timestamptz,\n  \"reviewedById\" text,\n  \"roleTitle\" text,\n  \"schoolId\" text,\n  \"schoolName\" text NOT NULL,\n  \"sourceIp\" text,\n  \"status\" \"PilotRequestStatus\" DEFAULT 'PENDING'::\"PilotRequestStatus\" NOT NULL,\n  \"targetClasses\" text,\n  \"updatedAt\" timestamptz NOT NULL,\n  \"userAgent\" text,\n  PRIMARY KEY (\"id\")\n)",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify table \"PilotRequest\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PilotRequest\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "column.public.User.workspace",
+    "label": "Add column \"workspace\" to \"User\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "column",
+        "name": "workspace",
+        "table": "User"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure column \"workspace\" is missing",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "workspace"
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add column \"workspace\"",
+        "sql": "ALTER TABLE \"public\".\"User\" ADD COLUMN \"workspace\" jsonb"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify column \"workspace\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"information_schema\".\"columns\" WHERE (\"table_schema\" = $1 AND \"table_name\" = $2 AND \"column_name\" = $3)) AS \"result\"",
+        "params": [
+          "public",
+          "User",
+          "workspace"
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.ActivityAudit.ActivityAudit_tenantId_timestamp_idx_699dc902",
+    "label": "Create index \"ActivityAudit_tenantId_timestamp_idx_699dc902\" on \"ActivityAudit\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "ActivityAudit_tenantId_timestamp_idx_699dc902",
+        "table": "ActivityAudit"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"ActivityAudit_tenantId_timestamp_idx_699dc902\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ActivityAudit_tenantId_timestamp_idx_699dc902\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"ActivityAudit_tenantId_timestamp_idx_699dc902\"",
+        "sql": "CREATE INDEX \"ActivityAudit_tenantId_timestamp_idx_699dc902\" ON \"public\".\"ActivityAudit\" (\"tenantId\", \"timestamp\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"ActivityAudit_tenantId_timestamp_idx_699dc902\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"ActivityAudit_tenantId_timestamp_idx_699dc902\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Mark.Mark_tenantId_examId_status_idx_75eb183c",
+    "label": "Create index \"Mark_tenantId_examId_status_idx_75eb183c\" on \"Mark\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Mark_tenantId_examId_status_idx_75eb183c",
+        "table": "Mark"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Mark_tenantId_examId_status_idx_75eb183c\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Mark_tenantId_examId_status_idx_75eb183c\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Mark_tenantId_examId_status_idx_75eb183c\"",
+        "sql": "CREATE INDEX \"Mark_tenantId_examId_status_idx_75eb183c\" ON \"public\".\"Mark\" (\"tenantId\", \"examId\", \"status\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Mark_tenantId_examId_status_idx_75eb183c\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Mark_tenantId_examId_status_idx_75eb183c\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PilotRequest.PilotRequest_contactEmail_createdAt_idx_0cbf81e4",
+    "label": "Create index \"PilotRequest_contactEmail_createdAt_idx_0cbf81e4\" on \"PilotRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PilotRequest_contactEmail_createdAt_idx_0cbf81e4",
+        "table": "PilotRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PilotRequest_contactEmail_createdAt_idx_0cbf81e4\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PilotRequest_contactEmail_createdAt_idx_0cbf81e4\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PilotRequest_contactEmail_createdAt_idx_0cbf81e4\"",
+        "sql": "CREATE INDEX \"PilotRequest_contactEmail_createdAt_idx_0cbf81e4\" ON \"public\".\"PilotRequest\" (\"contactEmail\", \"createdAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PilotRequest_contactEmail_createdAt_idx_0cbf81e4\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PilotRequest_contactEmail_createdAt_idx_0cbf81e4\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PilotRequest.PilotRequest_reviewedById_idx_e2835478",
+    "label": "Create index \"PilotRequest_reviewedById_idx_e2835478\" on \"PilotRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PilotRequest_reviewedById_idx_e2835478",
+        "table": "PilotRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PilotRequest_reviewedById_idx_e2835478\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PilotRequest_reviewedById_idx_e2835478\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PilotRequest_reviewedById_idx_e2835478\"",
+        "sql": "CREATE INDEX \"PilotRequest_reviewedById_idx_e2835478\" ON \"public\".\"PilotRequest\" (\"reviewedById\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PilotRequest_reviewedById_idx_e2835478\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PilotRequest_reviewedById_idx_e2835478\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PilotRequest.PilotRequest_schoolId_idx_82b454d7",
+    "label": "Create index \"PilotRequest_schoolId_idx_82b454d7\" on \"PilotRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PilotRequest_schoolId_idx_82b454d7",
+        "table": "PilotRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PilotRequest_schoolId_idx_82b454d7\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PilotRequest_schoolId_idx_82b454d7\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PilotRequest_schoolId_idx_82b454d7\"",
+        "sql": "CREATE INDEX \"PilotRequest_schoolId_idx_82b454d7\" ON \"public\".\"PilotRequest\" (\"schoolId\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PilotRequest_schoolId_idx_82b454d7\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PilotRequest_schoolId_idx_82b454d7\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.PilotRequest.PilotRequest_status_createdAt_idx_58610442",
+    "label": "Create index \"PilotRequest_status_createdAt_idx_58610442\" on \"PilotRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "PilotRequest_status_createdAt_idx_58610442",
+        "table": "PilotRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"PilotRequest_status_createdAt_idx_58610442\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PilotRequest_status_createdAt_idx_58610442\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"PilotRequest_status_createdAt_idx_58610442\"",
+        "sql": "CREATE INDEX \"PilotRequest_status_createdAt_idx_58610442\" ON \"public\".\"PilotRequest\" (\"status\", \"createdAt\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"PilotRequest_status_createdAt_idx_58610442\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"PilotRequest_status_createdAt_idx_58610442\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "index.Subject.Subject_tenantId_className_idx_530d6bbe",
+    "label": "Create index \"Subject_tenantId_className_idx_530d6bbe\" on \"Subject\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "index",
+        "name": "Subject_tenantId_className_idx_530d6bbe",
+        "table": "Subject"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure index \"Subject_tenantId_className_idx_530d6bbe\" does not exist",
+        "sql": "SELECT (to_regclass($1)) IS NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Subject_tenantId_className_idx_530d6bbe\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "create index \"Subject_tenantId_className_idx_530d6bbe\"",
+        "sql": "CREATE INDEX \"Subject_tenantId_className_idx_530d6bbe\" ON \"public\".\"Subject\" (\"tenantId\", \"className\")",
+        "params": []
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify index \"Subject_tenantId_className_idx_530d6bbe\" exists",
+        "sql": "SELECT (to_regclass($1)) IS NOT NULL AS \"result\"",
+        "params": [
+          "\"public\".\"Subject_tenantId_className_idx_530d6bbe\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.PilotRequest.PilotRequest_schoolId_fkey",
+    "label": "Add foreign key \"PilotRequest_schoolId_fkey\" on \"PilotRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "PilotRequest_schoolId_fkey",
+        "table": "PilotRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"PilotRequest_schoolId_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PilotRequest_schoolId_fkey",
+          "public",
+          "\"public\".\"PilotRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"PilotRequest_schoolId_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"PilotRequest\"\nADD CONSTRAINT \"PilotRequest_schoolId_fkey\"\nFOREIGN KEY (\"schoolId\")\nREFERENCES \"public\".\"School\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"PilotRequest_schoolId_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PilotRequest_schoolId_fkey",
+          "public",
+          "\"public\".\"PilotRequest\""
+        ]
+      }
+    ]
+  },
+  {
+    "id": "foreignKey.PilotRequest.PilotRequest_reviewedById_fkey",
+    "label": "Add foreign key \"PilotRequest_reviewedById_fkey\" on \"PilotRequest\"",
+    "operationClass": "additive",
+    "target": {
+      "id": "postgres",
+      "details": {
+        "schema": "public",
+        "objectType": "foreignKey",
+        "name": "PilotRequest_reviewedById_fkey",
+        "table": "PilotRequest"
+      }
+    },
+    "precheck": [
+      {
+        "description": "ensure FK \"PilotRequest_reviewedById_fkey\" does not exist",
+        "sql": "SELECT NOT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PilotRequest_reviewedById_fkey",
+          "public",
+          "\"public\".\"PilotRequest\""
+        ]
+      }
+    ],
+    "execute": [
+      {
+        "description": "add FK \"PilotRequest_reviewedById_fkey\"",
+        "sql": "ALTER TABLE \"public\".\"PilotRequest\"\nADD CONSTRAINT \"PilotRequest_reviewedById_fkey\"\nFOREIGN KEY (\"reviewedById\")\nREFERENCES \"public\".\"User\" (\"id\")\nON DELETE SET NULL"
+      }
+    ],
+    "postcheck": [
+      {
+        "description": "verify FK \"PilotRequest_reviewedById_fkey\" exists",
+        "sql": "SELECT EXISTS (SELECT 1 AS \"one\" FROM \"pg_constraint\" AS \"c\" INNER JOIN \"pg_namespace\" AS \"n\" ON \"n\".\"oid\" = \"c\".\"connamespace\" WHERE (\"c\".\"conname\" = $1 AND \"n\".\"nspname\" = $2 AND \"c\".\"conrelid\" = to_regclass($3))) AS \"result\"",
+        "params": [
+          "PilotRequest_reviewedById_fkey",
+          "public",
+          "\"public\".\"PilotRequest\""
+        ]
+      }
+    ]
+  }
+]

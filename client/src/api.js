@@ -159,6 +159,7 @@ function errorFromBody(data, status, fallback) {
   const err = new Error(data?.error || fallback);
   err.status = status;
   err.data = data;
+  if (data?.code) err.code = data.code;
   return err;
 }
 

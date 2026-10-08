@@ -39,6 +39,9 @@ import {
   buildHomeDashboardForLogin,
   homeDashboardPath,
 } from "../lib/homeDashboard.js";
+import { publicWorkspace, resolveWorkspace } from "../lib/workspace.js";
+import { ensureUserWorkspaceColumn } from "../lib/ensureSchema.js";
+import { capabilitiesForUser } from "../lib/capabilities.js";
 
 export const authRouter = Router();
 
@@ -70,12 +73,15 @@ function formatClassTeacherOf(rows) {
   }));
 }
 
-function formatSessionPayload(user, { features } = {}) {
+function formatSessionPayload(user, { features, workspace } = {}) {
+  const featureList = features || [];
   return {
     user: publicUser(user),
     assignments: user.assignments || [],
     classTeacherOf: formatClassTeacherOf(user.classTeacherOf || []),
     features: features || undefined,
+    workspace: workspace || undefined,
+    capabilities: capabilitiesForUser(user, featureList),
   };
 }
 
@@ -114,7 +120,20 @@ async function loadUserSession(userId) {
     { role: user.role, roleTitle: user.roleTitle },
     ctx
   );
-  return formatSessionPayload(user, { features });
+  let workspace;
+  if (user.role !== "PLATFORM_ADMIN" && user.tenantId) {
+    try {
+      await ensureUserWorkspaceColumn();
+      const resolved = await resolveWorkspace({
+        userId: user.id,
+        stored: user.workspace,
+      });
+      workspace = publicWorkspace(resolved);
+    } catch {
+      workspace = { examId: null, schoolSection: "ALL", exam: null };
+    }
+  }
+  return formatSessionPayload(user, { features, workspace });
 }
 
 /** Overlap bcrypt with session + budgeted dashboard (discarded if password fails). */

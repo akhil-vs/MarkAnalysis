@@ -153,6 +153,8 @@ model User {
   roleTitle          String?
   status             UserStatus @default(PENDING)
   createdAt          DateTime   @default(now())
+  /// Persisted shell workspace: { examId?: string, schoolSection?: string }.
+  workspace          Json?
 
   tenant             School? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 

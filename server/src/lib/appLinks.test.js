@@ -24,10 +24,10 @@ test("marksRegisterLink builds query consistently", () => {
 test("pendingUploadsLink and accessRequestsLink", () => {
   assert.equal(pendingUploadsLink(), "/pending-uploads");
   assert.equal(pendingUploadsLink({ examId: "e1" }), "/pending-uploads?examId=e1");
-  assert.equal(accessRequestsLink(), "/late-entry?status=PENDING");
+  assert.equal(accessRequestsLink(), "/approvals?tab=access");
   assert.equal(
     accessRequestsLink({ status: "PENDING", kind: "EDIT", examId: "e1" }),
-    "/late-entry?status=PENDING&kind=EDIT&examId=e1"
+    "/approvals?tab=access&kind=EDIT&examId=e1"
   );
 });
 

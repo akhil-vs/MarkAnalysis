@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import { HelpHint, PageHelpHint } from "./HelpHint.jsx";
+import SetupChecklist from "./SetupChecklist.jsx";
 
 export const GRADE_COLORS = {
   "A+": "#2f5440",
@@ -217,6 +218,8 @@ export function EmptyExamDashboard({
           ) : null
         }
       />
+
+      {leadership && !noAssignments && <SetupChecklist className="mb-5" />}
 
       <div className="kpi-grid mb-5">
         <Metric label="Classes" value={setup?.classes ?? 0} to={leadership ? "/manage" : undefined} />

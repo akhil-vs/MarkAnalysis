@@ -6480,6 +6480,13 @@
                   "codecId": "pg/text@1",
                   "kind": "scalar"
                 }
+              },
+              "workspace": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/jsonb@1",
+                  "kind": "scalar"
+                }
               }
             },
             "relations": {
@@ -7023,6 +7030,9 @@
                 },
                 "tenantId": {
                   "column": "tenantId"
+                },
+                "workspace": {
+                  "column": "workspace"
                 }
               },
               "namespaceId": "public",
@@ -12580,6 +12590,11 @@
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": true
+                },
+                "workspace": {
+                  "codecId": "pg/jsonb@1",
+                  "nativeType": "jsonb",
+                  "nullable": true
                 }
               },
               "foreignKeys": [
@@ -12833,7 +12848,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "1aef990e895981fa2d44e7baf398ecf7a77fc141377f63abdd9a21b17dee09f3"
+    "storageHash": "053fca134d63b7425602d07fa31a9b4301919a215457589310cb55c8bd4c34ab"
   },
   "execution": {
     "executionHash": "e3f5bde3c11a8a42958df84dc1248a0f5f43b66be23c468cc6cea6a6e16e1803",

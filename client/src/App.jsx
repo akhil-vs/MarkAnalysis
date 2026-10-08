@@ -37,6 +37,8 @@ const TeacherAnalytics = lazy(() => import("./pages/TeacherAnalytics.jsx"));
 const PendingUploads = lazy(() => import("./pages/PendingUploads.jsx"));
 const ClassTeacherInbox = lazy(() => import("./pages/ClassTeacherInbox.jsx"));
 const LateEntryRequests = lazy(() => import("./pages/LateEntryRequests.jsx"));
+const Approvals = lazy(() => import("./pages/Approvals.jsx"));
+const Exams = lazy(() => import("./pages/Exams.jsx"));
 const AuditLog = lazy(() => import("./pages/AuditLog.jsx"));
 const ConsolidatedLists = lazy(() => import("./pages/ConsolidatedLists.jsx"));
 const HallTickets = lazy(() => import("./pages/HallTickets.jsx"));
@@ -153,6 +155,7 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="users" element={<Guarded route="users"><Users /></Guarded>} />
           <Route path="manage" element={<Guarded route="manage"><Manage /></Guarded>} />
+          <Route path="exams" element={<Guarded route="exams"><Exams /></Guarded>} />
           <Route path="marks" element={<MarksEntry />} />
           <Route path="upload" element={<Guarded route="upload"><MarksUpload /></Guarded>} />
           <Route path="audit" element={<Guarded route="audit"><AuditLog /></Guarded>} />
@@ -213,8 +216,16 @@ export default function App() {
             element={<Guarded route="class-inbox"><ClassTeacherInbox /></Guarded>}
           />
           <Route
+            path="approvals"
+            element={<Guarded route="approvals"><Approvals /></Guarded>}
+          />
+          <Route
             path="late-entry"
-            element={<Guarded route="late-entry"><LateEntryRequests /></Guarded>}
+            element={<Navigate to="/approvals?tab=access" replace />}
+          />
+          <Route
+            path="access-requests"
+            element={<Navigate to="/approvals?tab=access" replace />}
           />
           <Route path="timetables" element={<Guarded route="timetables"><Timetables /></Guarded>} />
           <Route

@@ -25,7 +25,7 @@ function readAuthCache() {
   }
 }
 
-function writeAuthCache({ user, assignments, classTeacherOf, features }) {
+function writeAuthCache({ user, assignments, classTeacherOf, features, workspace, capabilities }) {
   try {
     if (!user) {
       sessionStorage.removeItem(AUTH_CACHE_KEY);
@@ -38,6 +38,8 @@ function writeAuthCache({ user, assignments, classTeacherOf, features }) {
         assignments: assignments || [],
         classTeacherOf: classTeacherOf || [],
         features: features || null,
+        workspace: workspace || null,
+        capabilities: capabilities || null,
       })
     );
   } catch {
@@ -70,6 +72,8 @@ export function AuthProvider({ children }) {
   const [assignments, setAssignments] = useState(cached?.assignments || []);
   const [classTeacherOf, setClassTeacherOf] = useState(cached?.classTeacherOf || []);
   const [features, setFeatures] = useState(cached?.features || null);
+  const [workspace, setWorkspace] = useState(cached?.workspace || null);
+  const [capabilities, setCapabilities] = useState(cached?.capabilities || null);
   const [loading, setLoading] = useState(!cached);
   const [optimistic, setOptimistic] = useState(false);
   const refreshInflight = useRef(null);
@@ -83,11 +87,15 @@ export function AuthProvider({ children }) {
     setAssignments(data.assignments || []);
     setClassTeacherOf(data.classTeacherOf || []);
     setFeatures(Array.isArray(data.features) ? data.features : null);
+    setWorkspace(data.workspace || null);
+    setCapabilities(data.capabilities || null);
     writeAuthCache({
       user: data.user,
       assignments: data.assignments || [],
       classTeacherOf: data.classTeacherOf || [],
       features: Array.isArray(data.features) ? data.features : null,
+      workspace: data.workspace || null,
+      capabilities: data.capabilities || null,
     });
     setLoading(false);
     seedDashboardFromSession(data);
@@ -106,6 +114,8 @@ export function AuthProvider({ children }) {
     setAssignments([]);
     setClassTeacherOf([]);
     setFeatures(null);
+    setWorkspace(null);
+    setCapabilities(null);
     writeAuthCache({ user: null });
     clearDashboardPrefetch();
   }
@@ -156,6 +166,9 @@ export function AuthProvider({ children }) {
       assignments,
       classTeacherOf,
       features,
+      workspace,
+      setWorkspace,
+      capabilities,
       loading,
       optimistic,
       refresh,
@@ -209,7 +222,7 @@ export function AuthProvider({ children }) {
         clearSession();
       },
     }),
-    [user, assignments, classTeacherOf, features, loading, optimistic]
+    [user, assignments, classTeacherOf, features, workspace, capabilities, loading, optimistic]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

@@ -7,6 +7,8 @@ import { isLeadership, isPlatformAdmin } from "../lib/roles.js";
 import { PageHelpHint } from "./HelpHint.jsx";
 import NotificationBell, { NotificationProvider } from "./NotificationBell.jsx";
 import PoweredBy from "./PoweredBy.jsx";
+import WorkspaceChip from "./WorkspaceChip.jsx";
+import MobileTaskBar from "./MobileTaskBar.jsx";
 
 const ROLE_LABEL = {
   PLATFORM_ADMIN: "Platform admin",
@@ -249,7 +251,7 @@ function SchoolBrand({ school, compact = false }) {
 }
 
 export default function Layout() {
-  const { user, logout, classTeacherOf, features, optimistic } = useAuth();
+  const { user, logout, classTeacherOf, features, capabilities, optimistic } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(null);
@@ -260,7 +262,7 @@ export default function Layout() {
   const leadership = isLeadership(user.role);
   const platform = isPlatformAdmin(user.role);
   const analysisOpen = isAnalysisPath(location.pathname);
-  const groups = navGroupsForRole(user.role, { classTeacherOf, features });
+  const groups = navGroupsForRole(user.role, { classTeacherOf, features, capabilities });
 
   const badges = { pending: pendingCount, lateEntry: lateEntryCount };
 
@@ -457,6 +459,11 @@ export default function Layout() {
                   <SchoolBrand school={school || user.school} compact />
                 )}
               </Link>
+              {!platform && (
+                <div className="hidden sm:block">
+                  <WorkspaceChip compact />
+                </div>
+              )}
               {!platform && <NotificationBell />}
             </div>
           </div>
@@ -481,9 +488,16 @@ export default function Layout() {
 
         <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-y-contain overflow-x-clip pt-[calc(3.5rem+env(safe-area-inset-top,0px))] lg:pt-0">
           <div className="max-w-7xl mx-auto w-full min-w-0 px-3 py-4 sm:px-6 sm:py-8">
+            {!platform && (
+              <div className="mb-4 hidden lg:flex lg:justify-end">
+                <WorkspaceChip tone="light" />
+              </div>
+            )}
             <Outlet />
           </div>
+          <div className="h-16 lg:hidden" aria-hidden="true" />
         </main>
+        <MobileTaskBar />
       </div>
     </NotificationProvider>
   );

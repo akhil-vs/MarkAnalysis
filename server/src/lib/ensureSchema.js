@@ -1542,6 +1542,24 @@ export async function ensureAssessmentPolicyColumns() {
   await recordMigration(ASSESSMENT_POLICY_MIGRATION, ASSESSMENT_POLICY_CHECKSUM);
 }
 
+const USER_WORKSPACE_MIGRATION = "20261008120000_user_workspace";
+const USER_WORKSPACE_CHECKSUM = "user-workspace-catchup-v1";
+
+const USER_WORKSPACE_STATEMENTS = [
+  `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "workspace" JSONB`,
+];
+
+/** Persisted working exam + school section for the staff shell. */
+export async function ensureUserWorkspaceColumn() {
+  const hasCol = await columnExists("User", "workspace");
+  if (hasCol) {
+    await recordMigration(USER_WORKSPACE_MIGRATION, USER_WORKSPACE_CHECKSUM);
+    return;
+  }
+  await applyStatements(USER_WORKSPACE_STATEMENTS);
+  await recordMigration(USER_WORKSPACE_MIGRATION, USER_WORKSPACE_CHECKSUM);
+}
+
 const PERF_INDEXES_MIGRATION = "20260924120000_api_performance_indexes";
 const PERF_INDEXES_CHECKSUM = "api-performance-indexes-v1";
 
@@ -1858,6 +1876,7 @@ export async function ensurePendingSchema() {
         await ensureExamIncludedClassesColumn();
         await ensureSchoolAcademicYearsColumns();
         await ensureAssessmentPolicyColumns();
+        await ensureUserWorkspaceColumn();
         await ensurePerformanceIndexes();
         await ensureTeacherLeaveSchema();
         await ensurePilotRequestsSchema();
@@ -1891,6 +1910,7 @@ export async function ensurePendingSchema() {
         ensureExamIncludedClassesColumn(),
         ensureSchoolAcademicYearsColumns(),
         ensureAssessmentPolicyColumns(),
+        ensureUserWorkspaceColumn(),
         ensurePerformanceIndexes(),
         ensureTeacherLeaveSchema(),
         ensurePilotRequestsSchema(),
@@ -2018,6 +2038,7 @@ export const __test = {
   EXAM_INCLUDED_CLASSES_STATEMENTS,
   ensureSchoolAcademicYearsColumns,
   ensureAssessmentPolicyColumns,
+  ensureUserWorkspaceColumn,
   ensurePerformanceIndexes,
   ACADEMIC_YEARS_MIGRATION,
   ACADEMIC_YEARS_CHECKSUM,

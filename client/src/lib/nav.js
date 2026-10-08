@@ -24,12 +24,18 @@ export const paths = {
   pendingUploads: ({ examId } = {}) =>
     examId ? `/pending-uploads?examId=${encodeURIComponent(examId)}` : "/pending-uploads",
   accessRequests: ({ status = "PENDING", kind, examId } = {}) => {
-    const params = new URLSearchParams();
-    if (status) params.set("status", status);
+    const params = new URLSearchParams({ tab: "access" });
+    if (status && status !== "PENDING") params.set("status", status);
     if (kind) params.set("kind", kind);
     if (examId) params.set("examId", examId);
+    return `/approvals?${params}`;
+  },
+  approvals: ({ tab = "registers", examId } = {}) => {
+    const params = new URLSearchParams();
+    if (tab && tab !== "registers") params.set("tab", tab);
+    if (examId) params.set("examId", examId);
     const q = params.toString();
-    return q ? `/late-entry?${q}` : "/late-entry";
+    return q ? `/approvals?${q}` : "/approvals";
   },
   compareTeachers: (subject) =>
     `/analysis/compare?tab=teachers&subject=${encodeURIComponent(subject)}`,
@@ -46,11 +52,13 @@ export const NAV_LABELS = {
   analysisStudents: "Students",
   analysisCompare: "Compare",
   analysisDeep: "Deep insights",
-  pendingUploads: "Pending uploads",
+  pendingUploads: "Mark progress",
   classInbox: "Class inbox",
   marks: "Mark register",
   upload: "Bulk upload",
+  exams: "Exams",
   accessRequests: "Access requests",
+  approvals: "Approvals",
   consolidated: "Consolidated lists",
   hallTickets: "Hall tickets",
   studentPhotos: "Student photos",
@@ -79,11 +87,13 @@ export const NAV_TITLES = {
   analysisStudents: "Student analysis",
   analysisCompare: "Comparisons",
   analysisDeep: "Deep insights",
-  pendingUploads: "Pending mark uploads",
+  pendingUploads: "Mark progress",
   classInbox: "Class-teacher inbox",
   marks: "Mark register",
   upload: "Bulk upload",
+  exams: "Exam calendar",
   accessRequests: "Access requests",
+  approvals: "Approvals",
   consolidated: "Consolidated mark lists",
   hallTickets: "Hall tickets",
   studentPhotos: "Student photos",
@@ -134,8 +144,8 @@ export const NAV_GROUPS = [
     ],
   },
   {
-    id: "marks",
-    label: "Exam office",
+    id: "today",
+    label: "Today",
     items: [
       {
         id: "marks",
@@ -154,6 +164,13 @@ export const NAV_GROUPS = [
         roles: MARKS_ENTRY_ROLES,
       },
       {
+        id: "exams",
+        to: "/exams",
+        label: NAV_LABELS.exams,
+        icon: "tickets",
+        roles: "leadership",
+      },
+      {
         id: "pendingUploads",
         to: "/pending-uploads",
         label: NAV_LABELS.pendingUploads,
@@ -169,13 +186,27 @@ export const NAV_GROUPS = [
         roles: "classTeacher",
       },
       {
+        id: "approvals",
+        to: "/approvals",
+        label: NAV_LABELS.approvals,
+        icon: "pending",
+        roles: "leadership",
+        badgeKey: "pending",
+      },
+      {
         id: "accessRequests",
-        to: "/late-entry",
+        to: "/approvals?tab=access",
         label: NAV_LABELS.accessRequests,
         icon: "late",
         roles: "leadership",
         badgeKey: "lateEntry",
       },
+    ],
+  },
+  {
+    id: "outputs",
+    label: "Outputs",
+    items: [
       {
         id: "consolidated",
         to: "/consolidated",
@@ -437,6 +468,8 @@ export const EXTRA_ROUTE_GUARDS = {
   "analysis/subjects/:id": "leadership",
   "timetables/teachers/:id": "all",
   "platform/schools/:id": "platform",
+  approvals: "leadership",
+  exams: "leadership",
 };
 
 export function roleAllows(itemRoles, userRole, { classTeacherOf = [] } = {}) {
@@ -457,6 +490,11 @@ export function featureAllows(itemId, features) {
   if (itemId === "dashboard" || itemId === "profile" || itemId === "help") return true;
   if (itemId === "timetables") {
     return hasTimetableAccess(features);
+  }
+  // Alias new nav surfaces onto existing role-access catalog ids.
+  if (itemId === "exams") return hasFeature(features, "records");
+  if (itemId === "approvals") {
+    return hasFeature(features, "pendingUploads") || hasFeature(features, "accessRequests");
   }
   return hasFeature(features, itemId);
 }
@@ -512,6 +550,8 @@ export function guardFeatureForRoute(routePath) {
   if (key === "platform" || key.startsWith("platform/") || map[key] === "platform") {
     return null;
   }
+  if (key === "exams") return "records";
+  if (key === "approvals") return "pendingUploads";
   // Find nav item id by matching `to`
   const want = `/${key}`.replace(/\/$/, "") || "/";
   function walk(items) {
@@ -548,12 +588,20 @@ export function filterNavItems(items, userRole, opts = {}) {
     .filter((item) => !item.children || item.children.length > 0 || !item.expandable);
 }
 
-export function navGroupsForRole(userRole, { classTeacherOf = [], features } = {}) {
+export function navGroupsForRole(userRole, { classTeacherOf = [], features, capabilities } = {}) {
   if (isPlatformAdmin(userRole)) return PLATFORM_NAV_GROUPS;
   const opts = { classTeacherOf, features };
   return NAV_GROUPS.map((group) => ({
     ...group,
-    items: filterNavItems(group.items, userRole, opts),
+    items: filterNavItems(group.items, userRole, opts).filter((item) => {
+      // Prefer session capabilities when present; fall back to role/feature rules.
+      if (!capabilities) return true;
+      if (item.id === "approvals" || item.id === "accessRequests") return capabilities.canViewApprovals;
+      if (item.id === "exams" || item.id === "manage") return capabilities.canManageRecords;
+      if (item.id === "marks" || item.id === "upload") return capabilities.canEnterMarks !== false;
+      if (item.id === "analysisDeep") return capabilities.canViewDeepInsights;
+      return true;
+    }),
   })).filter((group) => group.items.length > 0);
 }
 

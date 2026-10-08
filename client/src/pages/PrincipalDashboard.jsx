@@ -377,8 +377,11 @@ export default function PrincipalDashboard() {
                   Notify all ({pending.length || awaitingApproval.length})
                 </button>
               )}
+              <Link className="text-xs underline text-ink-700/60" to={paths.approvals()}>
+                Approvals inbox
+              </Link>
               <Link className="text-xs underline text-ink-700/60" to={paths.pendingUploads()}>
-                Upload status
+                Mark progress
               </Link>
             </div>
           }
