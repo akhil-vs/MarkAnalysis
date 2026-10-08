@@ -46,7 +46,7 @@ export const NAV_LABELS = {
   analysisStudents: "Students",
   analysisCompare: "Compare",
   analysisDeep: "Deep insights",
-  pendingUploads: "Pending uploads",
+  pendingUploads: "Mark progress",
   classInbox: "Class inbox",
   marks: "Mark register",
   upload: "Bulk upload",
@@ -79,7 +79,7 @@ export const NAV_TITLES = {
   analysisStudents: "Student analysis",
   analysisCompare: "Comparisons",
   analysisDeep: "Deep insights",
-  pendingUploads: "Pending mark uploads",
+  pendingUploads: "Mark progress",
   classInbox: "Class-teacher inbox",
   marks: "Mark register",
   upload: "Bulk upload",
@@ -134,8 +134,8 @@ export const NAV_GROUPS = [
     ],
   },
   {
-    id: "marks",
-    label: "Exam office",
+    id: "today",
+    label: "Today",
     items: [
       {
         id: "marks",
@@ -176,6 +176,12 @@ export const NAV_GROUPS = [
         roles: "leadership",
         badgeKey: "lateEntry",
       },
+    ],
+  },
+  {
+    id: "outputs",
+    label: "Outputs",
+    items: [
       {
         id: "consolidated",
         to: "/consolidated",

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
@@ -16,6 +16,7 @@ import { rejectNegativeKey } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { searchHaystack, useTableSearch } from "../lib/tableSearch.js";
 import { useMediaQuery } from "../lib/useMediaQuery.js";
+import { useWorkspaceOptional } from "../workspace.jsx";
 
 function markStudentSearchText(s) {
   return searchHaystack(s.name, s.rollNo);
@@ -146,6 +147,7 @@ function MarkCellInput({
 
 export default function MarksEntry() {
   const { user } = useAuth();
+  const workspace = useWorkspaceOptional();
   const confirm = useConfirm();
   const toast = useToast();
   const leadership = isLeadership(user.role);
@@ -168,10 +170,12 @@ export default function MarksEntry() {
   const [moderateOpen, setModerateOpen] = useState(false);
   const [catalogReady, setCatalogReady] = useState(false);
   const [subjectsReady, setSubjectsReady] = useState(false);
+  const [paperList, setPaperList] = useState(null);
   const inputRefs = useRef({});
   const subjectOptionsRef = useRef([]);
   const subjectCatalogClassRef = useRef("");
   const loadGenRef = useRef(0);
+  const papersRedirected = useRef(false);
 
   const requestedClass = params.get("classSectionId") || "";
   const requestedExam = params.get("examId") || "";
@@ -202,8 +206,11 @@ export default function MarksEntry() {
           next.delete("subjectId");
         }
         const examIds = new Set(nextExams.map((e) => e.id));
+        const preferredExam =
+          (workspace?.examId && examIds.has(workspace.examId) && workspace.examId) ||
+          defaultExamId(nextExams);
         if (!examIds.has(next.get("examId") || "") && nextExams.length) {
-          next.set("examId", defaultExamId(nextExams));
+          next.set("examId", preferredExam);
         }
         if (next.toString() !== params.toString()) setParams(next, { replace: true });
         setCatalogReady(true);
@@ -218,6 +225,47 @@ export default function MarksEntry() {
       cancelled = true;
     };
   }, []);
+
+  // Teachers landing on /marks without a subject: jump to first incomplete paper, else show My papers.
+  useEffect(() => {
+    if (!catalogReady || !examId || subjectId || leadership || papersRedirected.current) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await api(`/api/registers?examId=${encodeURIComponent(examId)}`);
+        if (cancelled) return;
+        const actionable = (res.nextActions || []).filter((a) =>
+          ["ENTER", "SUBMIT", "REQUEST_LATE"].includes(a.action)
+        );
+        const registers = res.registers || [];
+        setPaperList(registers);
+        if (actionable.length === 1) {
+          papersRedirected.current = true;
+          const target = registers.find((r) => r.key === actionable[0].key) || registers[0];
+          if (target) {
+            const next = new URLSearchParams(params);
+            next.set("examId", target.examId);
+            next.set("classSectionId", target.classSectionId);
+            next.set("subjectId", target.subjectId);
+            setParams(next, { replace: true });
+          }
+        } else if (registers.length === 1) {
+          papersRedirected.current = true;
+          const target = registers[0];
+          const next = new URLSearchParams(params);
+          next.set("examId", target.examId);
+          next.set("classSectionId", target.classSectionId);
+          next.set("subjectId", target.subjectId);
+          setParams(next, { replace: true });
+        }
+      } catch {
+        setPaperList([]);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [catalogReady, examId, subjectId, leadership]);
 
   async function loadGrid({ keepMessage = false } = {}) {
     if (!classSectionId || !examId) return null;
@@ -1102,6 +1150,33 @@ export default function MarksEntry() {
           )}
         </div>
       </div>
+      {!subjectId && !leadership && Array.isArray(paperList) && paperList.length > 0 && (
+        <div className="card mb-4 p-4 space-y-3">
+          <div>
+            <h2 className="font-serif text-xl">My papers</h2>
+            <p className="text-sm text-ink-700/60 mt-1">
+              Open a register to enter or submit marks for the working exam.
+            </p>
+          </div>
+          <div className="grid sm:grid-cols-2 gap-3">
+            {paperList.map((r) => (
+              <Link
+                key={r.key}
+                to={r.marksPath}
+                className="rounded-xl border border-ink-900/10 bg-white/50 px-4 py-3 hover:border-clay-500/40"
+              >
+                <div className="font-serif text-xl">{r.classLabel}</div>
+                <div className="text-xs text-ink-700/55">{r.subject}</div>
+                <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                  <span className="text-ink-700/60">{r.statusLabel}</span>
+                  <span className="mark-chip mark-chip-dirty">{r.nextAction}</span>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
+
       {leadership && (draftTeachers.length > 1 || approvedTeachers.length > 1) && (
         <div className="card mb-4 p-4 space-y-3">
           <div className="text-sm text-ink-700/75">

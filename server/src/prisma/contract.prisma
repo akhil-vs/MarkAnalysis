@@ -173,6 +173,8 @@ model User {
   roleTitle          String?
   status             pg.enum(UserStatus) @default("PENDING")
   createdAt          TimestamptzString   @default(now())
+  /// Persisted shell workspace: { examId?: string, schoolSection?: string }.
+  workspace          Jsonb?
 
   tenant             School? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
 
