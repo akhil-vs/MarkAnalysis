@@ -43,6 +43,7 @@ import {
 import { buildHomeDashboardCached } from "../lib/homeDashboard.js";
 import {
   ANALYTICS_TREND_SELECT,
+  SCHOOL_DETAIL_HISTORY_PRIOR,
   historyExamIdsForDetail,
   loadApprovedMarksForExams,
 } from "../lib/analyticsMarks.js";
@@ -215,7 +216,9 @@ async function buildSchoolAnalyticsCached({
       subject: { select: { id: true, name: true, className: true, maxMarks: true, practicalMaxMarks: true } },
     };
 
-    const otherExamIds = wantDetail ? historyExamIdsForDetail(exams, exam) : [];
+    const otherExamIds = wantDetail
+      ? historyExamIdsForDetail(exams, exam, { maxSameTypePrior: SCHOOL_DETAIL_HISTORY_PRIOR })
+      : [];
 
     const sharedQueries = [
       prisma.mark.findMany({

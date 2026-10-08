@@ -1,4 +1,3 @@
-import { randomBytes } from "node:crypto";
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { parseEmail } from "../lib/numbers.js";
@@ -27,6 +26,7 @@ import {
   schoolDataCounts,
 } from "../lib/schoolDataDelete.js";
 import { hashPassword, validatePasswordPolicy } from "../lib/password.js";
+import { generateStaffTempPassword } from "../lib/staffImport.js";
 import { ensurePilotRequestsSchema } from "../lib/ensureSchema.js";
 import {
   isPilotRequestStatus,
@@ -127,8 +127,9 @@ async function loadSchool(id) {
   return prisma.school.findUnique({ where: { id }, omit: { logoBytes: true } });
 }
 
+/** Temp principal password — must always pass validatePasswordPolicy (letter + digit). */
 function tempPassword() {
-  return `Sch-${randomBytes(6).toString("base64url")}`;
+  return `Sch-${generateStaffTempPassword(10)}`;
 }
 
 platformRouter.get("/overview", async (_req, res) => {
