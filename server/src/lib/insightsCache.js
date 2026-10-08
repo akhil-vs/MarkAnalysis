@@ -13,12 +13,13 @@ export function insightsCacheKey(kind, ...parts) {
   return `insights:${kind}:${parts.map((p) => (p == null ? "" : String(p))).join(":")}`;
 }
 
-/** Drop insight, report, pending-upload, and home-dashboard tenant caches. */
+/** Drop insight, report, pending-upload, home-dashboard, and consolidated-status caches. */
 export function invalidateInsightsCache() {
   invalidateCurrentTenantCache("insights:");
   invalidateCurrentTenantCache("pending-uploads:");
   // Home dashboards embed mark-derived KPIs; clear with mark mutations.
   invalidateCurrentTenantCache("home-dash:");
+  invalidateCurrentTenantCache("consolidated-status:");
 }
 
 export function cachedInsight(kind, parts, loader, opts = {}) {

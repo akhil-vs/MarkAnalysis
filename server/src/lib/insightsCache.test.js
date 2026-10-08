@@ -45,20 +45,27 @@ describe("insightsCache", () => {
     });
   });
 
-  it("invalidateInsightsCache also clears home-dash keys", async () => {
+  it("invalidateInsightsCache also clears home-dash and consolidated-status keys", async () => {
     await runWithTenant("school-insights", async () => {
       const { cachedTenantLoad } = await import("./tenantCache.js");
       await cachedTenantLoad("home-dash:PRINCIPAL:u1:default", async () => ({ ok: true }), {
         ttlMs: 45_000,
       });
-      assert.ok(tenantCacheSize() >= 1);
+      await cachedTenantLoad("consolidated-status:exam-1", async () => ({ ready: 1 }), {
+        ttlMs: 45_000,
+      });
+      assert.ok(tenantCacheSize() >= 2);
       invalidateInsightsCache();
       let loads = 0;
       await cachedTenantLoad("home-dash:PRINCIPAL:u1:default", async () => {
         loads += 1;
         return { ok: true };
       });
-      assert.equal(loads, 1);
+      await cachedTenantLoad("consolidated-status:exam-1", async () => {
+        loads += 1;
+        return { ready: 2 };
+      });
+      assert.equal(loads, 2);
     });
   });
 });

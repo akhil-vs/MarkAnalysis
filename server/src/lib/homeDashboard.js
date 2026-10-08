@@ -576,8 +576,9 @@ export async function buildHomeDashboardCached(user, { examId, schoolSection } =
 }
 
 /**
- * Like buildHomeDashboardCached but aborts embedding after `budgetMs`.
+ * Like buildHomeDashboardCached but resolves null after `budgetMs`.
  * Used on the login path so a cold principal build cannot stall sign-in.
+ * The underlying cache load continues in the background for the SPA prefetch.
  */
 export async function buildHomeDashboardForLogin(user, budgetMs = LOGIN_DASHBOARD_BUDGET_MS) {
   if (!user?.role || user.role === "PLATFORM_ADMIN") return null;

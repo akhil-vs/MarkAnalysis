@@ -63,8 +63,12 @@ describe("API auth (real database)", () => {
     assert.equal(login.json?.user?.role, "PRINCIPAL");
     assert.ok(Array.isArray(login.json?.assignments), "login should include assignments");
     assert.ok(Array.isArray(login.json?.classTeacherOf), "login should include classTeacherOf");
-    assert.ok(login.json?.dashboard, "login should embed home dashboard payload");
+    // dashboardPath always set so the SPA can prefetch; embed is best-effort under budget.
     assert.equal(login.json?.dashboardPath, "/api/analytics/school?include=summary");
+    if (login.json?.dashboard) {
+      assert.equal(typeof login.json.dashboard, "object");
+      assert.ok(login.json.dashboard.exam || login.json.dashboard.empty != null);
+    }
     assert.ok(login.jar.has(ACCESS_COOKIE), "sma_access cookie missing");
     assert.ok(login.jar.has(REFRESH_COOKIE), "sma_refresh cookie missing");
 

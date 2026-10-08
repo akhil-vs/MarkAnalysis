@@ -92,6 +92,7 @@ export function distinctionFailLists(
     distinctionMin = 90,
     gradeFn = defaultGradeFromPercent,
     assessmentPolicy = null,
+    includeLists = true,
   } = {}
 ) {
   const byStudent = groupBy(marks, (m) => m.studentId);
@@ -120,6 +121,16 @@ export function distinctionFailLists(
   const distinction = ranked.filter((s) => (s.avg ?? -1) >= distinctionMin);
   const fail = ranked.filter((s) => s.passed === false).reverse();
   const pass = ranked.filter((s) => s.passed === true);
+  const counts = {
+    distinction: distinction.length,
+    pass: pass.length,
+    fail: fail.length,
+    students: ranked.filter((s) => s.avg != null).length,
+  };
+
+  if (!includeLists) {
+    return { counts, distinction: [], fail: [], bySubjectFail: [] };
+  }
 
   const bySubjectFail = [];
   const bySubject = groupBy(marks.filter(isScoredMark), (m) => m.subject?.name || "—");
@@ -145,12 +156,7 @@ export function distinctionFailLists(
   }
 
   return {
-    counts: {
-      distinction: distinction.length,
-      pass: pass.length,
-      fail: fail.length,
-      students: ranked.filter((s) => s.avg != null).length,
-    },
+    counts,
     distinction: distinction.slice(0, 50),
     fail: fail.slice(0, 50),
     bySubjectFail: bySubjectFail.sort((a, b) => b.count - a.count),

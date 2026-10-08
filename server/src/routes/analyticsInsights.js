@@ -511,14 +511,20 @@ export function registerAnalyticsInsights(router) {
   });
 }
 
-/** Attach outcome / band extras onto an existing marks payload (shared enricher). */
-export async function enrichMarksInsights(marks, grading) {
+/**
+ * Attach outcome / band extras onto an existing marks payload (shared enricher).
+ * @param {object} [opts]
+ * @param {boolean} [opts.includeLists=true] When false, only counts (skip heavy student lists).
+ */
+export async function enrichMarksInsights(marks, grading, opts = {}) {
+  const includeLists = opts.includeLists !== false;
   const cfg = grading || gradingHelpers(await getGradingConfig());
   const lists = distinctionFailLists(marks, {
     passPercent: cfg.passPercent,
     distinctionMin: cfg.distinctionMin,
     gradeFn: cfg.gradeFn,
     assessmentPolicy: cfg.assessmentPolicy,
+    includeLists,
   });
   return {
     outcomes: outcomeBreakdown(marks),

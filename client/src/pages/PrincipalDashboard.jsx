@@ -152,18 +152,23 @@ export default function PrincipalDashboard() {
     setError("");
     const base = new URLSearchParams();
     if (id) base.set("examId", id);
-    // Cold path: one round-trip for summary+detail instead of summary-then-detail waterfall.
-    base.set("include", "summary,detail");
+    // Summary first for a fast desk paint; detail charts load in parallel afterward.
+    // Never request include=summary,detail — that forces the expensive monolithic report.
+    base.set("include", "summary");
     const nextSection = normalizeSchoolSection(section);
     if (nextSection !== "ALL") base.set("schoolSection", nextSection);
     const path = `/api/analytics/school?${base}`;
     try {
       const payload = await api(path);
       setData(payload);
-      setDetailLoading(false);
       setSchoolSection(normalizeSchoolSection(payload.schoolSection || nextSection));
-      if (payload.empty) return;
+      if (payload.empty) {
+        setDetailLoading(false);
+        return;
+      }
       if (payload.exam) setExamId(payload.exam.id);
+      // Fire detail without awaiting so KPIs stay interactive.
+      void loadDetail(payload, nextSection);
     } catch (e) {
       if (!data) setError(e.message || "Could not load school view");
     }
