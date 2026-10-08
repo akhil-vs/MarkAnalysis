@@ -18,7 +18,7 @@ Branch: `cursor/register-centric-ux-a625`.
 
 ### Backend
 
-- [ ] `UserWorkspacePreference` table (or user columns) + `ensureSchema` catch-up
+- [x] `User.workspace` JSONB column + `ensureSchema` catch-up
 - [x] `GET/PUT /api/me/workspace` — resolve exam via override > preference > latest
 - [x] Include `workspace` on login / `/api/auth/me`
 - [x] `GET /api/registers?examId=` — `RegisterDto[]` with status + `actions[]`
@@ -29,7 +29,7 @@ Branch: `cursor/register-centric-ux-a625`.
 - [x] Workspace context provider (chip in Layout: exam + section)
 - [x] Nav regroup: **Today** / **Outputs** / **Setup** / **Insights** / HELP / Account
 - [x] Teacher desk: next-actions + My papers as primary; leave/analytics secondary
-- [ ] Leadership desk: approvals/chase strip first
+- [x] Leadership desk: approvals/chase strip first (Submitted marks + Approvals inbox links)
 - [x] `/marks` without params → first incomplete paper or papers list
 
 ### Done when
@@ -48,15 +48,15 @@ Branch: `cursor/register-centric-ux-a625`.
 - [x] `GET /api/approvals/inbox?tab=registers|access`
 - [x] `POST /api/approvals/registers/approve` (batched register keys, capped)
 - [x] `GET /api/school/setup-status` — ordered steps with `href` + `blocking`
-- [ ] Audit notification `link` builders for exam/class/subject params
-- [ ] Keep `/api/analytics/awaiting-approvals` + `/api/mark-access` as aliases
+- [x] Audit notification `link` builders for exam/class/subject params (`accessRequestsLink` → `/approvals?tab=access`)
+- [x] Keep `/api/analytics/awaiting-approvals` + `/api/mark-access` as aliases
 
 ### Frontend
 
 - [x] `/approvals` unified page (tabs); desk strip links here
 - [x] Redirect `/late-entry` → `/access-requests` (or `/approvals?tab=access`)
 - [x] Empty/home checklist from setup-status
-- [ ] Rename Pending uploads nav label toward “Mark progress” if not folded in
+- [x] Rename Pending uploads nav label toward “Mark progress”
 
 ### Done when
 
@@ -71,15 +71,15 @@ Branch: `cursor/register-centric-ux-a625`.
 
 ### Backend
 
-- [ ] Exam `readiness` fields on exam APIs (papers missing dates, consolidation lock)
-- [ ] `GET /api/insights/home?examId=` — role-filtered question cards
-- [ ] `capabilities` (or `navProfile`) on `/me`
+- [x] Exam `readiness` fields on exam APIs (papers missing dates, consolidation lock)
+- [x] `GET /api/insights/home?examId=` — role-filtered question cards
+- [x] `capabilities` (or `navProfile`) on `/me`
 
 ### Frontend
 
-- [ ] Split **Exams** out of Records → `/exams` under Exam office
-- [ ] Analysis hub: questions first, catalog secondary
-- [ ] Nav driven by capabilities; hide empty groups
+- [x] Split **Exams** out of Records → `/exams` under Exam office
+- [x] Analysis hub: questions first, catalog secondary
+- [x] Nav driven by capabilities; hide empty groups
 
 ### Done when
 
@@ -94,16 +94,16 @@ Branch: `cursor/register-centric-ux-a625`.
 
 ### Backend
 
-- [ ] Centralize register/approve/submit eligibility in `lib/registers.js`
-- [ ] Structured error codes (`NO_DRAFTS`, `PAST_DEADLINE`, …)
-- [ ] Perf indexes / cache keys if inbox slow
-- [ ] Deprecate duplicate aggregation paths where safe
+- [x] Centralize register/approve/submit eligibility in `lib/registers.js` (`registerActions`)
+- [x] Structured error codes (`NO_DRAFTS`, `PAST_DEADLINE`, `EDIT_LOCKED`, …)
+- [ ] Perf indexes / cache keys if inbox slow (defer until measured)
+- [x] Deprecate duplicate aggregation paths where safe (approvals inbox preferred; awaiting-approvals kept)
 
 ### Frontend
 
-- [ ] Mobile bottom task bar (Home / Papers / Notices)
-- [ ] Toast copy from structured codes
-- [ ] Optional mark autosave (only if still needed after P0/P1)
+- [x] Mobile bottom task bar (Home / Papers|Approvals / Profile)
+- [x] Toast copy from structured codes
+- [ ] Optional mark autosave (only if still needed after P0/P1) — deferred
 
 ### Done when
 

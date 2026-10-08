@@ -67,6 +67,16 @@ export const PAGE_HELP = {
     about: "Teachers who still have empty registers, and submitted papers waiting for your approval, for the selected exam. Each list is an accordion — expand a teacher under Still missing marks or Entered — awaiting your approval.",
     useful: "Clear this queue so school analytics and consolidated lists are complete. Expand a teacher to open the register, send a reminder, or approve submitted drafts.",
   },
+  exams: {
+    title: "What's on this page",
+    about: "Exam office entry for scheduling exams, paper dates, deadlines, and consolidation settings.",
+    useful: "Open here to create or edit the working exam without hunting through every Records tab.",
+  },
+  approvals: {
+    title: "What's on this page",
+    about: "One inbox for submitted registers waiting for approval and late-entry or edit access requests.",
+    useful: "Clear both queues here so teachers can keep working and consolidated lists stay unblocked.",
+  },
   classInbox: {
     title: "What's on this page",
     about: "Your class-teacher inbox: subject papers for your sections that still need marks or leadership approval.",

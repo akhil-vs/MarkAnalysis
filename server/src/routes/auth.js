@@ -41,6 +41,7 @@ import {
 } from "../lib/homeDashboard.js";
 import { publicWorkspace, resolveWorkspace } from "../lib/workspace.js";
 import { ensureUserWorkspaceColumn } from "../lib/ensureSchema.js";
+import { capabilitiesForUser } from "../lib/capabilities.js";
 
 export const authRouter = Router();
 
@@ -73,12 +74,14 @@ function formatClassTeacherOf(rows) {
 }
 
 function formatSessionPayload(user, { features, workspace } = {}) {
+  const featureList = features || [];
   return {
     user: publicUser(user),
     assignments: user.assignments || [],
     classTeacherOf: formatClassTeacherOf(user.classTeacherOf || []),
     features: features || undefined,
     workspace: workspace || undefined,
+    capabilities: capabilitiesForUser(user, featureList),
   };
 }
 

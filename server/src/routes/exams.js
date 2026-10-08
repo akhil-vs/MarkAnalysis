@@ -49,6 +49,8 @@ function examJson(exam) {
   if (!exam) return exam;
   const { consolidationLockedBy, paperSchedules, ...rest } = exam;
   const summary = paperScheduleSummary(paperSchedules || []);
+  const papers = paperSchedules || [];
+  const papersMissingDates = papers.filter((p) => !p.paperDate).length;
   return {
     ...rest,
     includedClassNames: resolveIncludedClassNames(exam, paperSchedules),
@@ -59,6 +61,13 @@ function examJson(exam) {
       ...exam,
       consolidationLockedBy,
     }),
+    readiness: {
+      hasPapers: papers.length > 0,
+      papersMissingDates,
+      deadlineSet: Boolean(exam.marksEntryDeadline),
+      consolidationLocked: Boolean(exam.consolidationLocked),
+      readyForEntry: papers.length > 0 && papersMissingDates === 0,
+    },
   };
 }
 

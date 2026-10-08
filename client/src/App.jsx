@@ -38,6 +38,7 @@ const PendingUploads = lazy(() => import("./pages/PendingUploads.jsx"));
 const ClassTeacherInbox = lazy(() => import("./pages/ClassTeacherInbox.jsx"));
 const LateEntryRequests = lazy(() => import("./pages/LateEntryRequests.jsx"));
 const Approvals = lazy(() => import("./pages/Approvals.jsx"));
+const Exams = lazy(() => import("./pages/Exams.jsx"));
 const AuditLog = lazy(() => import("./pages/AuditLog.jsx"));
 const ConsolidatedLists = lazy(() => import("./pages/ConsolidatedLists.jsx"));
 const HallTickets = lazy(() => import("./pages/HallTickets.jsx"));
@@ -154,6 +155,7 @@ export default function App() {
           <Route index element={<Home />} />
           <Route path="users" element={<Guarded route="users"><Users /></Guarded>} />
           <Route path="manage" element={<Guarded route="manage"><Manage /></Guarded>} />
+          <Route path="exams" element={<Guarded route="exams"><Exams /></Guarded>} />
           <Route path="marks" element={<MarksEntry />} />
           <Route path="upload" element={<Guarded route="upload"><MarksUpload /></Guarded>} />
           <Route path="audit" element={<Guarded route="audit"><AuditLog /></Guarded>} />
