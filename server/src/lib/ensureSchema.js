@@ -1549,15 +1549,25 @@ const USER_WORKSPACE_STATEMENTS = [
   `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "workspace" JSONB`,
 ];
 
+let userWorkspaceEnsurePromise = null;
+
 /** Persisted working exam + school section for the staff shell. */
 export async function ensureUserWorkspaceColumn() {
-  const hasCol = await columnExists("User", "workspace");
-  if (hasCol) {
-    await recordMigration(USER_WORKSPACE_MIGRATION, USER_WORKSPACE_CHECKSUM);
-    return;
+  if (!userWorkspaceEnsurePromise) {
+    userWorkspaceEnsurePromise = (async () => {
+      const hasCol = await columnExists("User", "workspace");
+      if (hasCol) {
+        await recordMigration(USER_WORKSPACE_MIGRATION, USER_WORKSPACE_CHECKSUM);
+        return;
+      }
+      await applyStatements(USER_WORKSPACE_STATEMENTS);
+      await recordMigration(USER_WORKSPACE_MIGRATION, USER_WORKSPACE_CHECKSUM);
+    })().catch((err) => {
+      userWorkspaceEnsurePromise = null;
+      throw err;
+    });
   }
-  await applyStatements(USER_WORKSPACE_STATEMENTS);
-  await recordMigration(USER_WORKSPACE_MIGRATION, USER_WORKSPACE_CHECKSUM);
+  return userWorkspaceEnsurePromise;
 }
 
 const PERF_INDEXES_MIGRATION = "20260924120000_api_performance_indexes";

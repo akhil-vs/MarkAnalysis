@@ -73,6 +73,11 @@ export default defineConfig({
       url: baseURL,
       reuseExistingServer: true,
       timeout: 120_000,
+      env: {
+        ...process.env,
+        // auth.setup.js clicks one-click demo account buttons.
+        VITE_ENABLE_DEMO_LOGIN: process.env.VITE_ENABLE_DEMO_LOGIN || "true",
+      },
     },
   ],
 });

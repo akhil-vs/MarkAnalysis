@@ -31,7 +31,8 @@ describe("Platform admin school data delete (real database)", () => {
     if (!server) return t.skip("DATABASE_URL not set");
     const schools = await server.request("/api/platform/schools", { jar: adminJar });
     assert.equal(schools.status, 200);
-    const list = schools.json?.schools || schools.json;
+    const list = schools.json?.items || schools.json?.schools || schools.json;
+    assert.ok(Array.isArray(list), "expected schools list");
     const school = list.find((s) => s.slug === "riverside") || list[0];
     assert.ok(school?.id);
 
@@ -46,7 +47,8 @@ describe("Platform admin school data delete (real database)", () => {
   it("rejects delete without matching school code", async (t) => {
     if (!server) return t.skip("DATABASE_URL not set");
     const schools = await server.request("/api/platform/schools", { jar: adminJar });
-    const list = schools.json?.schools || schools.json;
+    const list = schools.json?.items || schools.json?.schools || schools.json;
+    assert.ok(Array.isArray(list), "expected schools list");
     const school = list.find((s) => s.slug === "riverside") || list[0];
 
     const res = await server.request(`/api/platform/schools/${school.id}/data/delete`, {
@@ -99,7 +101,8 @@ describe("Platform admin school data delete (real database)", () => {
     const login = await loginAs(server, { email: "anita.sharma@school.edu" });
     assert.equal(login.status, 200, login.text);
     const schools = await server.request("/api/platform/schools", { jar: adminJar });
-    const list = schools.json?.schools || schools.json;
+    const list = schools.json?.items || schools.json?.schools || schools.json;
+    assert.ok(Array.isArray(list) && list[0]?.id, "expected schools list");
     const school = list[0];
     const res = await server.request(`/api/platform/schools/${school.id}/data`, { jar: login.jar });
     assert.equal(res.status, 403);

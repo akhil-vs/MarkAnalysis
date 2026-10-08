@@ -113,8 +113,10 @@ jobs:
       CLIENT_ORIGIN: http://127.0.0.1:5173
       COOKIE_SECURE: "false"
       SEED_FORCE_PASSWORD_CHANGE: "false"
-      VITE_ENABLE_DEMO_LOGIN: "false"
+      # E2E auth.setup clicks one-click demo buttons (enabled in Vite DEV).
+      VITE_ENABLE_DEMO_LOGIN: "true"
       RATE_LIMIT_STORE: memory
+      LOGIN_DASHBOARD_BUDGET_MS: "2500"
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -43,7 +43,7 @@ import {
 } from "./schoolSections.js";
 
 /** Max wait for embedding dashboard in the login response (ms). */
-export const LOGIN_DASHBOARD_BUDGET_MS = 350;
+export const LOGIN_DASHBOARD_BUDGET_MS = Number(process.env.LOGIN_DASHBOARD_BUDGET_MS) || 1500;
 
 function markInSchoolSection(mark, section) {
   return classNameInSchoolSection(mark?.student?.classSection?.className, section);
