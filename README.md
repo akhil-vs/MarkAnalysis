@@ -10,6 +10,7 @@ Step-by-step guides for each school role (also under **HELP → User manuals** i
 - [Exam co-ordinator](docs/user-manuals/coordinator.md) · [PDF](client/public/help/coordinator-user-manual.pdf)
 - [Teacher](docs/user-manuals/teacher.md) · [PDF](client/public/help/teacher-user-manual.pdf)
 - [Index](docs/user-manuals/README.md)
+- [Meeting pitch (Principal & Exam Co-ordinator)](docs/meeting-pitch-principal-coordinator.md)
 
 Regenerate PDFs with `npm run docs:pdf`.
 
