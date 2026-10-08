@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 /**
  * Prepare a fresh Postgres for API integration tests:
- * 1) apply on-disk baseline migration (empty → refs/db.json hash)
- * 2) run ensurePendingSchema catch-up for contract drift
- * 3) optionally seed (SEED=1)
+ * 1) emit contract
+ * 2) apply schema — prefer migrate; on empty DBs fall back to `prisma db init`
+ *    (migration history lags TeacherLeave / TimetableSubstitution / etc.)
+ * 3) run ensurePendingSchema catch-up for RateLimitBucket and other SQL-only pieces
+ * 4) optionally seed (SEED=1)
  *
  * Usage:
  *   DATABASE_URL=... node scripts/prepareTestDb.mjs
@@ -13,6 +15,7 @@ import { spawn } from "node:child_process";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import pg from "pg";
 import "dotenv/config";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -38,6 +41,37 @@ function run(cmd, args, { env = process.env } = {}) {
   });
 }
 
+function prismaOk(result) {
+  if (result.code === 0) return true;
+  // Prisma 8 often prints JSON envelopes with exitCode even when the process exits 0;
+  // when it exits non-zero, still accept an explicit ok envelope.
+  try {
+    const lines = `${result.stdout}\n${result.stderr}`.split("\n").reverse();
+    for (const line of lines) {
+      if (!line.includes('"ok"')) continue;
+      const parsed = JSON.parse(line);
+      if (parsed?.envelope?.ok === true || parsed?.ok === true) return true;
+      if (parsed?.envelope?.ok === false) return false;
+    }
+  } catch {
+    /* ignore parse errors */
+  }
+  return false;
+}
+
+async function userTableExists() {
+  const client = new pg.Client({ connectionString: process.env.DATABASE_URL });
+  try {
+    await client.connect();
+    const res = await client.query(
+      `SELECT 1 FROM information_schema.tables WHERE table_schema = 'public' AND table_name = 'User'`
+    );
+    return res.rowCount > 0;
+  } finally {
+    await client.end().catch(() => {});
+  }
+}
+
 async function main() {
   if (!process.env.DATABASE_URL) {
     console.error("DATABASE_URL is required");
@@ -58,25 +92,28 @@ async function main() {
     process.exit(result.code || 1);
   }
 
-  console.log(`Applying baseline migration to ${hash}…`);
-  result = await run("npx", [
-    "prisma",
-    "db",
-    "migrate",
-    "--to",
-    hash,
-    "--advance-ref",
-    "db",
-  ]);
-  // Already at baseline (or beyond) is fine; unreachable empty→current is not.
-  if (result.code !== 0) {
-    const blob = `${result.stdout}\n${result.stderr}`;
-    if (!/PATH_UNREACHABLE|already|Nothing to apply|no migrations/i.test(blob)) {
-      // Retry without --to in case DB is empty but ref tooling differs.
-      console.warn("Baseline --to migrate reported an error; checking output…");
-      console.warn(blob.slice(0, 2000));
-      // If DB was already migrated to this hash, migrate may fail when re-run.
-      // Continue to ensurePendingSchema which is idempotent.
+  const hasUser = await userTableExists();
+  if (!hasUser) {
+    // Empty / wiped CI database: migration history cannot reach the current contract
+    // (TeacherLeave, TimetableSubstitution, …). Bootstrap from the live contract.
+    console.log("Empty database — running prisma db init from current contract…");
+    result = await run("npx", ["prisma", "db", "init", "--advance-ref", "db", "--yes"]);
+    if (!prismaOk(result)) {
+      console.error(result.stdout || result.stderr);
+      process.exit(result.code || 1);
+    }
+  } else {
+    console.log(`Applying migrations toward ${hash}…`);
+    result = await run("npx", ["prisma", "db", "migrate", "--advance-ref", "db"]);
+    if (!prismaOk(result)) {
+      const blob = `${result.stdout}\n${result.stderr}`;
+      console.warn("prisma db migrate reported an error; trying db update…");
+      console.warn(blob.slice(0, 1500));
+      result = await run("npx", ["prisma", "db", "update", "--advance-ref", "db", "--yes"]);
+      if (!prismaOk(result)) {
+        console.error(result.stdout || result.stderr);
+        process.exit(result.code || 1);
+      }
     }
   }
 

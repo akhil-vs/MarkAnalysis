@@ -38,8 +38,8 @@ describe("API RBAC + tenant smoke (real database)", () => {
 
     const res = await server.request("/api/platform/schools", { jar: login.jar });
     assert.equal(res.status, 200, res.text);
-    assert.ok(Array.isArray(res.json?.schools) || Array.isArray(res.json));
-    const schools = res.json?.schools || res.json;
+    const schools = res.json?.items || res.json?.schools || res.json;
+    assert.ok(Array.isArray(schools), "expected schools list");
     assert.ok(schools.length >= 1);
   });
 

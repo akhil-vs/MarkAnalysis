@@ -29,11 +29,11 @@ test.describe("Cross-role marks cycle (manuals exam workflow)", () => {
     });
     const coordPage = await coord.newPage();
     await goRoute(coordPage, ROUTES.dashboard);
-    await goNav(coordPage, "Pending uploads");
-    await expectPageTitle(coordPage, "Pending");
+    await goNav(coordPage, "Mark progress");
+    await expectPageTitle(coordPage, "Mark progress");
     await expect(coordPage.locator("main")).toContainText(/Biology|Meera|pending|awaiting|teacher|upload/i);
     await goNav(coordPage, "Access requests");
-    await expectPageTitle(coordPage, "Access request");
+    await expectPageTitle(coordPage, "Approvals");
     await coord.close();
 
     const principal = await browser.newContext({
@@ -41,8 +41,8 @@ test.describe("Cross-role marks cycle (manuals exam workflow)", () => {
     });
     const principalPage = await principal.newPage();
     await goRoute(principalPage, ROUTES.dashboard);
-    await goNav(principalPage, "Pending uploads");
-    await expectPageTitle(principalPage, "Pending");
+    await goNav(principalPage, "Mark progress");
+    await expectPageTitle(principalPage, "Mark progress");
     await expectNavLink(principalPage, "Mark register", { visible: false });
     await principal.close();
   });

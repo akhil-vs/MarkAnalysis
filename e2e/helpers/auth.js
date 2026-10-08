@@ -35,7 +35,8 @@ export const ROUTES = {
   marks: "/marks",
   upload: "/upload",
   pendingUploads: "/pending-uploads",
-  accessRequests: "/late-entry",
+  accessRequests: "/approvals?tab=access",
+  approvals: "/approvals",
   consolidated: "/consolidated",
   hallTickets: "/hall-tickets",
   studentPhotos: "/student-photos",
@@ -98,7 +99,7 @@ export async function signOut(page) {
   await page.goto("/login");
 }
 
-/** Click a sidebar link by visible label (tolerates badge suffixes like "Pending uploads 0"). */
+/** Click a sidebar link by visible label (tolerates badge suffixes like "Mark progress 0"). */
 export async function goNav(page, label) {
   const link = page.getByRole("navigation").getByRole("link", {
     name: new RegExp(`^${escapeRegExp(label)}(\\s+\\d+)?$`, "i"),

@@ -1549,15 +1549,25 @@ const USER_WORKSPACE_STATEMENTS = [
   `ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "workspace" JSONB`,
 ];
 
+let userWorkspaceEnsurePromise = null;
+
 /** Persisted working exam + school section for the staff shell. */
 export async function ensureUserWorkspaceColumn() {
-  const hasCol = await columnExists("User", "workspace");
-  if (hasCol) {
-    await recordMigration(USER_WORKSPACE_MIGRATION, USER_WORKSPACE_CHECKSUM);
-    return;
+  if (!userWorkspaceEnsurePromise) {
+    userWorkspaceEnsurePromise = (async () => {
+      const hasCol = await columnExists("User", "workspace");
+      if (hasCol) {
+        await recordMigration(USER_WORKSPACE_MIGRATION, USER_WORKSPACE_CHECKSUM);
+        return;
+      }
+      await applyStatements(USER_WORKSPACE_STATEMENTS);
+      await recordMigration(USER_WORKSPACE_MIGRATION, USER_WORKSPACE_CHECKSUM);
+    })().catch((err) => {
+      userWorkspaceEnsurePromise = null;
+      throw err;
+    });
   }
-  await applyStatements(USER_WORKSPACE_STATEMENTS);
-  await recordMigration(USER_WORKSPACE_MIGRATION, USER_WORKSPACE_CHECKSUM);
+  return userWorkspaceEnsurePromise;
 }
 
 const PERF_INDEXES_MIGRATION = "20260924120000_api_performance_indexes";
@@ -1847,6 +1857,8 @@ export async function ensureAuthSchema() {
       await ensureCustomStaffRolesColumns();
       await ensureRoleFeatureAccessColumn();
       await ensureOptionalModulesColumn();
+      // Session payload resolves User.workspace — must exist before login /me selects User.
+      await ensureUserWorkspaceColumn();
       if (await catchupsAlreadyApplied(AUTH_CATCHUP_MIGRATION_NAMES)) return;
       await Promise.all([ensureMustChangePasswordColumn(), ensureRefreshTokenTable()]);
       await ensureMultiTenantSchools();
@@ -2040,6 +2052,9 @@ export const __test = {
   ensureAssessmentPolicyColumns,
   ensureUserWorkspaceColumn,
   ensurePerformanceIndexes,
+  USER_WORKSPACE_MIGRATION,
+  USER_WORKSPACE_CHECKSUM,
+  USER_WORKSPACE_STATEMENTS,
   ACADEMIC_YEARS_MIGRATION,
   ACADEMIC_YEARS_CHECKSUM,
   ACADEMIC_YEARS_STATEMENTS,

@@ -109,6 +109,9 @@ async function loadSchoolFeatureContext(tenantId) {
 }
 
 async function loadUserSession(userId) {
+  // Prisma selects every User scalar (including workspace). Ensure the column exists
+  // before findUnique so a lagging migrate cannot surface SCHEMA_DRIFT on login /me.
+  await ensureUserWorkspaceColumn();
   const user = await prisma.user.findUnique({
     where: { id: userId },
     include: USER_SESSION_INCLUDE,
@@ -123,7 +126,6 @@ async function loadUserSession(userId) {
   let workspace;
   if (user.role !== "PLATFORM_ADMIN" && user.tenantId) {
     try {
-      await ensureUserWorkspaceColumn();
       const resolved = await resolveWorkspace({
         userId: user.id,
         stored: user.workspace,
@@ -164,7 +166,9 @@ async function establishSession(req, res, user, prefetched = null) {
     prefetched?.session
       ? Promise.resolve(prefetched.session)
       : loadUserSession(user.id),
-    prefetched && "dashboard" in prefetched
+    // Prefer a warm prefetch; if the login budget timed out (dashboard: null),
+    // rebuild once after the password check so cold CI/prod still embeds a desk.
+    prefetched?.dashboard
       ? Promise.resolve(prefetched.dashboard)
       : dashPath
         ? buildHomeDashboardCached(user).catch(() => null)
