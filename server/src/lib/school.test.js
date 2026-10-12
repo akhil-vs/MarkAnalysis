@@ -44,12 +44,12 @@ describe("formatSchoolAddress / schoolHeaderLines", () => {
 });
 
 describe("buildLetterhead / publicSchool", () => {
-  it("builds a letterhead with logo, affiliation, and address", () => {
-    const head = buildLetterhead(SAMPLE);
+  it("builds a letterhead with logo, affiliation, and address", async () => {
+    const head = await buildLetterhead(SAMPLE);
     assert.equal(head.name, "Greenfield Public School");
     assert.match(head.affiliationLine, /Affiliated to CBSE/);
     assert.match(head.addressLine, /Bengaluru/);
-    assert.equal(head.logo, TINY_PNG);
+    assert.equal(Buffer.compare(head.logo, TINY_PNG), 0);
     assert.equal(head.logoMime, "image/png");
     assert.match(head.principalLine, /Kavitha Rao/);
   });

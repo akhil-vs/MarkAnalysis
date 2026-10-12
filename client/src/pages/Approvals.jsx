@@ -7,6 +7,7 @@ import { LoadError } from "../components/LoadError.jsx";
 import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { useWorkspaceOptional } from "../workspace.jsx";
+import LateEntryRequests from "./LateEntryRequests.jsx";
 
 const TABS = [
   { id: "registers", label: "Submitted registers" },
@@ -25,6 +26,7 @@ export default function Approvals() {
   const [busyId, setBusyId] = useState("");
 
   async function load(nextTab = tab, examId = examFilter) {
+    if (nextTab === "access") return;
     setError("");
     try {
       const q = new URLSearchParams({ tab: nextTab });
@@ -80,34 +82,6 @@ export default function Approvals() {
     }
   }
 
-  async function reviewAccess(item, decision) {
-    const ok = await confirm({
-      title: decision === "APPROVED" ? "Approve access request?" : "Reject access request?",
-      message: `${item.accessKind === "EDIT" ? "Edit" : "Late entry"} for ${item.teacherName} · ${item.classLabel} · ${item.subjectName}`,
-      confirmLabel: decision === "APPROVED" ? "Approve" : "Reject",
-      tone: decision === "APPROVED" ? "default" : "danger",
-    });
-    if (!ok) return;
-    setBusyId(item.id);
-    try {
-      await api(`/api/mark-access/${item.requestId}`, {
-        method: "PATCH",
-        body: { status: decision },
-      });
-      toast.success(decision === "APPROVED" ? "Access approved" : "Access rejected");
-      await load();
-    } catch (err) {
-      toast.error(err.message || "Could not update request");
-    } finally {
-      setBusyId("");
-    }
-  }
-
-  if (error) return <LoadError message={error} />;
-  if (!data) return <LoadingState label="Loading approvals…" />;
-
-  const items = data.items || [];
-
   return (
     <div>
       <PageHeader
@@ -124,12 +98,18 @@ export default function Approvals() {
             onClick={() => selectTab(t.id)}
           >
             {t.label}
-            {tab === t.id ? ` (${data.count ?? 0})` : ""}
+            {tab === t.id && tab === "registers" ? ` (${data?.count ?? 0})` : ""}
           </button>
         ))}
       </div>
 
-      {items.length === 0 ? (
+      {tab === "access" ? (
+        <LateEntryRequests embedded />
+      ) : error ? (
+        <LoadError message={error} />
+      ) : !data ? (
+        <LoadingState label="Loading approvals…" />
+      ) : (data.items || []).length === 0 ? (
         <div className="card p-5 text-ink-700/70">
           Nothing waiting in this queue.{" "}
           <Link className="underline" to="/pending-uploads">
@@ -138,7 +118,7 @@ export default function Approvals() {
         </div>
       ) : (
         <div className="space-y-3">
-          {items.map((item) => (
+          {(data.items || []).map((item) => (
             <div
               key={item.id}
               className="card flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"
@@ -167,26 +147,7 @@ export default function Approvals() {
                   >
                     <BusyLabel busy={busyId === item.id} idle="Approve" busyText="Approving…" />
                   </button>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      className="btn-accent"
-                      disabled={busyId === item.id}
-                      onClick={() => reviewAccess(item, "APPROVED")}
-                    >
-                      <BusyLabel busy={busyId === item.id} idle="Approve" busyText="Saving…" />
-                    </button>
-                    <button
-                      type="button"
-                      className="btn-ghost"
-                      disabled={busyId === item.id}
-                      onClick={() => reviewAccess(item, "REJECTED")}
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
+                ) : null}
               </div>
             </div>
           ))}

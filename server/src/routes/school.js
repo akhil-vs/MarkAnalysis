@@ -13,6 +13,8 @@ import {
 } from "../lib/school.js";
 import { prisma } from "../lib/prisma.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
+import { deleteBlob, getBlob, putBlob } from "../lib/blobStore.js";
+import { ensureBlobStorageColumns } from "../lib/ensureSchema.js";
 import {
   DEFAULT_DISTINCTION_MIN,
   DEFAULT_EXAM_WEIGHTS,
@@ -71,9 +73,9 @@ schoolRouter.get("/setup-status", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), 
 });
 
 schoolRouter.get("/logo", async (_req, res) => {
+  await ensureBlobStorageColumns();
   const profile = await getSchoolProfile({ includeLogo: true });
-  const raw = profile.logoBytes;
-  const buf = raw ? (Buffer.isBuffer(raw) ? raw : Buffer.from(raw)) : null;
+  const buf = await getBlob({ bytes: profile.logoBytes, storageKey: profile.logoStorageKey });
   if (!buf?.length || !profile.logoMimeType) {
     return res.status(404).json({ error: "No school logo uploaded" });
   }
@@ -147,22 +149,37 @@ schoolRouter.post("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), require
   const parsed = parseLogoFile(req.file);
   if (parsed.error) return res.status(400).json({ error: parsed.error });
 
-  const profile = await getSchoolProfile();
+  await ensureBlobStorageColumns();
+  const profile = await getSchoolProfile({ includeLogo: true });
+  if (profile.logoStorageKey) await deleteBlob(profile.logoStorageKey);
+  const stored = await putBlob({
+    kind: "logo",
+    tenantId: profile.id,
+    entityId: profile.id,
+    bytes: parsed.bytes,
+    mimeType: parsed.mime,
+  });
   const updated = await prisma.school.update({
     where: { id: profile.id },
     omit: { logoBytes: true },
-    data: { logoBytes: parsed.bytes, logoMimeType: parsed.mime },
+    data: {
+      logoBytes: stored.bytes,
+      logoMimeType: stored.mimeType,
+      logoStorageKey: stored.storageKey,
+    },
   });
   invalidateSchoolProfileCache();
   res.json(schoolJson(req, updated));
 });
 
 schoolRouter.delete("/logo", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("schoolProfile"), async (req, res) => {
-  const profile = await getSchoolProfile();
+  await ensureBlobStorageColumns();
+  const profile = await getSchoolProfile({ includeLogo: true });
+  if (profile.logoStorageKey) await deleteBlob(profile.logoStorageKey);
   const updated = await prisma.school.update({
     where: { id: profile.id },
     omit: { logoBytes: true },
-    data: { logoBytes: null, logoMimeType: null },
+    data: { logoBytes: null, logoMimeType: null, logoStorageKey: null },
   });
   invalidateSchoolProfileCache();
   res.json(schoolJson(req, updated));

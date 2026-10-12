@@ -4219,6 +4219,13 @@
                   "kind": "scalar"
                 }
               },
+              "logoStorageKey": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
               "motto": {
                 "nullable": true,
                 "type": {
@@ -4847,6 +4854,9 @@
                 "logoMimeType": {
                   "column": "logoMimeType"
                 },
+                "logoStorageKey": {
+                  "column": "logoStorageKey"
+                },
                 "motto": {
                   "column": "motto"
                 },
@@ -4976,6 +4986,13 @@
                 }
               },
               "photoMimeType": {
+                "nullable": true,
+                "type": {
+                  "codecId": "pg/text@1",
+                  "kind": "scalar"
+                }
+              },
+              "photoStorageKey": {
                 "nullable": true,
                 "type": {
                   "codecId": "pg/text@1",
@@ -5158,6 +5175,9 @@
                 },
                 "photoMimeType": {
                   "column": "photoMimeType"
+                },
+                "photoStorageKey": {
+                  "column": "photoStorageKey"
                 },
                 "promotedFromId": {
                   "column": "promotedFromId"
@@ -10986,6 +11006,11 @@
                   "nativeType": "text",
                   "nullable": true
                 },
+                "logoStorageKey": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
                 "motto": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
@@ -11166,6 +11191,11 @@
                   "nullable": true
                 },
                 "photoMimeType": {
+                  "codecId": "pg/text@1",
+                  "nativeType": "text",
+                  "nullable": true
+                },
+                "photoStorageKey": {
                   "codecId": "pg/text@1",
                   "nativeType": "text",
                   "nullable": true
@@ -12848,7 +12878,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "053fca134d63b7425602d07fa31a9b4301919a215457589310cb55c8bd4c34ab"
+    "storageHash": "2aa438b98b1c3be0fd4cf2fc200fdd3d8ac89cf46af1a08602eab3cd7c467090"
   },
   "execution": {
     "executionHash": "e3f5bde3c11a8a42958df84dc1248a0f5f43b66be23c468cc6cea6a6e16e1803",

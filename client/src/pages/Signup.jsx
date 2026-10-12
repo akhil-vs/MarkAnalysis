@@ -2,7 +2,15 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { FieldError } from "../components/FieldError.jsx";
-import { firstError, parseEmail, parseJoinCode, parsePassword, requiredText } from "../lib/formValidation.js";
+import { BusyLabel } from "../components/Spinner.jsx";
+import {
+  firstError,
+  parseEmail,
+  parseJoinCode,
+  parsePassword,
+  PASSWORD_MIN_LENGTH,
+  requiredText,
+} from "../lib/formValidation.js";
 import { SHOW_PUBLIC_REGISTRATION } from "../lib/publicAccess.js";
 import { AuthShell } from "./Login.jsx";
 
@@ -19,6 +27,7 @@ export default function Signup() {
   });
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [busy, setBusy] = useState(false);
 
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
@@ -26,6 +35,7 @@ export default function Signup() {
 
   async function onSubmit(e) {
     e.preventDefault();
+    if (busy) return;
     setError("");
     const name = requiredText(form.name, "Full name");
     const password = parsePassword(form.password);
@@ -40,6 +50,7 @@ export default function Signup() {
       setError(err);
       return;
     }
+    setBusy(true);
     try {
       const data = await signup({
         ...form,
@@ -56,6 +67,8 @@ export default function Signup() {
       }
     } catch (err) {
       setError(err.message);
+    } finally {
+      setBusy(false);
     }
   }
 
@@ -63,16 +76,38 @@ export default function Signup() {
     <AuthShell title="Request access" subtitle="Teachers and coordinators need a school join code and principal approval">
       <form onSubmit={onSubmit} className="space-y-3">
         <div>
-          <label className="label">Full name</label>
-          <input className="field" required minLength={2} autoComplete="name" value={form.name} onChange={(e) => set("name", e.target.value)} />
-        </div>
-        <div>
-          <label className="label">Email</label>
-          <input className="field" type="email" autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
-        </div>
-        <div>
-          <label className="label">School join code</label>
+          <label className="label" htmlFor="signup-name">
+            Full name
+          </label>
           <input
+            id="signup-name"
+            className="field"
+            required
+            minLength={2}
+            autoComplete="name"
+            value={form.name}
+            onChange={(e) => set("name", e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="signup-email">
+            Email
+          </label>
+          <input
+            id="signup-email"
+            className="field"
+            type="email"
+            autoComplete="email"
+            value={form.email}
+            onChange={(e) => set("email", e.target.value)}
+          />
+        </div>
+        <div>
+          <label className="label" htmlFor="signup-join">
+            School join code
+          </label>
+          <input
+            id="signup-join"
             className="field"
             autoComplete="off"
             required
@@ -83,16 +118,45 @@ export default function Signup() {
           <p className="mt-1 text-xs text-ink-700/60">Ask your principal for the code on School profile.</p>
         </div>
         <div>
-          <label className="label">School ID (optional)</label>
-          <input className="field" autoComplete="username" value={form.schoolId} onChange={(e) => set("schoolId", e.target.value)} />
+          <label className="label" htmlFor="signup-school-id">
+            School ID (optional)
+          </label>
+          <input
+            id="signup-school-id"
+            className="field"
+            autoComplete="username"
+            value={form.schoolId}
+            onChange={(e) => set("schoolId", e.target.value)}
+          />
         </div>
         <div>
-          <label className="label">Password</label>
-          <input className="field" type="password" required minLength={8} autoComplete="new-password" value={form.password} onChange={(e) => set("password", e.target.value)} />
+          <label className="label" htmlFor="signup-password">
+            Password
+          </label>
+          <input
+            id="signup-password"
+            className="field"
+            type="password"
+            required
+            minLength={PASSWORD_MIN_LENGTH}
+            autoComplete="new-password"
+            value={form.password}
+            onChange={(e) => set("password", e.target.value)}
+          />
+          <p className="mt-1 text-xs text-ink-700/60">
+            At least {PASSWORD_MIN_LENGTH} characters with a letter and a number.
+          </p>
         </div>
         <div>
-          <label className="label">Role</label>
-          <select className="field" value={form.role} onChange={(e) => set("role", e.target.value)}>
+          <label className="label" htmlFor="signup-role">
+            Role
+          </label>
+          <select
+            id="signup-role"
+            className="field"
+            value={form.role}
+            onChange={(e) => set("role", e.target.value)}
+          >
             <option value="TEACHER">Teacher</option>
             <option value="EXAM_COORDINATOR">Exam Coordinator</option>
           </select>
@@ -100,7 +164,9 @@ export default function Signup() {
         </div>
         {error && <FieldError message={error} />}
         {message && <p className="text-sm text-moss-600">{message}</p>}
-        <button className="btn-primary w-full">Create account</button>
+        <button className="btn-primary w-full" disabled={busy}>
+          <BusyLabel busy={busy} idle="Create account" busyText="Submitting…" />
+        </button>
         <p className="text-sm text-ink-700/70">
           Already approved? <Link className="underline" to="/login">Sign in</Link>
           {SHOW_PUBLIC_REGISTRATION && (

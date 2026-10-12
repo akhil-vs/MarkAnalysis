@@ -17,8 +17,10 @@ export const A4 = { width: 595.28, height: 841.89 };
 
 export function publicStudent(student) {
   if (!student) return student;
-  const { photoBytes, ...rest } = student;
-  const hasPhoto = Boolean(rest.photoMimeType) && (photoBytes == null || photoBytes.length > 0);
+  const { photoBytes, photoStorageKey, ...rest } = student;
+  const hasPhoto =
+    Boolean(rest.photoMimeType) &&
+    (Boolean(photoStorageKey) || photoBytes == null || photoBytes.length > 0);
   return {
     ...rest,
     hasPhoto,
@@ -291,6 +293,21 @@ function photoBuffer(student) {
   return buf.length ? buf : null;
 }
 
+/** Resolve DB/filesystem photo bytes onto ticket student rows before PDF stream. */
+export async function hydrateTicketPhotos(tickets) {
+  const { getBlob } = await import("./blobStore.js");
+  for (const ticket of tickets || []) {
+    const student = ticket?.student;
+    if (!student) continue;
+    const buf = await getBlob({
+      bytes: student.photoBytes,
+      storageKey: student.photoStorageKey,
+    });
+    student.photoBytes = buf;
+  }
+  return tickets;
+}
+
 function drawMetaCell(doc, label, value, x, y, width) {
   doc.font("Helvetica-Bold").fontSize(7.5).fillColor(INK).text(`${label}: `, x, y, {
     continued: true,
@@ -559,6 +576,7 @@ export function buildHallTicketPayload({
       admissionNo: student.admissionNo || null,
       photoBytes: student.photoBytes || null,
       photoMimeType: student.photoMimeType || null,
+      photoStorageKey: student.photoStorageKey || null,
     },
     papers: papersForStudent(allPapers, student.id, enrollmentKeys),
   }));

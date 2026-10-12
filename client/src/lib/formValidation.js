@@ -18,11 +18,20 @@ export function parseEmail(value, { required = false, label = "Email" } = {}) {
   return { value: text };
 }
 
-export function parsePassword(value, { label = "Password", minLength = 10 } = {}) {
+/** Keep aligned with server `validatePasswordPolicy` (min 10, letter + number). */
+export const PASSWORD_MIN_LENGTH = 10;
+
+export function parsePassword(value, { label = "Password", minLength = PASSWORD_MIN_LENGTH } = {}) {
   const text = String(value ?? "");
   if (!text) return { error: `${label} is required` };
   if (text.length < minLength) {
     return { error: `${label} must be at least ${minLength} characters` };
+  }
+  if (!/[A-Za-z]/.test(text)) {
+    return { error: `${label} must include at least one letter` };
+  }
+  if (!/[0-9]/.test(text)) {
+    return { error: `${label} must include at least one number` };
   }
   return { value: text };
 }

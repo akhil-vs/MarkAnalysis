@@ -74,6 +74,8 @@ model School {
   /// PNG or JPEG bytes for letterheads and the school profile preview.
   logoBytes      Bytes?
   logoMimeType   String?
+  /// Optional filesystem/object key when BLOB_STORAGE=filesystem (see blobStore.js).
+  logoStorageKey String?
   board          String?
   affiliationNo  String?
   udiseCode      String?
@@ -362,6 +364,8 @@ model Student {
   /// PNG or JPEG bytes for hall tickets and student profile.
   photoBytes     Bytes?
   photoMimeType  String?
+  /// Optional filesystem/object key when BLOB_STORAGE=filesystem (see blobStore.js).
+  photoStorageKey String?
   promotedFromId String?
 
   tenant       School       @relation(fields: [tenantId], references: [id], onDelete: Cascade)

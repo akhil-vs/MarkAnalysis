@@ -209,7 +209,7 @@ export default function Profile() {
               className="field"
               type="password"
               required
-              minLength={8}
+              minLength={10}
               value={form.newPassword}
               onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
             />
@@ -220,7 +220,7 @@ export default function Profile() {
               className="field"
               type="password"
               required
-              minLength={8}
+              minLength={10}
               value={form.confirmPassword}
               onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
             />

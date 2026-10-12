@@ -183,7 +183,7 @@ export default function PlatformSchoolNew() {
             <input
               className="field"
               type="password"
-              minLength={8}
+              minLength={10}
               value={form.principalPassword}
               onChange={(e) => set("principalPassword", e.target.value)}
               placeholder="Leave blank to generate"

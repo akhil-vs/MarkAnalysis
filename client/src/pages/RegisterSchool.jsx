@@ -82,7 +82,7 @@ export default function RegisterSchool() {
         </div>
         <div>
           <label className="label">Password</label>
-          <input className="field" type="password" required minLength={8} autoComplete="new-password" value={form.password} onChange={(e) => set("password", e.target.value)} />
+          <input className="field" type="password" required minLength={10} autoComplete="new-password" value={form.password} onChange={(e) => set("password", e.target.value)} />
         </div>
         {error && <FieldError message={error} />}
         <button className="btn-primary w-full" disabled={busy}>

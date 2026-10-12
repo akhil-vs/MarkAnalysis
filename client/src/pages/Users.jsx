@@ -979,7 +979,7 @@ export default function Users() {
                   className="field pr-10"
                   type={showPassword ? "text" : "password"}
                   required
-                  minLength={8}
+                  minLength={10}
                   autoComplete="new-password"
                   value={form.password}
                   onChange={(e) => setForm({ ...form, password: e.target.value })}
@@ -2020,7 +2020,7 @@ function ResetPasswordModal({ user, onClose, onDone }) {
         <input
           className="field"
           type="text"
-          minLength={8}
+          minLength={10}
           required
           value={password}
           disabled={busy}
