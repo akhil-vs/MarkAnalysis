@@ -15,6 +15,7 @@ import { ensurePlatformAdmin } from "../src/lib/ensurePlatformAdmin.js";
 import { DEMO_STUDENT_PHOTO } from "../src/lib/hallTickets.js";
 import { DEFAULT_PERIODS } from "../src/lib/periods.js";
 import { prisma } from "../src/lib/prisma.js";
+import { TENANT_DELETE_ORDER } from "../src/lib/schoolDataDelete.js";
 import { runWithoutTenant, runWithTenant } from "../src/lib/tenant.js";
 
 const ACADEMIC_YEAR = "2025-26";
@@ -303,21 +304,14 @@ async function main() {
   }
 
   await runWithoutTenant(async () => {
-    await prisma.activityAudit.deleteMany();
-    await prisma.markAudit.deleteMany();
-    await prisma.mark.deleteMany();
-    await prisma.notification.deleteMany();
-    await prisma.markEntryAccessRequest.deleteMany();
-    await prisma.timetableEntry.deleteMany();
-    await prisma.period.deleteMany();
-    await prisma.teacherAssignment.deleteMany();
-    await prisma.studentSubjectEnrollment.deleteMany();
-    await prisma.student.deleteMany();
-    await prisma.exam.deleteMany();
-    await prisma.subject.deleteMany();
-    await prisma.subjectPoolItem.deleteMany();
-    await prisma.classSection.deleteMany();
-    await prisma.portalAccessLink.deleteMany();
+    // Keep wipe order aligned with platform school data delete (children first).
+    for (const model of TENANT_DELETE_ORDER) {
+      try {
+        await prisma[model].deleteMany();
+      } catch (err) {
+        console.warn(`seed wipe skipped ${model}:`, err?.message || err);
+      }
+    }
     await prisma.refreshToken.deleteMany();
     await prisma.user.deleteMany();
     await prisma.school.deleteMany();

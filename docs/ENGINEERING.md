@@ -4,11 +4,13 @@
 
 - **Source of truth:** `server/src/prisma/contract.prisma` + `server/migrations/app/*`
 - Prefer `npx prisma db migrate --advance-ref db` (CI workflow **Migrate database**, API boot, Docker).
-- Embedded catch-up (`ensurePendingSchema` in `ensureSchema.js`) is a **fallback**:
+- Embedded catch-up (`ensurePendingSchema` in `ensureSchema.js`) is a **fallback only**:
   - Runs on Vercel cold start by default (cold-start budget)
   - Runs when migrate fails/skips, unless `ALLOW_ENSURE_SCHEMA_FALLBACK=false`
   - **Skipped** after a successful migrate unless `FORCE_ENSURE_SCHEMA=true`
   - Disabled entirely with `SKIP_ENSURE_SCHEMA=true`
+- Do not edit legacy `server/prisma/schema.prisma` / `server/prisma/migrations/*` for new work.
+- Interactive Prisma `$transaction` clients are wrapped with the same tenant proxy as the root client.
 
 ## Auth & security
 
@@ -36,11 +38,26 @@
 
 Production dependencies currently track **Prisma ORM 8 release candidates** (`prisma` / `@prisma/orm-postgres`). Pin or upgrade to a stable 8.x once available; treat RC bumps as high-risk dependency changes.
 
+## Backups & DR
+
+- Platform JSON backup (`POST /api/platform/backup`) exports configuration-oriented rows and **merge-restores only school profile fields + exam paper schedules**. Response includes `restoreCapabilities`.
+- For disaster recovery use `scripts/pg-dump-backup.sh` (or managed Postgres PITR), not the JSON export.
+
+## Blob storage
+
+- Default: logos/photos as Postgres bytes.
+- Optional filesystem backend: `BLOB_STORAGE=filesystem` + `BLOB_STORAGE_PATH=…` stores files and sets `logoStorageKey` / `photoStorageKey`.
+
+## Background jobs
+
+- Long-running API (`server/src/index.js`) can flush the email outbox and run digests via `ENABLE_BACKGROUND_JOBS` (on by default in non-Vercel production). Disabled on Vercel — use platform **Run digests** / **Flush mail** there.
+
 ## Deferred / follow-on
 
-- Object storage / CDN for student photos (still DB bytes)
 - Shared Redis (or similar) cache for multi-instance analytics
+- S3/CDN backend for `blobStore.js` (filesystem path is the interim off-DB option)
 - Billing / entitlements (pricing UI exists; public plans CTAs remain off — sales-led / invite-only GTM via `/request-pilot`)
 - Full OpenAPI document (version header is the interim contract marker)
+- Postgres RLS / composite tenant FKs for defense-in-depth beyond the ALS proxy
 
 See also [PRIVACY.md](./PRIVACY.md), [SCHOOL_PILOT_READINESS.md](./SCHOOL_PILOT_READINESS.md), and [SECURITY.md](../SECURITY.md).

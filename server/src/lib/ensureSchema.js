@@ -232,6 +232,7 @@ const SCHOOL_PROFILE_DETAILS_STATEMENTS = [
   `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "motto" TEXT`,
   `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "logoBytes" BYTEA`,
   `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "logoMimeType" TEXT`,
+  `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "logoStorageKey" TEXT`,
   `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "udiseCode" TEXT`,
   `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "recognitionNo" TEXT`,
   `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "establishedYear" INTEGER`,
@@ -1352,7 +1353,22 @@ const HALL_TICKETS_STUDENT_STATEMENTS = [
   `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "admissionNo" TEXT`,
   `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "photoBytes" BYTEA`,
   `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "photoMimeType" TEXT`,
+  `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "photoStorageKey" TEXT`,
 ];
+
+const BLOB_STORAGE_KEY_STATEMENTS = [
+  `ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "logoStorageKey" TEXT`,
+  `ALTER TABLE "Student" ADD COLUMN IF NOT EXISTS "photoStorageKey" TEXT`,
+];
+
+/** Optional object/filesystem keys for logos and student photos. */
+export async function ensureBlobStorageColumns() {
+  try {
+    await applyStatements(BLOB_STORAGE_KEY_STATEMENTS);
+  } catch (err) {
+    console.warn("ensureBlobStorageColumns skipped:", err?.message || err);
+  }
+}
 
 const HALL_TICKETS_TABLE_STATEMENTS = [
   `CREATE TABLE IF NOT EXISTS "HallTicketIssue" (
@@ -1884,6 +1900,7 @@ export async function ensurePendingSchema() {
         await ensureRoleFeatureAccessColumn();
         await ensureOptionalModulesColumn();
         await ensureHallTicketsSchema();
+        await ensureBlobStorageColumns();
         await ensureSubjectPoolSchema();
         await ensureExamIncludedClassesColumn();
         await ensureSchoolAcademicYearsColumns();
@@ -1918,6 +1935,7 @@ export async function ensurePendingSchema() {
         ensureRoleFeatureAccessColumn(),
         ensureOptionalModulesColumn(),
         ensureHallTicketsSchema(),
+        ensureBlobStorageColumns(),
         ensureSubjectPoolSchema(),
         ensureExamIncludedClassesColumn(),
         ensureSchoolAcademicYearsColumns(),

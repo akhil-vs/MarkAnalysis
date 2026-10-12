@@ -240,6 +240,10 @@ describe("ensureSchema bootstrap", () => {
       __test.HALL_TICKETS_STUDENT_STATEMENTS.some((s) => s.includes("photoBytes")),
       "catch-up must add Student photo columns for hall tickets"
     );
+    assert.ok(
+      __test.HALL_TICKETS_STUDENT_STATEMENTS.some((s) => s.includes("photoStorageKey")),
+      "catch-up must add Student.photoStorageKey for filesystem blob storage"
+    );
     assert.equal(typeof __test.ensureSubjectPoolSchema, "function");
     assert.ok(
       __test.SUBJECT_POOL_TABLE_STATEMENTS.some((s) => s.includes("SubjectPoolItem")),

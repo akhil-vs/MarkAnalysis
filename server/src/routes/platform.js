@@ -32,9 +32,17 @@ import {
   isPilotRequestStatus,
   publicPilotRequest,
 } from "../lib/pilotRequest.js";
+import { rateLimit } from "../lib/rateLimit.js";
+
 export const platformRouter = Router();
 platformRouter.use(auth);
 platformRouter.use(requirePlatformAdmin());
+
+const backupLimit = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: 10,
+  message: "Too many backup operations. Try again later.",
+});
 
 function optionalTrim(value) {
   if (value == null) return undefined;
@@ -549,7 +557,7 @@ platformRouter.post("/schools/:id/data/delete", async (req, res) => {
   }
 });
 
-platformRouter.post("/backup", async (req, res) => {
+platformRouter.post("/backup", backupLimit, async (req, res) => {
   const schoolId = req.body?.schoolId || req.query.schoolId || null;
   const backup = await createBackup({ schoolId: schoolId || null });
   await logActivity({
@@ -557,12 +565,15 @@ platformRouter.post("/backup", async (req, res) => {
     action: "BACKUP_CREATED",
     summary: schoolId ? `Exported backup for school ${schoolId}` : "Exported full platform backup",
     tenantId: schoolId || undefined,
-    meta: { schoolCount: backup.schoolCount },
+    meta: {
+      schoolCount: backup.schoolCount,
+      restoreCapabilities: backup.restoreCapabilities,
+    },
   });
   res.json(backup);
 });
 
-platformRouter.post("/backup/restore", async (req, res) => {
+platformRouter.post("/backup/restore", backupLimit, async (req, res) => {
   const { schoolId, document, mode } = req.body || {};
   const result = await restoreBackup(document, { schoolId, mode: mode || "merge" });
   await logActivity({
