@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 import { buildCorsAllowlist, isCorsOriginAllowed } from "./lib/corsAllowlist.js";
 import cookieParser from "cookie-parser";
 import { authRouter } from "./routes/auth.js";
@@ -33,6 +34,9 @@ import { buildHealthPayload, markBootTime } from "./lib/health.js";
 import { resolveTrustProxy } from "./lib/clientIp.js";
 import { captureException, initErrorReporting } from "./lib/errorReporting.js";
 import { logger, requestLogMiddleware } from "./lib/logger.js";
+import { dataLoaderMiddleware } from "./lib/dataLoaders.js";
+import { performanceMiddleware } from "./lib/performance.js";
+import { monitoringRouter } from "./routes/monitoring.js";
 
 markBootTime();
 void initErrorReporting();
@@ -72,6 +76,19 @@ app.set("trust proxy", resolveTrustProxy());
 
 app.use(securityHeaders());
 app.use(requestLogMiddleware);
+app.use(performanceMiddleware);
+
+// Enable gzip/brotli compression for responses
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  level: 6, // Balanced compression level
+  threshold: 1024, // Only compress responses > 1KB
+}));
 
 const allowedOrigins = buildCorsAllowlist();
 
@@ -89,6 +106,9 @@ app.use(
 );
 app.use(cookieParser());
 app.use(express.json({ limit: "2mb" }));
+
+// Attach DataLoaders to each request for batching and caching
+app.use(dataLoaderMiddleware);
 
 app.use("/api", (_req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
@@ -129,6 +149,7 @@ app.use("/api/hall-tickets", hallTicketsRouter);
 app.use("/api/analytics", analyticsRouter);
 app.use("/api/exports", exportsRouter);
 app.use("/api/portal", portalRouter);
+app.use("/api/monitoring", monitoringRouter);
 
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "Not found" });
