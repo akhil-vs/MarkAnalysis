@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'053fca134d63b7425602d07fa31a9b4301919a215457589310cb55c8bd4c34ab'>;
+  StorageHashBase<'2b523c5d8632db6a7d3a431d527bf378032e35562624a5c83cc45f292aa84f8d'>;
 export type ExecutionHash =
   ExecutionHashBase<'e3f5bde3c11a8a42958df84dc1248a0f5f43b66be23c468cc6cea6a6e16e1803'>;
 export type ProfileHash =
@@ -4562,6 +4562,42 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'Mark_examId_status_studentId_idx_02464b9b';
+                  readonly prefix: 'Mark_examId_status_studentId_idx';
+                  readonly columns: readonly ['examId', 'status', 'studentId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Mark_examId_subjectId_status_idx_4ae4a212';
+                  readonly prefix: 'Mark_examId_subjectId_status_idx';
+                  readonly columns: readonly ['examId', 'subjectId', 'status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Mark_studentId_examId_idx_0e0772d8';
+                  readonly prefix: 'Mark_studentId_examId_idx';
+                  readonly columns: readonly ['studentId', 'examId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Mark_status_examId_subjectId_studentId_idx_4410d6f8';
+                  readonly prefix: 'Mark_status_examId_subjectId_studentId_idx';
+                  readonly columns: readonly ['status', 'examId', 'subjectId', 'studentId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Mark_enteredById_status_examId_idx_239fe39d';
+                  readonly prefix: 'Mark_enteredById_status_examId_idx';
+                  readonly columns: readonly ['enteredById', 'status', 'examId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Mark_subjectId_examId_status_idx_1364a391';
+                  readonly prefix: 'Mark_subjectId_examId_status_idx';
+                  readonly columns: readonly ['subjectId', 'examId', 'status'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Mark_subjectId_idx_84df2a1d';
                   readonly prefix: 'Mark_subjectId_idx';
                   readonly columns: readonly ['subjectId'];
@@ -4700,6 +4736,24 @@ type ContractBase = Omit<
                   readonly name: 'MarkAudit_markId_idx_683904f6';
                   readonly prefix: 'MarkAudit_markId_idx';
                   readonly columns: readonly ['markId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'MarkAudit_timestamp_idx_a2429bb8';
+                  readonly prefix: 'MarkAudit_timestamp_idx';
+                  readonly columns: readonly ['timestamp'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'MarkAudit_changedById_timestamp_idx_cb284813';
+                  readonly prefix: 'MarkAudit_changedById_timestamp_idx';
+                  readonly columns: readonly ['changedById', 'timestamp'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'MarkAudit_tenantId_timestamp_idx_699dc902';
+                  readonly prefix: 'MarkAudit_tenantId_timestamp_idx';
+                  readonly columns: readonly ['tenantId', 'timestamp'];
                   readonly unique: false;
                 },
                 {
@@ -6170,6 +6224,24 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'Student_classSectionId_status_idx_5d63d2bf';
+                  readonly prefix: 'Student_classSectionId_status_idx';
+                  readonly columns: readonly ['classSectionId', 'status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Student_status_academicYear_idx_cc1bdaeb';
+                  readonly prefix: 'Student_status_academicYear_idx';
+                  readonly columns: readonly ['status', 'academicYear'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Student_tenantId_status_idx_d3d04256';
+                  readonly prefix: 'Student_tenantId_status_idx';
+                  readonly columns: readonly ['tenantId', 'status'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Student_classSectionId_idx_095a6e92';
                   readonly prefix: 'Student_classSectionId_idx';
                   readonly columns: readonly ['classSectionId'];
@@ -6505,6 +6577,24 @@ type ContractBase = Omit<
                   readonly name: 'TeacherAssignment_subjectId_idx_84df2a1d';
                   readonly prefix: 'TeacherAssignment_subjectId_idx';
                   readonly columns: readonly ['subjectId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherAssignment_userId_classSectionId_idx_bf8880e2';
+                  readonly prefix: 'TeacherAssignment_userId_classSectionId_idx';
+                  readonly columns: readonly ['userId', 'classSectionId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherAssignment_classSectionId_subjectId_idx_90b1ca64';
+                  readonly prefix: 'TeacherAssignment_classSectionId_subjectId_idx';
+                  readonly columns: readonly ['classSectionId', 'subjectId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherAssignment_tenantId_userId_idx_6c855033';
+                  readonly prefix: 'TeacherAssignment_tenantId_userId_idx';
+                  readonly columns: readonly ['tenantId', 'userId'];
                   readonly unique: false;
                 },
                 {

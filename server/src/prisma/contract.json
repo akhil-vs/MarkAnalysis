@@ -9226,6 +9226,16 @@
                 },
                 {
                   "columns": [
+                    "enteredById",
+                    "status",
+                    "examId"
+                  ],
+                  "name": "Mark_enteredById_status_examId_idx_239fe39d",
+                  "prefix": "Mark_enteredById_status_examId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "examId"
                   ],
                   "name": "Mark_examId_idx_a57bdadd",
@@ -9243,6 +9253,37 @@
                 },
                 {
                   "columns": [
+                    "examId",
+                    "status",
+                    "studentId"
+                  ],
+                  "name": "Mark_examId_status_studentId_idx_02464b9b",
+                  "prefix": "Mark_examId_status_studentId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "examId",
+                    "subjectId",
+                    "status"
+                  ],
+                  "name": "Mark_examId_subjectId_status_idx_4ae4a212",
+                  "prefix": "Mark_examId_subjectId_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "status",
+                    "examId",
+                    "subjectId",
+                    "studentId"
+                  ],
+                  "name": "Mark_status_examId_subjectId_studentId_idx_4410d6f8",
+                  "prefix": "Mark_status_examId_subjectId_studentId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "status"
                   ],
                   "name": "Mark_status_idx_e98638ab",
@@ -9251,10 +9292,29 @@
                 },
                 {
                   "columns": [
+                    "studentId",
+                    "examId"
+                  ],
+                  "name": "Mark_studentId_examId_idx_0e0772d8",
+                  "prefix": "Mark_studentId_examId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "studentId"
                   ],
                   "name": "Mark_studentId_idx_bf255322",
                   "prefix": "Mark_studentId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "subjectId",
+                    "examId",
+                    "status"
+                  ],
+                  "name": "Mark_subjectId_examId_status_idx_1364a391",
+                  "prefix": "Mark_subjectId_examId_status_idx",
                   "unique": false
                 },
                 {
@@ -9409,6 +9469,15 @@
                 },
                 {
                   "columns": [
+                    "changedById",
+                    "timestamp"
+                  ],
+                  "name": "MarkAudit_changedById_timestamp_idx_cb284813",
+                  "prefix": "MarkAudit_changedById_timestamp_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "markId"
                   ],
                   "name": "MarkAudit_markId_idx_683904f6",
@@ -9421,6 +9490,23 @@
                   ],
                   "name": "MarkAudit_tenantId_idx_c93ed4f1",
                   "prefix": "MarkAudit_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "timestamp"
+                  ],
+                  "name": "MarkAudit_tenantId_timestamp_idx_699dc902",
+                  "prefix": "MarkAudit_tenantId_timestamp_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "timestamp"
+                  ],
+                  "name": "MarkAudit_timestamp_idx_a2429bb8",
+                  "prefix": "MarkAudit_timestamp_idx",
                   "unique": false
                 }
               ],
@@ -11278,6 +11364,15 @@
                 },
                 {
                   "columns": [
+                    "classSectionId",
+                    "status"
+                  ],
+                  "name": "Student_classSectionId_status_idx_5d63d2bf",
+                  "prefix": "Student_classSectionId_status_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "promotedFromId"
                   ],
                   "name": "Student_promotedFromId_idx_23892139",
@@ -11286,10 +11381,28 @@
                 },
                 {
                   "columns": [
+                    "status",
+                    "academicYear"
+                  ],
+                  "name": "Student_status_academicYear_idx_cc1bdaeb",
+                  "prefix": "Student_status_academicYear_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "tenantId"
                   ],
                   "name": "Student_tenantId_idx_c93ed4f1",
                   "prefix": "Student_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "status"
+                  ],
+                  "name": "Student_tenantId_status_idx_d3d04256",
+                  "prefix": "Student_tenantId_status_idx",
                   "unique": false
                 }
               ],
@@ -11726,6 +11839,15 @@
                 },
                 {
                   "columns": [
+                    "classSectionId",
+                    "subjectId"
+                  ],
+                  "name": "TeacherAssignment_classSectionId_subjectId_idx_90b1ca64",
+                  "prefix": "TeacherAssignment_classSectionId_subjectId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
                     "subjectId"
                   ],
                   "name": "TeacherAssignment_subjectId_idx_84df2a1d",
@@ -11738,6 +11860,24 @@
                   ],
                   "name": "TeacherAssignment_tenantId_idx_c93ed4f1",
                   "prefix": "TeacherAssignment_tenantId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "tenantId",
+                    "userId"
+                  ],
+                  "name": "TeacherAssignment_tenantId_userId_idx_6c855033",
+                  "prefix": "TeacherAssignment_tenantId_userId_idx",
+                  "unique": false
+                },
+                {
+                  "columns": [
+                    "userId",
+                    "classSectionId"
+                  ],
+                  "name": "TeacherAssignment_userId_classSectionId_idx_bf8880e2",
+                  "prefix": "TeacherAssignment_userId_classSectionId_idx",
                   "unique": false
                 },
                 {
@@ -12848,7 +12988,7 @@
         "kind": "postgres-schema"
       }
     },
-    "storageHash": "053fca134d63b7425602d07fa31a9b4301919a215457589310cb55c8bd4c34ab"
+    "storageHash": "2b523c5d8632db6a7d3a431d527bf378032e35562624a5c83cc45f292aa84f8d"
   },
   "execution": {
     "executionHash": "e3f5bde3c11a8a42958df84dc1248a0f5f43b66be23c468cc6cea6a6e16e1803",
