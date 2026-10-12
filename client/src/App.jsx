@@ -36,8 +36,8 @@ const SubjectSchoolAnalytics = lazy(() => import("./pages/SubjectSchoolAnalytics
 const TeacherAnalytics = lazy(() => import("./pages/TeacherAnalytics.jsx"));
 const PendingUploads = lazy(() => import("./pages/PendingUploads.jsx"));
 const ClassTeacherInbox = lazy(() => import("./pages/ClassTeacherInbox.jsx"));
-const LateEntryRequests = lazy(() => import("./pages/LateEntryRequests.jsx"));
 const Approvals = lazy(() => import("./pages/Approvals.jsx"));
+const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 const Exams = lazy(() => import("./pages/Exams.jsx"));
 const AuditLog = lazy(() => import("./pages/AuditLog.jsx"));
 const ConsolidatedLists = lazy(() => import("./pages/ConsolidatedLists.jsx"));
@@ -246,7 +246,7 @@ export default function App() {
           <Route path="students/:id" element={<RedirectStudents />} />
           <Route path="classes/:id" element={<RedirectClasses />} />
         </Route>
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<NotFound />} />
       </Routes>
     </Suspense>
   );

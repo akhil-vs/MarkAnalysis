@@ -21,11 +21,19 @@ import {
   writeExcelLetterhead,
 } from "../lib/letterhead.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
+import { rateLimit } from "../lib/rateLimit.js";
 
 export const exportsRouter = Router();
 exportsRouter.use(auth);
 exportsRouter.use(requireSchoolTenant);
 exportsRouter.use(requireFeature("consolidated", "analysis", "analysisStudents", "marks"));
+
+const exportLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: "Too many export downloads. Try again in a few minutes.",
+});
+exportsRouter.use(exportLimit);
 
 function pct(mark) {
   if (!isScoredMark(mark)) return null;

@@ -3,14 +3,26 @@ import { createPortal } from "react-dom";
 
 const ConfirmContext = createContext(null);
 
+function getFocusable(root) {
+  if (!root) return [];
+  return [
+    ...root.querySelectorAll(
+      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+    ),
+  ].filter((el) => !el.hasAttribute("disabled") && el.getAttribute("aria-hidden") !== "true");
+}
+
 export function ConfirmProvider({ children }) {
   const [dialog, setDialog] = useState(null);
   const resolveRef = useRef(null);
+  const panelRef = useRef(null);
+  const previouslyFocused = useRef(null);
 
   const confirm = useCallback((options) => {
     const opts = typeof options === "string" ? { message: options } : options || {};
     return new Promise((resolve) => {
       resolveRef.current = resolve;
+      previouslyFocused.current = document.activeElement;
       setDialog({
         title: opts.title || "Please confirm",
         message: opts.message || "Are you sure?",
@@ -25,17 +37,44 @@ export function ConfirmProvider({ children }) {
     const resolve = resolveRef.current;
     resolveRef.current = null;
     setDialog(null);
+    const prev = previouslyFocused.current;
+    previouslyFocused.current = null;
+    if (prev && typeof prev.focus === "function") {
+      queueMicrotask(() => prev.focus());
+    }
     resolve?.(result);
   }
 
   useEffect(() => {
     if (!dialog) return;
     function onKey(e) {
-      if (e.key === "Escape") close(false);
+      if (e.key === "Escape") {
+        e.preventDefault();
+        close(false);
+        return;
+      }
+      if (e.key !== "Tab") return;
+      const focusable = getFocusable(panelRef.current);
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault();
+        last.focus();
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault();
+        first.focus();
+      }
     }
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
     document.addEventListener("keydown", onKey);
+    queueMicrotask(() => {
+      const focusable = getFocusable(panelRef.current);
+      const preferred =
+        focusable.find((el) => el.dataset?.confirmPrimary === "true") || focusable[focusable.length - 1];
+      preferred?.focus();
+    });
     return () => {
       document.body.style.overflow = prev;
       document.removeEventListener("keydown", onKey);
@@ -55,6 +94,7 @@ export function ConfirmProvider({ children }) {
               onClick={() => close(false)}
             />
             <div
+              ref={panelRef}
               role="alertdialog"
               aria-modal="true"
               aria-labelledby="confirm-title"
@@ -73,9 +113,9 @@ export function ConfirmProvider({ children }) {
                 </button>
                 <button
                   type="button"
+                  data-confirm-primary="true"
                   className={`w-full sm:w-auto ${dialog.tone === "danger" ? "btn-primary !bg-clay-600 hover:!bg-clay-700" : "btn-primary"}`}
                   onClick={() => close(true)}
-                  autoFocus
                 >
                   {dialog.confirmLabel}
                 </button>
