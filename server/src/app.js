@@ -34,6 +34,8 @@ import { buildHealthPayload, markBootTime } from "./lib/health.js";
 import { resolveTrustProxy } from "./lib/clientIp.js";
 import { captureException, initErrorReporting } from "./lib/errorReporting.js";
 import { logger, requestLogMiddleware } from "./lib/logger.js";
+import { dataLoaderMiddleware } from "./lib/dataLoaders.js";
+import { performanceMiddleware } from "./lib/performance.js";
 
 markBootTime();
 void initErrorReporting();
@@ -73,6 +75,7 @@ app.set("trust proxy", resolveTrustProxy());
 
 app.use(securityHeaders());
 app.use(requestLogMiddleware);
+app.use(performanceMiddleware);
 
 // Enable gzip/brotli compression for responses
 app.use(compression({
@@ -102,6 +105,9 @@ app.use(
 );
 app.use(cookieParser());
 app.use(express.json({ limit: "2mb" }));
+
+// Attach DataLoaders to each request for batching and caching
+app.use(dataLoaderMiddleware);
 
 app.use("/api", (_req, res, next) => {
   res.set("Cache-Control", "no-store, no-cache, must-revalidate, private");
