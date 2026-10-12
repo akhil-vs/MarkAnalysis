@@ -7,6 +7,7 @@
  */
 import { cachedTenantLoad, invalidateCurrentTenantCache } from "./tenantCache.js";
 import { invalidateQueryCache } from "./queryCache.js";
+import { refreshAnalyticsViewsAsync } from "./materializedViews.js";
 
 export const INSIGHTS_TTL_MS = 45_000;
 
@@ -25,6 +26,8 @@ export function invalidateInsightsCache() {
   invalidateQueryCache("analytics:");
   invalidateQueryCache("marks:");
   invalidateQueryCache("students:");
+  // Refresh materialized views in background
+  refreshAnalyticsViewsAsync();
 }
 
 export function cachedInsight(kind, parts, loader, opts = {}) {
