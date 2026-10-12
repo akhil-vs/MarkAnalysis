@@ -6,6 +6,7 @@
  * Invalidate on mark / grading / exam mutations so leadership sees fresh data.
  */
 import { cachedTenantLoad, invalidateCurrentTenantCache } from "./tenantCache.js";
+import { invalidateQueryCache } from "./queryCache.js";
 
 export const INSIGHTS_TTL_MS = 45_000;
 
@@ -20,6 +21,10 @@ export function invalidateInsightsCache() {
   // Home dashboards embed mark-derived KPIs; clear with mark mutations.
   invalidateCurrentTenantCache("home-dash:");
   invalidateCurrentTenantCache("consolidated-status:");
+  // Also invalidate query cache for analytics queries
+  invalidateQueryCache("analytics:");
+  invalidateQueryCache("marks:");
+  invalidateQueryCache("students:");
 }
 
 export function cachedInsight(kind, parts, loader, opts = {}) {

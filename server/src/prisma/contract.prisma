@@ -341,6 +341,10 @@ model TeacherAssignment {
   @@index([tenantId])
   @@index([classSectionId])
   @@index([subjectId])
+  // Performance optimization indexes
+  @@index([userId, classSectionId])
+  @@index([classSectionId, subjectId])
+  @@index([tenantId, userId])
   @@map("TeacherAssignment")
 }
 
@@ -375,6 +379,10 @@ model Student {
   @@unique([rollNo, classSectionId])
   @@index([classSectionId, academicYear, status])
   @@index([tenantId])
+  // Performance optimization indexes
+  @@index([classSectionId, status])
+  @@index([status, academicYear])
+  @@index([tenantId, status])
   @@map("Student")
 }
 
@@ -484,6 +492,13 @@ model Mark {
   @@index([studentId])
   @@index([tenantId])
   @@index([tenantId, examId, status])
+  // Performance optimization indexes
+  @@index([examId, status, studentId])
+  @@index([examId, subjectId, status])
+  @@index([studentId, examId])
+  @@index([status, examId, subjectId, studentId])
+  @@index([enteredById, status, examId])
+  @@index([subjectId, examId, status])
   @@map("Mark")
 }
 
@@ -504,6 +519,10 @@ model MarkAudit {
 
   @@index([tenantId])
   @@index([markId])
+  // Performance optimization indexes
+  @@index([timestamp])
+  @@index([changedById, timestamp])
+  @@index([tenantId, timestamp])
   @@map("MarkAudit")
 }
 

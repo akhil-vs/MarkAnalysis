@@ -81,6 +81,16 @@ analyticsRouter.use(async (_req, _res, next) => {
   }
 });
 
+// Add response caching headers for GET requests
+analyticsRouter.use((req, res, next) => {
+  if (req.method === 'GET' && !req.query.nocache) {
+    // Cache analytics responses for 30 seconds, allow stale content while revalidating
+    res.set('Cache-Control', 'private, max-age=30, stale-while-revalidate=60');
+    res.set('Vary', 'Authorization, Cookie');
+  }
+  next();
+});
+
 analyticsRouter.get("/school", async (req, res) => {
   if (!isLeadership(req.user.role)) {
     return res.status(403).json({ error: "Forbidden" });

@@ -1,5 +1,6 @@
 import express from "express";
 import cors from "cors";
+import compression from "compression";
 import { buildCorsAllowlist, isCorsOriginAllowed } from "./lib/corsAllowlist.js";
 import cookieParser from "cookie-parser";
 import { authRouter } from "./routes/auth.js";
@@ -72,6 +73,18 @@ app.set("trust proxy", resolveTrustProxy());
 
 app.use(securityHeaders());
 app.use(requestLogMiddleware);
+
+// Enable gzip/brotli compression for responses
+app.use(compression({
+  filter: (req, res) => {
+    if (req.headers['x-no-compression']) {
+      return false;
+    }
+    return compression.filter(req, res);
+  },
+  level: 6, // Balanced compression level
+  threshold: 1024, // Only compress responses > 1KB
+}));
 
 const allowedOrigins = buildCorsAllowlist();
 
