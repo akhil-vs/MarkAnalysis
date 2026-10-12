@@ -106,7 +106,9 @@ Set these on the Vercel project (or host env) before going live:
 | Variable | Required | Notes |
 |---|---|---|
 | `DATABASE_URL` | yes | Postgres URL used at runtime for migrate/ensure + queries |
-| `JWT_SECRET` | yes | ≥16 random chars; boot fails on Vercel/production if weak |
+| `JWT_SECRET` | yes | ≥16 random chars (≥32 recommended); boot fails on Vercel/production if weak |
+| `MFA_ENCRYPTION_KEY` | no | Optional dedicated key for MFA secrets; else derived from `JWT_SECRET` |
+| `ALLOW_PUBLIC_SCHOOL_REGISTRATION` | no | Keep unset/`false`; API refuses self-serve school registration unless `true` |
 | `JWT_ACCESS_EXPIRES` | no | Access cookie TTL (default `15m`) |
 | `CLIENT_ORIGIN` | no* | Comma-separated SPA origins. \*Not needed when the SPA and `/api` share one Vercel deployment |
 | `COOKIE_SECURE` | no | Force `Secure` cookies; auto-on when `VERCEL` or `NODE_ENV=production` |

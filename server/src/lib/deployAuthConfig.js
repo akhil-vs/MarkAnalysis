@@ -13,6 +13,7 @@ export function assertDeployAuthConfig({
     !secret ||
     secret === "change-me-in-production" ||
     secret.length < 16;
+  const shortForProd = !weak && secret.length < 32;
 
   const isProd =
     env.NODE_ENV === "production" ||
@@ -21,7 +22,7 @@ export function assertDeployAuthConfig({
 
   if (weak && isProd) {
     logError(
-      "Deploy auth config invalid: set JWT_SECRET to a strong random value (≥16 chars)."
+      "Deploy auth config invalid: set JWT_SECRET to a strong random value (≥32 chars recommended; ≥16 required)."
     );
     exit(1);
     return { ok: false, reason: "weak-jwt-secret" };
@@ -32,6 +33,18 @@ export function assertDeployAuthConfig({
       "Warning: using insecure default JWT_SECRET — set JWT_SECRET before deploying"
     );
     return { ok: true, weak: true };
+  }
+
+  if (shortForProd && isProd) {
+    logWarn(
+      "Warning: JWT_SECRET is shorter than 32 characters; prefer ≥32 random bytes for production."
+    );
+  }
+
+  if (isProd && !env.MFA_ENCRYPTION_KEY) {
+    logWarn(
+      "Warning: MFA_ENCRYPTION_KEY is unset; MFA secrets are encrypted with a key derived from JWT_SECRET. Set a dedicated MFA_ENCRYPTION_KEY for key rotation."
+    );
   }
 
   if (isProd && env.COOKIE_SECURE === "false") {
@@ -54,7 +67,17 @@ export function deployAuthEnvDocs() {
     {
       name: "JWT_SECRET",
       required: true,
-      note: "Strong random secret (≥16 chars). Used to sign sma_access JWTs.",
+      note: "Strong random secret (≥32 chars recommended; ≥16 required). Signs sma_access JWTs and derives MFA encryption when MFA_ENCRYPTION_KEY is unset.",
+    },
+    {
+      name: "MFA_ENCRYPTION_KEY",
+      required: false,
+      note: "Optional dedicated key for MFA TOTP secrets (64 hex chars or ≥16-char passphrase). Falls back to JWT_SECRET.",
+    },
+    {
+      name: "ALLOW_PUBLIC_SCHOOL_REGISTRATION",
+      required: false,
+      note: "Set true only to enable POST /api/schools/register. Default off — use pilot requests + platform provision.",
     },
     {
       name: "JWT_ACCESS_EXPIRES",

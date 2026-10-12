@@ -6,7 +6,9 @@ If you discover a vulnerability, email the repository maintainers privately. Do 
 
 ## Hardening checklist (operators)
 
-- [ ] Strong `JWT_SECRET` (≥16 random chars); never commit secrets
+- [ ] Strong `JWT_SECRET` (≥32 random chars recommended; ≥16 required); never commit secrets
+- [ ] Optional dedicated `MFA_ENCRYPTION_KEY` for TOTP secrets (falls back to JWT_SECRET)
+- [ ] Keep `ALLOW_PUBLIC_SCHOOL_REGISTRATION` unset/`false` unless you intentionally open self-serve campus creation
 - [ ] `PLATFORM_ADMIN_PASSWORD` set + `PLATFORM_ADMIN_PASSWORD_LOCKED=true` in production
 - [ ] `VITE_ENABLE_DEMO_LOGIN` unset/`false` on production builds
 - [ ] `CLIENT_ORIGIN` includes every SPA origin that uses cookie auth
@@ -14,11 +16,12 @@ If you discover a vulnerability, email the repository maintainers privately. Do 
 - [ ] CSP left enforced (default in production); only disable temporarily while debugging embeds
 - [ ] `PILOT_NOTIFY_EMAIL` (or `VITE_PILOT_CONTACT_EMAIL`) so `/request-pilot` submissions can queue mail
 - [ ] SMTP configured or accept that digests / pilot notify stay in `EmailOutbox` as skipped
-- [ ] Platform backups stored encrypted; treat as sensitive even though photos/PII fields are omitted
+- [ ] Use `scripts/pg-dump-backup.sh` (or managed PITR) for DR; platform JSON backup is not a full restore
 - [ ] Optional: `SENTRY_DSN` for error reporting
 
 ## Known product posture
 
-- Public self-serve plans/registration CTAs are **disabled** (`SHOW_PUBLIC_*` flags) — onboarding is invite / sales-led via `/request-pilot` and platform **School pilots** provision unless you re-enable them.
+- Public self-serve plans/registration CTAs are **disabled** (`SHOW_PUBLIC_*` flags). The API also refuses `POST /api/schools/register` unless `ALLOW_PUBLIC_SCHOOL_REGISTRATION=true`. Onboarding is invite / sales-led via `/request-pilot` and platform **School pilots** provision.
+- MFA TOTP secrets are encrypted at rest (`enc:v1:…`); legacy plaintext values still verify until re-saved.
 - Password policy requires ≥10 characters with a letter and a number.
-- Rate limiting protects auth, registration, portal session, and public pilot-request endpoints.
+- Rate limiting protects auth, registration, portal session, pilot requests, mark writes/uploads, analytics, exports, and platform backup.

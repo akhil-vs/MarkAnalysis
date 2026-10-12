@@ -14,6 +14,10 @@ import { normalizeJoinCode } from "../lib/schoolIdentity.js";
 import { runWithoutTenant, runWithTenant } from "../lib/tenant.js";
 import { hashPassword, validatePasswordPolicy } from "../lib/password.js";
 import { logActivity } from "../lib/activityAudit.js";
+import {
+  isPublicSchoolRegistrationAllowed,
+  publicRegistrationDisabledMessage,
+} from "../lib/publicRegistration.js";
 
 export const schoolsRouter = Router();
 
@@ -41,6 +45,9 @@ schoolsRouter.get("/lookup", lookupLimit, async (req, res) => {
 });
 
 schoolsRouter.post("/register", registerLimit, async (req, res) => {
+  if (!isPublicSchoolRegistrationAllowed()) {
+    return res.status(403).json({ error: publicRegistrationDisabledMessage() });
+  }
   const { schoolName, board, name, email, password, schoolId } = req.body || {};
   if (!schoolName || !String(schoolName).trim()) {
     return res.status(400).json({ error: "School name is required" });
