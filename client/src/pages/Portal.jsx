@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { BusyLabel } from "../components/Spinner.jsx";
+import { PRODUCT_NAME, PRODUCT_SHORT_NAME } from "../lib/branding.js";
 
 const PORTAL_SESSION_KEY = "sma_portal_token";
 
@@ -100,25 +101,42 @@ export default function Portal() {
     return `${report.student.name} · ${report.exam.name}`;
   }, [report]);
 
+  const studentOptions = useMemo(() => {
+    if (!linkedIds.length) return [];
+    return linkedIds.map((id) => {
+      if (report?.student?.id === id) {
+        return {
+          id,
+          label: `${report.student.name} (Roll ${report.student.rollNo})`,
+        };
+      }
+      return { id, label: `Student ${String(id).slice(-6)}` };
+    });
+  }, [linkedIds, report]);
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#e8f0ea_0%,_#f7f4ef_45%,_#f3ebe3_100%)] text-ink-900">
+    <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#f3ebe3_0%,_#f7f4ef_45%,_#e8eef5_100%)] text-ink-900">
       <div className="mx-auto max-w-3xl px-4 py-10">
-        <p className="font-display text-3xl tracking-tight text-emerald-950">MarkAnalysis</p>
-        <h1 className="mt-2 text-xl font-semibold text-ink-900/90">{title}</h1>
+        <p className="font-serif text-3xl tracking-tight text-ink-900">{PRODUCT_NAME}</p>
+        <p className="mt-1 text-xs uppercase tracking-[0.14em] text-ink-700/55">{PRODUCT_SHORT_NAME} portal</p>
+        <h1 className="mt-3 text-xl font-semibold text-ink-900/90">{title}</h1>
         <p className="mt-1 text-sm text-ink-700/70">
           Read-only view of approved marks for the selected exam.
         </p>
 
         {!session && (
           <form
-            className="mt-8 space-y-3 rounded-2xl border border-emerald-900/10 bg-white/70 p-5 shadow-sm backdrop-blur"
+            className="mt-8 space-y-3 rounded-2xl border border-ink-900/10 bg-white/70 p-5 shadow-sm backdrop-blur"
             onSubmit={(e) => {
               e.preventDefault();
               openSession(tokenInput.trim());
             }}
           >
-            <label className="block text-sm font-medium">Portal access token</label>
+            <label className="block text-sm font-medium" htmlFor="portal-token">
+              Portal access token
+            </label>
             <input
+              id="portal-token"
               className="field w-full"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
@@ -138,18 +156,17 @@ export default function Portal() {
         )}
 
         {session && linkedIds.length > 1 && (
-          <label className="mt-6 block text-sm">
+          <label className="mt-6 block text-sm" htmlFor="portal-student">
             Student
             <select
+              id="portal-student"
               className="field mt-1"
               value={studentId}
               onChange={(e) => setStudentId(e.target.value)}
             >
-              {linkedIds.map((id) => (
-                <option key={id} value={id}>
-                  {report?.student?.id === id
-                    ? `${report.student.name} (${report.student.rollNo})`
-                    : id}
+              {studentOptions.map((opt) => (
+                <option key={opt.id} value={opt.id}>
+                  {opt.label}
                 </option>
               ))}
             </select>
@@ -157,8 +174,8 @@ export default function Portal() {
         )}
 
         {report && (
-          <div className="mt-6 overflow-hidden rounded-2xl border border-emerald-900/10 bg-white/80 shadow-sm">
-            <div className="border-b border-emerald-900/10 px-4 sm:px-5 py-4">
+          <div className="mt-6 overflow-hidden rounded-2xl border border-ink-900/10 bg-white/80 shadow-sm">
+            <div className="border-b border-ink-900/10 px-4 sm:px-5 py-4">
               <p className="font-medium break-words">
                 {report.student.name}{" "}
                 <span className="text-ink-700/60">
@@ -174,8 +191,7 @@ export default function Portal() {
                 </p>
               )}
             </div>
-            {/* Mobile stacked subject cards */}
-            <ul className="md:hidden divide-y divide-emerald-900/5">
+            <ul className="md:hidden divide-y divide-ink-900/5">
               {report.subjects.length === 0 && (
                 <li className="px-4 py-6 text-sm text-ink-700/60">No approved marks for this exam yet.</li>
               )}
@@ -194,7 +210,7 @@ export default function Portal() {
             </ul>
             <div className="hidden md:block scroll-x">
               <table className="w-full text-left text-sm">
-                <thead className="bg-emerald-950/[0.04] text-ink-700/70">
+                <thead className="bg-ink-950/[0.04] text-ink-700/70">
                   <tr>
                     <th className="px-5 py-2 font-medium">Subject</th>
                     <th className="px-3 py-2 font-medium">Marks</th>
@@ -212,7 +228,7 @@ export default function Portal() {
                     </tr>
                   )}
                   {report.subjects.map((row) => (
-                    <tr key={row.subjectId} className="border-t border-emerald-900/5">
+                    <tr key={row.subjectId} className="border-t border-ink-900/5">
                       <td className="px-5 py-2">{row.subjectName}</td>
                       <td className="px-3 py-2">{row.display}</td>
                       <td className="px-3 py-2">{row.maxMarks}</td>

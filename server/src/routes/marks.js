@@ -42,6 +42,7 @@ import { publicStudent } from "../lib/hallTickets.js";
 import { studentListOmit } from "../lib/markSelects.js";
 import { contentDispositionAttachment } from "../lib/downloadName.js";
 import { MARK_ERROR, markErrorBody } from "../lib/markErrorCodes.js";
+import { rateLimit } from "../lib/rateLimit.js";
 
 function blockedMarkResponse(message) {
   if (message === LATE_ENTRY_BLOCKED) {
@@ -59,6 +60,17 @@ export const marksRouter = Router();
 marksRouter.use(auth);
 marksRouter.use(requireSchoolTenant);
 marksRouter.use(requireFeature("marks", "upload", "pendingUploads", "audit"));
+
+const writeLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 120,
+  message: "Too many mark writes. Try again in a few minutes.",
+});
+const uploadLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 30,
+  message: "Too many mark uploads. Try again in a few minutes.",
+});
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -164,7 +176,7 @@ marksRouter.get("/", requireFeature("marks", "pendingUploads"), async (req, res)
   });
 });
 
-marksRouter.put("/", requireFeature("marks"), async (req, res) => {
+marksRouter.put("/", writeLimit, requireFeature("marks"), async (req, res) => {
   if (req.user.role === "PRINCIPAL") {
     return res.status(403).json({
       error: "Principals do not enter marks. Approve submitted registers or use Moderate with a reason.",
@@ -408,7 +420,7 @@ function markSampleRows(valid) {
   }));
 }
 
-marksRouter.post("/upload", requireFeature("upload"), upload.single("file"), async (req, res) => {
+marksRouter.post("/upload", uploadLimit, requireFeature("upload"), upload.single("file"), async (req, res) => {
   if (req.user.role === "PRINCIPAL") {
     return res.status(403).json({
       error: "Principals do not bulk-upload marks. Teachers and exam coordinators enter marks.",
@@ -598,7 +610,7 @@ marksRouter.post("/upload", requireFeature("upload"), upload.single("file"), asy
 });
 
 
-marksRouter.post("/submit", requireFeature("marks"), async (req, res) => {
+marksRouter.post("/submit", writeLimit, requireFeature("marks"), async (req, res) => {
   if (req.user.role === "PRINCIPAL") {
     return res.status(403).json({
       error: "Principals do not submit mark registers. Approve submitted marks from teachers instead.",
@@ -710,7 +722,7 @@ marksRouter.post("/submit", requireFeature("marks"), async (req, res) => {
   res.json({ submitted: result.count, teacherId });
 });
 
-marksRouter.post("/approve", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+marksRouter.post("/approve", writeLimit, requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { examId, classSectionId, subjectId, teacherId } = req.body || {};
   if (!examId) return res.status(400).json({ error: "examId is required" });
   if (!teacherId) {
@@ -747,7 +759,7 @@ marksRouter.post("/approve", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async
   res.json({ approved: result.count, teacherId });
 });
 
-marksRouter.post("/unapprove", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+marksRouter.post("/unapprove", writeLimit, requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   const { examId, classSectionId, subjectId, teacherId } = req.body || {};
   if (!examId) return res.status(400).json({ error: "examId is required" });
   if (!teacherId) {
@@ -788,7 +800,7 @@ marksRouter.post("/unapprove", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), asy
  * Leadership grace / moderation adjustment for a single mark cell.
  * Requires a reason; keeps the mark APPROVED when it already was.
  */
-marksRouter.post("/moderate", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
+marksRouter.post("/moderate", writeLimit, requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (req, res) => {
   await ensureActivityAuditSchema();
   const { examId, studentId, subjectId, marksObtained, reason } = req.body || {};
   if (!examId || !studentId || !subjectId) {

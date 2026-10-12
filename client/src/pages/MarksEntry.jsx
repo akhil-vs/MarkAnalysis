@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Link, useBlocker, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
@@ -483,6 +483,26 @@ export default function MarksEntry() {
       dirty: dirtyKeys.size,
     };
   }, [grid, draft, markMeta, dirtyKeys, electiveEnrollmentSets]);
+
+  const hasUnsavedMarks = dirtyKeys.size > 0;
+
+  useEffect(() => {
+    if (!hasUnsavedMarks) return undefined;
+    function onBeforeUnload(event) {
+      event.preventDefault();
+      event.returnValue = "";
+    }
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [hasUnsavedMarks]);
+
+  const leaveBlocker = useBlocker(hasUnsavedMarks);
+  useEffect(() => {
+    if (leaveBlocker.state !== "blocked") return;
+    const leave = window.confirm("You have unsaved marks. Leave without saving?");
+    if (leave) leaveBlocker.proceed();
+    else leaveBlocker.reset();
+  }, [leaveBlocker]);
 
   function collectChangedEntries({ subjectFilter } = {}) {
     if (!grid) return [];

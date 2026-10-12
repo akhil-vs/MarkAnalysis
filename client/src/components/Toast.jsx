@@ -109,7 +109,7 @@ export function ToastProvider({ children }) {
       {children}
       {createPortal(
         <div
-          className="pointer-events-none fixed inset-x-0 bottom-0 z-[250] flex flex-col items-stretch gap-2 p-3 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:max-w-sm sm:items-end safe-pb"
+          className="pointer-events-none fixed inset-x-0 bottom-16 z-[250] flex flex-col items-stretch gap-2 p-3 sm:inset-x-auto sm:right-4 sm:bottom-4 sm:max-w-sm sm:items-end safe-pb"
           aria-live="polite"
           aria-relevant="additions"
         >

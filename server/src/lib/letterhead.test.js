@@ -38,7 +38,7 @@ describe("applyPdfLetterhead", () => {
     const doc = new PDFDocument({ margins: pdfMargins(), compress: false });
     doc.on("data", (d) => chunks.push(d));
     const done = new Promise((resolve) => doc.on("end", resolve));
-    applyPdfLetterhead(doc, buildLetterhead(PROFILE));
+    applyPdfLetterhead(doc, await buildLetterhead(PROFILE));
     doc.text("Student Report Card", { align: "center" });
     doc.end();
     await done;
@@ -53,7 +53,7 @@ describe("writeExcelLetterhead", () => {
   it("writes name and address above the sheet and sets a print header", async () => {
     const workbook = new ExcelJS.Workbook();
     const sheet = workbook.addWorksheet("Marks");
-    const start = writeExcelLetterhead(workbook, sheet, buildLetterhead(PROFILE), 4);
+    const start = writeExcelLetterhead(workbook, sheet, await buildLetterhead(PROFILE), 4);
     assert.ok(start >= 4);
     assert.equal(sheet.getCell(1, 1).value, "Greenfield Public School");
     const joined = [];

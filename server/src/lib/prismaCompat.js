@@ -3,6 +3,7 @@
  */
 import { AsyncLocalStorage } from "node:async_hooks";
 import { and, or, not } from "@prisma/orm-postgres/orm-client";
+import { extendPrismaWithTenant } from "./tenant.js";
 
 const txAls = new AsyncLocalStorage();
 
@@ -878,7 +879,9 @@ export function createPrismaCompat(db, options = {}) {
 
   async function withTransaction(fn) {
     return getDb().transaction(async (tx) => {
-      const txClient = createPrismaCompat(tx, { pool });
+      // Keep the same tenant ALS proxy as the root client so interactive
+      // transactions cannot accidentally write across tenants.
+      const txClient = extendPrismaWithTenant(createPrismaCompat(tx, { pool }));
       return txAls.run({ db: tx, orm: tx.orm }, () => fn(txClient));
     });
   }

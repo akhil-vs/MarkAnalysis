@@ -55,6 +55,7 @@ import {
   schoolSectionPayload,
 } from "../lib/schoolSections.js";
 import { indexMarksByPaper } from "../lib/dashboardAgg.js";
+import { rateLimit } from "../lib/rateLimit.js";
 
 export const analyticsRouter = Router();
 analyticsRouter.use(auth);
@@ -71,6 +72,13 @@ analyticsRouter.use(
     "analysisDeep",
     "pendingUploads"
   )
+);
+analyticsRouter.use(
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 180,
+    message: "Too many analytics requests. Try again in a few minutes.",
+  })
 );
 analyticsRouter.use(async (_req, _res, next) => {
   try {

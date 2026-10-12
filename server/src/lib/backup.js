@@ -4,6 +4,22 @@ import { runWithoutTenant, runWithTenant } from "./tenant.js";
 /** Soft cap on total JSON-ish rows exported (photos never included). */
 export const BACKUP_MAX_ROWS = Number(process.env.BACKUP_MAX_ROWS || 250_000);
 
+/** What JSON restore can actually merge today (not a full DR restore). */
+export const RESTORE_CAPABILITIES = {
+  mode: "merge",
+  schoolProfileFields: true,
+  examPaperSchedules: true,
+  marks: false,
+  students: false,
+  staff: false,
+  timetables: false,
+  leave: false,
+  hallTickets: false,
+  notifications: false,
+  note:
+    "Platform JSON backup is a configuration / paper-schedule export. Use pg_dump (scripts/pg-dump-backup.sh) or managed Postgres PITR for disaster recovery.",
+};
+
 const TENANT_EXPORT_MODELS = [
   { key: "classSections", model: "classSection" },
   { key: "subjects", model: "subject" },
@@ -16,7 +32,7 @@ const TENANT_EXPORT_MODELS = [
   {
     key: "students",
     model: "student",
-    omit: { photoBytes: true, guardianEmail: true, phone: true, address: true },
+    omit: { photoBytes: true, guardianEmail: true, photoStorageKey: true },
   },
   { key: "exams", model: "exam" },
   { key: "teacherAssignments", model: "teacherAssignment" },
@@ -24,9 +40,13 @@ const TENANT_EXPORT_MODELS = [
   { key: "marks", model: "mark" },
   { key: "periods", model: "period" },
   { key: "timetableEntries", model: "timetableEntry" },
+  { key: "teacherLeaves", model: "teacherLeave" },
+  { key: "timetableSubstitutions", model: "timetableSubstitution" },
   { key: "examPaperSchedules", model: "examPaperSchedule" },
   { key: "reportCardReleases", model: "reportCardRelease" },
   { key: "revaluationRequests", model: "revaluationRequest" },
+  { key: "hallTicketIssues", model: "hallTicketIssue" },
+  { key: "boardPacks", model: "boardPack" },
   { key: "cpdTrainingPlans", model: "cpdTrainingPlan" },
   { key: "cpdObservations", model: "cpdObservation" },
   { key: "cpdAppraisals", model: "cpdAppraisal" },
@@ -46,6 +66,7 @@ function countRows(tenants) {
 /**
  * Export one school (or all) as a JSON backup document.
  * Passwords/MFA secrets, student photos, and guardian contact fields are omitted.
+ * This is not a full disaster-recovery archive — see RESTORE_CAPABILITIES.
  */
 export async function createBackup({ schoolId = null } = {}) {
   return runWithoutTenant(async () => {
@@ -65,10 +86,14 @@ export async function createBackup({ schoolId = null } = {}) {
       const data = { school };
       await runWithTenant(school.id, async () => {
         for (const { key, model, omit } of TENANT_EXPORT_MODELS) {
-          data[key] = await prisma[model].findMany({
-            ...(omit ? { omit } : {}),
-            orderBy: { id: "asc" },
-          });
+          try {
+            data[key] = await prisma[model].findMany({
+              ...(omit ? { omit } : {}),
+              orderBy: { id: "asc" },
+            });
+          } catch {
+            data[key] = [];
+          }
         }
       });
       tenants.push(data);
@@ -88,16 +113,24 @@ export async function createBackup({ schoolId = null } = {}) {
       createdAt: new Date().toISOString(),
       schoolCount: tenants.length,
       rowCount,
-      omitted: ["logoBytes", "photoBytes", "guardianEmail", "student.phone", "student.address", "passwordHash", "mfaSecret"],
+      restoreCapabilities: RESTORE_CAPABILITIES,
+      omitted: [
+        "logoBytes",
+        "logoStorageKey",
+        "photoBytes",
+        "photoStorageKey",
+        "guardianEmail",
+        "passwordHash",
+        "mfaSecret",
+      ],
       tenants,
     };
   });
 }
 
 /**
- * Restore school profile fields + selected operational rows for an existing school.
- * Does not create users (password hashes are not in backups). Safe merge for
- * paper schedules, CPD, report releases when ids are new.
+ * Merge-restore school profile fields + exam paper schedules for an existing school.
+ * Does not restore marks, students, staff, or passwords. For full DR use pg_dump / PITR.
  */
 export async function restoreBackup(document, { schoolId, mode = "merge" } = {}) {
   if (!document || document.format !== "sma-backup-v1") {
@@ -195,6 +228,13 @@ export async function restoreBackup(document, { schoolId, mode = "merge" } = {})
       }
     });
 
-    return { ok: true, schoolId, importedPaperSchedules: imported, mode };
+    return {
+      ok: true,
+      schoolId,
+      importedPaperSchedules: imported,
+      mode,
+      restoreCapabilities: RESTORE_CAPABILITIES,
+      warning: RESTORE_CAPABILITIES.note,
+    };
   });
 }

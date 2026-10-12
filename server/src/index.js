@@ -1,4 +1,5 @@
 import app from "./app.js";
+import { startBackgroundJobs } from "./lib/backgroundJobs.js";
 import { assertDeployAuthConfig } from "./lib/deployAuthConfig.js";
 import { bootstrapSchema } from "./lib/migrateOnStart.js";
 
@@ -16,6 +17,7 @@ async function start() {
     }
     app.listen(port, () => {
       console.log(`API listening on http://localhost:${port}`);
+      startBackgroundJobs();
     });
   }
 }

@@ -12,7 +12,8 @@ import { publicStudent } from "../lib/hallTickets.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { requireSchoolTenant } from "../lib/tenant.js";
 import { contentDispositionAttachment } from "../lib/downloadName.js";
-import { ensureHallTicketsSchema } from "../lib/ensureSchema.js";
+import { ensureBlobStorageColumns, ensureHallTicketsSchema } from "../lib/ensureSchema.js";
+import { deleteBlob, getBlob, putBlob } from "../lib/blobStore.js";
 import {
   indexStudentsByAdmission,
   matchPhotoFileToStudent,
@@ -401,11 +402,28 @@ studentsRouter.post(
       });
     }
 
+    await ensureBlobStorageColumns();
     const updated = [];
     for (const item of matched) {
+      const existing = await prisma.student.findUnique({
+        where: { id: item.student.id },
+        select: { id: true, tenantId: true, photoStorageKey: true },
+      });
+      if (existing?.photoStorageKey) await deleteBlob(existing.photoStorageKey);
+      const stored = await putBlob({
+        kind: "photo",
+        tenantId: existing?.tenantId || item.student.tenantId,
+        entityId: item.student.id,
+        bytes: item.bytes,
+        mimeType: item.mime,
+      });
       await prisma.student.update({
         where: { id: item.student.id },
-        data: { photoBytes: item.bytes, photoMimeType: item.mime },
+        data: {
+          photoBytes: stored.bytes,
+          photoMimeType: stored.mimeType,
+          photoStorageKey: stored.storageKey,
+        },
       });
       updated.push({
         file: item.file,
@@ -447,6 +465,7 @@ studentsRouter.get("/:id", async (req, res) => {
 
 studentsRouter.get("/:id/photo", async (req, res) => {
   await ensureHallTicketsSchema();
+  await ensureBlobStorageColumns();
   const student = await prisma.student.findUnique({
     where: { id: req.params.id },
     select: {
@@ -454,6 +473,7 @@ studentsRouter.get("/:id/photo", async (req, res) => {
       classSectionId: true,
       photoBytes: true,
       photoMimeType: true,
+      photoStorageKey: true,
     },
   });
   if (!student) return res.status(404).json({ error: "Not found" });
@@ -465,8 +485,7 @@ studentsRouter.get("/:id/photo", async (req, res) => {
     }
   }
 
-  const raw = student.photoBytes;
-  const buf = raw ? (Buffer.isBuffer(raw) ? raw : Buffer.from(raw)) : null;
+  const buf = await getBlob({ bytes: student.photoBytes, storageKey: student.photoStorageKey });
   if (!buf?.length || !student.photoMimeType) {
     return res.status(404).json({ error: "No student photo uploaded" });
   }
@@ -499,9 +518,26 @@ studentsRouter.post(
       });
     }
 
+    await ensureBlobStorageColumns();
+    const current = await prisma.student.findUnique({
+      where: { id: existing.id },
+      select: { id: true, tenantId: true, photoStorageKey: true },
+    });
+    if (current?.photoStorageKey) await deleteBlob(current.photoStorageKey);
+    const stored = await putBlob({
+      kind: "photo",
+      tenantId: current?.tenantId || req.user.tenantId,
+      entityId: existing.id,
+      bytes: parsed.bytes,
+      mimeType: parsed.mime,
+    });
     const updated = await prisma.student.update({
       where: { id: existing.id },
-      data: { photoBytes: parsed.bytes, photoMimeType: parsed.mime },
+      data: {
+        photoBytes: stored.bytes,
+        photoMimeType: stored.mimeType,
+        photoStorageKey: stored.storageKey,
+      },
       include: { classSection: true },
       omit: { photoBytes: true },
     });
@@ -515,18 +551,20 @@ studentsRouter.delete(
   requireFeature("studentPhotos"),
   async (req, res) => {
     await ensureHallTicketsSchema();
+    await ensureBlobStorageColumns();
     const existing = await prisma.student.findUnique({
       where: { id: req.params.id },
-      select: { id: true, classSectionId: true },
+      select: { id: true, classSectionId: true, photoStorageKey: true },
     });
     if (!existing) return res.status(404).json({ error: "Not found" });
 
     const denied = await assertTeacherCanAccessClass(req, existing.classSectionId);
     if (denied) return res.status(denied.status).json({ error: denied.error });
 
+    if (existing.photoStorageKey) await deleteBlob(existing.photoStorageKey);
     const updated = await prisma.student.update({
       where: { id: existing.id },
-      data: { photoBytes: null, photoMimeType: null },
+      data: { photoBytes: null, photoMimeType: null, photoStorageKey: null },
       include: { classSection: true },
       omit: { photoBytes: true },
     });

@@ -63,6 +63,8 @@ describe("deployAuthConfig", () => {
     const docs = deployAuthEnvDocs();
     const names = docs.map((d) => d.name);
     assert.ok(names.includes("JWT_SECRET"));
+    assert.ok(names.includes("MFA_ENCRYPTION_KEY"));
+    assert.ok(names.includes("ALLOW_PUBLIC_SCHOOL_REGISTRATION"));
     assert.ok(names.includes("DATABASE_URL"));
     assert.ok(names.includes("CLIENT_ORIGIN"));
     assert.ok(names.includes("COOKIE_SECURE"));

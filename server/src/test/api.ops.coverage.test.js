@@ -35,11 +35,27 @@ describe("API surface coverage (portal, schools, hall tickets, board, cpd, class
     assert.equal(res.headers.get("x-api-version"), "1");
   });
 
-  it("schools lookup is public; register rejects weak passwords", async (t) => {
+  it("schools lookup is public; register is disabled unless explicitly enabled", async (t) => {
     if (!server) return t.skip("DATABASE_URL not set");
     const lookup = await server.request("/api/schools/lookup?joinCode=DEMO-JOIN");
     assert.ok([200, 404].includes(lookup.status), lookup.text);
 
+    const prev = process.env.ALLOW_PUBLIC_SCHOOL_REGISTRATION;
+    delete process.env.ALLOW_PUBLIC_SCHOOL_REGISTRATION;
+    const disabled = await server.request("/api/schools/register", {
+      method: "POST",
+      body: {
+        schoolName: "Blocked School",
+        board: "CBSE",
+        name: "Principal Blocked",
+        email: `blocked-${Date.now()}@example.com`,
+        password: "password123",
+      },
+    });
+    assert.equal(disabled.status, 403);
+    assert.match(disabled.json?.error || "", /disabled|pilot/i);
+
+    process.env.ALLOW_PUBLIC_SCHOOL_REGISTRATION = "true";
     const weak = await server.request("/api/schools/register", {
       method: "POST",
       body: {
@@ -52,6 +68,8 @@ describe("API surface coverage (portal, schools, hall tickets, board, cpd, class
     });
     assert.equal(weak.status, 400);
     assert.match(weak.json?.error || "", /password/i);
+    if (prev == null) delete process.env.ALLOW_PUBLIC_SCHOOL_REGISTRATION;
+    else process.env.ALLOW_PUBLIC_SCHOOL_REGISTRATION = prev;
   });
 
   it("portal session rejects missing token", async (t) => {

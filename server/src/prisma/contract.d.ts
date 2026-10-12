@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'053fca134d63b7425602d07fa31a9b4301919a215457589310cb55c8bd4c34ab'>;
+  StorageHashBase<'2aa438b98b1c3be0fd4cf2fc200fdd3d8ac89cf46af1a08602eab3cd7c467090'>;
 export type ExecutionHash =
   ExecutionHashBase<'e3f5bde3c11a8a42958df84dc1248a0f5f43b66be23c468cc6cea6a6e16e1803'>;
 export type ProfileHash =
@@ -589,6 +589,7 @@ export type FieldOutputTypes = {
       readonly motto: CodecTypes['pg/text@1']['output'] | null;
       readonly logoBytes: CodecTypes['pg/bytea@1']['output'] | null;
       readonly logoMimeType: CodecTypes['pg/text@1']['output'] | null;
+      readonly logoStorageKey: CodecTypes['pg/text@1']['output'] | null;
       readonly board: CodecTypes['pg/text@1']['output'] | null;
       readonly affiliationNo: CodecTypes['pg/text@1']['output'] | null;
       readonly udiseCode: CodecTypes['pg/text@1']['output'] | null;
@@ -636,6 +637,7 @@ export type FieldOutputTypes = {
       readonly guardianEmail: CodecTypes['pg/text@1']['output'] | null;
       readonly photoBytes: CodecTypes['pg/bytea@1']['output'] | null;
       readonly photoMimeType: CodecTypes['pg/text@1']['output'] | null;
+      readonly photoStorageKey: CodecTypes['pg/text@1']['output'] | null;
       readonly promotedFromId: CodecTypes['pg/text@1']['output'] | null;
     };
     readonly StudentSubjectEnrollment: {
@@ -1078,6 +1080,7 @@ export type FieldInputTypes = {
       readonly motto: CodecTypes['pg/text@1']['input'] | null;
       readonly logoBytes: CodecTypes['pg/bytea@1']['input'] | null;
       readonly logoMimeType: CodecTypes['pg/text@1']['input'] | null;
+      readonly logoStorageKey: CodecTypes['pg/text@1']['input'] | null;
       readonly board: CodecTypes['pg/text@1']['input'] | null;
       readonly affiliationNo: CodecTypes['pg/text@1']['input'] | null;
       readonly udiseCode: CodecTypes['pg/text@1']['input'] | null;
@@ -1125,6 +1128,7 @@ export type FieldInputTypes = {
       readonly guardianEmail: CodecTypes['pg/text@1']['input'] | null;
       readonly photoBytes: CodecTypes['pg/bytea@1']['input'] | null;
       readonly photoMimeType: CodecTypes['pg/text@1']['input'] | null;
+      readonly photoStorageKey: CodecTypes['pg/text@1']['input'] | null;
       readonly promotedFromId: CodecTypes['pg/text@1']['input'] | null;
     };
     readonly StudentSubjectEnrollment: {
@@ -1581,6 +1585,7 @@ export type StorageColumnTypes = {
       readonly joinCode: CodecTypes['pg/text@1']['output'];
       readonly logoBytes: CodecTypes['pg/bytea@1']['output'] | null;
       readonly logoMimeType: CodecTypes['pg/text@1']['output'] | null;
+      readonly logoStorageKey: CodecTypes['pg/text@1']['output'] | null;
       readonly motto: CodecTypes['pg/text@1']['output'] | null;
       readonly name: CodecTypes['pg/text@1']['output'];
       readonly optionalModules: CodecTypes['pg/jsonb@1']['output'] | null;
@@ -1611,6 +1616,7 @@ export type StorageColumnTypes = {
       readonly name: CodecTypes['pg/text@1']['output'];
       readonly photoBytes: CodecTypes['pg/bytea@1']['output'] | null;
       readonly photoMimeType: CodecTypes['pg/text@1']['output'] | null;
+      readonly photoStorageKey: CodecTypes['pg/text@1']['output'] | null;
       readonly promotedFromId: CodecTypes['pg/text@1']['output'] | null;
       readonly rollNo: CodecTypes['pg/text@1']['output'];
       readonly status: 'ACTIVE' | 'PROMOTED' | 'TRANSFERRED' | 'LEFT';
@@ -2070,6 +2076,7 @@ export type StorageColumnInputTypes = {
       readonly joinCode: CodecTypes['pg/text@1']['input'];
       readonly logoBytes: CodecTypes['pg/bytea@1']['input'] | null;
       readonly logoMimeType: CodecTypes['pg/text@1']['input'] | null;
+      readonly logoStorageKey: CodecTypes['pg/text@1']['input'] | null;
       readonly motto: CodecTypes['pg/text@1']['input'] | null;
       readonly name: CodecTypes['pg/text@1']['input'];
       readonly optionalModules: CodecTypes['pg/jsonb@1']['input'] | null;
@@ -2100,6 +2107,7 @@ export type StorageColumnInputTypes = {
       readonly name: CodecTypes['pg/text@1']['input'];
       readonly photoBytes: CodecTypes['pg/bytea@1']['input'] | null;
       readonly photoMimeType: CodecTypes['pg/text@1']['input'] | null;
+      readonly photoStorageKey: CodecTypes['pg/text@1']['input'] | null;
       readonly promotedFromId: CodecTypes['pg/text@1']['input'] | null;
       readonly rollNo: CodecTypes['pg/text@1']['input'];
       readonly status: 'ACTIVE' | 'PROMOTED' | 'TRANSFERRED' | 'LEFT';
@@ -2207,6 +2215,7 @@ export namespace Models {
     motto: CodecTypes['pg/text@1']['output'] | null;
     logoBytes: CodecTypes['pg/bytea@1']['output'] | null;
     logoMimeType: CodecTypes['pg/text@1']['output'] | null;
+    logoStorageKey: CodecTypes['pg/text@1']['output'] | null;
     board: CodecTypes['pg/text@1']['output'] | null;
     affiliationNo: CodecTypes['pg/text@1']['output'] | null;
     udiseCode: CodecTypes['pg/text@1']['output'] | null;
@@ -2497,6 +2506,7 @@ export namespace Models {
     guardianEmail: CodecTypes['pg/text@1']['output'] | null;
     photoBytes: CodecTypes['pg/bytea@1']['output'] | null;
     photoMimeType: CodecTypes['pg/text@1']['output'] | null;
+    photoStorageKey: CodecTypes['pg/text@1']['output'] | null;
     promotedFromId: CodecTypes['pg/text@1']['output'] | null;
     classSection: public_ClassSection;
     marks: public_Mark[];
@@ -5885,6 +5895,11 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
                 };
+                readonly logoStorageKey: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
                 readonly board: {
                   readonly nativeType: 'text';
                   readonly codecId: 'pg/text@1';
@@ -6144,6 +6159,11 @@ type ContractBase = Omit<
                   readonly nullable: true;
                 };
                 readonly photoMimeType: {
+                  readonly nativeType: 'text';
+                  readonly codecId: 'pg/text@1';
+                  readonly nullable: true;
+                };
+                readonly photoStorageKey: {
                   readonly nativeType: 'text';
                   readonly codecId: 'pg/text@1';
                   readonly nullable: true;
@@ -9994,6 +10014,10 @@ type ContractBase = Omit<
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
+              readonly logoStorageKey: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
               readonly board: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
@@ -10453,6 +10477,7 @@ type ContractBase = Omit<
                 readonly motto: { readonly column: 'motto' };
                 readonly logoBytes: { readonly column: 'logoBytes' };
                 readonly logoMimeType: { readonly column: 'logoMimeType' };
+                readonly logoStorageKey: { readonly column: 'logoStorageKey' };
                 readonly board: { readonly column: 'board' };
                 readonly affiliationNo: { readonly column: 'affiliationNo' };
                 readonly udiseCode: { readonly column: 'udiseCode' };
@@ -10549,6 +10574,10 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/bytea@1' };
               };
               readonly photoMimeType: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
+              };
+              readonly photoStorageKey: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
@@ -10654,6 +10683,7 @@ type ContractBase = Omit<
                 readonly guardianEmail: { readonly column: 'guardianEmail' };
                 readonly photoBytes: { readonly column: 'photoBytes' };
                 readonly photoMimeType: { readonly column: 'photoMimeType' };
+                readonly photoStorageKey: { readonly column: 'photoStorageKey' };
                 readonly promotedFromId: { readonly column: 'promotedFromId' };
               };
             };

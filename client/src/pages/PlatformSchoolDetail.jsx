@@ -383,7 +383,7 @@ export default function PlatformSchoolDetail() {
                 <input
                   className="field"
                   type="password"
-                  minLength={8}
+                  minLength={10}
                   value={principal.password}
                   onChange={(e) => setPrincipal({ ...principal, password: e.target.value })}
                   placeholder="Leave blank to generate"

@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { prisma } from "../lib/prisma.js";
 import { logActivity } from "../lib/activityAudit.js";
-import { ensureHallTicketsSchema } from "../lib/ensureSchema.js";
+import { ensureBlobStorageColumns, ensureHallTicketsSchema } from "../lib/ensureSchema.js";
 import {
   buildHallTicketPayload,
+  hydrateTicketPhotos,
   papersHaveDateAndTime,
   parseHallTicketPatch,
   publicHallTicketIssue,
@@ -268,12 +269,14 @@ hallTicketsRouter.get("/pdf", async (req, res) => {
     where: { examId_classSectionId: { examId, classSectionId } },
   });
 
+  await ensureBlobStorageColumns();
   const bundle = await buildPreviewBundle({ exam, classSection, issue, includePhotoBytes: true });
   if (!bundle.scheduleComplete) {
     return res.status(400).json({
       error: "Set a date and start time for every paper under Records → Exams before downloading hall tickets.",
     });
   }
+  await hydrateTicketPhotos(bundle.tickets);
   const stem = `hall-tickets-${classSection.className}${classSection.section}-${exam.name}`
     .replace(/\s+/g, "_")
     .replace(/[^a-zA-Z0-9._-]/g, "");

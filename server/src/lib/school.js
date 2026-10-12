@@ -74,7 +74,7 @@ export function invalidateSchoolProfileCache() {
 
 export async function getSchoolLetterhead() {
   const profile = await getSchoolProfile({ includeLogo: true });
-  return buildLetterhead(profile);
+  return await buildLetterhead(profile);
 }
 
 export function formatSchoolAddress(profile) {
@@ -105,14 +105,16 @@ export function schoolHeaderLines(profile) {
   return lines;
 }
 
-function logoBuffer(profile) {
-  const raw = profile?.logoBytes;
-  if (!raw) return null;
-  const buf = Buffer.isBuffer(raw) ? raw : Buffer.from(raw);
-  return buf.length ? buf : null;
+async function resolveLogoBuffer(profile) {
+  const { getBlob } = await import("./blobStore.js");
+  const buf = await getBlob({
+    bytes: profile?.logoBytes,
+    storageKey: profile?.logoStorageKey,
+  });
+  return buf?.length ? buf : null;
 }
 
-export function buildLetterhead(profile) {
+export async function buildLetterhead(profile) {
   if (!profile) {
     return {
       name: "School Marks Analytics",
@@ -125,7 +127,7 @@ export function buildLetterhead(profile) {
       logoMime: null,
     };
   }
-  const logo = logoBuffer(profile);
+  const logo = await resolveLogoBuffer(profile);
   return {
     name: profile.name || "School Marks Analytics",
     motto: profile.motto ? String(profile.motto).trim() : null,
@@ -226,8 +228,18 @@ export function parseLogoFile(file) {
 
 export function publicSchool(profile, { grading, workingDays, includeJoinCode = false } = {}) {
   if (!profile) return profile;
-  const { logoBytes, joinCode, optionalModules, academicYears, currentAcademicYear, ...rest } = profile;
-  const hasLogo = Boolean(rest.logoMimeType) && (logoBytes == null || logoBytes.length > 0);
+  const {
+    logoBytes,
+    logoStorageKey,
+    joinCode,
+    optionalModules,
+    academicYears,
+    currentAcademicYear,
+    ...rest
+  } = profile;
+  const hasLogo =
+    Boolean(rest.logoMimeType) &&
+    (Boolean(logoStorageKey) || logoBytes == null || logoBytes.length > 0);
   const years = publicAcademicYears({ academicYears, currentAcademicYear });
   return {
     ...rest,

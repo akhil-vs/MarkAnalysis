@@ -3,15 +3,17 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: marks
-      POSTGRES_PASSWORD: marks
-      POSTGRES_DB: marks
+      POSTGRES_USER: ${POSTGRES_USER:-marks}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-marks}
+      POSTGRES_DB: ${POSTGRES_DB:-marks}
+    # Bind only on localhost by default — override with POSTGRES_PUBLISH=0.0.0.0:5432 if needed.
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PUBLISH:-127.0.0.1:5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+      - blobdata:/var/lib/sma-blobs
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U marks -d marks"]
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
       interval: 5s
       timeout: 5s
       retries: 10
@@ -24,14 +26,21 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://marks:marks@db:5432/marks?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER:-marks}:${POSTGRES_PASSWORD:-marks}@db:5432/${POSTGRES_DB:-marks}?schema=public
       # Required: docker compose fails API boot if this stays at the placeholder.
-      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET to a strong random value}
+      JWT_SECRET: ${JWT_SECRET:?Set JWT_SECRET to a strong random value (≥32 chars recommended)}
+      MFA_ENCRYPTION_KEY: ${MFA_ENCRYPTION_KEY:-}
+      ALLOW_PUBLIC_SCHOOL_REGISTRATION: ${ALLOW_PUBLIC_SCHOOL_REGISTRATION:-false}
+      ENABLE_BACKGROUND_JOBS: ${ENABLE_BACKGROUND_JOBS:-true}
+      BLOB_STORAGE: ${BLOB_STORAGE:-database}
+      BLOB_STORAGE_PATH: ${BLOB_STORAGE_PATH:-/var/lib/sma-blobs}
       JWT_ACCESS_EXPIRES: ${JWT_ACCESS_EXPIRES:-15m}
       CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:8080}
       COOKIE_SECURE: ${COOKIE_SECURE:-false}
       PORT: "4000"
       NODE_ENV: production
+    volumes:
+      - blobdata:/var/lib/sma-blobs
     ports:
       - "4000:4000"
 
@@ -49,3 +58,4 @@ services:
 
 volumes:
   pgdata:
+  blobdata:

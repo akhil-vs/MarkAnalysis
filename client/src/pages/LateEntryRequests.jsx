@@ -48,7 +48,7 @@ function requestSearchText(r) {
   );
 }
 
-export default function LateEntryRequests() {
+export default function LateEntryRequests({ embedded = false } = {}) {
   const { user } = useAuth();
   const toast = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -171,16 +171,23 @@ export default function LateEntryRequests() {
 
   return (
     <div>
-      <PageHeader
-        title={NAV_TITLES.accessRequests}
-        subtitle="Approve late entry after the deadline or edit access for submitted registers — across every exam."
-      />
+      {!embedded && (
+        <PageHeader
+          title={NAV_TITLES.accessRequests}
+          subtitle="Approve late entry after the deadline or edit access for submitted registers — across every exam."
+        />
+      )}
 
       <div className="card mb-4 p-3">
         <div className="flex flex-wrap items-end gap-2.5">
-          <label className="block min-w-0 grow basis-[calc(50%-0.35rem)] sm:grow-0 sm:basis-auto">
+          <label className="block min-w-0 grow basis-[calc(50%-0.35rem)] sm:grow-0 sm:basis-auto" htmlFor="access-exam">
             <span className="label">Exam</span>
-            <select className="field-filter w-full sm:w-auto" value={examId} onChange={(e) => setExamId(e.target.value)}>
+            <select
+              id="access-exam"
+              className="field-filter w-full sm:w-auto"
+              value={examId}
+              onChange={(e) => setExamId(e.target.value)}
+            >
               <option value="">All exams</option>
               {exams.map((e) => (
                 <option key={e.id} value={e.id}>
@@ -189,18 +196,28 @@ export default function LateEntryRequests() {
               ))}
             </select>
           </label>
-          <label className="block min-w-0 grow basis-[calc(50%-0.35rem)] sm:grow-0 sm:basis-auto">
+          <label className="block min-w-0 grow basis-[calc(50%-0.35rem)] sm:grow-0 sm:basis-auto" htmlFor="access-status">
             <span className="label">Status</span>
-            <select className="field-filter w-full sm:w-auto" value={status} onChange={(e) => setStatus(e.target.value)}>
+            <select
+              id="access-status"
+              className="field-filter w-full sm:w-auto"
+              value={status}
+              onChange={(e) => setStatus(e.target.value)}
+            >
               <option value="PENDING">Pending</option>
               <option value="APPROVED">Approved</option>
               <option value="REJECTED">Rejected</option>
               <option value="">All statuses</option>
             </select>
           </label>
-          <label className="block min-w-0 grow basis-[calc(50%-0.35rem)] sm:grow-0 sm:basis-auto">
+          <label className="block min-w-0 grow basis-[calc(50%-0.35rem)] sm:grow-0 sm:basis-auto" htmlFor="access-kind">
             <span className="label">Kind</span>
-            <select className="field-filter w-full sm:w-auto" value={kind} onChange={(e) => setKind(e.target.value)}>
+            <select
+              id="access-kind"
+              className="field-filter w-full sm:w-auto"
+              value={kind}
+              onChange={(e) => setKind(e.target.value)}
+            >
               <option value="">All kinds</option>
               <option value="LATE_ENTRY">Late entry</option>
               <option value="EDIT">Edit</option>

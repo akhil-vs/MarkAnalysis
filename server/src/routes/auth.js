@@ -41,6 +41,12 @@ import {
 import { publicWorkspace, resolveWorkspace } from "../lib/workspace.js";
 import { ensureUserWorkspaceColumn } from "../lib/ensureSchema.js";
 import { capabilitiesForUser } from "../lib/capabilities.js";
+import { encryptSecret, tryDecryptSecret } from "../lib/secretCrypto.js";
+
+function mfaPlainSecret(user) {
+  if (!user?.mfaSecret) return null;
+  return tryDecryptSecret(user.mfaSecret);
+}
 
 export const authRouter = Router();
 
@@ -447,7 +453,8 @@ authRouter.post("/mfa/verify", authWriteLimit, async (req, res) => {
   }
 
   let ok = false;
-  if (code && verifyTotp(user.mfaSecret, code)) {
+  const plain = mfaPlainSecret(user);
+  if (code && plain && verifyTotp(plain, code)) {
     ok = true;
   } else if (recoveryCode) {
     const next = consumeRecoveryCode(user.mfaRecoveryHashes, recoveryCode);
@@ -472,7 +479,7 @@ authRouter.post("/mfa/setup", auth, async (req, res) => {
   const secret = generateTotpSecret();
   await prisma.user.update({
     where: { id: user.id },
-    data: { mfaSecret: secret, mfaEnabled: false },
+    data: { mfaSecret: encryptSecret(secret), mfaEnabled: false },
   });
   const accountName = user.email || user.schoolId || user.name;
   res.json({
@@ -484,10 +491,11 @@ authRouter.post("/mfa/setup", auth, async (req, res) => {
 authRouter.post("/mfa/enable", auth, async (req, res) => {
   const { code } = req.body || {};
   const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
-  if (!user?.mfaSecret) {
+  const plain = mfaPlainSecret(user);
+  if (!plain) {
     return res.status(400).json({ error: "Call MFA setup first" });
   }
-  if (!verifyTotp(user.mfaSecret, code)) {
+  if (!verifyTotp(plain, code)) {
     return res.status(400).json({ error: "Invalid authentication code" });
   }
   const recoveryCodes = generateRecoveryCodes();
@@ -522,7 +530,8 @@ authRouter.post("/mfa/disable", auth, async (req, res) => {
   if (!password || !(await verifyPassword(password, user.passwordHash))) {
     return res.status(401).json({ error: "Password is incorrect" });
   }
-  if (user.mfaEnabled && user.mfaSecret && !verifyTotp(user.mfaSecret, code)) {
+  const disablePlain = mfaPlainSecret(user);
+  if (user.mfaEnabled && disablePlain && !verifyTotp(disablePlain, code)) {
     return res.status(401).json({ error: "Invalid authentication code" });
   }
   const updated = await prisma.user.update({
