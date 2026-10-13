@@ -32,10 +32,11 @@ import { ensurePendingSchema } from "../lib/ensureSchema.js";
 import { loadExams, listExamsBasic } from "../lib/examCatalog.js";
 import {
   dualCeilingWarnings,
-  examReadiness,
+  examReadinessFromRegisterCounts,
   passFailMatrix,
   weightedAnnualForStudent,
 } from "../lib/analyticsExtras.js";
+import { expectedCountForPaper, enrollmentKeySet } from "../lib/electiveEnrollment.js";
 import {
   markHistorySelect,
   studentListOmit,
@@ -44,7 +45,6 @@ import {
 import { buildHomeDashboardCached } from "../lib/homeDashboard.js";
 import {
   ANALYTICS_MARK_SELECT,
-  ANALYTICS_STATUS_SELECT,
   SCHOOL_DETAIL_HISTORY_PRIOR,
   historyExamIdsForDetail,
   loadApprovedMarksForExams,
@@ -56,6 +56,8 @@ import {
   aggregateByPaper,
   aggregateByStudent,
   aggregateBySubjectName,
+  aggregateRegisterStatusByPaper,
+  loadSlimApprovedMarks,
   statsFields,
   yearSeriesFromAgg,
 } from "../lib/markAggregates.js";
@@ -232,31 +234,38 @@ async function buildSchoolAnalyticsCached({
       : [];
     const trendExamIds = wantDetail ? [exam.id, ...otherExamIds] : [exam.id];
 
-    // Raw mark graphs only when summary/lists need them. Principal SPA detail
-    // path is detail+nolists → pure SQL aggregates (~10–40ms vs ~300ms hydrate).
-    const needRawApprovedMarks = wantSummary || includeLists;
-    const needStatusScan = wantSummary;
+    // Nested Prisma mark graphs only when distinction/fail *lists* are requested.
+    // Summary KPIs / bands use slim SQL rows; detail+nolists stays pure aggregates.
+    const needListHydrate = includeLists && wantSummary;
+    const needSlimApproved = wantSummary || includeLists;
+    const needRegisterStatus = wantSummary;
 
     const sharedQueries = [
-      needRawApprovedMarks
+      needListHydrate
         ? loadApprovedMarksForExams({
             examIds: [exam.id],
             select: ANALYTICS_MARK_SELECT,
             activeStudentsOnly: true,
           })
-        : Promise.resolve([]),
-      needStatusScan
-        ? prisma.mark.findMany({
-            where: { examId: exam.id },
-            select: ANALYTICS_STATUS_SELECT,
-          })
+        : needSlimApproved
+          ? loadSlimApprovedMarks({ examId: exam.id })
+          : Promise.resolve([]),
+      needRegisterStatus
+        ? aggregateRegisterStatusByPaper({ examId: exam.id })
         : Promise.resolve([]),
       prisma.classSection.findMany({
         orderBy: [{ className: "asc" }, { section: "asc" }],
         include: { _count: { select: { students: { where: { status: "ACTIVE" } } } } },
       }),
       prisma.subject.findMany({
-        select: { id: true, name: true, className: true, maxMarks: true, practicalMaxMarks: true },
+        select: {
+          id: true,
+          name: true,
+          className: true,
+          maxMarks: true,
+          practicalMaxMarks: true,
+          isElective: true,
+        },
       }),
       prisma.teacherAssignment.findMany({
         select: {
@@ -264,7 +273,9 @@ async function buildSchoolAnalyticsCached({
           classSectionId: true,
           subjectId: true,
           user: { select: { id: true, name: true, email: true } },
-          subject: { select: { id: true, name: true, className: true, maxMarks: true } },
+          subject: {
+            select: { id: true, name: true, className: true, maxMarks: true, isElective: true },
+          },
           classSection: { select: { id: true, className: true, section: true } },
         },
       }),
@@ -279,7 +290,7 @@ async function buildSchoolAnalyticsCached({
 
     const [
       approvedMarksRaw,
-      statusMarksRaw,
+      registerStatusRaw,
       classesRaw,
       subjectsRaw,
       assignmentsRaw,
@@ -318,12 +329,15 @@ async function buildSchoolAnalyticsCached({
         schoolSection
       );
     const approvedScoped = approvedMarksRaw.filter(inSection);
-    const statusMarks = needStatusScan ? statusMarksRaw.filter(inSection) : [];
     const marks = approvedScoped.map((m) => ({ ...m, exam }));
-    const examMarks = needStatusScan ? statusMarks : approvedScoped;
+    const registerStatusScoped = needRegisterStatus
+      ? registerStatusRaw.filter(
+          (r) => schoolSection === "ALL" || classIds.has(r.classSectionId)
+        )
+      : [];
 
     // SQL aggregates for detail KPIs/charts (and for KPIs when raw marks skipped).
-    const needSqlDetail = wantDetail || !needRawApprovedMarks;
+    const needSqlDetail = wantDetail || !needSlimApproved;
     const [sectionAggs, classAggs, subjectAggs, examAggs, paperAggs, studentAggs] = needSqlDetail
       ? await Promise.all([
           wantDetail
@@ -370,10 +384,10 @@ async function buildSchoolAnalyticsCached({
     const subjectNameSet = new Set(subjects.map((s) => s.name));
     const subjectAggsScoped = subjectAggs.filter((r) => subjectNameSet.has(r.subjectName));
 
-    const marksByStudent = needRawApprovedMarks
+    const marksByStudent = needSlimApproved
       ? groupBy(marks, (m) => m.studentId)
       : new Map();
-    const studentAvgs = needRawApprovedMarks
+    const studentAvgs = needSlimApproved
       ? studentTotals(marksByStudent, { gradeFn })
       : studentAggs.map((s) => ({
           studentId: s.studentId,
@@ -389,9 +403,7 @@ async function buildSchoolAnalyticsCached({
           count: s.count,
         }));
 
-    // Board KPIs always use assessmentPolicy kernel when mark rows exist.
-    // SQL-only detail (AVERAGE mode) can use avgs; ALL_SUBJECTS needs mark rows
-    // (principal SPA merges summary KPIs which already load marks).
+    // Board KPIs always use assessmentPolicy kernel (same as homeDashboard summary).
     const boardStats = computeBoardPassStats({
       marksByStudent,
       studentAvgs,
@@ -411,23 +423,40 @@ async function buildSchoolAnalyticsCached({
     const payload = { ...sectionMeta };
 
     if (wantSummary) {
+      const registerByPaper = new Map(
+        registerStatusScoped.map((r) => [`${r.subjectId}|${r.classSectionId}`, r])
+      );
       const pendingUploads = await buildPendingUploads(exam, {
         assignments,
         students: activeStudentRows,
-        marks: examMarks.map((m) => ({
-          studentId: m.studentId,
-          subjectId: m.subjectId,
-          status: m.status,
-        })),
+        registerStatus: registerStatusScoped,
       });
       const extras = await enrichMarksInsights(marks, grading, { includeLists });
       const studentsByClass = groupBy(activeStudentRows, (s) => s.classSectionId);
-      const readiness = examReadiness({
+      const subjectById = new Map(subjects.map((s) => [s.id, s]));
+      const electiveIds = subjects.filter((s) => s.isElective).map((s) => s.id);
+      const enrollments = electiveIds.length
+        ? await prisma.studentSubjectEnrollment.findMany({
+            where: {
+              subjectId: { in: electiveIds },
+              studentId: { in: activeStudentRows.map((s) => s.id) },
+            },
+            select: { studentId: true, subjectId: true },
+          })
+        : [];
+      const enrollmentKeys = enrollmentKeySet(enrollments);
+      const readiness = examReadinessFromRegisterCounts({
         exam,
         assignments,
-        marks: examMarks,
         studentsByClass,
+        registerByPaper,
         accessRequests,
+        expectedCountFn: (a, roster) =>
+          expectedCountForPaper(
+            subjectById.get(a.subjectId) || a.subject || { id: a.subjectId, isElective: false },
+            roster,
+            enrollmentKeys
+          ),
       });
       Object.assign(payload, {
         exam,

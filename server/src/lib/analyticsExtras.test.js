@@ -6,6 +6,7 @@ import {
   divisionGapMatrix,
   dualCeilingWarnings,
   examReadiness,
+  examReadinessFromRegisterCounts,
   improvementCohorts,
   markBandHistogram,
   outcomeBreakdown,
@@ -122,6 +123,32 @@ describe("division and readiness extras", () => {
     });
     assert.equal(readiness.kpis.latePending, 1);
     assert.equal(readiness.heatmap[0].status, "AWAITING_APPROVAL");
+  });
+
+  it("computes readiness kpis from register status counts", () => {
+    const exam = { id: "e1", date: new Date("2026-01-01"), marksEntryDeadline: new Date("2026-01-10") };
+    const readiness = examReadinessFromRegisterCounts({
+      exam,
+      assignments: [
+        {
+          userId: "t1",
+          user: { name: "Anita" },
+          subject: { name: "Math" },
+          subjectId: "sub1",
+          classSectionId: "c1",
+          classSection: { className: "10", section: "A" },
+        },
+      ],
+      studentsByClass: new Map([["c1", [{ id: "s1" }, { id: "s2" }]]]),
+      registerByPaper: new Map([
+        ["sub1|c1", { uploaded: 1, approved: 0, submitted: 1, draft: 0 }],
+      ]),
+      accessRequests: [{ status: "PENDING", kind: "LATE_ENTRY" }],
+    });
+    assert.equal(readiness.kpis.latePending, 1);
+    assert.equal(readiness.heatmap[0].status, "PARTIAL");
+    assert.equal(readiness.heatmap[0].missing, 1);
+    assert.equal(readiness.velocity.length, 0);
   });
 });
 

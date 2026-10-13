@@ -1,6 +1,6 @@
 import { prisma } from "./prisma.js";
 import { getAssignments, isLeadership } from "../middleware/auth.js";
-import { summarizeRegister } from "./registerStatus.js";
+import { summarizeRegisterCounts } from "./registerStatus.js";
 import { groupBy } from "./stats.js";
 import { loadExams } from "./examCatalog.js";
 import { resolveWorkspace } from "./workspace.js";
@@ -10,6 +10,10 @@ import {
 } from "./schoolSections.js";
 import { isPastDeadline } from "./markAccess.js";
 import { enrollmentKeySet, expectedCountForPaper } from "./electiveEnrollment.js";
+import {
+  aggregateRegisterStatusByPaper,
+  aggregateRegisterStatusByPaperTeacher,
+} from "./markAggregates.js";
 
 export function registerKey({ examId, classSectionId, subjectId, teacherId }) {
   return `${examId}:${classSectionId}:${subjectId}:${teacherId}`;
@@ -162,24 +166,20 @@ export async function listRegisters(user, { examId, schoolSection } = {}) {
   const electiveSubjectIds = [
     ...new Set(assignmentRows.filter((a) => a.isElective).map((a) => a.subjectId)),
   ];
-  const [students, marks, enrollments] = await Promise.all([
+  const [students, statusByTeacher, statusByPaper, enrollments] = await Promise.all([
     prisma.student.findMany({
       where: { classSectionId: { in: classIds }, status: "ACTIVE" },
       select: { id: true, classSectionId: true },
     }),
-    prisma.mark.findMany({
-      where: {
-        examId: exam.id,
-        subjectId: { in: subjectIds },
-        student: { classSectionId: { in: classIds } },
-      },
-      select: {
-        studentId: true,
-        subjectId: true,
-        status: true,
-        enteredById: true,
-        student: { select: { classSectionId: true } },
-      },
+    aggregateRegisterStatusByPaperTeacher({
+      examId: exam.id,
+      classSectionIds: classIds,
+      subjectIds,
+    }),
+    aggregateRegisterStatusByPaper({
+      examId: exam.id,
+      classSectionIds: classIds,
+      subjectIds,
     }),
     electiveSubjectIds.length
       ? prisma.studentSubjectEnrollment.findMany({
@@ -194,23 +194,12 @@ export async function listRegisters(user, { examId, schoolSection } = {}) {
 
   const enrollmentKeys = enrollmentKeySet(enrollments);
   const studentsByClass = groupBy(students, (s) => s.classSectionId);
-  const marksByPaperTeacher = new Map();
-  for (const mark of marks) {
-    const classSectionId = mark.student?.classSectionId;
-    if (!classSectionId) continue;
-    const key = `${mark.subjectId}|${classSectionId}|${mark.enteredById}`;
-    if (!marksByPaperTeacher.has(key)) marksByPaperTeacher.set(key, []);
-    marksByPaperTeacher.get(key).push(mark);
-  }
-  // Also index without teacher for expected counting (all marks on paper)
-  const marksByPaper = new Map();
-  for (const mark of marks) {
-    const classSectionId = mark.student?.classSectionId;
-    if (!classSectionId) continue;
-    const key = `${mark.subjectId}|${classSectionId}`;
-    if (!marksByPaper.has(key)) marksByPaper.set(key, []);
-    marksByPaper.get(key).push(mark);
-  }
+  const byPaperTeacher = new Map(
+    statusByTeacher.map((r) => [`${r.subjectId}|${r.classSectionId}|${r.enteredById}`, r])
+  );
+  const byPaper = new Map(
+    statusByPaper.map((r) => [`${r.subjectId}|${r.classSectionId}`, r])
+  );
 
   const registers = assignmentRows.map((a) => {
     const roster = studentsByClass.get(a.classSectionId) || [];
@@ -221,11 +210,10 @@ export async function listRegisters(user, { examId, schoolSection } = {}) {
     );
     // Prefer marks entered by this teacher; fall back to all marks on the paper
     // so class-teacher / leadership views stay accurate when enteredBy differs.
-    const owned =
-      marksByPaperTeacher.get(`${a.subjectId}|${a.classSectionId}|${a.teacherId}`) || [];
-    const allOnPaper = marksByPaper.get(`${a.subjectId}|${a.classSectionId}`) || [];
-    const registerMarks = owned.length ? owned : allOnPaper;
-    const progress = summarizeRegister(expectedCount, registerMarks);
+    const owned = byPaperTeacher.get(`${a.subjectId}|${a.classSectionId}|${a.teacherId}`);
+    const allOnPaper = byPaper.get(`${a.subjectId}|${a.classSectionId}`);
+    const counts = owned?.uploaded ? owned : allOnPaper || {};
+    const progress = summarizeRegisterCounts(expectedCount, counts);
     const isOwner = a.teacherId === userId;
     const actions = registerActions(progress, {
       role,
