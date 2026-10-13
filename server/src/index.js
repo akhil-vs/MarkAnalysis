@@ -2,6 +2,7 @@ import app from "./app.js";
 import { startBackgroundJobs } from "./lib/backgroundJobs.js";
 import { assertDeployAuthConfig } from "./lib/deployAuthConfig.js";
 import { bootstrapSchema } from "./lib/migrateOnStart.js";
+import { startAnalyticsWarm } from "./lib/warmAnalytics.js";
 
 const port = Number(process.env.PORT || 4000);
 
@@ -18,6 +19,7 @@ async function start() {
     app.listen(port, () => {
       console.log(`API listening on http://localhost:${port}`);
       startBackgroundJobs();
+      startAnalyticsWarm();
     });
   }
 }
