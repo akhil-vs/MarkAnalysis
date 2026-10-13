@@ -1,4 +1,5 @@
 import { prisma } from "./prisma.js";
+import { getLastSchemaBootstrap } from "./migrateOnStart.js";
 
 let bootStartedAt = Date.now();
 
@@ -55,18 +56,25 @@ export async function buildHealthPayload({
           columnExists("School", "digestEmail"),
           columnExists("Student", "guardianEmail"),
         ]);
+      const bootstrap = getLastSchemaBootstrap();
       payload.schema = {
         mfaEnabled,
         mfaSecret,
         emailDigestsEnabled,
         digestEmail,
         guardianEmail,
+        bootstrap,
       };
       if (!mfaEnabled || !mfaSecret || !emailDigestsEnabled || !guardianEmail) {
         payload.ok = false;
         payload.schema.ok = false;
       } else {
         payload.schema.ok = true;
+      }
+      // Surface ensure-only Vercel boots so ops do not assume migrate ran in-process.
+      if (bootstrap?.mode === "vercel-ensure-only") {
+        payload.schema.migrateNote =
+          "Vercel ensure-only boot; rely on CI Migrate database (or FORCE_MIGRATE_DEPLOY=true)";
       }
     }
   } catch {
