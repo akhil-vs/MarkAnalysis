@@ -13,7 +13,6 @@ import {
   examLabel,
   gradeDistFromStudents,
   groupBy,
-  meanOf,
   percentsOf,
   sectionLabel,
   studentTotals,
@@ -44,11 +43,20 @@ import { buildHomeDashboardCached } from "../lib/homeDashboard.js";
 import {
   ANALYTICS_MARK_SELECT,
   ANALYTICS_STATUS_SELECT,
-  ANALYTICS_TREND_SELECT,
   SCHOOL_DETAIL_HISTORY_PRIOR,
   historyExamIdsForDetail,
   loadApprovedMarksForExams,
 } from "../lib/analyticsMarks.js";
+import {
+  aggregateByClassName,
+  aggregateByClassSection,
+  aggregateByExam,
+  aggregateByPaper,
+  aggregateByStudent,
+  aggregateBySubjectName,
+  statsFields,
+  yearSeriesFromAgg,
+} from "../lib/markAggregates.js";
 import { cachedTenantLoad } from "../lib/tenantCache.js";
 import { cachedInsight } from "../lib/insightsCache.js";
 import { clientIp } from "../lib/clientIp.js";
@@ -58,7 +66,6 @@ import {
   normalizeSchoolSection,
   schoolSectionPayload,
 } from "../lib/schoolSections.js";
-import { indexMarksByPaper } from "../lib/dashboardAgg.js";
 import { rateLimit } from "../lib/rateLimit.js";
 
 export const analyticsRouter = Router();
@@ -193,7 +200,8 @@ analyticsRouter.get("/school", async (req, res) => {
 
 /**
  * Cached school analytics report builder (detail / full / non-principal summary).
- * History marks are capped via historyExamIdsForDetail; aggregates use Maps.
+ * Detail charts use SQL GROUP BY aggregates (no Prisma mark hydration) unless
+ * summary/lists need raw mark rows for readiness / outcome lists.
  */
 async function buildSchoolAnalyticsCached({
   examId,
@@ -220,28 +228,25 @@ async function buildSchoolAnalyticsCached({
     const otherExamIds = wantDetail
       ? historyExamIdsForDetail(exams, exam, { maxSameTypePrior: SCHOOL_DETAIL_HISTORY_PRIOR })
       : [];
+    const trendExamIds = wantDetail ? [exam.id, ...otherExamIds] : [exam.id];
 
-    // Split loads: APPROVED (+ ACTIVE) for KPIs/charts; slim status scan only when
-    // summary needs readiness / pending-upload matrices. Avoids hydrating full mark
-    // graphs (with nested subject) for every status row on cold detail.
+    // Raw mark graphs only when summary/lists need them. Principal SPA detail
+    // path is detail+nolists → pure SQL aggregates (~10–40ms vs ~300ms hydrate).
+    const needRawApprovedMarks = wantSummary || includeLists;
     const needStatusScan = wantSummary;
+
     const sharedQueries = [
-      loadApprovedMarksForExams({
-        examIds: [exam.id],
-        select: ANALYTICS_MARK_SELECT,
-        activeStudentsOnly: true,
-      }),
+      needRawApprovedMarks
+        ? loadApprovedMarksForExams({
+            examIds: [exam.id],
+            select: ANALYTICS_MARK_SELECT,
+            activeStudentsOnly: true,
+          })
+        : Promise.resolve([]),
       needStatusScan
         ? prisma.mark.findMany({
             where: { examId: exam.id },
             select: ANALYTICS_STATUS_SELECT,
-          })
-        : Promise.resolve([]),
-      wantDetail && otherExamIds.length
-        ? loadApprovedMarksForExams({
-            examIds: otherExamIds,
-            select: ANALYTICS_TREND_SELECT,
-            activeStudentsOnly: true,
           })
         : Promise.resolve([]),
       prisma.classSection.findMany({
@@ -273,7 +278,6 @@ async function buildSchoolAnalyticsCached({
     const [
       approvedMarksRaw,
       statusMarksRaw,
-      historyApprovedRaw,
       classesRaw,
       subjectsRaw,
       assignmentsRaw,
@@ -290,6 +294,7 @@ async function buildSchoolAnalyticsCached({
     const classIdToName = new Map(classesRaw.map((c) => [c.id, c.className]));
     const classes = filterBySchoolSection(classesRaw, schoolSection, (c) => c.className);
     const classIds = new Set(classes.map((c) => c.id));
+    const classSectionIds = [...classIds];
     const subjects = filterBySchoolSection(subjectsRaw, schoolSection, (s) => s.className);
     const assignments = filterBySchoolSection(
       assignmentsRaw,
@@ -304,7 +309,6 @@ async function buildSchoolAnalyticsCached({
     const activeStudents =
       schoolSection === "ALL" ? activeStudentsAll : activeStudentRows.length;
 
-    const examById = new Map(exams.map((e) => [e.id, e]));
     const inSection = (m) =>
       schoolSection === "ALL" ||
       classNameInSchoolSection(
@@ -313,24 +317,73 @@ async function buildSchoolAnalyticsCached({
       );
     const approvedScoped = approvedMarksRaw.filter(inSection);
     const statusMarks = needStatusScan ? statusMarksRaw.filter(inSection) : [];
-    const historyApproved = historyApprovedRaw.filter(inSection);
-    // APPROVED + ACTIVE already applied in SQL; attach current exam for aggregates.
     const marks = approvedScoped.map((m) => ({ ...m, exam }));
-    // Readiness/pending need all statuses; when summary is off, reuse approved rows.
     const examMarks = needStatusScan ? statusMarks : approvedScoped;
-    const allApproved = wantDetail
-      ? [
-          ...marks,
-          ...historyApproved
-            .map((m) => {
-              const histExam = examById.get(m.examId);
-              return histExam ? { ...m, exam: histExam } : null;
-            })
-            .filter(Boolean),
-        ]
-      : marks;
 
-    const studentAvgs = studentTotals(groupBy(marks, (m) => m.studentId), { gradeFn });
+    // SQL aggregates for detail KPIs/charts (and for KPIs when raw marks skipped).
+    const needSqlDetail = wantDetail || !needRawApprovedMarks;
+    const [sectionAggs, classAggs, subjectAggs, examAggs, paperAggs, studentAggs] = needSqlDetail
+      ? await Promise.all([
+          wantDetail
+            ? aggregateByClassSection({
+                examIds: [exam.id],
+                classSectionIds,
+                passPercent,
+              })
+            : Promise.resolve([]),
+          wantDetail
+            ? aggregateByClassName({
+                examIds: [exam.id],
+                classSectionIds,
+                passPercent,
+              })
+            : Promise.resolve([]),
+          wantDetail
+            ? aggregateBySubjectName({
+                examIds: [exam.id],
+                classSectionIds,
+                passPercent,
+              })
+            : Promise.resolve([]),
+          aggregateByExam({
+            examIds: trendExamIds,
+            classSectionIds,
+            passPercent,
+          }),
+          wantDetail
+            ? aggregateByPaper({
+                examIds: [exam.id],
+                classSectionIds,
+                passPercent,
+              })
+            : Promise.resolve([]),
+          aggregateByStudent({
+            examId: exam.id,
+            classSectionIds,
+          }),
+        ])
+      : [[], [], [], [], [], []];
+
+    // Filter subject aggs to school section via subject className catalog.
+    const subjectNameSet = new Set(subjects.map((s) => s.name));
+    const subjectAggsScoped = subjectAggs.filter((r) => subjectNameSet.has(r.subjectName));
+
+    const studentAvgs = needRawApprovedMarks
+      ? studentTotals(groupBy(marks, (m) => m.studentId), { gradeFn })
+      : studentAggs.map((s) => ({
+          studentId: s.studentId,
+          student: {
+            id: s.studentId,
+            name: s.name,
+            rollNo: s.rollNo,
+            classSectionId: s.classSectionId,
+            classSection: { className: s.className, section: s.section },
+          },
+          avg: s.avg,
+          grade: gradeFn(s.avg),
+          count: s.count,
+        }));
+
     const kpis = {
       students: activeStudents,
       teachers: teacherCount,
@@ -385,43 +438,14 @@ async function buildSchoolAnalyticsCached({
     }
 
     if (wantDetail) {
-      const byClass = new Map();
-      const marksByClassName = new Map();
-      const marksBySubjectName = new Map();
-      for (const mark of marks) {
-        const classSectionId = mark.student?.classSectionId;
-        if (classSectionId) {
-          let list = byClass.get(classSectionId);
-          if (!list) {
-            list = [];
-            byClass.set(classSectionId, list);
-          }
-          list.push(mark);
-        }
-        const className = mark.student?.classSection?.className;
-        if (className) {
-          let list = marksByClassName.get(className);
-          if (!list) {
-            list = [];
-            marksByClassName.set(className, list);
-          }
-          list.push(mark);
-        }
-        const subjectName = mark.subject?.name;
-        if (subjectName) {
-          let list = marksBySubjectName.get(subjectName);
-          if (!list) {
-            list = [];
-            marksBySubjectName.set(subjectName, list);
-          }
-          list.push(mark);
-        }
-      }
+      const sectionById = new Map(sectionAggs.map((r) => [r.classSectionId, r]));
+      const classByName = new Map(classAggs.map((r) => [r.className, r]));
+      const subjectByName = new Map(subjectAggsScoped.map((r) => [r.subjectName, r]));
+      const examByAgg = new Map(examAggs.map((r) => [r.examId, r]));
+      const paperByKey = new Map(paperAggs.map((r) => [`${r.subjectId}|${r.classSectionId}`, r]));
 
       const sectionAverages = classes.map((cls) => {
-        const list = byClass.get(cls.id) || [];
-        const percents = percentsOf(list);
-        const stats = summarize(percents, { passPercent });
+        const stats = statsFields(sectionById.get(cls.id));
         return {
           id: cls.id,
           className: cls.className,
@@ -437,9 +461,7 @@ async function buildSchoolAnalyticsCached({
         .sort(compareClassNames)
         .map((className) => {
           const sections = sectionAverages.filter((s) => s.className === className);
-          const stats = summarize(percentsOf(marksByClassName.get(className) || []), {
-            passPercent,
-          });
+          const stats = statsFields(classByName.get(className));
           return {
             className,
             label: `Class ${className}`,
@@ -453,27 +475,30 @@ async function buildSchoolAnalyticsCached({
       const subjectWise = [...new Set(subjects.map((s) => s.name))]
         .sort()
         .map((name) => {
-          const stats = summarize(percentsOf(marksBySubjectName.get(name) || []), { passPercent });
+          const stats = statsFields(subjectByName.get(name));
           return { name, average: stats.average, passRate: stats.passRate, count: stats.count };
         })
         .sort((a, b) => (a.average ?? 100) - (b.average ?? 100));
 
       const gradeDist = gradeDistFromStudents(studentAvgs, gradeBands);
 
-      const byTerm = new Map();
-      for (const mark of allApproved) {
-        // Exam.date is TimestamptzString under Prisma ORM 8 — never assume a Date.
-        const parsed = mark.exam.date instanceof Date ? mark.exam.date : new Date(mark.exam.date);
-        const examDate =
-          mark.exam.date && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : String(mark.exam.date || "");
-        const key = `${mark.exam.term}|${mark.exam.id}|${examLabel(mark.exam)}|${examDate}|${mark.exam.academicYear || ""}`;
-        if (!byTerm.has(key)) byTerm.set(key, []);
-        byTerm.get(key).push(toPercent(mark));
-      }
-      const termTrend = [...byTerm.entries()]
-        .map(([key, percents]) => {
-          const [term, id, name, date, academicYear] = key.split("|");
-          return { term, examId: id, examName: name, academicYear, date, average: round1(meanOf(percents)) };
+      const historyExamIdSet = new Set(otherExamIds);
+      historyExamIdSet.add(exam.id);
+      const examsForPass = exams.filter((e) => historyExamIdSet.has(e.id));
+      const termTrend = examsForPass
+        .map((e) => {
+          const stats = examByAgg.get(e.id);
+          const parsed = e.date instanceof Date ? e.date : new Date(e.date);
+          const date =
+            e.date && !Number.isNaN(parsed.getTime()) ? parsed.toISOString() : String(e.date || "");
+          return {
+            term: e.term,
+            examId: e.id,
+            examName: examLabel(e),
+            academicYear: e.academicYear,
+            date,
+            average: stats?.average ?? null,
+          };
         })
         .sort((a, b) => new Date(a.date) - new Date(b.date));
 
@@ -500,46 +525,36 @@ async function buildSchoolAnalyticsCached({
           grade: s.grade,
         }));
 
-      const marksBySubjectClass = indexMarksByPaper(marks);
       const teacherPerf = [];
       for (const a of assignments) {
-        const tMarks = marksBySubjectClass.get(`${a.subjectId}|${a.classSectionId}`) || [];
-        const percents = tMarks.map(toPercent).filter((p) => p != null);
-        if (!percents.length) continue;
+        const stats = paperByKey.get(`${a.subjectId}|${a.classSectionId}`);
+        if (!stats?.count) continue;
         teacherPerf.push({
           teacherId: a.userId,
           teacher: a.user.name,
           subject: a.subject.name,
           classLabel: classLabel(a.classSection),
-          average: round1(mean(percents)),
-          passRate: round1((percents.filter((p) => p >= passPercent).length / percents.length) * 100),
+          average: stats.average,
+          passRate: stats.passRate,
         });
       }
 
-      const historyExamIdSet = new Set(otherExamIds);
-      historyExamIdSet.add(exam.id);
-      const examsForPass = exams.filter((e) => historyExamIdSet.has(e.id));
-      const approvedByExam = groupBy(allApproved, (m) => m.examId);
       const examPass = examsForPass.map((e) => {
-        const list = (approvedByExam.get(e.id) || []).map(toPercent).filter((p) => p != null);
+        const stats = statsFields(examByAgg.get(e.id));
         return {
           examId: e.id,
           name: e.name,
           term: e.term,
           academicYear: e.academicYear,
           label: examLabel(e),
-          passRate: list.length
-            ? round1((list.filter((p) => p >= passPercent).length / list.length) * 100)
-            : 0,
-          average: round1(mean(list)),
+          passRate: stats.passRate,
+          average: stats.average,
         };
       });
 
-      // Detail-only: exam/kpis always. Full outcome lists only when asked —
-      // the usual SPA path merges detail onto a summary that already has them.
       if (!wantSummary) {
         Object.assign(payload, { exam, exams, kpis });
-        if (includeLists) {
+        if (includeLists && marks.length) {
           Object.assign(payload, await enrichMarksInsights(marks, grading, { includeLists: true }));
         }
       }
@@ -553,11 +568,12 @@ async function buildSchoolAnalyticsCached({
         atRisk,
         teacherPerf,
         examPass,
-        yearComparison: yearSeries(allApproved, exams, exam),
+        yearComparison: yearSeriesFromAgg(examAggs, exams, exam),
         _meta: {
           historyExamCount: otherExamIds.length,
           markRows: marks.length,
-          historyMarkRows: historyApproved.length,
+          historyMarkRows: 0,
+          sqlAggregates: true,
         },
       });
     }

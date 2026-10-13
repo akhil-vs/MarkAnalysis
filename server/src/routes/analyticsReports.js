@@ -33,6 +33,18 @@ import {
   loadPeerAssignmentsBySubjectName,
   sameTypeExamIds,
 } from "../lib/analyticsMarks.js";
+import {
+  aggregateByClassName,
+  aggregateByClassSection,
+  aggregateByExam,
+  aggregateByPaper,
+  aggregateByStudent,
+  aggregateBySubjectId,
+  aggregateBySubjectName,
+  mergePaperStats,
+  statsFields,
+  yearSeriesFromAgg,
+} from "../lib/markAggregates.js";
 import { cachedInsight } from "../lib/insightsCache.js";
 
 /**
@@ -74,29 +86,20 @@ export function registerAnalysisReports(router) {
     }
 
     const classIds = classes.map((c) => c.id);
-    const examById = new Map(exams.map((e) => [e.id, e]));
     const historyIds = overviewPriorExamIds(exams, exam);
-    const [marks, priorApproved] = await Promise.all([
-      loadApprovedMarksForExams({
-        examIds: [exam.id],
-        classSectionIds: classIds,
-        activeStudentsOnly: true,
-      }),
-      historyIds.length
-        ? loadApprovedMarksForExams({
-            examIds: historyIds,
-            classSectionIds: classIds,
-            attachExamById: examById,
-            activeStudentsOnly: true,
-          })
-        : Promise.resolve([]),
+    const allExamIds = [exam.id, ...historyIds];
+    // SQL GROUP BY — avoid hydrating thousands of nested mark rows on cold overview.
+    const [sectionAggs, classAggs] = await Promise.all([
+      aggregateByClassSection({ examIds: allExamIds, classSectionIds: classIds }),
+      aggregateByClassName({ examIds: allExamIds, classSectionIds: classIds }),
     ]);
-    // Merge current + prior for yearSeries (current was excluded from prior load).
-    const allApproved = [...marks.map((m) => ({ ...m, exam })), ...priorApproved];
-
-    const marksBySectionId = groupBy(marks, (m) => m.student.classSectionId);
-    const marksByClassName = groupBy(marks, (m) => m.student.classSection.className);
-    const historyByClassName = groupBy(allApproved, (m) => m.student.classSection.className);
+    const sectionCurrent = new Map(
+      sectionAggs.filter((r) => r.examId === exam.id).map((r) => [r.classSectionId, r])
+    );
+    const classCurrent = new Map(
+      classAggs.filter((r) => r.examId === exam.id).map((r) => [r.className, r])
+    );
+    const classHistoryByName = groupBy(classAggs, (r) => r.className);
 
     const divisionWise = classes.map((cls) => ({
       id: cls.id,
@@ -105,7 +108,7 @@ export function registerAnalysisReports(router) {
       label: classLabel(cls),
       teacher: cls.classTeacher?.name || null,
       studentCount: cls._count.students,
-      ...summarize(percentsOf(marksBySectionId.get(cls.id) || [])),
+      ...statsFields(sectionCurrent.get(cls.id)),
     }));
 
     const classWise = [...new Set(classes.map((c) => c.className))]
@@ -118,12 +121,8 @@ export function registerAnalysisReports(router) {
         sectionCount: divisions.length,
         studentCount: divisions.reduce((s, d) => s + d.studentCount, 0),
         divisions,
-        ...summarize(percentsOf(marksByClassName.get(className) || [])),
-        yearComparison: yearSeries(
-          historyByClassName.get(className) || [],
-          exams,
-          exam
-        ),
+        ...statsFields(classCurrent.get(className)),
+        yearComparison: yearSeriesFromAgg(classHistoryByName.get(className) || [], exams, exam),
       };
     });
 
@@ -304,21 +303,15 @@ export function registerAnalysisReports(router) {
     if (!exam) return res.json({ empty: true });
 
     const payload = await cachedInsight("report:subjects-overview", [exam.id], async () => {
-    const examById = new Map(exams.map((e) => [e.id, e]));
     const historyIds = overviewPriorExamIds(exams, exam);
-    const [subjects, marks, priorApproved, assignments] = await Promise.all([
+    const allExamIds = [exam.id, ...historyIds];
+    const [subjects, nameAggs, idAggs, assignments] = await Promise.all([
       prisma.subject.findMany({
         orderBy: [{ name: "asc" }, { className: "asc" }],
         select: { id: true, name: true, className: true, maxMarks: true },
       }),
-      loadApprovedMarksForExams({ examIds: [exam.id], activeStudentsOnly: true }),
-      historyIds.length
-        ? loadApprovedMarksForExams({
-            examIds: historyIds,
-            attachExamById: examById,
-            activeStudentsOnly: true,
-          })
-        : Promise.resolve([]),
+      aggregateBySubjectName({ examIds: allExamIds }),
+      aggregateBySubjectId({ examIds: [exam.id] }),
       prisma.teacherAssignment.findMany({
         select: {
           userId: true,
@@ -330,12 +323,13 @@ export function registerAnalysisReports(router) {
         },
       }),
     ]);
-    const allApproved = [...marks.map((m) => ({ ...m, exam })), ...priorApproved];
 
     const subjectsByName = groupBy(subjects, (s) => s.name);
-    const marksBySubjectName = groupBy(marks, (m) => m.subject.name);
-    const marksBySubjectId = groupBy(marks, (m) => m.subjectId);
-    const historyBySubjectName = groupBy(allApproved, (m) => m.subject.name);
+    const nameCurrent = new Map(
+      nameAggs.filter((r) => r.examId === exam.id).map((r) => [r.subjectName, r])
+    );
+    const historyBySubjectName = groupBy(nameAggs, (r) => r.subjectName);
+    const idCurrent = new Map(idAggs.map((r) => [r.subjectId, r]));
     const teachersBySubjectName = groupBy(assignments, (a) => a.subject.name);
 
     const schoolSubjects = [...subjectsByName.keys()].map((name) => {
@@ -345,13 +339,13 @@ export function registerAnalysisReports(router) {
         name,
         classNames: [...new Set(subjectRows.map((s) => s.className))],
         teacherCount: teacherIds.size,
-        ...summarize(percentsOf(marksBySubjectName.get(name) || [])),
-        yearComparison: yearSeries(historyBySubjectName.get(name) || [], exams, exam),
+        ...statsFields(nameCurrent.get(name)),
+        yearComparison: yearSeriesFromAgg(historyBySubjectName.get(name) || [], exams, exam),
         records: subjectRows.map((s) => ({
           id: s.id,
           className: s.className,
           maxMarks: s.maxMarks,
-          ...summarize(percentsOf(marksBySubjectId.get(s.id) || [])),
+          ...statsFields(idCurrent.get(s.id)),
         })),
       };
     });
@@ -372,19 +366,14 @@ export function registerAnalysisReports(router) {
     if (!exam) return res.json({ empty: true, name, subjects: sameName });
 
     const subjectIds = sameName.map((s) => s.id);
-    const examById = new Map(exams.map((e) => [e.id, e]));
     const historyIds = overviewPriorExamIds(exams, exam);
+    const allExamIds = [exam.id, ...historyIds];
     const payload = await cachedInsight("report:subject-by-name", [exam.id, name], async () => {
-    const [marks, priorApproved, assignments] = await Promise.all([
-      loadApprovedMarksForExams({ examIds: [exam.id], subjectIds, activeStudentsOnly: true }),
-      historyIds.length
-        ? loadApprovedMarksForExams({
-            examIds: historyIds,
-            subjectIds,
-            attachExamById: examById,
-            activeStudentsOnly: true,
-          })
-        : Promise.resolve([]),
+    const grading = gradingHelpers(await getGradingConfig());
+    const [examAggs, paperAggs, studentAggs, assignments, classSections] = await Promise.all([
+      aggregateByExam({ examIds: allExamIds, subjectIds }),
+      aggregateByPaper({ examIds: [exam.id], subjectIds }),
+      aggregateByStudent({ examId: exam.id, subjectIds }),
       prisma.teacherAssignment.findMany({
         where: { subjectId: { in: subjectIds } },
         select: {
@@ -396,48 +385,59 @@ export function registerAnalysisReports(router) {
           subject: { select: { id: true, name: true } },
         },
       }),
+      prisma.classSection.findMany({
+        select: { id: true, className: true, section: true },
+      }),
     ]);
-    const allApproved = [...marks.map((m) => ({ ...m, exam })), ...priorApproved];
+    const sectionById = new Map(classSections.map((c) => [c.id, c]));
+    const paperByKey = new Map(paperAggs.map((r) => [`${r.subjectId}|${r.classSectionId}`, r]));
 
-    const marksBySectionId = groupBy(marks, (m) => m.student.classSectionId);
-    const byClass = [...groupBy(marks, (m) => m.student.classSection.className).entries()].map(([className, list]) => ({
-      className,
-      label: `Class ${className}`,
-      ...summarize(percentsOf(list)),
-    }));
-    const byDivision = [...marksBySectionId.entries()].map(([id, list]) => ({
-      classSectionId: id,
-      label: sectionLabel(list[0].student),
-      className: list[0].student.classSection.className,
-      ...summarize(percentsOf(list)),
-    }));
+    const byDivision = paperAggs.map((r) => {
+      const cls = sectionById.get(r.classSectionId);
+      return {
+        classSectionId: r.classSectionId,
+        label: cls ? classLabel(cls) : r.classSectionId,
+        className: cls?.className || null,
+        ...statsFields(r),
+      };
+    });
+    const byClass = [...groupBy(byDivision, (d) => d.className).entries()]
+      .filter(([className]) => className)
+      .map(([className, list]) => ({
+        className,
+        label: `Class ${className}`,
+        ...mergePaperStats(list),
+      }));
 
     const teacherRows = [...groupBy(assignments, (a) => a.userId).entries()].map(([userId, list]) => {
-      const sectionIds = new Set(list.map((a) => a.classSectionId));
-      const teacherMarks = [];
-      for (const sectionId of sectionIds) {
-        const rows = marksBySectionId.get(sectionId);
-        if (rows?.length) teacherMarks.push(...rows);
-      }
+      const papers = list
+        .map((a) => paperByKey.get(`${a.subjectId}|${a.classSectionId}`))
+        .filter(Boolean);
       return {
         teacherId: userId,
         teacher: list[0].user.name,
         classLabels: list.map((a) => classLabel(a.classSection)).sort(),
-        ...summarize(percentsOf(teacherMarks)),
+        ...mergePaperStats(papers),
       };
     });
+
+    const subjectStudents = studentAggs.map((s) => ({
+      studentId: s.studentId,
+      avg: s.avg,
+      grade: grading.gradeFn(s.avg),
+    }));
 
     return {
       name,
       subjects: sameName,
       exam,
       exams,
-      kpis: summarize(percentsOf(marks)),
+      kpis: statsFields(examAggs.find((r) => r.examId === exam.id)),
       byClass,
       byDivision,
       teacherCompare: withTeacherDeltas(teacherRows),
-      gradeDist: gradeDistFromStudents(studentTotals(groupBy(marks, (m) => m.studentId))),
-      yearComparison: yearSeries(allApproved, exams, exam),
+      gradeDist: gradeDistFromStudents(subjectStudents, grading.gradeBands),
+      yearComparison: yearSeriesFromAgg(examAggs, exams, exam),
     };
     });
 
@@ -467,50 +467,34 @@ export function registerAnalysisReports(router) {
         },
       },
     });
-    const examById = new Map(exams.map((e) => [e.id, e]));
     const historyIds = overviewPriorExamIds(exams, exam);
-    const [marks, priorApproved] = await Promise.all([
-      loadApprovedMarksForExams({ examIds: [exam.id], activeStudentsOnly: true }),
-      historyIds.length
-        ? loadApprovedMarksForExams({
-            examIds: historyIds,
-            attachExamById: examById,
-            activeStudentsOnly: true,
-          })
-        : Promise.resolve([]),
-    ]);
-    const allApproved = [...marks.map((m) => ({ ...m, exam })), ...priorApproved];
-
-    // Index marks by paper once — avoid O(teachers × assignments × marks) filters.
-    const marksByPaper = new Map();
-    for (const m of marks) {
-      const key = `${m.subjectId}|${m.student.classSectionId}`;
-      let list = marksByPaper.get(key);
+    const allExamIds = [exam.id, ...historyIds];
+    const paperAggs = await aggregateByPaper({ examIds: allExamIds });
+    const papersByKey = new Map();
+    for (const row of paperAggs) {
+      const key = `${row.subjectId}|${row.classSectionId}`;
+      let list = papersByKey.get(key);
       if (!list) {
         list = [];
-        marksByPaper.set(key, list);
+        papersByKey.set(key, list);
       }
-      list.push(m);
-    }
-    const historyByPaper = new Map();
-    for (const m of allApproved) {
-      const key = `${m.subjectId}|${m.student.classSectionId}`;
-      let list = historyByPaper.get(key);
-      if (!list) {
-        list = [];
-        historyByPaper.set(key, list);
-      }
-      list.push(m);
+      list.push(row);
     }
 
     const rows = teachers.map((t) => {
-      const percents = [];
-      const historyForTeacher = [];
+      const currentPapers = [];
+      const historyPapers = [];
       for (const a of t.assignments) {
-        const key = `${a.subjectId}|${a.classSectionId}`;
-        percents.push(...percentsOf(marksByPaper.get(key) || []));
-        const hist = historyByPaper.get(key);
-        if (hist?.length) historyForTeacher.push(...hist);
+        const list = papersByKey.get(`${a.subjectId}|${a.classSectionId}`) || [];
+        for (const row of list) {
+          historyPapers.push(row);
+          if (row.examId === exam.id) currentPapers.push(row);
+        }
+      }
+      const historyByExam = new Map();
+      for (const row of historyPapers) {
+        const prev = historyByExam.get(row.examId);
+        historyByExam.set(row.examId, prev ? mergePaperStats([prev, row]) : row);
       }
       return {
         teacherId: t.id,
@@ -518,8 +502,8 @@ export function registerAnalysisReports(router) {
         email: t.email,
         assignmentCount: t.assignments.length,
         subjects: [...new Set(t.assignments.map((a) => a.subject.name))],
-        ...summarize(percents),
-        yearComparison: yearSeries(historyForTeacher, exams, exam),
+        ...mergePaperStats(currentPapers),
+        yearComparison: yearSeriesFromAgg(historyByExam, exams, exam),
       };
     });
 
@@ -696,86 +680,136 @@ export function registerAnalysisReports(router) {
       "report:compare-years",
       [exam.id, className || "", subjectName || ""],
       async () => {
-    const examById = new Map(exams.map((e) => [e.id, e]));
     // Compare needs current + capped priors (priors helper excludes current).
     const yearExamIds = [exam.id, ...overviewPriorExamIds(exams, exam)];
+    const classNamesFilter = className ? [className] : undefined;
+    const subjectNamesFilter = subjectName ? [subjectName] : undefined;
 
-    const [allApproved, classes, subjects, assignments] = await Promise.all([
-      loadApprovedMarksForExams({
-        examIds: yearExamIds,
-        classNames: className ? [className] : undefined,
-        subjectNames: subjectName ? [subjectName] : undefined,
-        attachExamById: examById,
-        activeStudentsOnly: true,
-      }),
-      prisma.classSection.findMany({
-        orderBy: [{ className: "asc" }, { section: "asc" }],
-        select: { id: true, className: true, section: true },
-      }),
-      prisma.subject.findMany({ select: { id: true, name: true, className: true } }),
-      prisma.teacherAssignment.findMany({
-        select: {
-          userId: true,
-          classSectionId: true,
-          subjectId: true,
-          user: { select: { id: true, name: true } },
-          classSection: { select: { id: true, className: true, section: true } },
-          subject: { select: { id: true, name: true } },
-        },
-      }),
-    ]);
+    const [schoolAggs, classAggs, sectionAggs, subjectAggs, paperAggs, classes, subjects, assignments] =
+      await Promise.all([
+        aggregateByExam({
+          examIds: yearExamIds,
+          classNames: classNamesFilter,
+          subjectNames: subjectNamesFilter,
+        }),
+        aggregateByClassName({
+          examIds: yearExamIds,
+          classNames: classNamesFilter,
+        }),
+        aggregateByClassSection({
+          examIds: yearExamIds,
+          classNames: classNamesFilter,
+        }),
+        aggregateBySubjectName({
+          examIds: yearExamIds,
+          subjectNames: subjectNamesFilter,
+        }),
+        aggregateByPaper({
+          examIds: yearExamIds,
+          subjectNames: subjectNamesFilter,
+        }),
+        prisma.classSection.findMany({
+          orderBy: [{ className: "asc" }, { section: "asc" }],
+          select: { id: true, className: true, section: true },
+        }),
+        prisma.subject.findMany({ select: { id: true, name: true, className: true } }),
+        prisma.teacherAssignment.findMany({
+          select: {
+            userId: true,
+            classSectionId: true,
+            subjectId: true,
+            user: { select: { id: true, name: true } },
+            classSection: { select: { id: true, className: true, section: true } },
+            subject: { select: { id: true, name: true } },
+          },
+        }),
+      ]);
 
-    const scoped = (m) => {
-      if (className && m.student.classSection.className !== className) return false;
-      if (subjectName && m.subject.name !== subjectName) return false;
-      return true;
+    // When subject filter is set, class/section year series come from paper merges.
+    const papersBySectionExam = groupBy(paperAggs, (r) => `${r.classSectionId}|${r.examId}`);
+    const sectionYearsFromPapers = (sectionId) => {
+      const byExam = new Map();
+      for (const [key, list] of papersBySectionExam) {
+        if (!key.startsWith(`${sectionId}|`)) continue;
+        const examId = key.slice(sectionId.length + 1);
+        byExam.set(examId, mergePaperStats(list));
+      }
+      return yearSeriesFromAgg(byExam, exams, exam);
+    };
+    const classYearsFromPapers = (name) => {
+      const sectionIds = classes.filter((c) => c.className === name).map((c) => c.id);
+      const byExam = new Map();
+      for (const sectionId of sectionIds) {
+        for (const [key, list] of papersBySectionExam) {
+          if (!key.startsWith(`${sectionId}|`)) continue;
+          const examId = key.slice(sectionId.length + 1);
+          const prev = byExam.get(examId);
+          const next = mergePaperStats(list);
+          byExam.set(examId, prev ? mergePaperStats([prev, next]) : next);
+        }
+      }
+      return yearSeriesFromAgg(byExam, exams, exam);
     };
 
     const classNames = [...new Set(classes.map((c) => c.className))].sort(compareClassNames);
+    const classAggsByName = groupBy(classAggs, (r) => r.className);
+    const sectionAggsById = groupBy(sectionAggs, (r) => r.classSectionId);
+    const subjectAggsByName = groupBy(subjectAggs, (r) => r.subjectName);
+    const papersByKey = groupBy(paperAggs, (r) => `${r.subjectId}|${r.classSectionId}`);
+
     return {
       exam,
       exams,
       filters: { className, subjectName },
       classes: classNames,
       subjects: [...new Set(subjects.map((s) => s.name))],
-      school: yearSeries(allApproved, exams, exam, scoped),
+      school: yearSeriesFromAgg(schoolAggs, exams, exam),
       byClass: classNames
         .filter((n) => !className || n === className)
         .map((n) => ({
           className: n,
           label: `Class ${n}`,
-          years: yearSeries(allApproved, exams, exam, (m) => m.student.classSection.className === n && scoped(m)),
+          years: subjectName
+            ? classYearsFromPapers(n)
+            : yearSeriesFromAgg(classAggsByName.get(n) || [], exams, exam),
         })),
       byDivision: classes
         .filter((c) => !className || c.className === className)
         .map((c) => ({
           id: c.id,
           label: classLabel(c),
-          years: yearSeries(allApproved, exams, exam, (m) => m.student.classSectionId === c.id && scoped(m)),
+          years: subjectName
+            ? sectionYearsFromPapers(c.id)
+            : yearSeriesFromAgg(sectionAggsById.get(c.id) || [], exams, exam),
         })),
       bySubject: [...new Set(subjects.map((s) => s.name))]
         .filter((n) => !subjectName || n === subjectName)
         .map((n) => ({
           name: n,
-          years: yearSeries(allApproved, exams, exam, (m) => m.subject.name === n && scoped(m)),
+          years: yearSeriesFromAgg(subjectAggsByName.get(n) || [], exams, exam),
         })),
       byTeacher: [...new Set(assignments.map((a) => a.userId))]
         .map((userId) => {
-          const list = assignments.filter((a) => a.userId === userId);
+          const list = assignments.filter(
+            (a) =>
+              a.userId === userId &&
+              (!className || a.classSection.className === className) &&
+              (!subjectName || a.subject.name === subjectName)
+          );
+          const byExam = new Map();
+          for (const a of list) {
+            for (const row of papersByKey.get(`${a.subjectId}|${a.classSectionId}`) || []) {
+              const prev = byExam.get(row.examId);
+              byExam.set(row.examId, prev ? mergePaperStats([prev, row]) : row);
+            }
+          }
           return {
             teacherId: userId,
-            teacher: list[0].user.name,
-            years: yearSeries(
-              allApproved,
-              exams,
-              exam,
-              (m) =>
-                list.some((a) => a.subjectId === m.subjectId && a.classSectionId === m.student.classSectionId) &&
-                scoped(m)
-            ),
+            teacher: list[0]?.user.name,
+            years: yearSeriesFromAgg(byExam, exams, exam),
           };
         })
-        .filter((t) => t.years.some((y) => y.count > 0)),
+        .filter((t) => t.teacher && t.years.some((y) => y.count > 0)),
     };
       }
     );
@@ -803,7 +837,15 @@ export function registerAnalysisReports(router) {
       "report:compare-teachers",
       [exam.id, subjectName || "", className || "", compareView.anonymize ? "anon" : "named"],
       async () => {
-    const [assignments, marks] = await Promise.all([
+    const classSectionIds = className
+      ? (
+          await prisma.classSection.findMany({
+            where: { className },
+            select: { id: true },
+          })
+        ).map((c) => c.id)
+      : undefined;
+    const [assignments, paperAggs] = await Promise.all([
       prisma.teacherAssignment.findMany({
         select: {
           userId: true,
@@ -814,8 +856,13 @@ export function registerAnalysisReports(router) {
           subject: { select: { id: true, name: true } },
         },
       }),
-      loadApprovedMarksForExams({ examIds: [exam.id] }),
+      aggregateByPaper({
+        examIds: [exam.id],
+        subjectNames: subjectName ? [subjectName] : undefined,
+        classSectionIds,
+      }),
     ]);
+    const paperByKey = new Map(paperAggs.map((r) => [`${r.subjectId}|${r.classSectionId}`, r]));
 
     const comparisons = [...new Set(assignments.map((a) => a.subject.name))]
       .filter((n) => !subjectName || n === subjectName)
@@ -825,16 +872,15 @@ export function registerAnalysisReports(router) {
           (a) => a.subject.name === name && (!className || a.classSection.className === className)
         );
         const rows = [...groupBy(list, (a) => a.userId).entries()].map(([userId, items], index) => {
-          const sectionIds = new Set(items.map((a) => a.classSectionId));
-          const subjectIds = new Set(items.map((a) => a.subjectId));
+          const papers = items
+            .map((a) => paperByKey.get(`${a.subjectId}|${a.classSectionId}`))
+            .filter(Boolean);
           const label = compareView.anonymize ? `Teacher ${index + 1}` : items[0].user.name;
           return {
             teacherId: compareView.anonymize ? `anon-${index + 1}` : userId,
             teacher: label,
             classLabels: items.map((a) => classLabel(a.classSection)).sort(),
-            ...summarize(
-              percentsOf(marks.filter((m) => subjectIds.has(m.subjectId) && sectionIds.has(m.student.classSectionId)))
-            ),
+            ...mergePaperStats(papers),
           };
         });
         const compared = withTeacherDeltas(rows);
