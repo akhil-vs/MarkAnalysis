@@ -13,7 +13,6 @@ import {
   examLabel,
   gradeDistFromStudents,
   groupBy,
-  meanOf,
   percentsOf,
   sectionLabel,
   studentTotals,
@@ -67,7 +66,6 @@ import {
   normalizeSchoolSection,
   schoolSectionPayload,
 } from "../lib/schoolSections.js";
-import { indexMarksByPaper } from "../lib/dashboardAgg.js";
 import { rateLimit } from "../lib/rateLimit.js";
 
 export const analyticsRouter = Router();
