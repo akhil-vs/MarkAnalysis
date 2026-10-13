@@ -9,6 +9,7 @@ import {
   normalizeSchoolSection,
 } from "./schoolSections.js";
 import { isPastDeadline } from "./markAccess.js";
+import { enrollmentKeySet, expectedCountForPaper } from "./electiveEnrollment.js";
 
 export function registerKey({ examId, classSectionId, subjectId, teacherId }) {
   return `${examId}:${classSectionId}:${subjectId}:${teacherId}`;
@@ -101,6 +102,7 @@ export async function listRegisters(user, { examId, schoolSection } = {}) {
       classLabel: `${a.classSection.className}-${a.classSection.section}`,
       subjectId: a.subjectId,
       subject: a.subject.name,
+      isElective: Boolean(a.subject?.isElective),
       assignmentId: a.id,
     }));
   } else if (isLeadership(role)) {
@@ -112,7 +114,7 @@ export async function listRegisters(user, { examId, schoolSection } = {}) {
         subjectId: true,
         user: { select: { id: true, name: true, email: true } },
         classSection: { select: { id: true, className: true, section: true } },
-        subject: { select: { id: true, name: true } },
+        subject: { select: { id: true, name: true, isElective: true } },
       },
     });
     assignmentRows = rows
@@ -127,6 +129,7 @@ export async function listRegisters(user, { examId, schoolSection } = {}) {
         classLabel: `${a.classSection.className}-${a.classSection.section}`,
         subjectId: a.subjectId,
         subject: a.subject.name,
+        isElective: Boolean(a.subject.isElective),
         assignmentId: a.id,
       }));
   } else {
@@ -156,7 +159,10 @@ export async function listRegisters(user, { examId, schoolSection } = {}) {
   const classIds = [...new Set(assignmentRows.map((a) => a.classSectionId))];
   const subjectIds = [...new Set(assignmentRows.map((a) => a.subjectId))];
 
-  const [students, marks] = await Promise.all([
+  const electiveSubjectIds = [
+    ...new Set(assignmentRows.filter((a) => a.isElective).map((a) => a.subjectId)),
+  ];
+  const [students, marks, enrollments] = await Promise.all([
     prisma.student.findMany({
       where: { classSectionId: { in: classIds }, status: "ACTIVE" },
       select: { id: true, classSectionId: true },
@@ -175,8 +181,18 @@ export async function listRegisters(user, { examId, schoolSection } = {}) {
         student: { select: { classSectionId: true } },
       },
     }),
+    electiveSubjectIds.length
+      ? prisma.studentSubjectEnrollment.findMany({
+          where: {
+            subjectId: { in: electiveSubjectIds },
+            student: { classSectionId: { in: classIds }, status: "ACTIVE" },
+          },
+          select: { studentId: true, subjectId: true },
+        })
+      : Promise.resolve([]),
   ]);
 
+  const enrollmentKeys = enrollmentKeySet(enrollments);
   const studentsByClass = groupBy(students, (s) => s.classSectionId);
   const marksByPaperTeacher = new Map();
   for (const mark of marks) {
@@ -197,14 +213,19 @@ export async function listRegisters(user, { examId, schoolSection } = {}) {
   }
 
   const registers = assignmentRows.map((a) => {
-    const expected = studentsByClass.get(a.classSectionId) || [];
+    const roster = studentsByClass.get(a.classSectionId) || [];
+    const expectedCount = expectedCountForPaper(
+      { id: a.subjectId, isElective: a.isElective },
+      roster,
+      enrollmentKeys
+    );
     // Prefer marks entered by this teacher; fall back to all marks on the paper
     // so class-teacher / leadership views stay accurate when enteredBy differs.
     const owned =
       marksByPaperTeacher.get(`${a.subjectId}|${a.classSectionId}|${a.teacherId}`) || [];
     const allOnPaper = marksByPaper.get(`${a.subjectId}|${a.classSectionId}`) || [];
     const registerMarks = owned.length ? owned : allOnPaper;
-    const progress = summarizeRegister(expected.length, registerMarks);
+    const progress = summarizeRegister(expectedCount, registerMarks);
     const isOwner = a.teacherId === userId;
     const actions = registerActions(progress, {
       role,
