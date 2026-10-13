@@ -28,11 +28,25 @@ import { enrichMarksInsights } from "./analyticsInsights.js";
 import { loadExams } from "../lib/examCatalog.js";
 import {
   ANALYTICS_MARK_SELECT,
+  OVERVIEW_HISTORY_PRIOR,
   loadApprovedMarksForExams,
   loadPeerAssignmentsBySubjectName,
   sameTypeExamIds,
 } from "../lib/analyticsMarks.js";
 import { cachedInsight } from "../lib/insightsCache.js";
+
+/**
+ * Same-type exam IDs for overview year charts, newest first, capped.
+ * Excludes the current exam — callers already load current marks separately
+ * and merge for yearSeries. Avoids double-loading the active exam's marks.
+ */
+function overviewPriorExamIds(exams, exam) {
+  const ids = sameTypeExamIds(exams, exam).filter((id) => id !== exam.id);
+  const byId = new Map((exams || []).map((e) => [e.id, e]));
+  return ids
+    .sort((a, b) => new Date(byId.get(b)?.date || 0) - new Date(byId.get(a)?.date || 0))
+    .slice(0, Math.max(0, OVERVIEW_HISTORY_PRIOR));
+}
 
 function forbidIfTeacher(req, res) {
   if (!isLeadership(req.user.role)) {
@@ -61,17 +75,28 @@ export function registerAnalysisReports(router) {
 
     const classIds = classes.map((c) => c.id);
     const examById = new Map(exams.map((e) => [e.id, e]));
-    const [marks, allApproved] = await Promise.all([
+    const historyIds = overviewPriorExamIds(exams, exam);
+    const [marks, priorApproved] = await Promise.all([
       loadApprovedMarksForExams({
         examIds: [exam.id],
         classSectionIds: classIds,
+        activeStudentsOnly: true,
       }),
-      loadApprovedMarksForExams({
-        examIds: sameTypeExamIds(exams, exam),
-        classSectionIds: classIds,
-        attachExamById: examById,
-      }),
+      historyIds.length
+        ? loadApprovedMarksForExams({
+            examIds: historyIds,
+            classSectionIds: classIds,
+            attachExamById: examById,
+            activeStudentsOnly: true,
+          })
+        : Promise.resolve([]),
     ]);
+    // Merge current + prior for yearSeries (current was excluded from prior load).
+    const allApproved = [...marks.map((m) => ({ ...m, exam })), ...priorApproved];
+
+    const marksBySectionId = groupBy(marks, (m) => m.student.classSectionId);
+    const marksByClassName = groupBy(marks, (m) => m.student.classSection.className);
+    const historyByClassName = groupBy(allApproved, (m) => m.student.classSection.className);
 
     const divisionWise = classes.map((cls) => ({
       id: cls.id,
@@ -80,7 +105,7 @@ export function registerAnalysisReports(router) {
       label: classLabel(cls),
       teacher: cls.classTeacher?.name || null,
       studentCount: cls._count.students,
-      ...summarize(percentsOf(marks.filter((m) => m.student.classSectionId === cls.id))),
+      ...summarize(percentsOf(marksBySectionId.get(cls.id) || [])),
     }));
 
     const classWise = [...new Set(classes.map((c) => c.className))]
@@ -93,12 +118,11 @@ export function registerAnalysisReports(router) {
         sectionCount: divisions.length,
         studentCount: divisions.reduce((s, d) => s + d.studentCount, 0),
         divisions,
-        ...summarize(percentsOf(marks.filter((m) => m.student.classSection.className === className))),
+        ...summarize(percentsOf(marksByClassName.get(className) || [])),
         yearComparison: yearSeries(
-          allApproved,
+          historyByClassName.get(className) || [],
           exams,
-          exam,
-          (m) => m.student.classSection.className === className
+          exam
         ),
       };
     });
@@ -127,20 +151,27 @@ export function registerAnalysisReports(router) {
     const { exams, exam } = await loadExams(req.query.examId);
     if (!exam) return res.json({ empty: true, className, sections });
 
+    const scope = req.user.role === "TEACHER" ? `t:${req.user.userId}` : "lead";
+    const payload = await cachedInsight("report:class-group", [exam.id, className, scope], async () => {
     const grading = gradingHelpers(await getGradingConfig());
     const { passPercent, gradeFn, gradeBands } = grading;
     const sectionIds = sections.map((s) => s.id);
     const examById = new Map(exams.map((e) => [e.id, e]));
-    const [marks, allApproved, subjects, allMarks, assignments, activeStudents] = await Promise.all([
+    const historyIds = overviewPriorExamIds(exams, exam);
+    const [marks, priorApproved, subjects, allMarks, assignments, activeStudents] = await Promise.all([
       loadApprovedMarksForExams({
         examIds: [exam.id],
         classSectionIds: sectionIds,
+        activeStudentsOnly: true,
       }),
-      loadApprovedMarksForExams({
-        examIds: sameTypeExamIds(exams, exam),
-        classSectionIds: sectionIds,
-        attachExamById: examById,
-      }),
+      historyIds.length
+        ? loadApprovedMarksForExams({
+            examIds: historyIds,
+            classSectionIds: sectionIds,
+            attachExamById: examById,
+            activeStudentsOnly: true,
+          })
+        : Promise.resolve([]),
       prisma.subject.findMany({ where: { className }, orderBy: { name: "asc" } }),
       prisma.mark.findMany({
         where: { examId: exam.id, student: { classSectionId: { in: sectionIds } } },
@@ -173,6 +204,7 @@ export function registerAnalysisReports(router) {
         select: { id: true, classSectionId: true },
       }),
     ]);
+    const allApproved = [...marks.map((m) => ({ ...m, exam })), ...priorApproved];
     const studentsByClass = groupBy(activeStudents, (s) => s.classSectionId);
 
     const divisions = sections.map((cls) => {
@@ -223,7 +255,7 @@ export function registerAnalysisReports(router) {
     const completeness = completenessHeatmap(assignments, studentsByClass, allMarks, exam.id);
     const extras = await enrichMarksInsights(marks, grading);
 
-    res.json({
+    return {
       className,
       label: `Class ${className}`,
       exam,
@@ -260,7 +292,10 @@ export function registerAnalysisReports(router) {
       passFail,
       completeness,
       ...extras,
+    };
     });
+
+    res.json(payload);
   });
 
   router.get("/subjects-overview", async (req, res) => {
@@ -270,16 +305,20 @@ export function registerAnalysisReports(router) {
 
     const payload = await cachedInsight("report:subjects-overview", [exam.id], async () => {
     const examById = new Map(exams.map((e) => [e.id, e]));
-    const [subjects, marks, allApproved, assignments] = await Promise.all([
+    const historyIds = overviewPriorExamIds(exams, exam);
+    const [subjects, marks, priorApproved, assignments] = await Promise.all([
       prisma.subject.findMany({
         orderBy: [{ name: "asc" }, { className: "asc" }],
         select: { id: true, name: true, className: true, maxMarks: true },
       }),
-      loadApprovedMarksForExams({ examIds: [exam.id] }),
-      loadApprovedMarksForExams({
-        examIds: sameTypeExamIds(exams, exam),
-        attachExamById: examById,
-      }),
+      loadApprovedMarksForExams({ examIds: [exam.id], activeStudentsOnly: true }),
+      historyIds.length
+        ? loadApprovedMarksForExams({
+            examIds: historyIds,
+            attachExamById: examById,
+            activeStudentsOnly: true,
+          })
+        : Promise.resolve([]),
       prisma.teacherAssignment.findMany({
         select: {
           userId: true,
@@ -291,20 +330,28 @@ export function registerAnalysisReports(router) {
         },
       }),
     ]);
+    const allApproved = [...marks.map((m) => ({ ...m, exam })), ...priorApproved];
 
-    const schoolSubjects = [...new Set(subjects.map((s) => s.name))].map((name) => {
-      const teacherIds = new Set(assignments.filter((a) => a.subject.name === name).map((a) => a.userId));
+    const subjectsByName = groupBy(subjects, (s) => s.name);
+    const marksBySubjectName = groupBy(marks, (m) => m.subject.name);
+    const marksBySubjectId = groupBy(marks, (m) => m.subjectId);
+    const historyBySubjectName = groupBy(allApproved, (m) => m.subject.name);
+    const teachersBySubjectName = groupBy(assignments, (a) => a.subject.name);
+
+    const schoolSubjects = [...subjectsByName.keys()].map((name) => {
+      const subjectRows = subjectsByName.get(name) || [];
+      const teacherIds = new Set((teachersBySubjectName.get(name) || []).map((a) => a.userId));
       return {
         name,
-        classNames: [...new Set(subjects.filter((s) => s.name === name).map((s) => s.className))],
+        classNames: [...new Set(subjectRows.map((s) => s.className))],
         teacherCount: teacherIds.size,
-        ...summarize(percentsOf(marks.filter((m) => m.subject.name === name))),
-        yearComparison: yearSeries(allApproved, exams, exam, (m) => m.subject.name === name),
-        records: subjects.filter((s) => s.name === name).map((s) => ({
+        ...summarize(percentsOf(marksBySubjectName.get(name) || [])),
+        yearComparison: yearSeries(historyBySubjectName.get(name) || [], exams, exam),
+        records: subjectRows.map((s) => ({
           id: s.id,
           className: s.className,
           maxMarks: s.maxMarks,
-          ...summarize(percentsOf(marks.filter((m) => m.subjectId === s.id))),
+          ...summarize(percentsOf(marksBySubjectId.get(s.id) || [])),
         })),
       };
     });
@@ -326,13 +373,18 @@ export function registerAnalysisReports(router) {
 
     const subjectIds = sameName.map((s) => s.id);
     const examById = new Map(exams.map((e) => [e.id, e]));
-    const [marks, allApproved, assignments] = await Promise.all([
-      loadApprovedMarksForExams({ examIds: [exam.id], subjectIds }),
-      loadApprovedMarksForExams({
-        examIds: sameTypeExamIds(exams, exam),
-        subjectIds,
-        attachExamById: examById,
-      }),
+    const historyIds = overviewPriorExamIds(exams, exam);
+    const payload = await cachedInsight("report:subject-by-name", [exam.id, name], async () => {
+    const [marks, priorApproved, assignments] = await Promise.all([
+      loadApprovedMarksForExams({ examIds: [exam.id], subjectIds, activeStudentsOnly: true }),
+      historyIds.length
+        ? loadApprovedMarksForExams({
+            examIds: historyIds,
+            subjectIds,
+            attachExamById: examById,
+            activeStudentsOnly: true,
+          })
+        : Promise.resolve([]),
       prisma.teacherAssignment.findMany({
         where: { subjectId: { in: subjectIds } },
         select: {
@@ -345,13 +397,15 @@ export function registerAnalysisReports(router) {
         },
       }),
     ]);
+    const allApproved = [...marks.map((m) => ({ ...m, exam })), ...priorApproved];
 
+    const marksBySectionId = groupBy(marks, (m) => m.student.classSectionId);
     const byClass = [...groupBy(marks, (m) => m.student.classSection.className).entries()].map(([className, list]) => ({
       className,
       label: `Class ${className}`,
       ...summarize(percentsOf(list)),
     }));
-    const byDivision = [...groupBy(marks, (m) => m.student.classSectionId).entries()].map(([id, list]) => ({
+    const byDivision = [...marksBySectionId.entries()].map(([id, list]) => ({
       classSectionId: id,
       label: sectionLabel(list[0].student),
       className: list[0].student.classSection.className,
@@ -360,15 +414,20 @@ export function registerAnalysisReports(router) {
 
     const teacherRows = [...groupBy(assignments, (a) => a.userId).entries()].map(([userId, list]) => {
       const sectionIds = new Set(list.map((a) => a.classSectionId));
+      const teacherMarks = [];
+      for (const sectionId of sectionIds) {
+        const rows = marksBySectionId.get(sectionId);
+        if (rows?.length) teacherMarks.push(...rows);
+      }
       return {
         teacherId: userId,
         teacher: list[0].user.name,
         classLabels: list.map((a) => classLabel(a.classSection)).sort(),
-        ...summarize(percentsOf(marks.filter((m) => sectionIds.has(m.student.classSectionId)))),
+        ...summarize(percentsOf(teacherMarks)),
       };
     });
 
-    res.json({
+    return {
       name,
       subjects: sameName,
       exam,
@@ -379,7 +438,10 @@ export function registerAnalysisReports(router) {
       teacherCompare: withTeacherDeltas(teacherRows),
       gradeDist: gradeDistFromStudents(studentTotals(groupBy(marks, (m) => m.studentId))),
       yearComparison: yearSeries(allApproved, exams, exam),
+    };
     });
+
+    res.json(payload);
   });
 
   router.get("/staff", async (req, res) => {
@@ -406,18 +468,50 @@ export function registerAnalysisReports(router) {
       },
     });
     const examById = new Map(exams.map((e) => [e.id, e]));
-    const [marks, allApproved] = await Promise.all([
-      loadApprovedMarksForExams({ examIds: [exam.id] }),
-      loadApprovedMarksForExams({
-        examIds: sameTypeExamIds(exams, exam),
-        attachExamById: examById,
-      }),
+    const historyIds = overviewPriorExamIds(exams, exam);
+    const [marks, priorApproved] = await Promise.all([
+      loadApprovedMarksForExams({ examIds: [exam.id], activeStudentsOnly: true }),
+      historyIds.length
+        ? loadApprovedMarksForExams({
+            examIds: historyIds,
+            attachExamById: examById,
+            activeStudentsOnly: true,
+          })
+        : Promise.resolve([]),
     ]);
+    const allApproved = [...marks.map((m) => ({ ...m, exam })), ...priorApproved];
+
+    // Index marks by paper once — avoid O(teachers × assignments × marks) filters.
+    const marksByPaper = new Map();
+    for (const m of marks) {
+      const key = `${m.subjectId}|${m.student.classSectionId}`;
+      let list = marksByPaper.get(key);
+      if (!list) {
+        list = [];
+        marksByPaper.set(key, list);
+      }
+      list.push(m);
+    }
+    const historyByPaper = new Map();
+    for (const m of allApproved) {
+      const key = `${m.subjectId}|${m.student.classSectionId}`;
+      let list = historyByPaper.get(key);
+      if (!list) {
+        list = [];
+        historyByPaper.set(key, list);
+      }
+      list.push(m);
+    }
 
     const rows = teachers.map((t) => {
-      const percents = t.assignments.flatMap((a) =>
-        percentsOf(marks.filter((m) => m.subjectId === a.subjectId && m.student.classSectionId === a.classSectionId))
-      );
+      const percents = [];
+      const historyForTeacher = [];
+      for (const a of t.assignments) {
+        const key = `${a.subjectId}|${a.classSectionId}`;
+        percents.push(...percentsOf(marksByPaper.get(key) || []));
+        const hist = historyByPaper.get(key);
+        if (hist?.length) historyForTeacher.push(...hist);
+      }
       return {
         teacherId: t.id,
         name: t.name,
@@ -425,9 +519,7 @@ export function registerAnalysisReports(router) {
         assignmentCount: t.assignments.length,
         subjects: [...new Set(t.assignments.map((a) => a.subject.name))],
         ...summarize(percents),
-        yearComparison: yearSeries(allApproved, exams, exam, (m) =>
-          t.assignments.some((a) => a.subjectId === m.subjectId && a.classSectionId === m.student.classSectionId)
-        ),
+        yearComparison: yearSeries(historyForTeacher, exams, exam),
       };
     });
 
@@ -468,9 +560,10 @@ export function registerAnalysisReports(router) {
       }),
       // Scope year/peer marks to this teacher's subject names (not whole-school history).
       loadApprovedMarksForExams({
-        examIds: sameTypeExamIds(exams, exam),
+        examIds: [exam.id, ...overviewPriorExamIds(exams, exam)],
         subjectNames: subjectNames.length ? subjectNames : undefined,
         attachExamById: examById,
+        activeStudentsOnly: true,
       }),
       prisma.student.findMany({
         where: { classSectionId: { in: classIds.length ? classIds : emptyIds } },
@@ -604,7 +697,8 @@ export function registerAnalysisReports(router) {
       [exam.id, className || "", subjectName || ""],
       async () => {
     const examById = new Map(exams.map((e) => [e.id, e]));
-    const yearExamIds = sameTypeExamIds(exams, exam);
+    // Compare needs current + capped priors (priors helper excludes current).
+    const yearExamIds = [exam.id, ...overviewPriorExamIds(exams, exam)];
 
     const [allApproved, classes, subjects, assignments] = await Promise.all([
       loadApprovedMarksForExams({
@@ -612,6 +706,7 @@ export function registerAnalysisReports(router) {
         classNames: className ? [className] : undefined,
         subjectNames: subjectName ? [subjectName] : undefined,
         attachExamById: examById,
+        activeStudentsOnly: true,
       }),
       prisma.classSection.findMany({
         orderBy: [{ className: "asc" }, { section: "asc" }],

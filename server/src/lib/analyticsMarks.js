@@ -84,6 +84,7 @@ export async function loadApprovedMarksForExams({
   classNames,
   select = ANALYTICS_MARK_SELECT,
   attachExamById = null,
+  activeStudentsOnly = false,
 } = {}) {
   const ids = [...new Set((examIds || []).filter(Boolean))];
   if (!ids.length) return [];
@@ -92,6 +93,9 @@ export async function loadApprovedMarksForExams({
     status: "APPROVED",
     examId: { in: ids },
   };
+  if (activeStudentsOnly) {
+    where.student = { ...(where.student || {}), status: "ACTIVE" };
+  }
   if (classSectionIds?.length) {
     where.student = { ...(where.student || {}), classSectionId: { in: classSectionIds } };
   }
@@ -154,6 +158,29 @@ export const SCHOOL_DETAIL_HISTORY_PRIOR =
   Number(process.env.SCHOOL_DETAIL_HISTORY_PRIOR) >= 0
     ? Number(process.env.SCHOOL_DETAIL_HISTORY_PRIOR)
     : 2;
+
+/**
+ * History depth for analysis overview pages (classes/subjects/staff).
+ * Caps same-type priors so cold overviews do not scan every prior year.
+ */
+export const OVERVIEW_HISTORY_PRIOR =
+  Number(process.env.OVERVIEW_HISTORY_PRIOR) >= 0
+    ? Number(process.env.OVERVIEW_HISTORY_PRIOR)
+    : 2;
+
+/** Slim columns for readiness / pending-upload status scans (no nested subject). */
+export const ANALYTICS_STATUS_SELECT = Object.freeze({
+  studentId: true,
+  subjectId: true,
+  status: true,
+  student: {
+    select: {
+      status: true,
+      classSectionId: true,
+      classSection: { select: { className: true } },
+    },
+  },
+});
 
 /**
  * Prefetch peer teacher assignments for many subject names in one query.

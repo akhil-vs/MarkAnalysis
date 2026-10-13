@@ -42,6 +42,8 @@ import {
 } from "../lib/markSelects.js";
 import { buildHomeDashboardCached } from "../lib/homeDashboard.js";
 import {
+  ANALYTICS_MARK_SELECT,
+  ANALYTICS_STATUS_SELECT,
   ANALYTICS_TREND_SELECT,
   SCHOOL_DETAIL_HISTORY_PRIOR,
   historyExamIdsForDetail,
@@ -49,6 +51,7 @@ import {
 } from "../lib/analyticsMarks.js";
 import { cachedTenantLoad } from "../lib/tenantCache.js";
 import { cachedInsight } from "../lib/insightsCache.js";
+import { clientIp } from "../lib/clientIp.js";
 import {
   classNameInSchoolSection,
   filterBySchoolSection,
@@ -78,6 +81,9 @@ analyticsRouter.use(
   rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 180,
+    // Prefer per-user buckets so multi-tab / NAT peers don't starve each other.
+    keyFn: (req) =>
+      `${req.user?.tenantId || "x"}:${req.user?.userId || clientIp(req)}`,
     message: "Too many analytics requests. Try again in a few minutes.",
   })
 );
@@ -211,42 +217,31 @@ async function buildSchoolAnalyticsCached({
     const grading = gradingHelpers(await getGradingConfig());
     const { passPercent, gradeFn, gradeBands, distinctionMin } = grading;
 
-    const markCoreSelect = {
-      id: true,
-      studentId: true,
-      subjectId: true,
-      examId: true,
-      marksObtained: true,
-      practicalMarks: true,
-      outcome: true,
-      status: true,
-      updatedAt: true,
-      student: {
-        select: {
-          id: true,
-          name: true,
-          rollNo: true,
-          status: true,
-          classSectionId: true,
-          classSection: { select: { id: true, className: true, section: true } },
-        },
-      },
-      subject: { select: { id: true, name: true, className: true, maxMarks: true, practicalMaxMarks: true } },
-    };
-
     const otherExamIds = wantDetail
       ? historyExamIdsForDetail(exams, exam, { maxSameTypePrior: SCHOOL_DETAIL_HISTORY_PRIOR })
       : [];
 
+    // Split loads: APPROVED (+ ACTIVE) for KPIs/charts; slim status scan only when
+    // summary needs readiness / pending-upload matrices. Avoids hydrating full mark
+    // graphs (with nested subject) for every status row on cold detail.
+    const needStatusScan = wantSummary;
     const sharedQueries = [
-      prisma.mark.findMany({
-        where: { examId: exam.id },
-        select: markCoreSelect,
+      loadApprovedMarksForExams({
+        examIds: [exam.id],
+        select: ANALYTICS_MARK_SELECT,
+        activeStudentsOnly: true,
       }),
+      needStatusScan
+        ? prisma.mark.findMany({
+            where: { examId: exam.id },
+            select: ANALYTICS_STATUS_SELECT,
+          })
+        : Promise.resolve([]),
       wantDetail && otherExamIds.length
         ? loadApprovedMarksForExams({
             examIds: otherExamIds,
             select: ANALYTICS_TREND_SELECT,
+            activeStudentsOnly: true,
           })
         : Promise.resolve([]),
       prisma.classSection.findMany({
@@ -276,7 +271,8 @@ async function buildSchoolAnalyticsCached({
     ];
 
     const [
-      examMarksRaw,
+      approvedMarksRaw,
+      statusMarksRaw,
       historyApprovedRaw,
       classesRaw,
       subjectsRaw,
@@ -309,32 +305,23 @@ async function buildSchoolAnalyticsCached({
       schoolSection === "ALL" ? activeStudentsAll : activeStudentRows.length;
 
     const examById = new Map(exams.map((e) => [e.id, e]));
-    const examMarks =
-      schoolSection === "ALL"
-        ? examMarksRaw
-        : examMarksRaw.filter((m) =>
-            classNameInSchoolSection(
-              m.student?.classSection?.className || classIdToName.get(m.student?.classSectionId),
-              schoolSection
-            )
-          );
-    const historyApproved =
-      schoolSection === "ALL"
-        ? historyApprovedRaw
-        : historyApprovedRaw.filter((m) =>
-            classNameInSchoolSection(
-              m.student?.classSection?.className || classIdToName.get(m.student?.classSectionId),
-              schoolSection
-            )
-          );
-    const marks = examMarks
-      .filter((m) => m.status === "APPROVED" && m.student?.status === "ACTIVE")
-      .map((m) => ({ ...m, exam }));
+    const inSection = (m) =>
+      schoolSection === "ALL" ||
+      classNameInSchoolSection(
+        m.student?.classSection?.className || classIdToName.get(m.student?.classSectionId),
+        schoolSection
+      );
+    const approvedScoped = approvedMarksRaw.filter(inSection);
+    const statusMarks = needStatusScan ? statusMarksRaw.filter(inSection) : [];
+    const historyApproved = historyApprovedRaw.filter(inSection);
+    // APPROVED + ACTIVE already applied in SQL; attach current exam for aggregates.
+    const marks = approvedScoped.map((m) => ({ ...m, exam }));
+    // Readiness/pending need all statuses; when summary is off, reuse approved rows.
+    const examMarks = needStatusScan ? statusMarks : approvedScoped;
     const allApproved = wantDetail
       ? [
           ...marks,
           ...historyApproved
-            .filter((m) => m.student?.status === "ACTIVE")
             .map((m) => {
               const histExam = examById.get(m.examId);
               return histExam ? { ...m, exam: histExam } : null;
@@ -626,39 +613,48 @@ analyticsRouter.get("/student/:id", async (req, res) => {
     if (!ok) return res.status(403).json({ error: "Forbidden" });
   }
 
+  const scope = req.user.role === "TEACHER" ? `t:${req.user.userId}` : "lead";
+  const payload = await cachedInsight("report:student", [student.id, scope], async () => {
   const lineageIds = await collectStudentLineageIds(student);
 
-  const [marks, peers] = await Promise.all([
-    prisma.mark.findMany({
-      where: { studentId: { in: lineageIds } },
-      select: {
-        id: true,
-        studentId: true,
-        subjectId: true,
-        examId: true,
-        marksObtained: true,
-        practicalMarks: true,
-        outcome: true,
-        status: true,
-        subject: { select: subjectCoreSelect },
-        exam: {
-          select: {
-            id: true,
-            name: true,
-            term: true,
-            type: true,
-            academicYear: true,
-            date: true,
-          },
+  const marks = await prisma.mark.findMany({
+    where: { studentId: { in: lineageIds } },
+    select: {
+      id: true,
+      studentId: true,
+      subjectId: true,
+      examId: true,
+      marksObtained: true,
+      practicalMarks: true,
+      outcome: true,
+      status: true,
+      subject: { select: subjectCoreSelect },
+      exam: {
+        select: {
+          id: true,
+          name: true,
+          term: true,
+          type: true,
+          academicYear: true,
+          date: true,
         },
       },
-      orderBy: { exam: { date: "asc" } },
-    }),
-    prisma.mark.findMany({
-      where: { student: { classSectionId: student.classSectionId }, status: "APPROVED" },
-      select: markHistorySelect,
-    }),
-  ]);
+    },
+    orderBy: { exam: { date: "asc" } },
+  });
+
+  const latestExam = [...new Set(marks.map((m) => m.examId))].at(-1);
+  // Peer rank only needs the latest exam — never the whole class history.
+  const peers = latestExam
+    ? await prisma.mark.findMany({
+        where: {
+          examId: latestExam,
+          status: "APPROVED",
+          student: { classSectionId: student.classSectionId, status: "ACTIVE" },
+        },
+        select: markHistorySelect,
+      })
+    : [];
 
   const bySubject = groupBy(marks, (m) => m.subject.name);
   const grading = gradingHelpers(await getGradingConfig());
@@ -677,17 +673,12 @@ analyticsRouter.get("/student/:id", async (req, res) => {
     average: round1(mean(list.map(toPercent).filter((p) => p != null))),
   }));
 
-  const latestExam = [...new Set(marks.map((m) => m.examId))].at(-1);
   const latest = marks.filter((m) => m.examId === latestExam);
   const latestAvg = mean(latest.map(toPercent).filter((p) => p != null));
 
-  const classAvgs = studentTotals(
-    groupBy(
-      peers.filter((m) => m.examId === latestExam),
-      (m) => m.studentId
-    ),
-    { gradeFn: grading.gradeFn }
-  ).sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
+  const classAvgs = studentTotals(groupBy(peers, (m) => m.studentId), {
+    gradeFn: grading.gradeFn,
+  }).sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
   const rank = classAvgs.findIndex((s) => s.studentId === student.id) + 1;
 
   const strengths = [...subjectSeries].sort((a, b) => (b.average ?? 0) - (a.average ?? 0));
@@ -704,7 +695,7 @@ analyticsRouter.get("/student/:id", async (req, res) => {
     );
   }
 
-  res.json({
+  return {
     student,
     subjectSeries,
     latestAverage: round1(latestAvg),
@@ -720,7 +711,10 @@ analyticsRouter.get("/student/:id", async (req, res) => {
       distinctionMin: grading.distinctionMin,
       examWeights: grading.examWeights,
     },
+  };
   });
+
+  res.json(payload);
 });
 
 analyticsRouter.get("/class/:id", async (req, res) => {
@@ -734,29 +728,48 @@ analyticsRouter.get("/class/:id", async (req, res) => {
   const { exams, exam } = await loadExams(req.query.examId);
   if (!exam) return res.json({ empty: true, classSection: cls });
 
+  const scope = req.user.role === "TEACHER" ? `t:${req.user.userId}` : "lead";
+  const payload = await cachedInsight("report:class", [cls.id, exam.id, scope], async () => {
   const grading = gradingHelpers(await getGradingConfig());
   const { passPercent, gradeFn, gradeBands } = grading;
+  const examById = new Map(exams.map((e) => [e.id, e]));
+  const historyIds = historyExamIdsForDetail(exams, exam, {
+    maxSameTypePrior: SCHOOL_DETAIL_HISTORY_PRIOR,
+  });
+  const historyWithCurrent = historyIds.includes(exam.id)
+    ? historyIds
+    : [exam.id, ...historyIds];
 
-  const marks = await prisma.mark.findMany({
-    where: {
-      examId: exam.id,
-      student: { classSectionId: cls.id },
-      status: { in: ["DRAFT", "APPROVED", "SUBMITTED"] },
-    },
-    include: { student: true, subject: true },
-  });
+  const [marks, allApproved, subjects, allClasses] = await Promise.all([
+    prisma.mark.findMany({
+      where: {
+        examId: exam.id,
+        student: { classSectionId: cls.id },
+        status: { in: ["DRAFT", "APPROVED", "SUBMITTED"] },
+      },
+      select: ANALYTICS_MARK_SELECT,
+    }),
+    loadApprovedMarksForExams({
+      examIds: historyWithCurrent,
+      classSectionIds: [cls.id],
+      attachExamById: examById,
+      activeStudentsOnly: true,
+    }),
+    prisma.subject.findMany({
+      where: { className: cls.className },
+      orderBy: { name: "asc" },
+      select: { id: true, name: true, className: true, maxMarks: true, practicalMaxMarks: true },
+    }),
+    prisma.classSection.findMany({
+      where: { className: cls.className },
+      select: { id: true, className: true, section: true },
+    }),
+  ]);
   const approvedMarks = marks.filter((m) => m.status === "APPROVED");
-  const allApproved = await prisma.mark.findMany({
-    where: { status: "APPROVED", student: { classSectionId: cls.id } },
-    include: { student: true, subject: true, exam: true },
-  });
-  const subjects = await prisma.subject.findMany({
-    where: { className: cls.className },
-    orderBy: { name: "asc" },
-  });
+  const marksBySubjectId = groupBy(marks, (m) => m.subjectId);
 
   const perSubject = subjects.map((subject) => {
-    const list = marks.filter((m) => m.subjectId === subject.id);
+    const list = marksBySubjectId.get(subject.id) || [];
     const approved = list.filter((m) => m.status === "APPROVED");
     const forStats = approved.length ? approved : list;
     const values = percentsOf(forStats);
@@ -775,25 +788,26 @@ analyticsRouter.get("/class/:id", async (req, res) => {
   }).sort((a, b) => (b.avg ?? 0) - (a.avg ?? 0));
   const gradeDist = gradeDistFromStudents(ranked, gradeBands);
 
-  const allClasses = await prisma.classSection.findMany({
-    where: { className: cls.className },
+  const peerMarks = await loadApprovedMarksForExams({
+    examIds: [exam.id],
+    classSectionIds: allClasses.map((c) => c.id),
+    activeStudentsOnly: true,
   });
-  const peerMarks = await prisma.mark.findMany({
-    where: {
-      examId: exam.id,
-      status: "APPROVED",
-      student: { classSectionId: { in: allClasses.map((c) => c.id) } },
-    },
-    include: { student: { include: { classSection: true } }, subject: true },
-  });
+  const peerBySubjectSection = new Map();
+  for (const m of peerMarks) {
+    const key = `${m.subjectId}|${m.student.classSectionId}`;
+    let list = peerBySubjectSection.get(key);
+    if (!list) {
+      list = [];
+      peerBySubjectSection.set(key, list);
+    }
+    list.push(m);
+  }
 
   const radar = subjects.map((subject) => {
     const point = { subject: subject.name };
     for (const c of allClasses) {
-      const vals = peerMarks
-        .filter((m) => m.subjectId === subject.id && m.student.classSectionId === c.id)
-        .map(toPercent)
-        .filter((p) => p != null);
+      const vals = percentsOf(peerBySubjectSection.get(`${subject.id}|${c.id}`) || []);
       point[`${c.className}-${c.section}`] = round1(mean(vals)) ?? 0;
     }
     return point;
@@ -805,7 +819,7 @@ analyticsRouter.get("/class/:id", async (req, res) => {
     assessmentPolicy: grading.assessmentPolicy,
   });
 
-  res.json({
+  return {
     classSection: cls,
     exam,
     exams,
@@ -834,7 +848,10 @@ analyticsRouter.get("/class/:id", async (req, res) => {
     yearComparison: yearSeries(allApproved, exams, exam),
     ...extras,
     passFail,
+  };
   });
+
+  res.json(payload);
 });
 
 analyticsRouter.get("/subject/:id", async (req, res) => {
