@@ -51,11 +51,25 @@ function cacheMeta(path) {
   if (
     base === "/api/analytics/school" ||
     base === "/api/analytics/teacher" ||
-    base === "/api/analytics/coordinator"
+    base === "/api/analytics/coordinator" ||
+    base === "/api/analytics/classes-overview" ||
+    base === "/api/analytics/subjects-overview" ||
+    base === "/api/analytics/staff" ||
+    base === "/api/analytics/pending-uploads" ||
+    base === "/api/analytics/awaiting-approvals" ||
+    base === "/api/registers" ||
+    base.startsWith("/api/analytics/class/") ||
+    base.startsWith("/api/analytics/student/") ||
+    base.startsWith("/api/analytics/staff/") ||
+    base.startsWith("/api/analytics/compare/")
   ) {
     return { key: path, ttl: INSIGHT_TTL_MS };
   }
-  if (base === "/api/notifications" || base === "/api/notifications/unread-count") {
+  if (
+    base === "/api/notifications" ||
+    base === "/api/notifications/unread-count" ||
+    base === "/api/mark-access/count"
+  ) {
     return { key: path, ttl: 15_000 };
   }
   if (base === "/api/timetable/teachers" || base.startsWith("/api/timetable/teachers/")) {
@@ -102,10 +116,8 @@ function invalidateForMutation(path) {
     invalidateApiCache("/api/timetable/periods");
   }
   if (path.startsWith("/api/marks") || path.startsWith("/api/mark-access")) {
-    invalidateApiCache("/api/analytics/insights");
-    invalidateApiCache("/api/analytics/school");
-    invalidateApiCache("/api/analytics/teacher");
-    invalidateApiCache("/api/analytics/coordinator");
+    invalidateApiCache("/api/analytics/");
+    invalidateApiCache("/api/registers");
   }
   if (path.startsWith("/api/notifications")) {
     invalidateApiCache("/api/notifications");
@@ -181,7 +193,11 @@ async function parseResponseBody(res) {
   }
 }
 
-async function request(path, { method = "GET", body, headers } = {}, { retry = true } = {}) {
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function request(path, { method = "GET", body, headers } = {}, { retry = true, rateLimitRetry = true } = {}) {
   const isForm = body instanceof FormData;
   let res;
   try {
@@ -214,9 +230,24 @@ async function request(path, { method = "GET", body, headers } = {}, { retry = t
       throw err;
     }
     const refreshed = await tryRefreshSession();
-    if (refreshed) return request(path, { method, body, headers }, { retry: false });
+    if (refreshed) return request(path, { method, body, headers }, { retry: false, rateLimitRetry });
     setSessionHint(false);
     if (!path.startsWith("/api/auth")) window.location.assign("/login");
+  }
+
+  // One short retry on analytics rate limits when the window resets soon.
+  if (res.status === 429 && rateLimitRetry && method === "GET") {
+    const resetSec = Number(res.headers.get("x-ratelimit-reset") || 0);
+    const retryAfter = Number(res.headers.get("retry-after") || 0);
+    const waitMs = retryAfter > 0
+      ? Math.min(retryAfter * 1000, 4000)
+      : resetSec > 0
+        ? Math.min(Math.max(0, resetSec * 1000 - Date.now()), 4000)
+        : 750;
+    if (waitMs > 0 && waitMs <= 4000) {
+      await sleep(waitMs);
+      return request(path, { method, body, headers }, { retry, rateLimitRetry: false });
+    }
   }
 
   if (res.status === 304) {

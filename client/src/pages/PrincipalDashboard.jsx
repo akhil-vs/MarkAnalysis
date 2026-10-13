@@ -41,7 +41,13 @@ import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.j
 import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { yearDelta } from "../lib/exams.js";
-import { dashboardApiPath, peekDashboardPrefetch, revalidateDashboard } from "../lib/dashboardPrefetch.js";
+import {
+  dashboardApiPath,
+  isDashboardPrefetchFresh,
+  peekDashboardPrefetch,
+  revalidateDashboard,
+} from "../lib/dashboardPrefetch.js";
+import { apiErrorMessage } from "../lib/apiErrorMessage.js";
 import { NAV_LABELS, paths } from "../lib/nav.js";
 import { normalizeSchoolSection, schoolSectionLabel } from "../lib/schoolSections.js";
 
@@ -170,7 +176,7 @@ export default function PrincipalDashboard() {
       // Fire detail without awaiting so KPIs stay interactive.
       void loadDetail(payload, nextSection);
     } catch (e) {
-      if (!data) setError(e.message || "Could not load school view");
+      if (!data) setError(apiErrorMessage(e, "Could not load school view"));
     }
   }
 
@@ -190,20 +196,25 @@ export default function PrincipalDashboard() {
     }
     const summary = fresh || data;
     if (summary) {
-      loadDetail(summary, "ALL");
-      revalidateDashboard(homePath, {
-        userId: user?.id,
-        email: user?.email,
-        schoolId: user?.schoolId,
-        onData: (next) => {
-          setData((prev) => {
-            // Don't overwrite a non-All section view with whole-school revalidate.
-            if (normalizeSchoolSection(prev?.schoolSection) !== "ALL") return prev;
-            return { ...(prev || {}), ...next };
-          });
-          if (next?.exam) setExamId(next.exam.id);
-        },
-      });
+      const section = normalizeSchoolSection(fresh?.schoolSection || schoolSection || "ALL");
+      // Hydrate charts without blocking KPIs already on screen from login prefetch.
+      void loadDetail(summary, section);
+      // Skip immediate revalidate when login/prefetch is still fresh — cuts mount chatter.
+      if (!isDashboardPrefetchFresh(homePath)) {
+        revalidateDashboard(homePath, {
+          userId: user?.id,
+          email: user?.email,
+          schoolId: user?.schoolId,
+          onData: (next) => {
+            setData((prev) => {
+              // Don't overwrite a non-All section view with whole-school revalidate.
+              if (normalizeSchoolSection(prev?.schoolSection) !== "ALL") return prev;
+              return { ...(prev || {}), ...next };
+            });
+            if (next?.exam) setExamId(next.exam.id);
+          },
+        });
+      }
     } else {
       load("");
     }

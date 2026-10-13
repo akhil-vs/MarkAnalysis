@@ -3,7 +3,13 @@
  */
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { catalogExamIds, historyExamIdsForDetail, sameTypeExamIds } from "./analyticsMarks.js";
+import {
+  OVERVIEW_HISTORY_PRIOR,
+  SCHOOL_DETAIL_HISTORY_PRIOR,
+  catalogExamIds,
+  historyExamIdsForDetail,
+  sameTypeExamIds,
+} from "./analyticsMarks.js";
 
 describe("analyticsMarks helpers", () => {
   const exams = [
@@ -40,5 +46,10 @@ describe("analyticsMarks helpers", () => {
     const mid = historyExamIdsForDetail(exams, exams[1], { maxSameTypePrior: 2 });
     assert.ok(mid.includes("a"));
     assert.ok(!mid.includes("b"));
+  });
+
+  it("defaults overview history prior to a small cap", () => {
+    assert.equal(OVERVIEW_HISTORY_PRIOR, 2);
+    assert.equal(SCHOOL_DETAIL_HISTORY_PRIOR, 2);
   });
 });

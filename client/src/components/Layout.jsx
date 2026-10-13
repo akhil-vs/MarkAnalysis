@@ -308,25 +308,20 @@ export default function Layout() {
     let badgeTimer;
 
     async function loadBadges() {
+      // Prefer count-only endpoints. Never fall back to full pending-uploads /
+      // mark-access lists — those chew the analytics rate limit and feel like
+      // a hung UI when badges refresh on focus.
       const pendingPromise = api("/api/analytics/awaiting-approvals?countOnly=1")
         .then((d) => Number(d.count) || 0)
-        .catch(() =>
-          api("/api/analytics/pending-uploads")
-            .then((d) => (d.pendingTeacherCount ?? 0) + (d.awaitingApprovalTeacherCount ?? 0))
-            .catch(() => null)
-        );
+        .catch(() => null);
       const latePromise = api("/api/mark-access/count?status=PENDING")
         .then((d) => Number(d.count) || 0)
-        .catch(() =>
-          api("/api/mark-access?status=PENDING")
-            .then((rows) => (Array.isArray(rows) ? rows.length : 0))
-            .catch(() => null)
-        );
+        .catch(() => null);
 
       const [pending, late] = await Promise.all([pendingPromise, latePromise]);
       if (cancelled) return;
-      setPendingCount(pending);
-      setLateEntryCount(late);
+      if (pending != null) setPendingCount(pending);
+      if (late != null) setLateEntryCount(late);
     }
 
     badgeTimer = window.setTimeout(loadBadges, 150);

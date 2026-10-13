@@ -6,6 +6,7 @@ import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { LoadingState } from "../components/Spinner.jsx";
+import { apiErrorMessage } from "../lib/apiErrorMessage.js";
 import { NAV_TITLES, paths } from "../lib/nav.js";
 
 function DivisionCard({ division }) {
@@ -38,7 +39,7 @@ export default function AnalysisClasses() {
       setData(res);
       if (res.exam) setExamId(res.exam.id);
     } catch (err) {
-      setError(err.message || "Could not load classes");
+      setError(apiErrorMessage(err, "Could not load classes"));
     }
   }
 
