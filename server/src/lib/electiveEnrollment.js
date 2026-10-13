@@ -37,6 +37,11 @@ export function studentsExpectedForSubject(subject, students, enrollmentKeys) {
   return list.filter((s) => studentTakesSubject(subject, s.id, enrollmentKeys));
 }
 
+/** Expected headcount for one paper (subject × class roster). */
+export function expectedCountForPaper(subject, studentsInSection, enrollmentKeys) {
+  return studentsExpectedForSubject(subject, studentsInSection, enrollmentKeys).length;
+}
+
 /**
  * Map of subjectId -> Set(studentId) for electives only.
  * Useful for API payloads and UI.

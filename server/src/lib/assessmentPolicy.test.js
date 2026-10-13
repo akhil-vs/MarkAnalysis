@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 import {
   GRADING_SCHEMES,
   applyGradingScheme,
+  computeBoardPassStats,
   evaluateMarkPass,
   evaluateStudentPass,
   gulfSubjectsSuggested,
@@ -110,6 +111,56 @@ describe("evaluateStudentPass", () => {
   it("uses average mode when configured", () => {
     const result = evaluateStudentPass([], { studentPassMode: "AVERAGE" }, { passPercent: 50, average: 55 });
     assert.equal(result.passed, true);
+  });
+});
+
+describe("computeBoardPassStats", () => {
+  it("keeps ALL_SUBJECTS fail even when student average is above passPercent", () => {
+    const marksByStudent = new Map([
+      [
+        "s1",
+        [
+          {
+            subjectId: "1",
+            outcome: "SCORED",
+            marksObtained: 80,
+            subject: { name: "Math", maxMarks: 100 },
+          },
+          {
+            subjectId: "2",
+            outcome: "SCORED",
+            marksObtained: 20,
+            subject: { name: "English", maxMarks: 100 },
+          },
+        ],
+      ],
+    ]);
+    const stats = computeBoardPassStats({
+      marksByStudent,
+      studentAvgs: [{ studentId: "s1", avg: 50 }],
+      assessmentPolicy: { studentPassMode: "ALL_SUBJECTS", subjectPassMode: "COMBINED" },
+      passPercent: 33,
+      distinctionMin: 75,
+    });
+    assert.equal(stats.pass, 0);
+    assert.equal(stats.fail, 1);
+    assert.equal(stats.passRate, 0);
+    assert.equal(stats.boardSummary.pass, 0);
+  });
+
+  it("uses average threshold for AVERAGE student pass mode", () => {
+    const stats = computeBoardPassStats({
+      marksByStudent: new Map(),
+      studentAvgs: [
+        { studentId: "s1", avg: 60 },
+        { studentId: "s2", avg: 40 },
+      ],
+      assessmentPolicy: { studentPassMode: "AVERAGE", subjectPassMode: "COMBINED" },
+      passPercent: 50,
+    });
+    assert.equal(stats.pass, 1);
+    assert.equal(stats.fail, 1);
+    assert.equal(stats.passRate, 50);
   });
 });
 

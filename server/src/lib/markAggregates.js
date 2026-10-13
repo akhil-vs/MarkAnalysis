@@ -1,6 +1,9 @@
 /**
  * SQL mark aggregates for cold analytics — avoid hydrating tens of thousands of
- * nested Prisma mark graphs just to compute average / passRate / yearSeries.
+ * nested Prisma mark graphs just to compute average / paper passRate / yearSeries.
+ *
+ * `passRate` here is **paper-level** (combined % ≥ passPercent). Board / student
+ * pass KPIs must use `computeBoardPassStats` / `evaluateStudentPass` instead.
  *
  * Always requires tenantId (raw SQL bypasses Prisma tenant middleware).
  */
@@ -549,4 +552,41 @@ export function statsFields(row) {
     passRate: row?.passRate ?? 0,
     count: row?.count ?? 0,
   };
+}
+
+/**
+ * Per-paper register progress counts (all statuses) for pending-upload desks.
+ * Cheaper than hydrating every mark status row.
+ */
+export async function aggregateRegisterStatusByPaper({ examId, tenantId } = {}) {
+  const tenant = requireTenant(tenantId);
+  if (!examId) return [];
+
+  const rows = await prisma.$queryRawUnsafe(
+    `
+    SELECT
+      m."subjectId" AS "subjectId",
+      st."classSectionId" AS "classSectionId",
+      COUNT(*)::int AS uploaded,
+      COUNT(*) FILTER (WHERE m.status = 'APPROVED')::int AS approved,
+      COUNT(*) FILTER (WHERE m.status = 'SUBMITTED')::int AS submitted,
+      COUNT(*) FILTER (WHERE m.status = 'DRAFT')::int AS draft
+    FROM "Mark" m
+    INNER JOIN "Student" st ON st.id = m."studentId" AND st.status = 'ACTIVE'
+    WHERE m."tenantId" = $1
+      AND m."examId" = $2
+    GROUP BY m."subjectId", st."classSectionId"
+    `,
+    tenant,
+    examId
+  );
+
+  return (rows || []).map((r) => ({
+    subjectId: r.subjectId,
+    classSectionId: r.classSectionId,
+    uploaded: Number(r.uploaded) || 0,
+    approved: Number(r.approved) || 0,
+    submitted: Number(r.submitted) || 0,
+    draft: Number(r.draft) || 0,
+  }));
 }

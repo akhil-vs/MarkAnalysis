@@ -9,16 +9,18 @@ import {
   yearSeries,
 } from "./stats.js";
 import { loadExams } from "./examCatalog.js";
+import { historyExamIdsForDetail, SCHOOL_DETAIL_HISTORY_PRIOR } from "./analyticsMarks.js";
 import { summarizeRegister } from "./registerStatus.js";
 import { gradingHelpers, getGradingConfig } from "./gradingConfig.js";
-import { evaluateStudentPass } from "./assessmentPolicy.js";
+import { computeBoardPassStats } from "./assessmentPolicy.js";
+import { enrollmentKeySet, expectedCountForPaper } from "./electiveEnrollment.js";
 import {
   dualCeilingWarnings,
   examReadiness,
   markBandHistogram,
   outcomeBreakdown,
 } from "./analyticsExtras.js";
-import { buildPendingUploads } from "../routes/analytics.js";
+import { buildPendingUploads } from "./pendingUploads.js";
 import {
   assignmentAnalyticsSelect,
   markAnalyticsSelect,
@@ -213,8 +215,16 @@ async function buildTeacherHome(user, examId) {
 
   const classIds = [...new Set(assignments.map((a) => a.classSectionId))];
   const subjectIds = [...new Set(assignments.map((a) => a.subjectId))];
+  const electiveSubjectIds = [
+    ...new Set(assignments.filter((a) => a.subject?.isElective).map((a) => a.subjectId)),
+  ];
 
-  const [marks, students, allMarks] = await Promise.all([
+  const historyExamIds = [
+    exam.id,
+    ...historyExamIdsForDetail(exams, exam, { maxSameTypePrior: SCHOOL_DETAIL_HISTORY_PRIOR }),
+  ];
+
+  const [marks, students, allMarks, enrollments] = await Promise.all([
     prisma.mark.findMany({
       where: {
         examId: exam.id,
@@ -224,29 +234,45 @@ async function buildTeacherHome(user, examId) {
       select: markAnalyticsSelect,
     }),
     prisma.student.findMany({
-      where: { classSectionId: { in: classIds } },
+      where: { classSectionId: { in: classIds }, status: "ACTIVE" },
       select: { id: true, classSectionId: true, name: true, rollNo: true },
     }),
     prisma.mark.findMany({
       where: {
+        examId: { in: historyExamIds },
         subjectId: { in: subjectIds },
         student: { classSectionId: { in: classIds } },
         status: { in: ["DRAFT", "APPROVED"] },
       },
       select: markHistorySelect,
     }),
+    electiveSubjectIds.length
+      ? prisma.studentSubjectEnrollment.findMany({
+          where: {
+            subjectId: { in: electiveSubjectIds },
+            student: { classSectionId: { in: classIds }, status: "ACTIVE" },
+          },
+          select: { studentId: true, subjectId: true },
+        })
+      : Promise.resolve([]),
   ]);
 
+  const enrollmentKeys = enrollmentKeySet(enrollments);
   const studentsByClass = groupBy(students, (s) => s.classSectionId);
   const marksByPaper = indexMarksByPaper(marks);
 
   const registers = assignments.map((a) => {
-    const expected = studentsByClass.get(a.classSectionId) || [];
+    const roster = studentsByClass.get(a.classSectionId) || [];
+    const expectedCount = expectedCountForPaper(
+      { id: a.subjectId, isElective: Boolean(a.subject?.isElective) },
+      roster,
+      enrollmentKeys
+    );
     const list = marksForPaper(marksByPaper, a.subjectId, a.classSectionId);
     const approved = list.filter((m) => m.status === "APPROVED");
     const forAverage = approved.length ? approved : list;
     const percents = forAverage.map(toPercent).filter((p) => p != null);
-    const progress = summarizeRegister(expected.length, list);
+    const progress = summarizeRegister(expectedCount, list);
     return {
       id: a.id,
       classSectionId: a.classSectionId,
@@ -450,35 +476,20 @@ async function buildPrincipalSummary(examId, schoolSection = "ALL") {
     .map((m) => ({ ...m, exam }));
   const byStudent = groupBy(marks, (m) => m.studentId);
   const studentAvgs = studentTotals(byStudent, { gradeFn });
-  const scored = studentAvgs.filter((s) => s.avg != null);
-  let passCount = 0;
-  let failCount = 0;
-  for (const s of scored) {
-    const passEval = evaluateStudentPass(byStudent.get(s.studentId) || [], assessmentPolicy, {
-      passPercent,
-      average: s.avg,
-    });
-    if (passEval.passed === true) passCount += 1;
-    else if (passEval.passed === false) failCount += 1;
-  }
-  const boardSummary = {
-    distinction: scored.filter((s) => s.avg >= distinctionMin).length,
-    pass: passCount,
-    fail: failCount,
+  const boardStats = computeBoardPassStats({
+    marksByStudent: byStudent,
+    studentAvgs,
+    assessmentPolicy,
     passPercent,
     distinctionMin,
-    subjectPassMode: assessmentPolicy?.subjectPassMode,
-    studentPassMode: assessmentPolicy?.studentPassMode,
-    gradingScheme: assessmentPolicy?.gradingScheme,
-  };
+  });
+  const boardSummary = boardStats.boardSummary;
   const kpis = {
     students: activeStudentRows.length,
     teachers: teacherCount,
     classes: classes.length,
-    schoolAverage: round1(mean(scored.map((s) => s.avg))),
-    passRate: scored.length
-      ? round1((boardSummary.pass / scored.length) * 100)
-      : 0,
+    schoolAverage: round1(mean(studentAvgs.map((s) => s.avg).filter((v) => v != null))),
+    passRate: boardStats.passRate,
   };
 
   const scopedExamMarks =
@@ -530,7 +541,7 @@ async function buildPrincipalSummary(examId, schoolSection = "ALL") {
         distinction: boardSummary.distinction,
         pass: boardSummary.pass,
         fail: boardSummary.fail,
-        students: scored.length,
+        students: boardStats.scored,
       },
       distinction: [],
       fail: [],
