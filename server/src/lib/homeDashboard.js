@@ -31,9 +31,18 @@ import {
   marksForPaper,
   slimPendingUploads,
   subjectCorrelations,
+  subjectCorrelationsFromPercents,
   subjectDifficulty,
+  subjectDifficultyFromAgg,
   teacherSubjectAverages,
+  teacherSubjectAveragesFromAgg,
 } from "./dashboardAgg.js";
+import {
+  aggregateByPaper,
+  aggregateBySubjectId,
+  aggregateRegisterStatusByPaper,
+  loadStudentSubjectPercents,
+} from "./markAggregates.js";
 import { cachedTenantLoad } from "./tenantCache.js";
 import {
   classNameInSchoolSection,
@@ -333,57 +342,79 @@ async function buildCoordinatorHome(examId, schoolSection = "ALL") {
     };
   }
 
-  const [marksRaw, subjectsRaw, classesRaw, assignmentsRaw, pending, pendingUploadsRaw] =
-    await Promise.all([
-      prisma.mark.findMany({
-        where: { examId: exam.id, status: "APPROVED" },
-        select: markAnalyticsSelect,
-      }),
-      prisma.subject.findMany({
-        orderBy: { name: "asc" },
-        select: subjectCoreSelect,
-      }),
-      prisma.classSection.findMany({
-        orderBy: [{ className: "asc" }, { section: "asc" }],
-        select: { id: true, className: true, section: true },
-      }),
-      prisma.teacherAssignment.findMany({
-        select: assignmentAnalyticsSelect,
-      }),
-      prisma.mark.count({ where: { examId: exam.id, status: "DRAFT" } }),
-      buildPendingUploads(exam),
-    ]);
+  // SQL aggregates + slim corr rows — avoid nested APPROVED mark hydration (~300ms+).
+  const [
+    subjectAggs,
+    paperAggs,
+    corrRows,
+    registerStatus,
+    subjectsRaw,
+    classesRaw,
+    assignmentsRaw,
+    pending,
+    students,
+  ] = await Promise.all([
+    aggregateBySubjectId({ examIds: [exam.id] }),
+    aggregateByPaper({ examIds: [exam.id] }),
+    loadStudentSubjectPercents({ examId: exam.id }),
+    aggregateRegisterStatusByPaper({ examId: exam.id }),
+    prisma.subject.findMany({
+      orderBy: { name: "asc" },
+      select: subjectCoreSelect,
+    }),
+    prisma.classSection.findMany({
+      orderBy: [{ className: "asc" }, { section: "asc" }],
+      select: { id: true, className: true, section: true },
+    }),
+    prisma.teacherAssignment.findMany({
+      select: assignmentAnalyticsSelect,
+    }),
+    prisma.mark.count({ where: { examId: exam.id, status: "DRAFT" } }),
+    prisma.student.findMany({
+      where: { status: "ACTIVE" },
+      select: { id: true, classSectionId: true },
+    }),
+  ]);
 
   const sectionMeta = schoolSectionPayload(
     section,
     classesRaw.map((c) => c.className)
   );
   const classes = filterBySchoolSection(classesRaw, section, (c) => c.className);
+  const classIds = new Set(classes.map((c) => c.id));
   const classIdToName = new Map(classesRaw.map((c) => [c.id, c.className]));
-  const marks = marksRaw.filter((m) => markInSchoolSection(m, section));
   const subjects = filterBySchoolSection(subjectsRaw, section, (s) => s.className);
   const assignments = filterBySchoolSection(
     assignmentsRaw,
     section,
     (a) => a.classSection?.className
   );
+  const subjectIdSet = new Set(subjects.map((s) => s.id));
+  const subjectAggsScoped = subjectAggs.filter((r) => subjectIdSet.has(r.subjectId));
+  const paperAggsScoped =
+    section === "ALL" ? paperAggs : paperAggs.filter((r) => classIds.has(r.classSectionId));
+  const corrScoped =
+    section === "ALL" ? corrRows : corrRows.filter((r) => classIds.has(r.classSectionId));
+  const subjectNames = [...new Set(corrScoped.map((r) => r.subjectName))];
+
+  const pendingUploadsRaw = await buildPendingUploads(exam, {
+    assignments: assignmentsRaw,
+    students,
+    registerStatus,
+  });
   const pendingUploads = filterPendingUploadsBySchoolSection(
     pendingUploadsRaw,
     section,
     classIdToName
   );
 
-  const marksBySubject = indexMarksBySubject(marks);
-  const marksByPaper = indexMarksByPaper(marks);
-  const subjectNames = [...new Set(marks.map((m) => m.subject?.name).filter(Boolean))];
-
   return {
     exam,
     exams,
     ...sectionMeta,
-    difficulty: subjectDifficulty(subjects, marksBySubject),
-    teacherBySubject: teacherSubjectAverages(assignments, marksByPaper),
-    correlations: subjectCorrelations(marks, subjectNames),
+    difficulty: subjectDifficultyFromAgg(subjects, subjectAggsScoped),
+    teacherBySubject: teacherSubjectAveragesFromAgg(assignments, paperAggsScoped),
+    correlations: subjectCorrelationsFromPercents(corrScoped, subjectNames),
     classes,
     pendingDrafts: pending,
     pendingUploads: slimPendingUploads(pendingUploads),

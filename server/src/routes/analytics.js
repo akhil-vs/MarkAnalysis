@@ -23,7 +23,7 @@ import {
 } from "../lib/stats.js";
 import { registerAnalysisReports } from "./analyticsReports.js";
 import { registerAnalyticsInsights, enrichMarksInsights, studentInsightExtras } from "./analyticsInsights.js";
-import { summarizeRegister } from "../lib/registerStatus.js";
+import { summarizeRegister, summarizeRegisterCounts } from "../lib/registerStatus.js";
 import { collectStudentLineageIds } from "../lib/studentScope.js";
 import { getGradingConfig, gradingHelpers } from "../lib/gradingConfig.js";
 import { ensurePendingSchema } from "../lib/ensureSchema.js";
@@ -54,6 +54,7 @@ import {
   aggregateByPaper,
   aggregateByStudent,
   aggregateBySubjectName,
+  aggregateRegisterStatusByPaper,
   statsFields,
   yearSeriesFromAgg,
 } from "../lib/markAggregates.js";
@@ -1120,41 +1121,75 @@ export async function buildPendingUploads(exam, prefetched = null) {
 }
 
 async function buildPendingUploadsUncached(exam, prefetched = null) {
-  const [assignments, students, marks] = prefetched
-    ? [prefetched.assignments, prefetched.students, prefetched.marks]
-    : await Promise.all([
-        prisma.teacherAssignment.findMany({
-          select: {
-            userId: true,
-            classSectionId: true,
-            subjectId: true,
-            user: { select: { id: true, name: true, email: true } },
-            classSection: { select: { id: true, className: true, section: true } },
-            subject: { select: { id: true, name: true } },
-          },
-        }),
-        prisma.student.findMany({ where: { status: "ACTIVE" }, select: { id: true, classSectionId: true } }),
-        prisma.mark.findMany({
-          where: { examId: exam.id },
-          select: { studentId: true, subjectId: true, status: true },
-        }),
-      ]);
-  const studentsByClass = groupBy(students, (s) => s.classSectionId);
-  const studentClass = new Map(students.map((s) => [s.id, s.classSectionId]));
-  const marksBySubjectClass = new Map();
-  for (const mark of marks) {
-    const classSectionId = studentClass.get(mark.studentId);
-    if (!classSectionId) continue;
-    const key = `${mark.subjectId}|${classSectionId}`;
-    if (!marksBySubjectClass.has(key)) marksBySubjectClass.set(key, []);
-    marksBySubjectClass.get(key).push(mark);
+  const hasPrefetch = Boolean(prefetched?.assignments && prefetched?.students);
+  const hasRegisterStatus = Array.isArray(prefetched?.registerStatus);
+  const hasMarkRows = Array.isArray(prefetched?.marks);
+
+  let assignments;
+  let students;
+  let registerByPaper = null;
+  let marksBySubjectClass = null;
+
+  if (hasPrefetch && (hasRegisterStatus || hasMarkRows)) {
+    assignments = prefetched.assignments;
+    students = prefetched.students;
+    if (hasRegisterStatus) {
+      registerByPaper = new Map(
+        prefetched.registerStatus.map((r) => [`${r.subjectId}|${r.classSectionId}`, r])
+      );
+    } else {
+      marksBySubjectClass = new Map();
+      const studentClass = new Map(students.map((s) => [s.id, s.classSectionId]));
+      for (const mark of prefetched.marks) {
+        const classSectionId = studentClass.get(mark.studentId);
+        if (!classSectionId) continue;
+        const key = `${mark.subjectId}|${classSectionId}`;
+        if (!marksBySubjectClass.has(key)) marksBySubjectClass.set(key, []);
+        marksBySubjectClass.get(key).push(mark);
+      }
+    }
+  } else if (hasPrefetch && !hasRegisterStatus && !hasMarkRows) {
+    // Assignments/students provided — still need register progress via SQL.
+    assignments = prefetched.assignments;
+    students = prefetched.students;
+    const registerStatus = await aggregateRegisterStatusByPaper({ examId: exam.id });
+    registerByPaper = new Map(
+      registerStatus.map((r) => [`${r.subjectId}|${r.classSectionId}`, r])
+    );
+  } else {
+    const [loadedAssignments, loadedStudents, registerStatus] = await Promise.all([
+      prisma.teacherAssignment.findMany({
+        select: {
+          userId: true,
+          classSectionId: true,
+          subjectId: true,
+          user: { select: { id: true, name: true, email: true } },
+          classSection: { select: { id: true, className: true, section: true } },
+          subject: { select: { id: true, name: true } },
+        },
+      }),
+      prisma.student.findMany({
+        where: { status: "ACTIVE" },
+        select: { id: true, classSectionId: true },
+      }),
+      aggregateRegisterStatusByPaper({ examId: exam.id }),
+    ]);
+    assignments = loadedAssignments;
+    students = loadedStudents;
+    registerByPaper = new Map(
+      registerStatus.map((r) => [`${r.subjectId}|${r.classSectionId}`, r])
+    );
   }
+
+  const studentsByClass = groupBy(students, (s) => s.classSectionId);
   const byTeacher = new Map();
 
   for (const assignment of assignments) {
     const expected = studentsByClass.get(assignment.classSectionId) || [];
-    const registerMarks = marksBySubjectClass.get(`${assignment.subjectId}|${assignment.classSectionId}`) || [];
-    const progress = summarizeRegister(expected.length, registerMarks);
+    const key = `${assignment.subjectId}|${assignment.classSectionId}`;
+    const progress = registerByPaper
+      ? summarizeRegisterCounts(expected.length, registerByPaper.get(key) || {})
+      : summarizeRegister(expected.length, marksBySubjectClass?.get(key) || []);
     if (!byTeacher.has(assignment.userId)) {
       byTeacher.set(assignment.userId, {
         teacherId: assignment.userId,

@@ -550,3 +550,87 @@ export function statsFields(row) {
     count: row?.count ?? 0,
   };
 }
+
+/**
+ * Slim student × subject percents for correlation matrices (no nested Prisma graphs).
+ * @returns {Promise<Array<{studentId, subjectName, pct}>>}
+ */
+export async function loadStudentSubjectPercents({
+  examId,
+  classSectionIds,
+  tenantId,
+} = {}) {
+  const tenant = requireTenant(tenantId);
+  if (!examId) return [];
+
+  const params = [tenant, examId];
+  let classFilter = "";
+  if (classSectionIds?.length) {
+    params.push(classSectionIds);
+    classFilter = `AND st."classSectionId" = ANY($${params.length}::text[])`;
+  }
+
+  const rows = await prisma.$queryRawUnsafe(
+    `
+    SELECT
+      m."studentId" AS "studentId",
+      st."classSectionId" AS "classSectionId",
+      s.name AS "subjectName",
+      (${PCT_SQL}) AS pct
+    FROM "Mark" m
+    INNER JOIN "Student" st ON st.id = m."studentId" AND st.status = 'ACTIVE'
+    INNER JOIN "Subject" s ON s.id = m."subjectId"
+    WHERE m."tenantId" = $1
+      AND m.status = 'APPROVED'
+      AND m."examId" = $2
+      ${classFilter}
+    `,
+    ...params
+  );
+
+  return (rows || [])
+    .map((r) => ({
+      studentId: r.studentId,
+      classSectionId: r.classSectionId,
+      subjectName: r.subjectName,
+      pct: num(r.pct),
+    }))
+    .filter((r) => r.pct != null);
+}
+
+/**
+ * Per-paper register progress counts (all statuses) for pending-upload desks.
+ * Much cheaper than hydrating every mark status row.
+ */
+export async function aggregateRegisterStatusByPaper({ examId, tenantId } = {}) {
+  const tenant = requireTenant(tenantId);
+  if (!examId) return [];
+
+  const rows = await prisma.$queryRawUnsafe(
+    `
+    SELECT
+      m."subjectId" AS "subjectId",
+      st."classSectionId" AS "classSectionId",
+      COUNT(*)::int AS uploaded,
+      COUNT(*) FILTER (WHERE m.status = 'APPROVED')::int AS approved,
+      COUNT(*) FILTER (WHERE m.status = 'SUBMITTED')::int AS submitted,
+      COUNT(*) FILTER (WHERE m.status = 'DRAFT')::int AS draft
+    FROM "Mark" m
+    INNER JOIN "Student" st ON st.id = m."studentId" AND st.status = 'ACTIVE'
+    WHERE m."tenantId" = $1
+      AND m."examId" = $2
+    GROUP BY m."subjectId", st."classSectionId"
+    `,
+    tenant,
+    examId
+  );
+
+  return (rows || []).map((r) => ({
+    subjectId: r.subjectId,
+    classSectionId: r.classSectionId,
+    uploaded: Number(r.uploaded) || 0,
+    approved: Number(r.approved) || 0,
+    submitted: Number(r.submitted) || 0,
+    draft: Number(r.draft) || 0,
+  }));
+}
