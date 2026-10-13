@@ -6,6 +6,7 @@ import { BarTrack, EmptyNote } from "../components/DashboardKit.jsx";
 import { LoadError } from "../components/LoadError.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { LoadingState } from "../components/Spinner.jsx";
+import { apiErrorMessage } from "../lib/apiErrorMessage.js";
 import { NAV_TITLES, paths } from "../lib/nav.js";
 
 export default function AnalysisTeachers() {
@@ -20,7 +21,7 @@ export default function AnalysisTeachers() {
       setData(res);
       if (res.exam) setExamId(res.exam.id);
     } catch (err) {
-      setError(err.message || "Could not load teachers");
+      setError(apiErrorMessage(err, "Could not load teachers"));
     }
   }
 
