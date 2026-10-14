@@ -203,14 +203,18 @@ async function main() {
   const suites = [];
   const startedAt = new Date().toISOString();
 
-  // 1) Server unit tests (DB-free — matches CI; DATABASE_URL would open Prisma
-  // pools in prismaCompat.*.test.js and leave the Node test runner hanging).
+  // 1) Server unit tests (DB-free — matches CI).
+  // Force DATABASE_URL="" so dotenv/config cannot reload it from server/.env;
+  // otherwise prismaCompat.*.test.js opens pools and hangs the runner.
   console.log("\n═══ 1/5 Server unit tests ═══\n");
   {
     const t0 = Date.now();
-    const unitEnv = { ...env };
-    delete unitEnv.DATABASE_URL;
-    const result = await run("npm", ["test"], { cwd: serverDir, env: unitEnv });
+    const unitEnv = { ...env, DATABASE_URL: "" };
+    const result = await run(
+      process.execPath,
+      ["--test", "--test-force-exit", "src/lib/**/*.test.js"],
+      { cwd: serverDir, env: unitEnv }
+    );
     const totals = parseNodeTestTotals(result.stdout + "\n" + result.stderr);
     suites.push({
       id: "server-unit",
@@ -227,8 +231,7 @@ async function main() {
   console.log("\n═══ 2/5 Client unit tests ═══\n");
   {
     const t0 = Date.now();
-    const unitEnv = { ...env };
-    delete unitEnv.DATABASE_URL;
+    const unitEnv = { ...env, DATABASE_URL: "" };
     const result = await run("npm", ["test"], { cwd: clientDir, env: unitEnv });
     const totals = parseNodeTestTotals(result.stdout + "\n" + result.stderr);
     suites.push({
