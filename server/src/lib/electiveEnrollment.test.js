@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import {
   electiveEnrollmentMap,
   enrollmentKeySet,
+  expectedCountForPaper,
   studentTakesSubject,
   studentsExpectedForSubject,
 } from "./electiveEnrollment.js";
@@ -32,6 +33,8 @@ describe("electiveEnrollment", () => {
       studentsExpectedForSubject(elective, students, keys).map((s) => s.id),
       ["s1", "s3"]
     );
+    assert.equal(expectedCountForPaper(elective, students, keys), 2);
+    assert.equal(expectedCountForPaper(core, students, keys), 3);
   });
 
   it("builds elective enrollment map keyed by subject", () => {

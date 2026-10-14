@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { __test, bootstrapAuthSchema, bootstrapSchema } from "./migrateOnStart.js";
+import {
+  __test,
+  bootstrapAuthSchema,
+  bootstrapSchema,
+  getLastSchemaBootstrap,
+} from "./migrateOnStart.js";
 
 describe("migrateOnStart", () => {
   it("resolves prisma directory under server/prisma", () => {
@@ -10,5 +15,7 @@ describe("migrateOnStart", () => {
   it("exports bootstrapSchema and bootstrapAuthSchema", () => {
     assert.equal(typeof bootstrapSchema, "function");
     assert.equal(typeof bootstrapAuthSchema, "function");
+    assert.equal(typeof getLastSchemaBootstrap, "function");
+    assert.equal(getLastSchemaBootstrap(), null);
   });
 });

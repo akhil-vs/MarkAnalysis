@@ -1,6 +1,9 @@
 /**
  * SQL mark aggregates for cold analytics — avoid hydrating tens of thousands of
- * nested Prisma mark graphs just to compute average / passRate / yearSeries.
+ * nested Prisma mark graphs just to compute average / paper passRate / yearSeries.
+ *
+ * `passRate` here is **paper-level** (combined % ≥ passPercent). Board / student
+ * pass KPIs must use `computeBoardPassStats` / `evaluateStudentPass` instead.
  *
  * Always requires tenantId (raw SQL bypasses Prisma tenant middleware).
  */
@@ -549,4 +552,230 @@ export function statsFields(row) {
     passRate: row?.passRate ?? 0,
     count: row?.count ?? 0,
   };
+}
+
+/**
+ * Slim student × subject percents for correlation matrices (no nested Prisma graphs).
+ * @returns {Promise<Array<{studentId, classSectionId, subjectName, pct}>>}
+ */
+export async function loadStudentSubjectPercents({
+  examId,
+  classSectionIds,
+  tenantId,
+} = {}) {
+  const tenant = requireTenant(tenantId);
+  if (!examId) return [];
+
+  const params = [tenant, examId];
+  let classFilter = "";
+  if (classSectionIds?.length) {
+    params.push(classSectionIds);
+    classFilter = `AND st."classSectionId" = ANY($${params.length}::text[])`;
+  }
+
+  const rows = await prisma.$queryRawUnsafe(
+    `
+    SELECT
+      m."studentId" AS "studentId",
+      st."classSectionId" AS "classSectionId",
+      s.name AS "subjectName",
+      (${PCT_SQL}) AS pct
+    FROM "Mark" m
+    INNER JOIN "Student" st ON st.id = m."studentId" AND st.status = 'ACTIVE'
+    INNER JOIN "Subject" s ON s.id = m."subjectId"
+    WHERE m."tenantId" = $1
+      AND m.status = 'APPROVED'
+      AND m."examId" = $2
+      ${classFilter}
+    `,
+    ...params
+  );
+
+  return (rows || [])
+    .map((r) => ({
+      studentId: r.studentId,
+      classSectionId: r.classSectionId,
+      subjectName: r.subjectName,
+      pct: num(r.pct),
+    }))
+    .filter((r) => r.pct != null);
+}
+
+/**
+ * Slim APPROVED mark rows shaped for computeBoardPassStats / outcomeBreakdown /
+ * markBandHistogram — flat SQL, no nested Prisma mark graphs.
+ */
+export async function loadSlimApprovedMarks({
+  examId,
+  classSectionIds,
+  tenantId,
+} = {}) {
+  const tenant = requireTenant(tenantId);
+  if (!examId) return [];
+
+  const params = [tenant, examId];
+  let classFilter = "";
+  if (classSectionIds?.length) {
+    params.push(classSectionIds);
+    classFilter = `AND st."classSectionId" = ANY($${params.length}::text[])`;
+  }
+
+  const rows = await prisma.$queryRawUnsafe(
+    `
+    SELECT
+      m."studentId" AS "studentId",
+      m."subjectId" AS "subjectId",
+      m."marksObtained" AS "marksObtained",
+      m."practicalMarks" AS "practicalMarks",
+      COALESCE(m.outcome::text, 'SCORED') AS outcome,
+      st."classSectionId" AS "classSectionId",
+      cs."className" AS "className",
+      cs.section AS section,
+      st.name AS "studentName",
+      st."rollNo" AS "rollNo",
+      s.name AS "subjectName",
+      s."maxMarks" AS "maxMarks",
+      s."practicalMaxMarks" AS "practicalMaxMarks"
+    FROM "Mark" m
+    INNER JOIN "Student" st ON st.id = m."studentId" AND st.status = 'ACTIVE'
+    INNER JOIN "ClassSection" cs ON cs.id = st."classSectionId"
+    INNER JOIN "Subject" s ON s.id = m."subjectId"
+    WHERE m."tenantId" = $1
+      AND m.status = 'APPROVED'
+      AND m."examId" = $2
+      ${classFilter}
+    `,
+    ...params
+  );
+
+  return (rows || []).map((r) => ({
+    studentId: r.studentId,
+    subjectId: r.subjectId,
+    marksObtained: r.marksObtained != null ? Number(r.marksObtained) : null,
+    practicalMarks: r.practicalMarks != null ? Number(r.practicalMarks) : null,
+    outcome: r.outcome || "SCORED",
+    status: "APPROVED",
+    student: {
+      id: r.studentId,
+      name: r.studentName,
+      rollNo: r.rollNo,
+      status: "ACTIVE",
+      classSectionId: r.classSectionId,
+      classSection: { className: r.className, section: r.section },
+    },
+    subject: {
+      id: r.subjectId,
+      name: r.subjectName,
+      maxMarks: r.maxMarks != null ? Number(r.maxMarks) : null,
+      practicalMaxMarks: r.practicalMaxMarks != null ? Number(r.practicalMaxMarks) : null,
+    },
+  }));
+}
+
+/**
+ * Per-paper register progress counts (all statuses) for pending-upload desks.
+ * Cheaper than hydrating every mark status row.
+ */
+export async function aggregateRegisterStatusByPaper({
+  examId,
+  classSectionIds,
+  subjectIds,
+  tenantId,
+} = {}) {
+  const tenant = requireTenant(tenantId);
+  if (!examId) return [];
+
+  const params = [tenant, examId];
+  const filters = [];
+  if (classSectionIds?.length) {
+    params.push(classSectionIds);
+    filters.push(`AND st."classSectionId" = ANY($${params.length}::text[])`);
+  }
+  if (subjectIds?.length) {
+    params.push(subjectIds);
+    filters.push(`AND m."subjectId" = ANY($${params.length}::text[])`);
+  }
+
+  const rows = await prisma.$queryRawUnsafe(
+    `
+    SELECT
+      m."subjectId" AS "subjectId",
+      st."classSectionId" AS "classSectionId",
+      COUNT(*)::int AS uploaded,
+      COUNT(*) FILTER (WHERE m.status = 'APPROVED')::int AS approved,
+      COUNT(*) FILTER (WHERE m.status = 'SUBMITTED')::int AS submitted,
+      COUNT(*) FILTER (WHERE m.status = 'DRAFT')::int AS draft
+    FROM "Mark" m
+    INNER JOIN "Student" st ON st.id = m."studentId" AND st.status = 'ACTIVE'
+    WHERE m."tenantId" = $1
+      AND m."examId" = $2
+      ${filters.join("\n")}
+    GROUP BY m."subjectId", st."classSectionId"
+    `,
+    ...params
+  );
+
+  return (rows || []).map((r) => ({
+    subjectId: r.subjectId,
+    classSectionId: r.classSectionId,
+    uploaded: Number(r.uploaded) || 0,
+    approved: Number(r.approved) || 0,
+    submitted: Number(r.submitted) || 0,
+    draft: Number(r.draft) || 0,
+  }));
+}
+
+/**
+ * Same as aggregateRegisterStatusByPaper but also grouped by enteredById
+ * (teacher ownership on the registers desk).
+ */
+export async function aggregateRegisterStatusByPaperTeacher({
+  examId,
+  classSectionIds,
+  subjectIds,
+  tenantId,
+} = {}) {
+  const tenant = requireTenant(tenantId);
+  if (!examId) return [];
+
+  const params = [tenant, examId];
+  const filters = [];
+  if (classSectionIds?.length) {
+    params.push(classSectionIds);
+    filters.push(`AND st."classSectionId" = ANY($${params.length}::text[])`);
+  }
+  if (subjectIds?.length) {
+    params.push(subjectIds);
+    filters.push(`AND m."subjectId" = ANY($${params.length}::text[])`);
+  }
+
+  const rows = await prisma.$queryRawUnsafe(
+    `
+    SELECT
+      m."subjectId" AS "subjectId",
+      st."classSectionId" AS "classSectionId",
+      m."enteredById" AS "enteredById",
+      COUNT(*)::int AS uploaded,
+      COUNT(*) FILTER (WHERE m.status = 'APPROVED')::int AS approved,
+      COUNT(*) FILTER (WHERE m.status = 'SUBMITTED')::int AS submitted,
+      COUNT(*) FILTER (WHERE m.status = 'DRAFT')::int AS draft
+    FROM "Mark" m
+    INNER JOIN "Student" st ON st.id = m."studentId" AND st.status = 'ACTIVE'
+    WHERE m."tenantId" = $1
+      AND m."examId" = $2
+      ${filters.join("\n")}
+    GROUP BY m."subjectId", st."classSectionId", m."enteredById"
+    `,
+    ...params
+  );
+
+  return (rows || []).map((r) => ({
+    subjectId: r.subjectId,
+    classSectionId: r.classSectionId,
+    enteredById: r.enteredById,
+    uploaded: Number(r.uploaded) || 0,
+    approved: Number(r.approved) || 0,
+    submitted: Number(r.submitted) || 0,
+    draft: Number(r.draft) || 0,
+  }));
 }

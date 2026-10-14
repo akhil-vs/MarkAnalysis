@@ -26,14 +26,17 @@ import { registerAnalyticsInsights, enrichMarksInsights, studentInsightExtras } 
 import { summarizeRegister } from "../lib/registerStatus.js";
 import { collectStudentLineageIds } from "../lib/studentScope.js";
 import { getGradingConfig, gradingHelpers } from "../lib/gradingConfig.js";
+import { computeBoardPassStats } from "../lib/assessmentPolicy.js";
+import { buildPendingUploads } from "../lib/pendingUploads.js";
 import { ensurePendingSchema } from "../lib/ensureSchema.js";
 import { loadExams, listExamsBasic } from "../lib/examCatalog.js";
 import {
   dualCeilingWarnings,
-  examReadiness,
+  examReadinessFromRegisterCounts,
   passFailMatrix,
   weightedAnnualForStudent,
 } from "../lib/analyticsExtras.js";
+import { expectedCountForPaper, enrollmentKeySet } from "../lib/electiveEnrollment.js";
 import {
   markHistorySelect,
   studentListOmit,
@@ -42,7 +45,6 @@ import {
 import { buildHomeDashboardCached } from "../lib/homeDashboard.js";
 import {
   ANALYTICS_MARK_SELECT,
-  ANALYTICS_STATUS_SELECT,
   SCHOOL_DETAIL_HISTORY_PRIOR,
   historyExamIdsForDetail,
   loadApprovedMarksForExams,
@@ -54,6 +56,8 @@ import {
   aggregateByPaper,
   aggregateByStudent,
   aggregateBySubjectName,
+  aggregateRegisterStatusByPaper,
+  loadSlimApprovedMarks,
   statsFields,
   yearSeriesFromAgg,
 } from "../lib/markAggregates.js";
@@ -230,31 +234,38 @@ async function buildSchoolAnalyticsCached({
       : [];
     const trendExamIds = wantDetail ? [exam.id, ...otherExamIds] : [exam.id];
 
-    // Raw mark graphs only when summary/lists need them. Principal SPA detail
-    // path is detail+nolists → pure SQL aggregates (~10–40ms vs ~300ms hydrate).
-    const needRawApprovedMarks = wantSummary || includeLists;
-    const needStatusScan = wantSummary;
+    // Nested Prisma mark graphs only when distinction/fail *lists* are requested.
+    // Summary KPIs / bands use slim SQL rows; detail+nolists stays pure aggregates.
+    const needListHydrate = includeLists && wantSummary;
+    const needSlimApproved = wantSummary || includeLists;
+    const needRegisterStatus = wantSummary;
 
     const sharedQueries = [
-      needRawApprovedMarks
+      needListHydrate
         ? loadApprovedMarksForExams({
             examIds: [exam.id],
             select: ANALYTICS_MARK_SELECT,
             activeStudentsOnly: true,
           })
-        : Promise.resolve([]),
-      needStatusScan
-        ? prisma.mark.findMany({
-            where: { examId: exam.id },
-            select: ANALYTICS_STATUS_SELECT,
-          })
+        : needSlimApproved
+          ? loadSlimApprovedMarks({ examId: exam.id })
+          : Promise.resolve([]),
+      needRegisterStatus
+        ? aggregateRegisterStatusByPaper({ examId: exam.id })
         : Promise.resolve([]),
       prisma.classSection.findMany({
         orderBy: [{ className: "asc" }, { section: "asc" }],
         include: { _count: { select: { students: { where: { status: "ACTIVE" } } } } },
       }),
       prisma.subject.findMany({
-        select: { id: true, name: true, className: true, maxMarks: true, practicalMaxMarks: true },
+        select: {
+          id: true,
+          name: true,
+          className: true,
+          maxMarks: true,
+          practicalMaxMarks: true,
+          isElective: true,
+        },
       }),
       prisma.teacherAssignment.findMany({
         select: {
@@ -262,7 +273,9 @@ async function buildSchoolAnalyticsCached({
           classSectionId: true,
           subjectId: true,
           user: { select: { id: true, name: true, email: true } },
-          subject: { select: { id: true, name: true, className: true, maxMarks: true } },
+          subject: {
+            select: { id: true, name: true, className: true, maxMarks: true, isElective: true },
+          },
           classSection: { select: { id: true, className: true, section: true } },
         },
       }),
@@ -277,7 +290,7 @@ async function buildSchoolAnalyticsCached({
 
     const [
       approvedMarksRaw,
-      statusMarksRaw,
+      registerStatusRaw,
       classesRaw,
       subjectsRaw,
       assignmentsRaw,
@@ -316,12 +329,15 @@ async function buildSchoolAnalyticsCached({
         schoolSection
       );
     const approvedScoped = approvedMarksRaw.filter(inSection);
-    const statusMarks = needStatusScan ? statusMarksRaw.filter(inSection) : [];
     const marks = approvedScoped.map((m) => ({ ...m, exam }));
-    const examMarks = needStatusScan ? statusMarks : approvedScoped;
+    const registerStatusScoped = needRegisterStatus
+      ? registerStatusRaw.filter(
+          (r) => schoolSection === "ALL" || classIds.has(r.classSectionId)
+        )
+      : [];
 
     // SQL aggregates for detail KPIs/charts (and for KPIs when raw marks skipped).
-    const needSqlDetail = wantDetail || !needRawApprovedMarks;
+    const needSqlDetail = wantDetail || !needSlimApproved;
     const [sectionAggs, classAggs, subjectAggs, examAggs, paperAggs, studentAggs] = needSqlDetail
       ? await Promise.all([
           wantDetail
@@ -368,8 +384,11 @@ async function buildSchoolAnalyticsCached({
     const subjectNameSet = new Set(subjects.map((s) => s.name));
     const subjectAggsScoped = subjectAggs.filter((r) => subjectNameSet.has(r.subjectName));
 
-    const studentAvgs = needRawApprovedMarks
-      ? studentTotals(groupBy(marks, (m) => m.studentId), { gradeFn })
+    const marksByStudent = needSlimApproved
+      ? groupBy(marks, (m) => m.studentId)
+      : new Map();
+    const studentAvgs = needSlimApproved
+      ? studentTotals(marksByStudent, { gradeFn })
       : studentAggs.map((s) => ({
           studentId: s.studentId,
           student: {
@@ -384,36 +403,60 @@ async function buildSchoolAnalyticsCached({
           count: s.count,
         }));
 
+    // Board KPIs always use assessmentPolicy kernel (same as homeDashboard summary).
+    const boardStats = computeBoardPassStats({
+      marksByStudent,
+      studentAvgs,
+      assessmentPolicy: grading.assessmentPolicy,
+      passPercent,
+      distinctionMin,
+    });
+
     const kpis = {
       students: activeStudents,
       teachers: teacherCount,
       classes: classes.length,
       schoolAverage: round1(mean(studentAvgs.map((s) => s.avg).filter((v) => v != null))),
-      passRate: studentAvgs.length
-        ? round1((studentAvgs.filter((s) => (s.avg ?? 0) >= passPercent).length / studentAvgs.length) * 100)
-        : 0,
+      passRate: boardStats.passRate,
     };
 
     const payload = { ...sectionMeta };
 
     if (wantSummary) {
+      const registerByPaper = new Map(
+        registerStatusScoped.map((r) => [`${r.subjectId}|${r.classSectionId}`, r])
+      );
       const pendingUploads = await buildPendingUploads(exam, {
         assignments,
         students: activeStudentRows,
-        marks: examMarks.map((m) => ({
-          studentId: m.studentId,
-          subjectId: m.subjectId,
-          status: m.status,
-        })),
+        registerStatus: registerStatusScoped,
       });
       const extras = await enrichMarksInsights(marks, grading, { includeLists });
       const studentsByClass = groupBy(activeStudentRows, (s) => s.classSectionId);
-      const readiness = examReadiness({
+      const subjectById = new Map(subjects.map((s) => [s.id, s]));
+      const electiveIds = subjects.filter((s) => s.isElective).map((s) => s.id);
+      const enrollments = electiveIds.length
+        ? await prisma.studentSubjectEnrollment.findMany({
+            where: {
+              subjectId: { in: electiveIds },
+              studentId: { in: activeStudentRows.map((s) => s.id) },
+            },
+            select: { studentId: true, subjectId: true },
+          })
+        : [];
+      const enrollmentKeys = enrollmentKeySet(enrollments);
+      const readiness = examReadinessFromRegisterCounts({
         exam,
         assignments,
-        marks: examMarks,
         studentsByClass,
+        registerByPaper,
         accessRequests,
+        expectedCountFn: (a, roster) =>
+          expectedCountForPaper(
+            subjectById.get(a.subjectId) || a.subject || { id: a.subjectId, isElective: false },
+            roster,
+            enrollmentKeys
+          ),
       });
       Object.assign(payload, {
         exam,
@@ -428,9 +471,11 @@ async function buildSchoolAnalyticsCached({
         },
         dualCeiling: dualCeilingWarnings(subjects, exam.consolidationMaxMarks),
         boardSummary: {
-          distinction: extras.outcomeLists.counts.distinction,
-          pass: extras.outcomeLists.counts.pass,
-          fail: extras.outcomeLists.counts.fail,
+          ...boardStats.boardSummary,
+          // Keep list counts aligned with board KPIs (not a second definition).
+          distinction: boardStats.distinction,
+          pass: boardStats.pass,
+          fail: boardStats.fail,
           passPercent,
           distinctionMin,
         },
@@ -1107,101 +1152,8 @@ analyticsRouter.get("/awaiting-approvals", async (req, res) => {
   res.json({ count: items.length, items });
 });
 
-export async function buildPendingUploads(exam, prefetched = null) {
-  const cacheKey = `pending-uploads:${exam.id}`;
-  if (!prefetched) {
-    return cachedTenantLoad(
-      cacheKey,
-      () => buildPendingUploadsUncached(exam, null),
-      { ttlMs: 45_000 }
-    );
-  }
-  return buildPendingUploadsUncached(exam, prefetched);
-}
-
-async function buildPendingUploadsUncached(exam, prefetched = null) {
-  const [assignments, students, marks] = prefetched
-    ? [prefetched.assignments, prefetched.students, prefetched.marks]
-    : await Promise.all([
-        prisma.teacherAssignment.findMany({
-          select: {
-            userId: true,
-            classSectionId: true,
-            subjectId: true,
-            user: { select: { id: true, name: true, email: true } },
-            classSection: { select: { id: true, className: true, section: true } },
-            subject: { select: { id: true, name: true } },
-          },
-        }),
-        prisma.student.findMany({ where: { status: "ACTIVE" }, select: { id: true, classSectionId: true } }),
-        prisma.mark.findMany({
-          where: { examId: exam.id },
-          select: { studentId: true, subjectId: true, status: true },
-        }),
-      ]);
-  const studentsByClass = groupBy(students, (s) => s.classSectionId);
-  const studentClass = new Map(students.map((s) => [s.id, s.classSectionId]));
-  const marksBySubjectClass = new Map();
-  for (const mark of marks) {
-    const classSectionId = studentClass.get(mark.studentId);
-    if (!classSectionId) continue;
-    const key = `${mark.subjectId}|${classSectionId}`;
-    if (!marksBySubjectClass.has(key)) marksBySubjectClass.set(key, []);
-    marksBySubjectClass.get(key).push(mark);
-  }
-  const byTeacher = new Map();
-
-  for (const assignment of assignments) {
-    const expected = studentsByClass.get(assignment.classSectionId) || [];
-    const registerMarks = marksBySubjectClass.get(`${assignment.subjectId}|${assignment.classSectionId}`) || [];
-    const progress = summarizeRegister(expected.length, registerMarks);
-    if (!byTeacher.has(assignment.userId)) {
-      byTeacher.set(assignment.userId, {
-        teacherId: assignment.userId,
-        name: assignment.user.name,
-        email: assignment.user.email,
-        assignments: [],
-      });
-    }
-    byTeacher.get(assignment.userId).assignments.push({
-      classSectionId: assignment.classSectionId,
-      className: assignment.classSection.className,
-      classLabel: `${assignment.classSection.className}-${assignment.classSection.section}`,
-      subject: assignment.subject.name,
-      subjectId: assignment.subjectId,
-      ...progress,
-    });
-  }
-
-  const teachers = [...byTeacher.values()]
-    .map((t) => {
-      const missingAssignments = t.assignments.filter((a) => a.missing > 0);
-      const awaitingApproval = t.assignments.filter(
-        (a) => a.status === "AWAITING_APPROVAL" || ((a.submitted ?? 0) > 0 && a.approved < a.expected)
-      );
-      return {
-        ...t,
-        pending: missingAssignments.length > 0,
-        awaitingApproval: awaitingApproval.length > 0,
-        missingAssignments: missingAssignments.length,
-        awaitingApprovalAssignments: awaitingApproval.length,
-      };
-    })
-    .sort(
-      (a, b) =>
-        Number(b.pending) - Number(a.pending) ||
-        Number(b.awaitingApproval) - Number(a.awaitingApproval) ||
-        a.name.localeCompare(b.name)
-    );
-
-  return {
-    exam,
-    pendingTeacherCount: teachers.filter((t) => t.pending).length,
-    awaitingApprovalTeacherCount: teachers.filter((t) => t.awaitingApproval && !t.pending).length,
-    completeTeacherCount: teachers.filter((t) => !t.pending && !t.awaitingApproval).length,
-    teachers,
-  };
-}
+// Re-export for callers that historically imported from the analytics router module.
+export { buildPendingUploads } from "../lib/pendingUploads.js";
 
 
 registerAnalysisReports(analyticsRouter);

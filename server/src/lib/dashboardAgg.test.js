@@ -6,8 +6,11 @@ import {
   marksForPaper,
   slimPendingUploads,
   subjectCorrelations,
+  subjectCorrelationsFromPercents,
   subjectDifficulty,
+  subjectDifficultyFromAgg,
   teacherSubjectAverages,
+  teacherSubjectAveragesFromAgg,
 } from "./dashboardAgg.js";
 
 describe("dashboardAgg", () => {
@@ -114,5 +117,45 @@ describe("dashboardAgg", () => {
     });
     assert.equal(slim.teachers.length, 2);
     assert.equal(slim.pendingTeacherCount, 1);
+  });
+
+  it("builds difficulty/teacher/corr from SQL-shaped aggregates", () => {
+    const subjects = [
+      { id: "math", name: "Math" },
+      { id: "eng", name: "English" },
+    ];
+    const difficulty = subjectDifficultyFromAgg(subjects, [
+      { subjectId: "math", average: 60, passRate: 50, count: 2 },
+      { subjectId: "eng", average: 70, passRate: 100, count: 1 },
+    ]);
+    assert.equal(difficulty[0].name, "Math");
+
+    const assignments = [
+      {
+        user: { name: "Anita" },
+        subject: { name: "Math" },
+        classSection: { className: "10", section: "A" },
+        subjectId: "math",
+        classSectionId: "c1",
+      },
+    ];
+    const teacherRows = teacherSubjectAveragesFromAgg(assignments, [
+      { subjectId: "math", classSectionId: "c1", average: 60, passRate: 50, count: 2 },
+    ]);
+    assert.equal(teacherRows[0].average, 60);
+
+    const corr = subjectCorrelationsFromPercents(
+      [
+        { studentId: "s1", subjectName: "Math", pct: 80 },
+        { studentId: "s1", subjectName: "English", pct: 70 },
+        { studentId: "s2", subjectName: "Math", pct: 40 },
+        { studentId: "s2", subjectName: "English", pct: 50 },
+        { studentId: "s3", subjectName: "Math", pct: 60 },
+        { studentId: "s3", subjectName: "English", pct: 55 },
+      ],
+      ["Math", "English"]
+    );
+    assert.equal(corr.length, 1);
+    assert.ok(typeof corr[0].r === "number");
   });
 });

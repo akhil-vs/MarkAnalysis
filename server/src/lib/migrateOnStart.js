@@ -68,6 +68,12 @@ export function runMigrateDeploy({ timeoutMs = 25_000 } = {}) {
 
 let bootstrapPromise = null;
 let authBootstrapPromise = null;
+/** Last schema bootstrap outcome (for deep health / ops). */
+let lastSchemaBootstrap = null;
+
+export function getLastSchemaBootstrap() {
+  return lastSchemaBootstrap;
+}
 
 /**
  * Whether the embedded SQL catch-up (`ensurePendingSchema`) may run.
@@ -97,15 +103,24 @@ export function bootstrapSchema() {
       if (vercelFastPath) {
         if (allowEnsureSchema({ migrateOk: false })) {
           await ensurePendingSchema();
-          return {
+          lastSchemaBootstrap = {
+            mode: "vercel-ensure-only",
             migrate: { ok: false, skipped: true, reason: "vercel-ensure-only" },
             ensureSchema: true,
+            at: new Date().toISOString(),
           };
+          console.info(
+            "schema bootstrap: vercel-ensure-only (CI migrate is source of truth; set FORCE_MIGRATE_DEPLOY=true to migrate on boot)"
+          );
+          return lastSchemaBootstrap;
         }
-        return {
+        lastSchemaBootstrap = {
+          mode: "vercel-ensure-skipped",
           migrate: { ok: false, skipped: true, reason: "vercel-ensure-skipped" },
           ensureSchema: false,
+          at: new Date().toISOString(),
         };
+        return lastSchemaBootstrap;
       }
       const result = await runMigrateDeploy();
       if (!result.ok) {
@@ -118,16 +133,40 @@ export function bootstrapSchema() {
         }
         if (allowEnsureSchema({ migrateOk: false })) {
           await ensurePendingSchema();
-          return { migrate: result, ensureSchema: true };
+          lastSchemaBootstrap = {
+            mode: "migrate-failed-ensure-fallback",
+            migrate: result,
+            ensureSchema: true,
+            at: new Date().toISOString(),
+          };
+          return lastSchemaBootstrap;
         }
-        return { migrate: result, ensureSchema: false };
+        lastSchemaBootstrap = {
+          mode: "migrate-failed-no-ensure",
+          migrate: result,
+          ensureSchema: false,
+          at: new Date().toISOString(),
+        };
+        return lastSchemaBootstrap;
       }
       // Successful migrate: skip catch-up unless FORCE_ENSURE_SCHEMA=true.
       if (allowEnsureSchema({ migrateOk: true })) {
         await ensurePendingSchema();
-        return { migrate: result, ensureSchema: true };
+        lastSchemaBootstrap = {
+          mode: "migrate-ok-ensure-forced",
+          migrate: result,
+          ensureSchema: true,
+          at: new Date().toISOString(),
+        };
+        return lastSchemaBootstrap;
       }
-      return { migrate: result, ensureSchema: false };
+      lastSchemaBootstrap = {
+        mode: "migrate-ok",
+        migrate: result,
+        ensureSchema: false,
+        at: new Date().toISOString(),
+      };
+      return lastSchemaBootstrap;
     })().catch((err) => {
       bootstrapPromise = null;
       throw err;

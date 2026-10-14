@@ -5,10 +5,11 @@
 - **Source of truth:** `server/src/prisma/contract.prisma` + `server/migrations/app/*`
 - Prefer `npx prisma db migrate --advance-ref db` (CI workflow **Migrate database**, API boot, Docker).
 - Embedded catch-up (`ensurePendingSchema` in `ensureSchema.js`) is a **fallback only**:
-  - Runs on Vercel cold start by default (cold-start budget)
-  - Runs when migrate fails/skips, unless `ALLOW_ENSURE_SCHEMA_FALLBACK=false`
+  - Runs on Vercel cold start by default (cold-start budget; **not** a substitute for CI migrate)
+  - Runs when migrate fails/skips, unless `ALLOW_ENSURE_SCHEMA_FALLBACK=false` (fail-closed)
   - **Skipped** after a successful migrate unless `FORCE_ENSURE_SCHEMA=true`
   - Disabled entirely with `SKIP_ENSURE_SCHEMA=true`
+  - Production SoT remains the **Migrate database** GitHub Action / Docker migrate step — do not rely on ensure alone for new columns
 - Do not edit legacy `server/prisma/schema.prisma` / `server/prisma/migrations/*` for new work.
 - Interactive Prisma `$transaction` clients are wrapped with the same tenant proxy as the root client.
 

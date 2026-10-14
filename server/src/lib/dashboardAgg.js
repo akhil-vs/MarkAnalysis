@@ -98,6 +98,68 @@ export function subjectCorrelations(marks, subjectNames) {
   return correlations;
 }
 
+/**
+ * Pairwise correlations from slim { studentId, subjectName, pct } rows
+ * (SQL path — no nested mark graphs).
+ */
+export function subjectCorrelationsFromPercents(rows, subjectNames) {
+  const uniqueNames = [...new Set(subjectNames)];
+  const byStudent = groupBy(rows || [], (r) => r.studentId);
+  const correlations = [];
+  for (let i = 0; i < uniqueNames.length; i++) {
+    for (let j = i + 1; j < uniqueNames.length; j++) {
+      const a = uniqueNames[i];
+      const b = uniqueNames[j];
+      const pairs = [];
+      for (const [, list] of byStudent) {
+        const ma = list.find((r) => r.subjectName === a);
+        const mb = list.find((r) => r.subjectName === b);
+        if (ma && mb && ma.pct != null && mb.pct != null) pairs.push([ma.pct, mb.pct]);
+      }
+      const r = pearson(
+        pairs.map((p) => p[0]),
+        pairs.map((p) => p[1])
+      );
+      if (r != null) correlations.push({ a, b, r });
+    }
+  }
+  return correlations;
+}
+
+/** Subject difficulty from aggregateBySubjectId rows + subject catalog. */
+export function subjectDifficultyFromAgg(subjects, subjectIdAggs) {
+  const byId = new Map((subjectIdAggs || []).map((r) => [r.subjectId, r]));
+  return subjects
+    .map((subject) => {
+      const s = byId.get(subject.id);
+      return {
+        subjectId: subject.id,
+        name: subject.name,
+        average: s?.average ?? null,
+        passRate: s?.passRate ?? 0,
+        count: s?.count ?? 0,
+      };
+    })
+    .sort((a, b) => (a.average ?? 100) - (b.average ?? 100));
+}
+
+/** Teacher×paper averages from aggregateByPaper rows. */
+export function teacherSubjectAveragesFromAgg(assignments, paperAggs) {
+  const byKey = new Map(
+    (paperAggs || []).map((r) => [`${r.subjectId}|${r.classSectionId}`, r])
+  );
+  return assignments.map((a) => {
+    const s = byKey.get(`${a.subjectId}|${a.classSectionId}`);
+    return {
+      teacher: a.user.name,
+      subject: a.subject.name,
+      classLabel: `${a.classSection.className}-${a.classSection.section}`,
+      average: s?.average ?? null,
+      passRate: s?.count ? s.passRate : null,
+    };
+  });
+}
+
 /** Keep only teachers still pending upload or awaiting approval (home dashboards). */
 export function slimPendingUploads(pendingUploads) {
   if (!pendingUploads?.teachers) return pendingUploads;

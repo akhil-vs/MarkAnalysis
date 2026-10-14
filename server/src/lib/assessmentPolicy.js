@@ -4,10 +4,14 @@
  * Stored on School.assessmentPolicy (JSON).
  */
 
-import { GRADE_BANDS as STANDARD_GRADE_BANDS, PASS_PERCENT as STANDARD_PASS } from "./grades.js";
+import {
+  GRADE_BANDS as STANDARD_GRADE_BANDS,
+  PASS_PERCENT as STANDARD_PASS,
+  percentOf,
+  round1,
+} from "./grades.js";
 import { parsePercent } from "./numbers.js";
 import { isScoredMark } from "./markCodes.js";
-import { percentOf } from "./grades.js";
 import { markObtainedTotal, subjectEntryMax, subjectHasPractical } from "./subjectMarks.js";
 
 export const GRADING_SCHEMES = {
@@ -413,6 +417,60 @@ export function evaluateStudentPass(marks, policy, { passPercent = 50, average =
     passed: average >= passPercent,
     failedSubjects: [],
     mode: cfg.studentPassMode,
+  };
+}
+
+/**
+ * Canonical board / student pass KPIs for one exam.
+ * Always use this for kpis.passRate and boardSummary.pass/fail — never raw avg≥threshold
+ * or SQL paper passCount (those are paper-level only).
+ *
+ * @param {Map<string, object[]>} marksByStudent - studentId → mark rows (with subject nest)
+ * @param {Array<{studentId, avg}>} studentAvgs - from studentTotals / aggregateByStudent
+ */
+export function computeBoardPassStats({
+  marksByStudent,
+  studentAvgs,
+  assessmentPolicy,
+  passPercent = 50,
+  distinctionMin = 90,
+} = {}) {
+  const scored = (studentAvgs || []).filter((s) => s?.avg != null);
+  let pass = 0;
+  let fail = 0;
+  for (const s of scored) {
+    const marks = marksByStudent?.get?.(s.studentId) || marksByStudent?.[s.studentId] || [];
+    const passEval = evaluateStudentPass(marks, assessmentPolicy, {
+      passPercent,
+      average: s.avg,
+    });
+    if (passEval.passed === true) pass += 1;
+    else if (passEval.passed === false) fail += 1;
+  }
+  const distinction = scored.filter((s) => s.avg >= distinctionMin).length;
+  const passRate = scored.length ? round1((pass / scored.length) * 100) : 0;
+  const cfg = normalizeAssessmentPolicy(assessmentPolicy);
+  return {
+    scored: scored.length,
+    pass,
+    fail,
+    distinction,
+    passRate,
+    passPercent,
+    distinctionMin,
+    subjectPassMode: cfg.subjectPassMode,
+    studentPassMode: cfg.studentPassMode,
+    gradingScheme: cfg.gradingScheme,
+    boardSummary: {
+      distinction,
+      pass,
+      fail,
+      passPercent,
+      distinctionMin,
+      subjectPassMode: cfg.subjectPassMode,
+      studentPassMode: cfg.studentPassMode,
+      gradingScheme: cfg.gradingScheme,
+    },
   };
 }
 

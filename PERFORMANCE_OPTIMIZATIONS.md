@@ -618,17 +618,19 @@ For questions or issues:
 
 ## Performance Checklist
 
+### In production hot paths
 - [x] Database indexes added
 - [x] Response compression enabled
 - [x] Cache headers configured
-- [x] Query result caching implemented
-- [x] Connection pool optimized
-- [x] Redis caching available
-- [x] DataLoader preventing N+1
-- [x] Cursor pagination ready
-- [x] Performance monitoring active
-- [x] Materialized views created
-- [x] Worker threads available
+- [x] Tenant insight / home-dash short-TTL caching
+- [x] Connection pool tuned
+- [x] SQL mark aggregates for school detail / overviews / compare (`markAggregates.js`)
 - [x] Monitoring endpoints live
 
-**Status: All optimizations implemented and ready for production!**
+### Optional / experimental (present but not wired into hot routes)
+- [ ] Redis shared cache for multi-instance (optional `REDIS_URL`)
+- [ ] DataLoader on mark/student route loads (middleware attaches; routes mostly unused)
+- [ ] Materialized views as primary KPI source (refresh wired; report builders use SQL aggregates)
+- [ ] Worker-thread ranking helpers (`workerPool.js` available, not on request path)
+
+**Status: Core cold-path SQL + cache work is live. Treat MV/DataLoader/workers as experimental until measured on production routes — do not assume 5–10× from unused modules.**

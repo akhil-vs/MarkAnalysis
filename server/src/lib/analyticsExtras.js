@@ -19,7 +19,7 @@ import {
   sectionLabel,
   studentTotals,
 } from "./stats.js";
-import { summarizeRegister } from "./registerStatus.js";
+import { summarizeRegister, summarizeRegisterCounts } from "./registerStatus.js";
 
 /** Index marks by subjectId + classSectionId for O(1) paper lookups. */
 function indexMarksByPaper(marks, { examId = null } = {}) {
@@ -413,6 +413,67 @@ export function registerVelocity(assignments, marks, exam, studentsByClass) {
       ...reg,
     };
   });
+}
+
+/**
+ * Exam readiness KPIs from pre-aggregated register status counts (SQL path).
+ * Does not build velocity (needs mark timestamps) — summary desks only need kpis.
+ */
+export function examReadinessFromRegisterCounts({
+  exam,
+  assignments,
+  studentsByClass,
+  registerByPaper,
+  accessRequests = [],
+  expectedCountFn = null,
+} = {}) {
+  const heatmap = (assignments || []).map((a) => {
+    const roster = studentsByClass?.get?.(a.classSectionId) || [];
+    const expected = expectedCountFn
+      ? expectedCountFn(a, roster)
+      : roster.length;
+    const counts = registerByPaper?.get?.(`${a.subjectId}|${a.classSectionId}`) || {};
+    const reg = summarizeRegisterCounts(expected, counts);
+    return {
+      teacherId: a.userId,
+      teacher: a.user?.name,
+      subject: a.subject?.name,
+      subjectId: a.subjectId,
+      classSectionId: a.classSectionId,
+      classLabel: classLabel(a.classSection),
+      ...reg,
+    };
+  });
+  const total = heatmap.length || 1;
+  const approved = heatmap.filter((r) => r.status === "APPROVED").length;
+  const awaiting = heatmap.filter((r) => r.status === "AWAITING_APPROVAL").length;
+  const partial = heatmap.filter((r) => r.status === "PARTIAL").length;
+  const missing = heatmap.filter((r) => r.status === "MISSING").length;
+  const deadline = exam.marksEntryDeadline ? new Date(exam.marksEntryDeadline) : null;
+  const pastDeadline = deadline ? Date.now() > deadline.getTime() : false;
+  const latePending = accessRequests.filter((r) => r.status === "PENDING" && r.kind !== "EDIT").length;
+  const editPending = accessRequests.filter((r) => r.status === "PENDING" && r.kind === "EDIT").length;
+  const breached = pastDeadline
+    ? heatmap.filter((r) => r.status !== "APPROVED").length
+    : 0;
+
+  return {
+    exam,
+    pastDeadline,
+    deadline: exam.marksEntryDeadline,
+    kpis: {
+      registers: heatmap.length,
+      approvedPct: round1((approved / total) * 100),
+      awaiting,
+      partial,
+      missing,
+      breached,
+      latePending,
+      editPending,
+    },
+    heatmap,
+    velocity: [],
+  };
 }
 
 export function examReadiness({ exam, assignments, marks, studentsByClass, accessRequests = [] }) {

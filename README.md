@@ -184,7 +184,9 @@ The **working week** (5 or 6 school days) and **bell schedule** (period names, s
 
 Leadership can also add or remove teaching periods on a teacher’s full timetable page. Grant **Leave approval** and **Assign substitutes** under **Staff → Role access** for vice principals, supervisors, and coordinators.
 
-Deployments generate the Prisma client on Vercel build. On cold start the API runs `prisma migrate deploy` when `DATABASE_URL` is available, then `ensurePendingSchema` as a catch-up for environments that cannot migrate at build time. You can also run migrations from GitHub Actions (workflow **Migrate database**) when `secrets.DATABASE_URL` is set. Set `SKIP_MIGRATE_DEPLOY=true` to rely only on the catch-up path.
+Deployments generate the Prisma client on Vercel build. **Migrations are the source of truth** (GitHub Actions workflow **Migrate database** when `secrets.DATABASE_URL` is set, or Docker/`prisma db migrate` on long-lived hosts).
+
+On Vercel cold start the API **does not** spawn `prisma migrate deploy` by default (cold-start budget). It runs `ensureAuthSchema` for login, then `ensurePendingSchema` as an embedded catch-up. To force migrate-on-boot set `FORCE_MIGRATE_DEPLOY=true`. To fail closed instead of ensure-only fallback set `ALLOW_ENSURE_SCHEMA_FALLBACK=false`. See `docs/ENGINEERING.md`.
 
 ## Consolidated mark lists
 
