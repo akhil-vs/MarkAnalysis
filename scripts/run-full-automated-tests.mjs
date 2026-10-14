@@ -108,11 +108,16 @@ function loadEnvFile(env) {
 }
 
 function parseNodeTestTotals(stdout) {
-  const pass = Number((stdout.match(/# pass\s+(\d+)/) || [])[1] || 0);
-  const fail = Number((stdout.match(/# fail\s+(\d+)/) || [])[1] || 0);
-  const skip = Number((stdout.match(/# skip\s+(\d+)/) || [])[1] || 0);
-  const todo = Number((stdout.match(/# todo\s+(\d+)/) || [])[1] || 0);
-  const tests = Number((stdout.match(/# tests\s+(\d+)/) || [])[1] || pass + fail + skip + todo);
+  // Spec reporter uses "# pass N"; some Node builds print "ℹ pass N".
+  const pick = (label) => {
+    const re = new RegExp(`(?:#|ℹ)\\s*${label}\\s+(\\d+)`, "i");
+    return Number((stdout.match(re) || [])[1] || 0);
+  };
+  const pass = pick("pass");
+  const fail = pick("fail");
+  const skip = pick("skip(?:ped)?");
+  const todo = pick("todo");
+  const tests = pick("tests") || pass + fail + skip + todo;
   return { pass, fail, skip, todo, tests };
 }
 
@@ -294,7 +299,7 @@ async function main() {
         env: { ...env, MANUAL_AUTOMATION_REPORT_HTML: htmlReport },
       }
     );
-    const totals = parseNodeTestTotals(result.stdout + "\n" + result.stderr);
+    let totals = parseNodeTestTotals(result.stdout + "\n" + result.stderr);
     let manualJson = null;
     const jsonPath = htmlReport.replace(/\.html$/i, ".json");
     if (fs.existsSync(jsonPath)) {
@@ -303,6 +308,17 @@ async function main() {
       } catch {
         /* ignore */
       }
+    }
+    // Prefer the HTML automation reporter JSON when present (more reliable than
+    // scraping mixed reporter stdout).
+    if (manualJson?.totals) {
+      totals = {
+        pass: manualJson.totals.pass || 0,
+        fail: manualJson.totals.fail || 0,
+        skip: manualJson.totals.skip || 0,
+        todo: manualJson.totals.todo || 0,
+        tests: manualJson.totals.tests || 0,
+      };
     }
     suites.push({
       id: "manual-automation",
