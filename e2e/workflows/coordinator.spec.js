@@ -64,12 +64,14 @@ test.describe("Exam co-ordinator manual — complete application workflow", () =
     await expectPageTitle(page, "Bulk upload");
   });
 
-  test("§3.3 Mark progress", async ({ page }) => {
+  test("§3.3 Exam queue — Missing / progress", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
-    await goNav(page, "Mark progress");
-    await expect(page).toHaveURL(/\/pending-uploads/);
-    await expectPageTitle(page, "Mark progress");
-    await expect(page.locator("main")).toContainText(/Still missing marks|awaiting your approval|Every assigned teacher/i);
+    await goNav(page, "Exam queue");
+    await expect(page).toHaveURL(/\/exam-queue/);
+    await expectPageTitle(page, "Exam queue");
+    await expect(page.locator("main")).toContainText(
+      /Still missing marks|awaiting your approval|Every assigned teacher|Chase teachers|No missing|missing register/i
+    );
     const trigger = page.locator("main .accordion-trigger").first();
     if (await trigger.count()) {
       await expect(trigger).toBeVisible();
@@ -78,11 +80,13 @@ test.describe("Exam co-ordinator manual — complete application workflow", () =
     }
   });
 
-  test("§3.4 Access requests", async ({ page }) => {
+  test("§3.4 Exam queue — Access requests", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
-    await goNav(page, "Access requests");
-    await expect(page).toHaveURL(/\/approvals/);
-    await expectPageTitle(page, "Approvals");
+    await goNav(page, "Exam queue");
+    await expectPageTitle(page, "Exam queue");
+    await page.getByRole("tab", { name: /^Access requests$/i }).click();
+    await expect(page).toHaveURL(/tab=access/);
+    await expect(page.locator("main")).toContainText(/late-entry|edit request|access|pending|no pending/i);
   });
 
   test("§3.6–§3.7 Consolidated lists & hall tickets", async ({ page }) => {
