@@ -27,7 +27,7 @@ test("role-specific dashboard help is distinct", () => {
   assert.equal(helpIdForPath("/"), "dashboard");
   assert.notEqual(principal.about, coordinator.about);
   assert.notEqual(principal.about, teacher.about);
-  assert.match(principal.about, /School-wide/);
+  assert.match(principal.about, /Ops-first|School snapshot/i);
   assert.match(coordinator.about, /upload queue/i);
   assert.match(teacher.about, /Your papers/);
 });
@@ -56,8 +56,9 @@ test("page help mentions current timetable, records, and leave UI", () => {
   assert.match(PAGE_HELP.timetables.about, /accordion/i);
   assert.match(PAGE_HELP.timetables.about, /click and drag/i);
   assert.match(PAGE_HELP.timetables.about, /filter.*class and subject/i);
-  assert.match(PAGE_HELP.pendingUploads.about, /accordion/i);
+  assert.match(PAGE_HELP.pendingUploads.about, /Mark progress|Still missing marks/i);
   assert.match(PAGE_HELP.pendingUploads.about, /Still missing marks/);
+  assert.match(PAGE_HELP.examQueue.about, /Exam queue|Missing/i);
   assert.match(PAGE_HELP.timetables.useful, /Hrs history/);
   assert.match(PAGE_HELP.timetables.useful, /My leave/);
   assert.match(PAGE_HELP.schoolProfile.about, /Identity & Affiliation/);

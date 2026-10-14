@@ -41,7 +41,7 @@ const PILOT_STEPS = [
   },
   {
     title: "Run draft → approve → download",
-    body: "Teachers enter marks, leadership approves, then school-branded CML / reports unlock. Parent portal links stay optional and time-boxed.",
+    body: "Teachers enter marks, leadership approves, then school-branded consolidated mark lists (CML) / reports unlock. Parent portal links stay optional and time-boxed.",
   },
 ];
 

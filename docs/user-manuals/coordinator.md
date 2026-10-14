@@ -93,15 +93,24 @@ Unlike the principal, the co-ordinator **can enter and bulk-upload marks** as we
 2. Fill marks, then upload and **preview** (catches missing students and bad values).
 3. Commit when the preview looks correct.
 
-### 3.3 Pending uploads (`Marks → Pending uploads`)
+### 3.3 Exam queue (`Today → Exam queue`)
 
-1. Select the exam.
-2. The two queues are **accordions**: **Entered — awaiting your approval** and **Still missing marks**. Expand a teacher for papers, **Notify**, **Open register**, and **Approve**.
+Use the hub tabs:
+
+| Tab | Job |
+|---|---|
+| **Missing** | Chase empty registers (Mark progress); notify teachers. |
+| **Submitted** | Approve submitted registers (canonical approval inbox). |
+| **Access requests** | Late-entry and edit requests. |
+| **Ready for CML** | Consolidated mark lists when papers are approved. |
+
+1. Select the exam on Missing.
+2. Expand a teacher for papers, **Notify**, **Open register**, and **Approve** on Submitted.
 3. **Notify teachers** about deadlines or incomplete marklists (all pending, or one person).
 
-Approved marks are what school analytics and consolidated lists use.
+Approved marks are what school analytics and consolidated lists use. Old links to Pending uploads / Approvals redirect into Exam queue.
 
-### 3.4 Access requests (`Marks → Access requests`)
+### 3.4 Access requests (`Exam queue → Access requests`)
 
 Review late-entry and edit requests across exams. Approve only when a correction is justified — grants appear on the audit log.
 
@@ -157,7 +166,7 @@ Issue portal links for a student and exam so parents can view **approved** marks
 
 ## 7. Notify teachers
 
-Available from pending uploads, consolidated lists, exam records, staff, and the dashboard upload queue. Teachers receive in-app notices (bell + dashboard) with links into the register.
+Available from Exam queue / Mark progress, consolidated lists, exam records, staff, and the dashboard upload queue. Teachers receive in-app notices (bell + dashboard) with links into the register.
 
 ---
 
@@ -172,9 +181,9 @@ Available from pending uploads, consolidated lists, exam records, staff, and the
 1. Confirm classes, subjects (entry max, practical max, electives), students, photos, **Classes in this exam**, and paper dates in **Records**.
 2. Set and **lock** consolidation max marks.
 3. Verify teacher assignments and timetables; clear **Pending leave requests** and assign cover.
-4. Send deadline notices; watch **Pending uploads**.
+4. Send deadline notices; watch **Exam queue → Missing**.
 5. Enter/upload marks yourself only for papers you cover or when covering gaps (including **Th** / **Pr** where used).
-6. **Approve** submitted registers; handle access requests carefully.
+6. **Approve** submitted registers on **Exam queue → Submitted**; handle access requests carefully.
 7. Check Deep insights → **Exam readiness** and subject difficulty.
 8. Produce hall tickets (**Download PDF (5 / A4)**) and **official** consolidated lists when every paper is approved.
 9. Support Board ops publish/pack steps if your school uses them.

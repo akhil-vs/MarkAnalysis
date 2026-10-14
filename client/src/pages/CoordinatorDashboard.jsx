@@ -207,7 +207,10 @@ export default function CoordinatorDashboard() {
                 </button>
               )}
               <Link className="text-xs underline text-ink-700/60" to={paths.pendingUploads()}>
-                Full list
+                Mark progress
+              </Link>
+              <Link className="text-xs underline text-ink-700/60" to={paths.approvals()}>
+                Approvals
               </Link>
             </div>
           }
@@ -264,7 +267,14 @@ export default function CoordinatorDashboard() {
                   </div>
                 );
               })}
-              <Link className="btn-accent mt-2" to={paths.pendingUploads()}>Open approval queue</Link>
+              <div className="mt-3 flex flex-wrap gap-3">
+                <Link className="btn-accent" to={paths.approvals()}>
+                  Open Approvals
+                </Link>
+                <Link className="text-xs underline text-ink-700/60 self-center" to={paths.pendingUploads()}>
+                  Chase missing on Mark progress
+                </Link>
+              </div>
             </div>
           ) : (
             <EmptyNote>Every assigned teacher has uploaded and been approved for this exam.</EmptyNote>

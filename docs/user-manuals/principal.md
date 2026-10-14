@@ -12,7 +12,7 @@ The principal owns school setup, staff access, leave and cover, mark approval, l
 2. Enter your **email**, **school ID**, and **password**.
 3. If MFA is enabled, enter the 6-digit authenticator code (or a recovery code).
 
-You land on the **Principal desk** (`/`): school average, pass rate, distinction/fail counts, register readiness, pending uploads, submitted papers waiting for approval, Curricular Performance Hub shortcuts, and links into Deep insights and Consolidated lists.
+You land on the **Principal desk** (`/`): an ops-first view with approvals, **Needs attention** / notify, and Exam queue shortcuts. School averages and the Curricular Performance Hub live under **School snapshot** (collapsed when work is waiting). Use Deep insights and Consolidated lists from the hero actions.
 
 - Use the **exam selector** at the top to switch the working exam. Teachers and leadership share the same latest exam by default.
 - Open the **?** hint on any page for a short “what’s on this page” tip (and **How it is useful**).
@@ -93,19 +93,28 @@ Four tabs: **Teachers**, **Daily board**, **Find free**, **Leave & cover**. Tabs
 Teachers enter drafts → Submit → Leadership Approve → Analytics & CML include marks
 ```
 
-### 3.1 Chase and approve (`Marks → Pending uploads`)
+### 3.1 Exam queue (`Today → Exam queue`)
 
-1. Select the exam.
-2. The two queues are **accordions**: **Entered — awaiting your approval** and **Still missing marks**. Expand a teacher for papers, **Notify**, **Open register**, and **Approve submitted**.
+One hub for exam week:
+
+| Tab | Job |
+|---|---|
+| **Missing** | Chase teachers who still have empty registers (Mark progress). Notify and open registers. |
+| **Submitted** | Approve submitted registers waiting on leadership. |
+| **Access requests** | Late-entry and edit requests. |
+| **Ready for CML** | Open consolidated mark lists (CML) when papers are approved. |
+
+1. Select the exam on the Missing tab.
+2. Expand a teacher for papers, **Notify**, **Open register**, and **Approve** on Submitted.
 3. **Notify teachers** (deadline, incomplete marklist, or custom message) for everyone still missing marks, or one teacher.
 4. Open a register → **Approve** submitted marks. Only approved marks feed school analytics, ranks, and consolidated lists.
 5. Use **Moderate** on the register for grace adjustments with a reason (stays approved and audited).
 
 When you open a register, split papers show **Theory max** and **Practical max** (codes `AB` / `EX` / `WH` apply to theory only). Elective papers show a dash for students who are not enrolled.
 
-Principals open registers from Pending uploads (there is no Mark register / Bulk upload item in the principal sidebar).
+Principals open registers from Exam queue (there is no Mark register / Bulk upload item in the principal sidebar). Bookmarks to `/pending-uploads` or `/approvals` redirect into the matching Exam queue tab.
 
-### 3.2 Access requests (`Marks → Access requests`)
+### 3.2 Access requests (`Exam queue → Access requests`)
 
 Teachers may ask for **late entry** after a deadline or to **edit** a submitted register. Approve only when a genuine correction is needed — every grant is recorded on the audit log.
 
@@ -186,7 +195,7 @@ From **Records** (students / exam context), leadership can **issue a portal link
 
 Send in-app notices from:
 
-- Pending uploads / dashboards (pending or one teacher)
+- Exam queue / Mark progress / dashboards (pending or one teacher)
 - Consolidated lists (incomplete class)
 - Records → Exams (deadline reminder)
 - Staff (one teacher or all)
@@ -206,7 +215,7 @@ Under **Account → Profile**: update name/email details, change password, and e
 1. Confirm subjects (including practical max / electives), max marks, roll, photos, included classes, and paper dates in **Records**.
 2. Lock consolidation max marks when ready.
 3. Confirm teacher assignments, Role access (leave / substitutes), and deadlines.
-4. Clear **Pending uploads** — notify, then **Approve**.
+4. Clear **Exam queue** — notify on Missing, then **Approve** on Submitted.
 5. Resolve **Access requests** only when needed.
 6. Approve **Pending leave requests** and assign cover so the daily board stays current.
 7. Review **Deep insights → Exam readiness**, then school/class/subject reports.

@@ -30,7 +30,9 @@ export function insightsHomeCards(role, { examId } = {}) {
       id: "upload-queue",
       question: "Who still needs to upload?",
       body: "Missing and awaiting-approval registers for the working exam.",
-      to: examId ? `/pending-uploads?examId=${encodeURIComponent(examId)}` : "/pending-uploads",
+      to: examId
+        ? `/exam-queue?tab=missing&examId=${encodeURIComponent(examId)}`
+        : "/exam-queue?tab=missing",
     },
     {
       id: "weak-sections",

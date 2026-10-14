@@ -11,7 +11,7 @@ export default function MobileTaskBar() {
 
   const leadership = isLeadership(user.role);
   const mid = leadership
-    ? { to: "/approvals", label: "Approvals" }
+    ? { to: "/exam-queue", label: "Exam queue" }
     : { to: "/marks", label: "Papers" };
 
   const itemCls = ({ isActive }) =>

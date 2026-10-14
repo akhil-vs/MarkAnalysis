@@ -1,5 +1,5 @@
 import { lazy, Suspense } from "react";
-import { Navigate, Route, Routes, useLocation, useParams } from "react-router-dom";
+import { Navigate, Route, Routes, useLocation, useParams, useSearchParams } from "react-router-dom";
 import { useAuth } from "./auth.jsx";
 import Layout from "./components/Layout.jsx";
 import { LoadingState } from "./components/Spinner.jsx";
@@ -34,9 +34,8 @@ const AnalysisDeepInsights = lazy(() => import("./pages/AnalysisDeepInsights.jsx
 const ClassGroupAnalytics = lazy(() => import("./pages/ClassGroupAnalytics.jsx"));
 const SubjectSchoolAnalytics = lazy(() => import("./pages/SubjectSchoolAnalytics.jsx"));
 const TeacherAnalytics = lazy(() => import("./pages/TeacherAnalytics.jsx"));
-const PendingUploads = lazy(() => import("./pages/PendingUploads.jsx"));
 const ClassTeacherInbox = lazy(() => import("./pages/ClassTeacherInbox.jsx"));
-const Approvals = lazy(() => import("./pages/Approvals.jsx"));
+const ExamQueue = lazy(() => import("./pages/ExamQueue.jsx"));
 const NotFound = lazy(() => import("./pages/NotFound.jsx"));
 const Exams = lazy(() => import("./pages/Exams.jsx"));
 const AuditLog = lazy(() => import("./pages/AuditLog.jsx"));
@@ -124,6 +123,23 @@ function RedirectStudents() {
   return <Navigate to={paths.student(id)} replace />;
 }
 
+function RedirectPendingUploads() {
+  const [params] = useSearchParams();
+  const examId = params.get("examId");
+  const q = new URLSearchParams({ tab: "missing" });
+  if (examId) q.set("examId", examId);
+  return <Navigate to={`/exam-queue?${q}`} replace />;
+}
+
+function RedirectApprovals() {
+  const [params] = useSearchParams();
+  const tab = params.get("tab") === "access" ? "access" : "submitted";
+  const examId = params.get("examId");
+  const q = new URLSearchParams({ tab });
+  if (examId) q.set("examId", examId);
+  return <Navigate to={`/exam-queue?${q}`} replace />;
+}
+
 function AppHome() {
   const { user, loading } = useAuth();
   const location = useLocation();
@@ -208,25 +224,17 @@ export default function App() {
             element={<Guarded route="student-photos"><StudentPhotos /></Guarded>}
           />
           <Route
-            path="pending-uploads"
-            element={<Guarded route="pending-uploads"><PendingUploads /></Guarded>}
+            path="exam-queue"
+            element={<Guarded route="exam-queue"><ExamQueue /></Guarded>}
           />
+          <Route path="pending-uploads" element={<RedirectPendingUploads />} />
           <Route
             path="class-inbox"
             element={<Guarded route="class-inbox"><ClassTeacherInbox /></Guarded>}
           />
-          <Route
-            path="approvals"
-            element={<Guarded route="approvals"><Approvals /></Guarded>}
-          />
-          <Route
-            path="late-entry"
-            element={<Navigate to="/approvals?tab=access" replace />}
-          />
-          <Route
-            path="access-requests"
-            element={<Navigate to="/approvals?tab=access" replace />}
-          />
+          <Route path="approvals" element={<RedirectApprovals />} />
+          <Route path="late-entry" element={<Navigate to="/exam-queue?tab=access" replace />} />
+          <Route path="access-requests" element={<Navigate to="/exam-queue?tab=access" replace />} />
           <Route path="timetables" element={<Guarded route="timetables"><Timetables /></Guarded>} />
           <Route
             path="timetables/teachers/:id"

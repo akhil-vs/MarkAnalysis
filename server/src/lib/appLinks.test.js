@@ -22,12 +22,12 @@ test("marksRegisterLink builds query consistently", () => {
 });
 
 test("pendingUploadsLink and accessRequestsLink", () => {
-  assert.equal(pendingUploadsLink(), "/pending-uploads");
-  assert.equal(pendingUploadsLink({ examId: "e1" }), "/pending-uploads?examId=e1");
-  assert.equal(accessRequestsLink(), "/approvals?tab=access");
+  assert.equal(pendingUploadsLink(), "/exam-queue?tab=missing");
+  assert.equal(pendingUploadsLink({ examId: "e1" }), "/exam-queue?tab=missing&examId=e1");
+  assert.equal(accessRequestsLink(), "/exam-queue?tab=access");
   assert.equal(
     accessRequestsLink({ status: "PENDING", kind: "EDIT", examId: "e1" }),
-    "/approvals?tab=access&kind=EDIT&examId=e1"
+    "/exam-queue?tab=access&kind=EDIT&examId=e1"
   );
 });
 

@@ -164,9 +164,25 @@ portalRouter.post("/session", portalSessionLimit, async (req, res) => {
   const token = req.body?.token;
   const link = await loadActiveLink(token);
   if (!link) return res.status(401).json({ error: "Invalid or expired portal link" });
+  const students = link.studentIds?.length
+    ? await runWithTenant(link.tenantId, () =>
+        prisma.student.findMany({
+          where: { id: { in: link.studentIds } },
+          select: { id: true, name: true, rollNo: true },
+        })
+      )
+    : [];
+  const byId = new Map(students.map((s) => [s.id, s]));
+  const orderedStudents = (link.studentIds || []).map((id) => {
+    const row = byId.get(id);
+    return row
+      ? { id: row.id, name: row.name, rollNo: row.rollNo }
+      : { id, name: null, rollNo: null };
+  });
   res.json({
     token: signPortalJwt(link),
     studentIds: link.studentIds,
+    students: orderedStudents,
     examId: link.examId,
     label: link.label,
   });

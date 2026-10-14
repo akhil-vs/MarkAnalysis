@@ -58,6 +58,34 @@ export default function Help() {
           ))}
         </div>
       )}
+
+      {!platform && (
+        <section className="mt-8 max-w-2xl">
+          <h2 className="font-serif text-xl text-ink-900">Glossary</h2>
+          <dl className="mt-3 space-y-2 text-sm text-ink-700/80">
+            <div>
+              <dt className="font-medium text-ink-900">Exam queue</dt>
+              <dd>Leadership hub: Missing · Submitted · Access requests · Ready for CML.</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-ink-900">Mark progress</dt>
+              <dd>Chase teachers who still have empty registers (Exam queue → Missing).</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-ink-900">CML</dt>
+              <dd>Consolidated mark lists — official class lists after every paper is approved.</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-ink-900">AB / EX / WH</dt>
+              <dd>Absent, exempt, and withheld mark codes on the register (theory column on split papers).</dd>
+            </div>
+            <div>
+              <dt className="font-medium text-ink-900">Register / paper</dt>
+              <dd>One class × subject mark sheet for an exam. Teachers save drafts, then submit for approval.</dd>
+            </div>
+          </dl>
+        </section>
+      )}
     </div>
   );
 }

@@ -13,7 +13,9 @@ export function marksRegisterLink({ examId, classSectionId, subjectId } = {}) {
 }
 
 export function pendingUploadsLink({ examId } = {}) {
-  return examId ? `/pending-uploads?examId=${encodeURIComponent(examId)}` : "/pending-uploads";
+  const params = new URLSearchParams({ tab: "missing" });
+  if (examId) params.set("examId", examId);
+  return `/exam-queue?${params}`;
 }
 
 export function accessRequestsLink({ status = "PENDING", kind, examId } = {}) {
@@ -21,7 +23,7 @@ export function accessRequestsLink({ status = "PENDING", kind, examId } = {}) {
   if (status && status !== "PENDING") params.set("status", status);
   if (kind) params.set("kind", kind);
   if (examId) params.set("examId", examId);
-  return `/approvals?${params}`;
+  return `/exam-queue?${params}`;
 }
 
 export function classSectionAnalysisLink(id) {

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { Link } from "react-router-dom";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { PRODUCT_NAME, PRODUCT_SHORT_NAME } from "../lib/branding.js";
 
@@ -16,6 +17,21 @@ function takePortalTokenFromLocation() {
     window.history.replaceState({}, "", `${url.pathname}${url.search}`);
   }
   return token;
+}
+
+function friendlyPortalError(message) {
+  const raw = String(message || "");
+  const lower = raw.toLowerCase();
+  if (lower.includes("invalid") || lower.includes("expired")) {
+    return "This access code is invalid or has expired. Ask your school for a new link.";
+  }
+  if (lower.includes("revoked")) {
+    return "This portal link was closed by the school. Ask them for a new one.";
+  }
+  if (lower.includes("token")) {
+    return "Could not open this portal link. Check the code from your school and try again.";
+  }
+  return raw || "Could not open portal link";
 }
 
 async function portalFetch(path, { method = "GET", body, token } = {}) {
@@ -36,7 +52,7 @@ export default function Portal() {
   const [tokenInput, setTokenInput] = useState("");
   const [session, setSession] = useState(() => sessionStorage.getItem(PORTAL_SESSION_KEY) || "");
   const [studentId, setStudentId] = useState("");
-  const [linkedIds, setLinkedIds] = useState([]);
+  const [linkedStudents, setLinkedStudents] = useState([]);
   const [report, setReport] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
@@ -51,12 +67,17 @@ export default function Portal() {
       });
       sessionStorage.setItem(PORTAL_SESSION_KEY, data.token);
       setSession(data.token);
-      setLinkedIds(data.studentIds || []);
-      setStudentId(data.studentIds?.[0] || "");
+      const students =
+        Array.isArray(data.students) && data.students.length
+          ? data.students
+          : (data.studentIds || []).map((id) => ({ id, name: null, rollNo: null }));
+      setLinkedStudents(students);
+      setStudentId(students[0]?.id || data.studentIds?.[0] || "");
     } catch (err) {
-      setError(err.message || "Could not open portal link");
+      setError(friendlyPortalError(err.message));
       sessionStorage.removeItem(PORTAL_SESSION_KEY);
       setSession("");
+      setLinkedStudents([]);
     } finally {
       setBusy(false);
     }
@@ -81,10 +102,24 @@ export default function Portal() {
         const data = await portalFetch(`/api/portal/marks?studentId=${encodeURIComponent(studentId)}`, {
           token: session,
         });
-        if (!cancelled) setReport(data);
+        if (!cancelled) {
+          setReport(data);
+          setLinkedStudents((prev) => {
+            if (!prev.length) return prev;
+            return prev.map((s) =>
+              s.id === data.student?.id
+                ? {
+                    id: data.student.id,
+                    name: data.student.name,
+                    rollNo: data.student.rollNo,
+                  }
+                : s
+            );
+          });
+        }
       } catch (err) {
         if (!cancelled) {
-          setError(err.message || "Could not load marks");
+          setError(friendlyPortalError(err.message || "Could not load marks"));
           setReport(null);
         }
       } finally {
@@ -102,22 +137,43 @@ export default function Portal() {
   }, [report]);
 
   const studentOptions = useMemo(() => {
-    if (!linkedIds.length) return [];
-    return linkedIds.map((id) => {
-      if (report?.student?.id === id) {
+    if (!linkedStudents.length) return [];
+    return linkedStudents.map((s) => {
+      if (s.name) {
         return {
-          id,
+          id: s.id,
+          label: s.rollNo != null ? `${s.name} (Roll ${s.rollNo})` : s.name,
+        };
+      }
+      if (report?.student?.id === s.id) {
+        return {
+          id: s.id,
           label: `${report.student.name} (Roll ${report.student.rollNo})`,
         };
       }
-      return { id, label: `Student ${String(id).slice(-6)}` };
+      return { id: s.id, label: "Student (loading…)" };
     });
-  }, [linkedIds, report]);
+  }, [linkedStudents, report]);
 
   return (
     <div className="min-h-screen bg-[radial-gradient(ellipse_at_top,_#f3ebe3_0%,_#f7f4ef_45%,_#e8eef5_100%)] text-ink-900">
+      <header className="border-b border-ink-900/10 bg-white/70 backdrop-blur">
+        <div className="mx-auto flex max-w-3xl flex-wrap items-center justify-between gap-3 px-4 py-3">
+          <Link to="/" className="font-serif text-lg tracking-tight text-ink-900 hover:text-ink-800">
+            {PRODUCT_NAME}
+          </Link>
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            <Link className="btn-ghost !min-h-0 !py-1.5 !px-3 text-xs" to="/">
+              Back to home
+            </Link>
+            <Link className="btn-ghost !min-h-0 !py-1.5 !px-3 text-xs" to="/login">
+              Staff sign in
+            </Link>
+          </div>
+        </div>
+      </header>
+
       <div className="mx-auto max-w-3xl px-4 py-10">
-        <p className="font-serif text-3xl tracking-tight text-ink-900">{PRODUCT_NAME}</p>
         <p className="mt-1 text-xs uppercase tracking-[0.14em] text-ink-700/55">{PRODUCT_SHORT_NAME} portal</p>
         <h1 className="mt-3 text-xl font-semibold text-ink-900/90">{title}</h1>
         <p className="mt-1 text-sm text-ink-700/70">
@@ -133,29 +189,32 @@ export default function Portal() {
             }}
           >
             <label className="block text-sm font-medium" htmlFor="portal-token">
-              Portal access token
+              Access code from your school
             </label>
+            <p className="text-xs text-ink-700/60">
+              Paste the access code from the link your school sent, or open that link directly.
+            </p>
             <input
               id="portal-token"
               className="field w-full"
               value={tokenInput}
               onChange={(e) => setTokenInput(e.target.value)}
-              placeholder="Paste the token from your school"
+              placeholder="Paste the access code from your school"
               autoComplete="off"
             />
-            <button className="btn-primary" disabled={busy || !tokenInput.trim()}>
+            <button className="btn-accent w-full sm:w-auto" disabled={busy || !tokenInput.trim()}>
               <BusyLabel busy={busy} idle="View marks" busyText="Opening…" />
             </button>
           </form>
         )}
 
         {error && (
-          <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800">
+          <p className="mt-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-800" role="alert">
             {error}
           </p>
         )}
 
-        {session && linkedIds.length > 1 && (
+        {session && linkedStudents.length > 1 && (
           <label className="mt-6 block text-sm" htmlFor="portal-student">
             Student
             <select
@@ -250,7 +309,7 @@ export default function Portal() {
               sessionStorage.removeItem(PORTAL_SESSION_KEY);
               setSession("");
               setReport(null);
-              setLinkedIds([]);
+              setLinkedStudents([]);
             }}
           >
             Close portal session

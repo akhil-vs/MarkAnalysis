@@ -8,7 +8,7 @@
 export const FEATURE_CATALOG = [
   { id: "marks", label: "Mark register", group: "Exam office", description: "Enter and review marks for assigned papers." },
   { id: "upload", label: "Bulk upload", group: "Exam office", description: "Upload marks from a spreadsheet." },
-  { id: "pendingUploads", label: "Pending uploads", group: "Exam office", description: "Review and approve submitted mark registers." },
+  { id: "pendingUploads", label: "Mark progress", group: "Exam office", description: "Chase missing registers and open the exam queue for approvals." },
   { id: "accessRequests", label: "Access requests", group: "Exam office", description: "Approve late-entry and edit requests." },
   { id: "consolidated", label: "Consolidated lists", group: "Exam office", description: "Open and download consolidated mark lists." },
   { id: "hallTickets", label: "Hall tickets", group: "Exam office", description: "Create and print class hall tickets for an exam." },
@@ -56,7 +56,7 @@ export const ALWAYS_ON_FEATURES = ["dashboard", "profile", "help"];
 
 /**
  * Features principals do not use. Mark register stays reachable via deep links
- * from Pending uploads for review/approve; bulk upload is fully withheld.
+ * from Mark progress / Exam queue for review/approve; bulk upload is fully withheld.
  */
 export const PRINCIPAL_EXCLUDED_FEATURES = ["upload"];
 
