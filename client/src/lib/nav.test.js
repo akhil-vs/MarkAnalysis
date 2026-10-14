@@ -19,6 +19,7 @@ describe("guardFeatureForRoute", () => {
     assert.equal(guardFeatureForRoute("school"), "schoolProfile");
     assert.equal(guardFeatureForRoute("board"), "boardOps");
     assert.equal(guardFeatureForRoute("student-photos"), "studentPhotos");
+    assert.equal(guardFeatureForRoute("exam-queue"), "pendingUploads");
   });
 
   it("leaves always-on account routes unrestricted", () => {
@@ -93,7 +94,9 @@ describe("navGroupsForRole", () => {
     const ids = navIds("PRINCIPAL");
     assert.equal(ids.includes("marks"), false);
     assert.equal(ids.includes("upload"), false);
-    assert.ok(ids.includes("pendingUploads"));
+    assert.ok(ids.includes("examQueue"));
+    assert.equal(ids.includes("pendingUploads"), false);
+    assert.equal(ids.includes("approvals"), false);
     assert.ok(ids.includes("dashboard"));
   });
 

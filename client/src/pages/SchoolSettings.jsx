@@ -804,7 +804,8 @@ export default function SchoolSettings() {
                   <p className="text-sm text-ink-700/65">
                     CPD is hidden by default. Turn it on when your school is ready. Staff still need
                     the matching permission under Staff → Role access. Day-to-day marks, approvals,
-                    CML, and hall tickets always live under <span className="font-medium">Exam office</span>.
+                    consolidated mark lists (CML), and hall tickets always live under{" "}
+                    <span className="font-medium">Exam office</span>.
                   </p>
                   <div className="rounded-xl border border-ink-900/10 bg-paper/60 p-3 space-y-3">
                     <label className="flex items-start gap-2 text-sm">

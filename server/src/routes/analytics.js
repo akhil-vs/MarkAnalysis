@@ -992,9 +992,29 @@ analyticsRouter.get("/subject/:id", async (req, res) => {
 
 analyticsRouter.get("/pending-uploads", async (req, res) => {
   if (!isLeadership(req.user.role)) return res.status(403).json({ error: "Forbidden" });
+  const countOnly =
+    req.query.countOnly === "1" || req.query.countOnly === "true" || req.query.count === "1";
   const { exams, exam } = await loadExams(req.query.examId);
-  if (!exam) return res.json({ empty: true, exams, pendingTeacherCount: 0, awaitingApprovalTeacherCount: 0, completeTeacherCount: 0, teachers: [] });
+  if (!exam) {
+    return res.json({
+      empty: true,
+      exams,
+      pendingTeacherCount: 0,
+      awaitingApprovalTeacherCount: 0,
+      completeTeacherCount: 0,
+      teachers: [],
+    });
+  }
   const pendingUploads = await buildPendingUploads(exam);
+  if (countOnly) {
+    return res.json({
+      empty: false,
+      examId: exam.id,
+      pendingTeacherCount: pendingUploads.pendingTeacherCount ?? 0,
+      awaitingApprovalTeacherCount: pendingUploads.awaitingApprovalTeacherCount ?? 0,
+      completeTeacherCount: pendingUploads.completeTeacherCount ?? 0,
+    });
+  }
   res.json({ exams, ...pendingUploads });
 });
 

@@ -69,7 +69,7 @@ function groupClassesByName(sections) {
   });
 }
 
-export default function ConsolidatedLists() {
+export default function ConsolidatedLists({ embedded = false } = {}) {
   const toast = useToast();
   const { user } = useAuth();
   const leadership = isLeadership(user?.role);
@@ -237,14 +237,16 @@ export default function ConsolidatedLists() {
   if (!data && !error) {
     return (
       <div>
-        <PageHeader
-          title={NAV_TITLES.consolidated}
-          subtitle={
-            leadership
-              ? "Set this exam’s consolidation max, approve registers, then generate the official class list."
-              : "Open your class list after every subject register is submitted and approved."
-          }
-        />
+        {!embedded && (
+          <PageHeader
+            title={NAV_TITLES.consolidated}
+            subtitle={
+              leadership
+                ? "Set this exam’s consolidation max, approve registers, then generate the official class list."
+                : "Open your class list after every subject register is submitted and approved."
+            }
+          />
+        )}
         <LoadingShell label="Loading mark lists…" />
       </div>
     );
@@ -253,7 +255,7 @@ export default function ConsolidatedLists() {
   if (error && !data) {
     return (
       <div>
-        <PageHeader title={NAV_TITLES.consolidated} subtitle="Consolidated mark lists" />
+        {!embedded && <PageHeader title={NAV_TITLES.consolidated} subtitle="Consolidated mark lists" />}
         <p className="text-clay-600 text-sm">{error}</p>
       </div>
     );
@@ -271,15 +273,22 @@ export default function ConsolidatedLists() {
 
   return (
     <div>
-      <PageHeader
-        title={NAV_TITLES.consolidated}
-        subtitle={
-          leadership
-            ? "After teachers enter and you approve marks, generate the official class list — every student, every subject, totals, grade, and rank."
-            : "Your section’s consolidated mark list opens only after all subject teachers have submitted and leadership has approved every register."
-        }
-        actions={data?.exams ? <ExamSelect exams={data.exams} value={examId} onChange={onExam} /> : null}
-      />
+      {!embedded && (
+        <PageHeader
+          title={NAV_TITLES.consolidated}
+          subtitle={
+            leadership
+              ? "After teachers enter and you approve marks, generate the official class list — every student, every subject, totals, grade, and rank."
+              : "Your section’s consolidated mark list opens only after all subject teachers have submitted and leadership has approved every register."
+          }
+          actions={data?.exams ? <ExamSelect exams={data.exams} value={examId} onChange={onExam} /> : null}
+        />
+      )}
+      {embedded && data?.exams ? (
+        <div className="mb-4">
+          <ExamSelect exams={data.exams} value={examId} onChange={onExam} />
+        </div>
+      ) : null}
 
       {error && <p className="text-clay-600 text-sm mb-3">{error}</p>}
 
@@ -290,8 +299,8 @@ export default function ConsolidatedLists() {
             <p className="text-sm text-ink-700/70 mt-0.5">
               {examCeil != null
                 ? locked
-                  ? `This exam’s CML ceiling is ${examCeil} and is locked. Unlock it under Records → Exams to change it.`
-                  : `This exam’s CML ceiling is ${examCeil}. Lock it under Records → Exams before publishing official lists.`
+                  ? `This exam’s consolidated mark list (CML) ceiling is ${examCeil} and is locked. Unlock it under Records → Exams to change it.`
+                  : `This exam’s consolidated mark list (CML) ceiling is ${examCeil}. Lock it under Records → Exams before publishing official lists.`
                 : "Set Max marks [consolidation] when you schedule the exam under Records → Exams."}
             </p>
           </div>
@@ -493,7 +502,7 @@ export default function ConsolidatedLists() {
                   {preview.missingSubjects?.length ? ` Outstanding: ${preview.missingSubjects.join(", ")}.` : ""}{" "}
                   Approve remaining registers for the official list.{" "}
                   <Link className="underline" to={paths.pendingUploads()}>
-                    Pending uploads
+                    Mark progress
                   </Link>
                   {" · "}
                   <Link className="underline" to={paths.marks()}>

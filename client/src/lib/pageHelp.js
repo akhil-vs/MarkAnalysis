@@ -9,8 +9,8 @@ export const PAGE_HELP = {
   },
   dashboardPrincipal: {
     title: "What's on this page",
-    about: "School-wide snapshot of the selected exam — average, pass rate, class and subject movement, grade mix, and who still needs to upload or be approved.",
-    useful: "Spot weak classes or subjects and incomplete registers before you approve results or talk to staff.",
+    about: "Ops-first principal desk for the selected exam: approvals inbox, needs attention / notify, then a School snapshot of averages, grade mix, and rankings.",
+    useful: "Clear the exam queue first, then open School snapshot or Deep insights for briefing numbers.",
   },
   dashboardCoordinator: {
     title: "What's on this page",
@@ -64,8 +64,13 @@ export const PAGE_HELP = {
   },
   pendingUploads: {
     title: "What's on this page",
-    about: "Teachers who still have empty registers, and submitted papers waiting for your approval, for the selected exam. Each list is an accordion — expand a teacher under Still missing marks or Entered — awaiting your approval.",
-    useful: "Clear this queue so school analytics and consolidated lists are complete. Expand a teacher to open the register, send a reminder, or approve submitted drafts.",
+    about: "Mark progress: chase teachers who still have empty registers for the selected exam. Each teacher is an accordion under Still missing marks — expand to open the register or send a reminder. Submitted papers are approved in Exam queue → Submitted.",
+    useful: "Use this page to clear missing uploads so consolidated mark lists (CML) and analytics can complete. Approve submitted registers in Exam queue.",
+  },
+  examQueue: {
+    title: "What's on this page",
+    about: "One exam queue for leadership: missing registers, submitted papers waiting for approval, access requests, and classes ready for consolidated mark lists (CML).",
+    useful: "Work the tabs left to right in exam week — chase missing, approve submitted, clear access requests, then download CML when ready.",
   },
   exams: {
     title: "What's on this page",
@@ -74,8 +79,8 @@ export const PAGE_HELP = {
   },
   approvals: {
     title: "What's on this page",
-    about: "One inbox for submitted registers waiting for approval and late-entry or edit access requests.",
-    useful: "Clear both queues here so teachers can keep working and consolidated lists stay unblocked.",
+    about: "Canonical inbox for submitted registers waiting for approval and late-entry or edit access requests. Chase still-missing registers on Mark progress.",
+    useful: "Clear both queues here so teachers can keep working and consolidated mark lists (CML) stay unblocked.",
   },
   classInbox: {
     title: "What's on this page",
@@ -90,7 +95,7 @@ export const PAGE_HELP = {
   marksPrincipal: {
     title: "What's on this page",
     about: "Review a class register to approve submitted marks or moderate with a reason. Teachers and exam coordinators enter marks — principals do not type or bulk-upload registers.",
-    useful: "Open registers from Pending uploads. Approve submitted papers here, or use Moderate for grace adjustments that stay approved.",
+    useful: "Open registers from Mark progress. Approve submitted papers here, or use Moderate for grace adjustments that stay approved.",
   },
   upload: {
     title: "What's on this page",
@@ -144,7 +149,7 @@ export const PAGE_HELP = {
   },
   boardOps: {
     title: "What's on this page",
-    about: "Board console is the CBSE board-facing desk: paper calendar and venues, report-card publish and principal sign-off, parent notify, revaluation, and downloadable board packs. Day-to-day mark entry, approvals, CML, and hall tickets stay under Exam office.",
+    about: "Board console is the CBSE board-facing desk: paper calendar and venues, report-card publish and principal sign-off, parent notify, revaluation, and downloadable board packs. Day-to-day mark entry, approvals, consolidated mark lists (CML), and hall tickets stay under Exam office.",
     useful: "Use Exam office for the live term cycle. Open Board console when you need official release, revaluation, or a pack for board submission — not for chasing teacher uploads.",
   },
   cpd: {

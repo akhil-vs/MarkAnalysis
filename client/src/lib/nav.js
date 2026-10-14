@@ -21,21 +21,30 @@ export const paths = {
     const q = params.toString();
     return q ? `/marks?${q}` : "/marks";
   },
-  pendingUploads: ({ examId } = {}) =>
-    examId ? `/pending-uploads?examId=${encodeURIComponent(examId)}` : "/pending-uploads",
+  examQueue: ({ tab = "missing", examId } = {}) => {
+    const params = new URLSearchParams();
+    if (tab && tab !== "missing") params.set("tab", tab);
+    if (examId) params.set("examId", examId);
+    const q = params.toString();
+    return q ? `/exam-queue?${q}` : "/exam-queue";
+  },
+  pendingUploads: ({ examId } = {}) => {
+    const params = new URLSearchParams({ tab: "missing" });
+    if (examId) params.set("examId", examId);
+    return `/exam-queue?${params}`;
+  },
   accessRequests: ({ status = "PENDING", kind, examId } = {}) => {
     const params = new URLSearchParams({ tab: "access" });
     if (status && status !== "PENDING") params.set("status", status);
     if (kind) params.set("kind", kind);
     if (examId) params.set("examId", examId);
-    return `/approvals?${params}`;
+    return `/exam-queue?${params}`;
   },
   approvals: ({ tab = "registers", examId } = {}) => {
-    const params = new URLSearchParams();
-    if (tab && tab !== "registers") params.set("tab", tab);
+    const hubTab = tab === "access" ? "access" : "submitted";
+    const params = new URLSearchParams({ tab: hubTab });
     if (examId) params.set("examId", examId);
-    const q = params.toString();
-    return q ? `/approvals?${q}` : "/approvals";
+    return `/exam-queue?${params}`;
   },
   compareTeachers: (subject) =>
     `/analysis/compare?tab=teachers&subject=${encodeURIComponent(subject)}`,
@@ -53,6 +62,7 @@ export const NAV_LABELS = {
   analysisCompare: "Compare",
   analysisDeep: "Deep insights",
   pendingUploads: "Mark progress",
+  examQueue: "Exam queue",
   classInbox: "Class inbox",
   marks: "Mark register",
   upload: "Bulk upload",
@@ -88,6 +98,7 @@ export const NAV_TITLES = {
   analysisCompare: "Comparisons",
   analysisDeep: "Deep insights",
   pendingUploads: "Mark progress",
+  examQueue: "Exam queue",
   classInbox: "Class-teacher inbox",
   marks: "Mark register",
   upload: "Bulk upload",
@@ -152,7 +163,7 @@ export const NAV_GROUPS = [
         to: "/marks",
         label: NAV_LABELS.marks,
         icon: "register",
-        // Principals review via Pending uploads → Open register; no sidebar entry.
+        // Principals review via Mark progress / Exam queue → Open register; no sidebar entry.
         roles: "all",
         hideForRoles: ["PRINCIPAL"],
       },
@@ -171,12 +182,12 @@ export const NAV_GROUPS = [
         roles: "leadership",
       },
       {
-        id: "pendingUploads",
-        to: "/pending-uploads",
-        label: NAV_LABELS.pendingUploads,
+        id: "examQueue",
+        to: "/exam-queue",
+        label: NAV_LABELS.examQueue,
         icon: "pending",
         roles: "leadership",
-        badgeKey: "pending",
+        badgeKey: "examQueue",
       },
       {
         id: "classInbox",
@@ -184,22 +195,6 @@ export const NAV_GROUPS = [
         label: NAV_LABELS.classInbox,
         icon: "pending",
         roles: "classTeacher",
-      },
-      {
-        id: "approvals",
-        to: "/approvals",
-        label: NAV_LABELS.approvals,
-        icon: "pending",
-        roles: "leadership",
-        badgeKey: "pending",
-      },
-      {
-        id: "accessRequests",
-        to: "/approvals?tab=access",
-        label: NAV_LABELS.accessRequests,
-        icon: "late",
-        roles: "leadership",
-        badgeKey: "lateEntry",
       },
     ],
   },
@@ -469,6 +464,7 @@ export const EXTRA_ROUTE_GUARDS = {
   "timetables/teachers/:id": "all",
   "platform/schools/:id": "platform",
   approvals: "leadership",
+  "exam-queue": "leadership",
   exams: "leadership",
 };
 
@@ -493,7 +489,7 @@ export function featureAllows(itemId, features) {
   }
   // Alias new nav surfaces onto existing role-access catalog ids.
   if (itemId === "exams") return hasFeature(features, "records");
-  if (itemId === "approvals") {
+  if (itemId === "approvals" || itemId === "examQueue") {
     return hasFeature(features, "pendingUploads") || hasFeature(features, "accessRequests");
   }
   return hasFeature(features, itemId);
@@ -551,7 +547,9 @@ export function guardFeatureForRoute(routePath) {
     return null;
   }
   if (key === "exams") return "records";
-  if (key === "approvals") return "pendingUploads";
+  if (key === "approvals" || key === "exam-queue" || key.startsWith("exam-queue?")) {
+    return "pendingUploads";
+  }
   // Find nav item id by matching `to`
   const want = `/${key}`.replace(/\/$/, "") || "/";
   function walk(items) {
@@ -596,7 +594,9 @@ export function navGroupsForRole(userRole, { classTeacherOf = [], features, capa
     items: filterNavItems(group.items, userRole, opts).filter((item) => {
       // Prefer session capabilities when present; fall back to role/feature rules.
       if (!capabilities) return true;
-      if (item.id === "approvals" || item.id === "accessRequests") return capabilities.canViewApprovals;
+      if (item.id === "approvals" || item.id === "accessRequests" || item.id === "examQueue") {
+        return capabilities.canViewApprovals;
+      }
       if (item.id === "exams" || item.id === "manage") return capabilities.canManageRecords;
       if (item.id === "marks" || item.id === "upload") return capabilities.canEnterMarks !== false;
       if (item.id === "analysisDeep") return capabilities.canViewDeepInsights;

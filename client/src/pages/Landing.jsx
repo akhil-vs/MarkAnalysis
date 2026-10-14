@@ -73,7 +73,7 @@ function buildPlans(region) {
       perks: [
         "Unlimited students & staff",
         "Deep insights & year comparison",
-        "Official CML Excel / PDF",
+        "Official consolidated mark lists (CML) Excel / PDF",
         "Timetables, notices & parent portal",
         "School logo on letterheads",
       ],

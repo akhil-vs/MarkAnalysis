@@ -472,7 +472,7 @@ export default function TeacherDashboard() {
                 className="btn-ghost"
                 to={`/consolidated?examId=${examId}&classSectionId=${c.id}`}
               >
-                {c.label || `${c.className}-${c.section}`} · CML
+                {c.label || `${c.className}-${c.section}`} · CML lists
               </Link>
             ))}
           </div>

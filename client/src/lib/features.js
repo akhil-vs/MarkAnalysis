@@ -5,7 +5,7 @@ export const FEATURE_GROUPS = [
     items: [
       { id: "marks", label: "Mark register" },
       { id: "upload", label: "Bulk upload" },
-      { id: "pendingUploads", label: "Pending uploads" },
+      { id: "pendingUploads", label: "Mark progress" },
       { id: "accessRequests", label: "Access requests" },
       { id: "consolidated", label: "Consolidated lists" },
       { id: "hallTickets", label: "Hall tickets" },

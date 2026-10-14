@@ -14,12 +14,17 @@ const TABS = [
   { id: "access", label: "Access requests" },
 ];
 
-export default function Approvals() {
+export default function Approvals({ embedded = false, forcedTab = null } = {}) {
   const toast = useToast();
   const confirm = useConfirm();
   const workspace = useWorkspaceOptional();
   const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") === "access" ? "access" : "registers";
+  const tab =
+    forcedTab === "registers" || forcedTab === "access"
+      ? forcedTab
+      : params.get("tab") === "access"
+        ? "access"
+        : "registers";
   const examFilter = params.get("examId") || workspace?.examId || "";
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
@@ -45,6 +50,7 @@ export default function Approvals() {
   }, [tab, examFilter]);
 
   function selectTab(next) {
+    if (embedded && forcedTab) return;
     const nextParams = new URLSearchParams(params);
     if (next === "registers") nextParams.delete("tab");
     else nextParams.set("tab", next);
@@ -84,24 +90,28 @@ export default function Approvals() {
 
   return (
     <div>
-      <PageHeader
-        title="Approvals"
-        subtitle="Clear submitted registers and late-entry / edit requests in one place"
-      />
+      {!embedded && (
+        <>
+          <PageHeader
+            title="Approvals"
+            subtitle="Clear submitted registers and late-entry / edit requests in one place"
+          />
 
-      <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
-        {TABS.map((t) => (
-          <button
-            key={t.id}
-            type="button"
-            className={`${tab === t.id ? "btn-primary" : "btn-ghost"} shrink-0`}
-            onClick={() => selectTab(t.id)}
-          >
-            {t.label}
-            {tab === t.id && tab === "registers" ? ` (${data?.count ?? 0})` : ""}
-          </button>
-        ))}
-      </div>
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+            {TABS.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className={`${tab === t.id ? "btn-primary" : "btn-ghost"} shrink-0`}
+                onClick={() => selectTab(t.id)}
+              >
+                {t.label}
+                {tab === t.id && tab === "registers" ? ` (${data?.count ?? 0})` : ""}
+              </button>
+            ))}
+          </div>
+        </>
+      )}
 
       {tab === "access" ? (
         <LateEntryRequests embedded />
@@ -112,8 +122,8 @@ export default function Approvals() {
       ) : (data.items || []).length === 0 ? (
         <div className="card p-5 text-ink-700/70">
           Nothing waiting in this queue.{" "}
-          <Link className="underline" to="/pending-uploads">
-            Open mark progress
+          <Link className="underline" to="/exam-queue?tab=missing">
+            Chase missing on Mark progress
           </Link>
         </div>
       ) : (

@@ -43,13 +43,15 @@ function teacherCountLabel(teacher, mode) {
   return `${n} register${n === 1 ? "" : "s"} outstanding`;
 }
 
-export default function PendingUploads() {
+export default function PendingUploads({ embedded = false, section = "all" } = {}) {
   const toast = useToast();
   const [searchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [examId, setExamId] = useState(searchParams.get("examId") || "");
   const [notify, setNotify] = useState(null);
   const [error, setError] = useState("");
+  const showMissing = section === "all" || section === "missing";
+  const showAwaiting = section === "all" || section === "awaiting";
 
   async function load(id) {
     setError("");
@@ -69,44 +71,84 @@ export default function PendingUploads() {
 
   if (error) return <LoadError message={error} />;
   if (!data) return <LoadingState label="Loading upload status…" />;
-  if (data.empty) return <p>No exams yet.</p>;
+  if (data.empty) {
+    return (
+      <div className="card p-5 text-ink-700/70">
+        No exams yet.{" "}
+        <Link className="underline" to="/exams">
+          Schedule an exam
+        </Link>
+      </div>
+    );
+  }
 
   const pending = (data.teachers || []).filter((t) => t.pending);
   const awaiting = (data.teachers || []).filter((t) => t.awaitingApproval && !t.pending);
+  const visiblePending = showMissing ? pending : [];
+  const visibleAwaiting = showAwaiting ? awaiting : [];
 
   return (
     <div>
-      <PageHeader
-        title={NAV_TITLES.pendingUploads}
-        subtitle={`${data.exam.name} — missing registers and submitted marks waiting for approval`}
-        actions={
-          <>
-            <select className="field-filter" value={examId} onChange={(e) => load(e.target.value)}>
-              {(data.exams || []).map((e) => (
-                <option key={e.id} value={e.id}>
-                  {e.name}
-                </option>
-              ))}
-            </select>
-            {(data.teachers || []).length > 0 && (
-              <button
-                type="button"
-                className="btn-accent"
-                onClick={() =>
-                  setNotify({
-                    kind: pending.length ? "INCOMPLETE" : "DEADLINE",
-                    examId,
-                    audience: pending.length ? "PENDING" : "ALL",
-                    exams: data.exams,
-                  })
-                }
-              >
-                Notify teachers
-              </button>
-            )}
-          </>
-        }
-      />
+      {!embedded && (
+        <PageHeader
+          title={NAV_TITLES.pendingUploads}
+          subtitle={`${data.exam.name} — chase missing registers; approve submitted papers in Exam queue → Submitted`}
+          actions={
+            <>
+              <select className="field-filter" value={examId} onChange={(e) => load(e.target.value)}>
+                {(data.exams || []).map((e) => (
+                  <option key={e.id} value={e.id}>
+                    {e.name}
+                  </option>
+                ))}
+              </select>
+              {(data.teachers || []).length > 0 && (
+                <button
+                  type="button"
+                  className="btn-accent"
+                  onClick={() =>
+                    setNotify({
+                      kind: pending.length ? "INCOMPLETE" : "DEADLINE",
+                      examId,
+                      audience: pending.length ? "PENDING" : "ALL",
+                      exams: data.exams,
+                    })
+                  }
+                >
+                  Notify teachers
+                </button>
+              )}
+            </>
+          }
+        />
+      )}
+      {embedded && (
+        <div className="mb-4 flex flex-wrap items-center gap-3">
+          <select className="field-filter" value={examId} onChange={(e) => load(e.target.value)}>
+            {(data.exams || []).map((e) => (
+              <option key={e.id} value={e.id}>
+                {e.name}
+              </option>
+            ))}
+          </select>
+          {pending.length > 0 && (
+            <button
+              type="button"
+              className="btn-accent"
+              onClick={() =>
+                setNotify({
+                  kind: "INCOMPLETE",
+                  examId,
+                  audience: "PENDING",
+                  exams: data.exams,
+                })
+              }
+            >
+              Notify teachers
+            </button>
+          )}
+        </div>
+      )}
       <div className="kpi-grid-lg mb-6">
         <Kpi label="Teachers pending" value={data.pendingTeacherCount} warn={data.pendingTeacherCount > 0} />
         <Kpi
@@ -118,27 +160,47 @@ export default function PendingUploads() {
         <Kpi label="Assigned teachers" value={(data.teachers || []).length} />
       </div>
 
-      {pending.length === 0 && awaiting.length === 0 ? (
+      {visiblePending.length === 0 && visibleAwaiting.length === 0 ? (
         <div className="card p-5 text-ink-700/70">
-          Every assigned teacher has uploaded and leadership has approved marks for this exam.{" "}
-          <Link className="underline" to={`/consolidated?examId=${examId}`}>
-            Generate consolidated mark lists
-          </Link>
+          {section === "missing" ? (
+            <>
+              No missing registers for this exam.{" "}
+              {(data.awaitingApprovalTeacherCount ?? 0) > 0 ? (
+                <Link className="underline" to="/exam-queue?tab=submitted">
+                  Open Submitted to approve
+                </Link>
+              ) : (
+                <Link className="underline" to={`/exam-queue?tab=ready&examId=${examId}`}>
+                  Check Ready for CML
+                </Link>
+              )}
+            </>
+          ) : (
+            <>
+              Every assigned teacher has uploaded and leadership has approved marks for this exam.{" "}
+              <Link className="underline" to={`/consolidated?examId=${examId}`}>
+                Generate consolidated mark lists
+              </Link>
+            </>
+          )}
         </div>
       ) : (
         <div className="space-y-6">
-          {awaiting.length > 0 && (
+          {visibleAwaiting.length > 0 && (
             <section className="space-y-3">
               <div>
                 <h2 className="font-serif text-xl">Entered — awaiting your approval</h2>
                 <p className="text-sm text-ink-700/60 mt-1">
                   Expand a teacher to approve each register separately. Drafts and other teachers’ registers stay
-                  unpublished.
+                  unpublished.{" "}
+                  <Link className="underline" to="/exam-queue?tab=submitted">
+                    Or open Submitted
+                  </Link>
                 </p>
               </div>
               <TeacherAccordionList
                 key={`${examId}-awaiting`}
-                teachers={awaiting}
+                teachers={visibleAwaiting}
                 mode="awaiting"
                 examId={examId}
                 onApproved={async (msg, ok = true) => {
@@ -149,7 +211,7 @@ export default function PendingUploads() {
               />
             </section>
           )}
-          {pending.length > 0 && (
+          {visiblePending.length > 0 && (
             <section className="space-y-3">
               <div>
                 <h2 className="font-serif text-xl">Still missing marks</h2>
@@ -159,7 +221,7 @@ export default function PendingUploads() {
               </div>
               <TeacherAccordionList
                 key={`${examId}-pending`}
-                teachers={pending}
+                teachers={visiblePending}
                 mode="pending"
                 examId={examId}
                 onNotifyTeacher={(t) =>

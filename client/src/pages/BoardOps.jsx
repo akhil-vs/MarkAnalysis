@@ -357,7 +357,7 @@ export default function BoardOps() {
     <div className="space-y-4">
       <PageHeader
         title={NAV_TITLES.boardOps}
-        subtitle="CBSE board-facing work: calendar, report-card release, revaluation, and upload packs. Day-to-day marks, CML, and hall tickets stay under Exam office."
+        subtitle="CBSE board-facing work: calendar, report-card release, revaluation, and upload packs. Day-to-day marks, consolidated mark lists (CML), and hall tickets stay under Exam office."
         actions={
           <ExamSelect
             exams={exams}

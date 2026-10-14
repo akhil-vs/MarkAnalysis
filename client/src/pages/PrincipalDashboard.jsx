@@ -134,6 +134,19 @@ export default function PrincipalDashboard() {
   const [error, setError] = useState("");
   const [notify, setNotify] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+  const [snapshotOpen, setSnapshotOpen] = useState(true);
+
+  const hasOpsWork = Boolean(
+    data &&
+      !data.empty &&
+      ((data.pendingUploads?.teachers || []).some((t) => t.pending) ||
+        (data.pendingUploads?.teachers || []).some((t) => t.awaitingApproval && !t.pending))
+  );
+
+  useEffect(() => {
+    if (!data || data.empty) return;
+    setSnapshotOpen(!hasOpsWork);
+  }, [hasOpsWork, examId, schoolSection, data?.exam?.id, data?.empty]);
 
   async function loadDetail(summary, section = schoolSection) {
     if (!summary?.exam?.id || summary.empty) return;
@@ -288,8 +301,8 @@ export default function PrincipalDashboard() {
     <div>
       <Breadcrumb
         items={[
-          { label: deskLabel.toUpperCase(), to: location.pathname.startsWith("/analysis/school") ? "/" : undefined },
-          { label: "ACADEMIC ANALYSIS" },
+          { label: deskLabel, to: location.pathname.startsWith("/analysis/school") ? "/" : undefined },
+          { label: "Academic analysis" },
         ]}
       />
 
@@ -300,6 +313,9 @@ export default function PrincipalDashboard() {
         actions={
           <>
             <ExamSelect exams={data.exams} value={examId} onChange={(id) => load(id, schoolSection)} />
+            <Link className="btn-accent" to={paths.approvals()}>
+              Exam queue
+            </Link>
             <Link className="btn-ghost" to="/analysis/deep">
               Deep insights
             </Link>
@@ -329,43 +345,6 @@ export default function PrincipalDashboard() {
         />
       </div>
 
-      <div className="kpi-grid mb-5">
-        <Metric
-          label={averageLabel}
-          value={data.kpis.schoolAverage != null ? `${data.kpis.schoolAverage}%` : "—"}
-          hint={trendDelta}
-        />
-        <Metric
-          label="Pass rate"
-          value={passRate != null ? `${passRate}%` : "—"}
-          badge={passRate != null && passRate >= 95 ? { text: "Optimal", tone: "up" } : undefined}
-          hint={{ text: `${data.kpis.students} students on roll`, tone: "flat" }}
-        />
-        <Metric
-          label="Distinction / fail"
-          value={`${data.boardSummary?.distinction ?? 0} / ${data.boardSummary?.fail ?? 0}`}
-          hint={{
-            text: `≥${data.boardSummary?.distinctionMin ?? 90}% · <${data.boardSummary?.passPercent ?? 50}%`,
-            tone: "flat",
-          }}
-        />
-        <Metric
-          label="Registers approved"
-          value={data.readiness?.kpis?.approvedPct != null ? `${data.readiness.kpis.approvedPct}%` : "—"}
-          to="/analysis/deep?tab=readiness"
-          tone={registersBreached ? "alert" : undefined}
-          badge={registersBreached ? { text: "Action Req.", tone: "alert" } : undefined}
-          hint={{
-            text: registersPastDeadline
-              ? `${data.readiness.kpis?.breached ?? 0} past deadline incomplete`
-              : `${data.readiness?.kpis?.awaiting ?? 0} awaiting approval`,
-            tone: registersBreached ? "down" : "flat",
-          }}
-        />
-      </div>
-
-      {detailLoading && <InlineLoading label="Loading charts and rankings…" className="mb-4" />}
-
       <div className="grid lg:grid-cols-2 gap-4 mb-4">
         <PendingSubmittedApprovals />
         <PendingAccessRequests />
@@ -373,7 +352,7 @@ export default function PrincipalDashboard() {
 
       <div className="grid lg:grid-cols-12 gap-4 mb-4">
         <Panel
-          className="lg:col-span-5"
+          className="lg:col-span-12"
           title="Needs attention"
           action={
             <div className="flex flex-wrap gap-2 items-center">
@@ -394,10 +373,10 @@ export default function PrincipalDashboard() {
                 </button>
               )}
               <Link className="text-xs underline text-ink-700/60" to={paths.approvals()}>
-                Approvals inbox
+                Open Exam queue
               </Link>
               <Link className="text-xs underline text-ink-700/60" to={paths.pendingUploads()}>
-                Mark progress
+                Chase missing
               </Link>
             </div>
           }
@@ -504,193 +483,260 @@ export default function PrincipalDashboard() {
             </div>
           )}
         </Panel>
-
-        <Panel className="lg:col-span-7" title="How the school is moving">
-          {longitudinal.rows.length ? (
-            <>
-              <ResponsiveContainer width="100%" height={220}>
-                <LineChart data={longitudinal.rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
-                  <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                  <YAxis domain={[40, 100]} tick={{ fontSize: 12 }} width={36} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Legend wrapperStyle={{ fontSize: 12 }} />
-                  {longitudinal.baselineYear && (
-                    <Line
-                      type="monotone"
-                      dataKey="baseline"
-                      name={`${longitudinal.baselineYear} Baseline`}
-                      stroke="#9aa3b2"
-                      strokeWidth={2}
-                      strokeDasharray="6 4"
-                      dot={{ r: 3, fill: "#9aa3b2" }}
-                      connectNulls
-                    />
-                  )}
-                  <Line
-                    type="monotone"
-                    dataKey="current"
-                    name={longitudinal.currentYear ? `${longitudinal.currentYear} Trend` : "Trend"}
-                    stroke="#3d6b4f"
-                    strokeWidth={2.5}
-                    dot={{ r: 4, fill: "#3d6b4f" }}
-                    activeDot={{ r: 5 }}
-                    connectNulls
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-              <div className="mt-3 flex flex-wrap gap-4 text-xs text-ink-700/60">
-                {examPass.slice(-4).map((e) => (
-                  <span key={e.examId}>
-                    {e.label || e.name}: <span className="text-ink-900 font-medium">{e.passRate}% pass</span>
-                  </span>
-                ))}
-              </div>
-            </>
-          ) : (
-            <EmptyNote>{detailLoading ? "Loading trend…" : "Not enough exam history to chart movement yet."}</EmptyNote>
-          )}
-        </Panel>
       </div>
 
-      <CurricularPerformanceHub
-        classWise={data.classWise || []}
-        sections={sections}
-        subjectWise={data.subjectWise || []}
-        teachers={teachers}
-        schoolAverage={data.kpis?.schoolAverage}
-        detailLoading={detailLoading}
-      />
+      <div className="kpi-grid mb-5">
+        <Metric
+          label={averageLabel}
+          value={data.kpis.schoolAverage != null ? `${data.kpis.schoolAverage}%` : "—"}
+          hint={trendDelta}
+        />
+        <Metric
+          label="Pass rate"
+          value={passRate != null ? `${passRate}%` : "—"}
+          badge={passRate != null && passRate >= 95 ? { text: "Optimal", tone: "up" } : undefined}
+          hint={{ text: `${data.kpis.students} students on roll`, tone: "flat" }}
+        />
+        <Metric
+          label="Distinction / fail"
+          value={`${data.boardSummary?.distinction ?? 0} / ${data.boardSummary?.fail ?? 0}`}
+          hint={{
+            text: `≥${data.boardSummary?.distinctionMin ?? 90}% · <${data.boardSummary?.passPercent ?? 50}%`,
+            tone: "flat",
+          }}
+        />
+        <Metric
+          label="Registers approved"
+          value={data.readiness?.kpis?.approvedPct != null ? `${data.readiness.kpis.approvedPct}%` : "—"}
+          to="/analysis/deep?tab=readiness"
+          tone={registersBreached ? "alert" : undefined}
+          badge={registersBreached ? { text: "Action Req.", tone: "alert" } : undefined}
+          hint={{
+            text: registersPastDeadline
+              ? `${data.readiness.kpis?.breached ?? 0} past deadline incomplete`
+              : `${data.readiness?.kpis?.awaiting ?? 0} awaiting approval`,
+            tone: registersBreached ? "down" : "flat",
+          }}
+        />
+      </div>
 
-      {(grades.length > 0 || detailLoading) && (
-        <div className="mb-4">
-          <Panel title="Grade mix">
-            {grades.length ? (
-              <ResponsiveContainer width="100%" height={200}>
-                <BarChart data={grades}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
-                  <XAxis dataKey="grade" tick={{ fontSize: 12 }} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
-                  <Tooltip content={<ChartTooltip />} />
-                  <Bar dataKey="count" name="Students" radius={[4, 4, 0, 0]}>
-                    {grades.map((g) => (
-                      <Cell key={g.grade} fill={GRADE_COLORS[g.grade] || "#1b2437"} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <EmptyNote>{detailLoading ? "Loading grade mix…" : "No grade distribution yet."}</EmptyNote>
-            )}
-          </Panel>
-        </div>
-      )}
-
-      <div className="grid lg:grid-cols-12 gap-4 mb-4">
-        <Panel
-          className="lg:col-span-7"
-          title="Mark-band distribution"
-          action={
-            <Link className="text-xs underline text-ink-700/60" to="/analysis/deep?tab=outcomes">
-              Distinction & fail lists
-            </Link>
-          }
+      <div className="mb-4 rounded-2xl border border-ink-900/10 bg-white/40">
+        <button
+          type="button"
+          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
+          aria-expanded={snapshotOpen}
+          onClick={() => setSnapshotOpen((v) => !v)}
         >
-          {data.markBands?.length ? (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={data.markBands}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
-                <XAxis dataKey="key" tick={{ fontSize: 11 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
-                <Tooltip content={<ChartTooltip />} />
-                <Bar dataKey="count" name="Marks" fill="#1b2437" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <EmptyNote>{detailLoading ? "Loading mark bands…" : "No scored marks to band yet."}</EmptyNote>
-          )}
-        </Panel>
-        <Panel className="lg:col-span-5" title="Outcomes">
-          {data.outcomes ? (
-            <div className="space-y-3">
-              <OutcomeRow label="Scored" value={data.outcomes.rates?.scored} />
-              <OutcomeRow label="Absent" value={data.outcomes.rates?.absent} />
-              <OutcomeRow label="Exempt" value={data.outcomes.rates?.exempt} />
-              <OutcomeRow label="Withheld" value={data.outcomes.rates?.withheld} />
-              {outcomeTotal > 0 && (
-                <div className="pt-3 mt-1 border-t border-ink-900/10 text-xs text-ink-700/55">
-                  <span className="font-medium text-ink-900 tabular-nums">
-                    {data.outcomes.SCORED ?? 0}/{outcomeTotal}
-                  </span>{" "}
-                  registered marks
-                </div>
-              )}
+          <div>
+            <div className="font-medium text-ink-900">School snapshot</div>
+            <div className="text-xs text-ink-700/60">
+              Trends, curricular hub, grade mix, and rankings
+              {hasOpsWork ? " — expand after you clear the queue" : ""}
             </div>
-          ) : (
-            <EmptyNote>{detailLoading ? "Loading outcomes…" : "No outcome data yet."}</EmptyNote>
-          )}
-        </Panel>
-      </div>
+          </div>
+          <span className="text-xs uppercase tracking-wide text-ink-700/50">
+            {snapshotOpen ? "Hide" : "Show"}
+          </span>
+        </button>
+        {snapshotOpen && (
+          <div className="border-t border-ink-900/10 px-4 pb-4 pt-4">
+            {detailLoading && <InlineLoading label="Loading charts and rankings…" className="mb-4" />}
 
-      <div className="mb-4">
-        <YearComparison series={data.yearComparison} title="Same exam type versus previous years" />
-      </div>
+            <div className="mb-4">
+              <Panel title="How the school is moving">
+                {longitudinal.rows.length ? (
+                  <>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <LineChart data={longitudinal.rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
+                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
+                        <YAxis domain={[40, 100]} tick={{ fontSize: 12 }} width={36} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Legend wrapperStyle={{ fontSize: 12 }} />
+                        {longitudinal.baselineYear && (
+                          <Line
+                            type="monotone"
+                            dataKey="baseline"
+                            name={`${longitudinal.baselineYear} Baseline`}
+                            stroke="#9aa3b2"
+                            strokeWidth={2}
+                            strokeDasharray="6 4"
+                            dot={{ r: 3, fill: "#9aa3b2" }}
+                            connectNulls
+                          />
+                        )}
+                        <Line
+                          type="monotone"
+                          dataKey="current"
+                          name={longitudinal.currentYear ? `${longitudinal.currentYear} Trend` : "Trend"}
+                          stroke="#3d6b4f"
+                          strokeWidth={2.5}
+                          dot={{ r: 4, fill: "#3d6b4f" }}
+                          activeDot={{ r: 5 }}
+                          connectNulls
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                    <div className="mt-3 flex flex-wrap gap-4 text-xs text-ink-700/60">
+                      {examPass.slice(-4).map((e) => (
+                        <span key={e.examId}>
+                          {e.label || e.name}:{" "}
+                          <span className="text-ink-900 font-medium">{e.passRate}% pass</span>
+                        </span>
+                      ))}
+                    </div>
+                  </>
+                ) : (
+                  <EmptyNote>
+                    {detailLoading ? "Loading trend…" : "Not enough exam history to chart movement yet."}
+                  </EmptyNote>
+                )}
+              </Panel>
+            </div>
 
-      <div className="grid lg:grid-cols-2 gap-4 mb-4">
-        <Panel
-          title="School toppers"
-          action={
-            <Link className="text-xs underline text-ink-700/60" to="/analysis/students">
-              All students
-            </Link>
-          }
-        >
-          {toppers.slice(0, 8).map((s) => (
-            <RankRow
-              key={s.studentId}
-              rank={s.rank}
-              name={s.name}
-              meta={s.classLabel}
-              value={`${s.average}%`}
-              grade={s.grade}
-              to={paths.student(s.studentId)}
+            <CurricularPerformanceHub
+              classWise={data.classWise || []}
+              sections={sections}
+              subjectWise={data.subjectWise || []}
+              teachers={teachers}
+              schoolAverage={data.kpis?.schoolAverage}
+              detailLoading={detailLoading}
             />
-          ))}
-          {!toppers.length && (
-            <EmptyNote>{detailLoading ? "Loading rankings…" : "No toppers for this exam yet."}</EmptyNote>
-          )}
-        </Panel>
-        <Panel
-          title="Teacher leaderboard"
-          action={
-            <Link className="text-xs underline text-ink-700/60" to="/analysis/teachers">
-              By teacher
-            </Link>
-          }
-        >
-          {teachers.slice(0, 8).map((row, i) => (
-            <Link
-              key={`${row.teacher}-${row.classLabel}-${row.subject}`}
-              to={row.teacherId ? paths.teacher(row.teacherId) : "/analysis/teachers"}
-              className="block py-2.5 border-t border-ink-900/10 first:border-0 hover:bg-white/40 -mx-1 px-1 rounded"
-            >
-              <div className="flex items-center justify-between text-sm mb-1.5 gap-2">
-                <div className="min-w-0">
-                  <span className="text-ink-700/40 text-xs mr-2">{i + 1}</span>
-                  <span className="font-medium">{row.teacher}</span>
-                  <span className="text-ink-700/50 text-xs ml-2">
-                    {row.subject} · {row.classLabel}
-                  </span>
-                </div>
-                <span className="tabular-nums shrink-0">{row.average}%</span>
+
+            {(grades.length > 0 || detailLoading) && (
+              <div className="mb-4">
+                <Panel title="Grade mix">
+                  {grades.length ? (
+                    <ResponsiveContainer width="100%" height={200}>
+                      <BarChart data={grades}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
+                        <XAxis dataKey="grade" tick={{ fontSize: 12 }} />
+                        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
+                        <Tooltip content={<ChartTooltip />} />
+                        <Bar dataKey="count" name="Students" radius={[4, 4, 0, 0]}>
+                          {grades.map((g) => (
+                            <Cell key={g.grade} fill={GRADE_COLORS[g.grade] || "#1b2437"} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <EmptyNote>{detailLoading ? "Loading grade mix…" : "No grade distribution yet."}</EmptyNote>
+                  )}
+                </Panel>
               </div>
-              <BarTrack value={row.average} color="#1b2437" />
-            </Link>
-          ))}
-          {!teachers.length && (
-            <EmptyNote>{detailLoading ? "Loading rankings…" : "No teacher averages for this exam yet."}</EmptyNote>
-          )}
-        </Panel>
+            )}
+
+            <div className="grid lg:grid-cols-12 gap-4 mb-4">
+              <Panel
+                className="lg:col-span-7"
+                title="Mark-band distribution"
+                action={
+                  <Link className="text-xs underline text-ink-700/60" to="/analysis/deep?tab=outcomes">
+                    Distinction & fail lists
+                  </Link>
+                }
+              >
+                {data.markBands?.length ? (
+                  <ResponsiveContainer width="100%" height={200}>
+                    <BarChart data={data.markBands}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
+                      <XAxis dataKey="key" tick={{ fontSize: 11 }} />
+                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
+                      <Tooltip content={<ChartTooltip />} />
+                      <Bar dataKey="count" name="Marks" fill="#1b2437" radius={[4, 4, 0, 0]} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                ) : (
+                  <EmptyNote>{detailLoading ? "Loading mark bands…" : "No scored marks to band yet."}</EmptyNote>
+                )}
+              </Panel>
+              <Panel className="lg:col-span-5" title="Outcomes">
+                {data.outcomes ? (
+                  <div className="space-y-3">
+                    <OutcomeRow label="Scored" value={data.outcomes.rates?.scored} />
+                    <OutcomeRow label="Absent" value={data.outcomes.rates?.absent} />
+                    <OutcomeRow label="Exempt" value={data.outcomes.rates?.exempt} />
+                    <OutcomeRow label="Withheld" value={data.outcomes.rates?.withheld} />
+                    {outcomeTotal > 0 && (
+                      <div className="pt-3 mt-1 border-t border-ink-900/10 text-xs text-ink-700/55">
+                        <span className="font-medium text-ink-900 tabular-nums">
+                          {data.outcomes.SCORED ?? 0}/{outcomeTotal}
+                        </span>{" "}
+                        registered marks
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <EmptyNote>{detailLoading ? "Loading outcomes…" : "No outcome data yet."}</EmptyNote>
+                )}
+              </Panel>
+            </div>
+
+            <div className="mb-4">
+              <YearComparison series={data.yearComparison} title="Same exam type versus previous years" />
+            </div>
+
+            <div className="grid lg:grid-cols-2 gap-4">
+              <Panel
+                title="School toppers"
+                action={
+                  <Link className="text-xs underline text-ink-700/60" to="/analysis/students">
+                    All students
+                  </Link>
+                }
+              >
+                {toppers.slice(0, 8).map((s) => (
+                  <RankRow
+                    key={s.studentId}
+                    rank={s.rank}
+                    name={s.name}
+                    meta={s.classLabel}
+                    value={`${s.average}%`}
+                    grade={s.grade}
+                    to={paths.student(s.studentId)}
+                  />
+                ))}
+                {!toppers.length && (
+                  <EmptyNote>{detailLoading ? "Loading rankings…" : "No toppers for this exam yet."}</EmptyNote>
+                )}
+              </Panel>
+              <Panel
+                title="Teacher leaderboard"
+                action={
+                  <Link className="text-xs underline text-ink-700/60" to="/analysis/teachers">
+                    By teacher
+                  </Link>
+                }
+              >
+                {teachers.slice(0, 8).map((row, i) => (
+                  <Link
+                    key={`${row.teacher}-${row.classLabel}-${row.subject}`}
+                    to={row.teacherId ? paths.teacher(row.teacherId) : "/analysis/teachers"}
+                    className="block py-2.5 border-t border-ink-900/10 first:border-0 hover:bg-white/40 -mx-1 px-1 rounded"
+                  >
+                    <div className="flex items-center justify-between text-sm mb-1.5 gap-2">
+                      <div className="min-w-0">
+                        <span className="text-ink-700/40 text-xs mr-2">{i + 1}</span>
+                        <span className="font-medium">{row.teacher}</span>
+                        <span className="text-ink-700/50 text-xs ml-2">
+                          {row.subject} · {row.classLabel}
+                        </span>
+                      </div>
+                      <span className="tabular-nums shrink-0">{row.average}%</span>
+                    </div>
+                    <BarTrack value={row.average} color="#1b2437" />
+                  </Link>
+                ))}
+                {!teachers.length && (
+                  <EmptyNote>
+                    {detailLoading ? "Loading rankings…" : "No teacher averages for this exam yet."}
+                  </EmptyNote>
+                )}
+              </Panel>
+            </div>
+          </div>
+        )}
       </div>
 
       {notify && (

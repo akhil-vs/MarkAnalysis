@@ -255,6 +255,7 @@ export default function Layout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingCount, setPendingCount] = useState(null);
+  const [missingCount, setMissingCount] = useState(null);
   const [lateEntryCount, setLateEntryCount] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
   const [school, setSchool] = useState(null);
@@ -264,7 +265,16 @@ export default function Layout() {
   const analysisOpen = isAnalysisPath(location.pathname);
   const groups = navGroupsForRole(user.role, { classTeacherOf, features, capabilities });
 
-  const badges = { pending: pendingCount, lateEntry: lateEntryCount };
+  const examQueueCount =
+    pendingCount == null && missingCount == null
+      ? null
+      : (Number(pendingCount) || 0) + (Number(missingCount) || 0);
+  const badges = {
+    pending: pendingCount,
+    missing: missingCount,
+    examQueue: examQueueCount,
+    lateEntry: lateEntryCount,
+  };
 
   useEffect(() => {
     setNavOpen(false);
@@ -314,13 +324,17 @@ export default function Layout() {
       const pendingPromise = api("/api/analytics/awaiting-approvals?countOnly=1")
         .then((d) => Number(d.count) || 0)
         .catch(() => null);
+      const missingPromise = api("/api/analytics/pending-uploads?countOnly=1")
+        .then((d) => Number(d.pendingTeacherCount) || 0)
+        .catch(() => null);
       const latePromise = api("/api/mark-access/count?status=PENDING")
         .then((d) => Number(d.count) || 0)
         .catch(() => null);
 
-      const [pending, late] = await Promise.all([pendingPromise, latePromise]);
+      const [pending, missing, late] = await Promise.all([pendingPromise, missingPromise, latePromise]);
       if (cancelled) return;
       if (pending != null) setPendingCount(pending);
+      if (missing != null) setMissingCount(missing);
       if (late != null) setLateEntryCount(late);
     }
 
@@ -395,7 +409,7 @@ export default function Layout() {
                     end={item.end}
                     icon={item.icon}
                     badge={item.badgeKey ? badges[item.badgeKey] : null}
-                    showZeroBadge={item.badgeKey === "pending"}
+                    showZeroBadge={item.badgeKey === "pending" || item.badgeKey === "examQueue"}
                     onNavigate={closeNav}
                   />
                 )
