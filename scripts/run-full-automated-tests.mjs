@@ -203,17 +203,16 @@ async function main() {
   const suites = [];
   const startedAt = new Date().toISOString();
 
-  // 1) Server unit tests (DB-free — matches CI).
-  // Force DATABASE_URL="" so dotenv/config cannot reload it from server/.env;
-  // otherwise prismaCompat.*.test.js opens pools and hangs the runner.
+  // 1) Server unit tests.
+  // --test-force-exit is required when DATABASE_URL is set: prismaCompat.*.test.js
+  // leaves open pg pool handles that otherwise hang the Node test runner.
   console.log("\n═══ 1/5 Server unit tests ═══\n");
   {
     const t0 = Date.now();
-    const unitEnv = { ...env, DATABASE_URL: "" };
     const result = await run(
       process.execPath,
       ["--test", "--test-force-exit", "src/lib/**/*.test.js"],
-      { cwd: serverDir, env: unitEnv }
+      { cwd: serverDir, env }
     );
     const totals = parseNodeTestTotals(result.stdout + "\n" + result.stderr);
     suites.push({
@@ -231,8 +230,7 @@ async function main() {
   console.log("\n═══ 2/5 Client unit tests ═══\n");
   {
     const t0 = Date.now();
-    const unitEnv = { ...env, DATABASE_URL: "" };
-    const result = await run("npm", ["test"], { cwd: clientDir, env: unitEnv });
+    const result = await run("npm", ["test"], { cwd: clientDir, env });
     const totals = parseNodeTestTotals(result.stdout + "\n" + result.stderr);
     suites.push({
       id: "client-unit",
@@ -245,11 +243,15 @@ async function main() {
     });
   }
 
-  // 3) API integration
+  // 3) API integration (--test-force-exit: open pg pools / servers)
   console.log("\n═══ 3/5 API integration tests ═══\n");
   {
     const t0 = Date.now();
-    const result = await run("npm", ["run", "test:api"], { cwd: serverDir, env });
+    const result = await run(
+      process.execPath,
+      ["--test", "--test-force-exit", "src/test/api.*.test.js"],
+      { cwd: serverDir, env }
+    );
     const totals = parseNodeTestTotals(result.stdout + "\n" + result.stderr);
     suites.push({
       id: "api-integration",
@@ -280,6 +282,7 @@ async function main() {
       process.execPath,
       [
         "--test",
+        "--test-force-exit",
         "--test-reporter=spec",
         "--test-reporter-destination=stdout",
         `--test-reporter=${reporter}`,
