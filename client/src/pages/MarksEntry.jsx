@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Link, useBlocker, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
@@ -496,13 +496,9 @@ export default function MarksEntry() {
     return () => window.removeEventListener("beforeunload", onBeforeUnload);
   }, [hasUnsavedMarks]);
 
-  const leaveBlocker = useBlocker(hasUnsavedMarks);
-  useEffect(() => {
-    if (leaveBlocker.state !== "blocked") return;
-    const leave = window.confirm("You have unsaved marks. Leave without saving?");
-    if (leave) leaveBlocker.proceed();
-    else leaveBlocker.reset();
-  }, [leaveBlocker]);
+  // useBlocker requires a data router (createBrowserRouter). This app uses
+  // BrowserRouter, so in-router blocking is not available — beforeunload above
+  // still warns on tab close / refresh when marks are dirty.
 
   function collectChangedEntries({ subjectFilter } = {}) {
     if (!grid) return [];

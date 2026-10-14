@@ -627,6 +627,74 @@ describe("User manual automation", () => {
     });
   });
 
+  describe("Parent / student portal (portal.md)", () => {
+    it("principal can issue a portal link; guest session sees only linked students", async (t) => {
+      if (!server) return t.skip("DATABASE_URL not set");
+      const studentsRes = await server.request("/api/students?pageSize=5", {
+        jar: jars.principal,
+      });
+      assert.equal(studentsRes.status, 200, studentsRes.text);
+      const students = listPayload(studentsRes.json);
+      assert.ok(students.length >= 1, "seed should include students");
+      const studentId = students[0].id;
+
+      const create = await server.request("/api/portal/links", {
+        method: "POST",
+        jar: jars.principal,
+        body: {
+          studentIds: [studentId],
+          examId: ctx.examId || undefined,
+          label: "Automation portal link",
+        },
+      });
+      assert.equal(create.status, 201, create.text);
+      assert.ok(create.json?.token, "raw portal token required");
+      assert.match(create.json?.portalPath || "", /^\/portal#t=/);
+
+      const badSession = await server.request("/api/portal/session", {
+        method: "POST",
+        body: { token: "not-a-real-portal-token" },
+      });
+      assert.equal(badSession.status, 401);
+
+      const session = await server.request("/api/portal/session", {
+        method: "POST",
+        body: { token: create.json.token },
+      });
+      assert.equal(session.status, 200, session.text);
+      assert.ok(session.json?.token, "portal JWT missing");
+      assert.equal(session.json?.students?.length, 1);
+      assert.equal(session.json.students[0].id, studentId);
+
+      const marks = await server.request(
+        `/api/portal/marks?studentId=${encodeURIComponent(studentId)}`,
+        { headers: { Authorization: `Bearer ${session.json.token}` } }
+      );
+      assert.equal(marks.status, 200, marks.text);
+      assert.equal(marks.json?.student?.id, studentId);
+      assert.ok(Array.isArray(marks.json?.subjects));
+
+      const teacherDenied = await server.request("/api/portal/links", {
+        method: "POST",
+        jar: jars.teacher,
+        body: { studentIds: [studentId], label: "teacher should fail" },
+      });
+      assert.equal(teacherDenied.status, 403, teacherDenied.text);
+
+      const revoke = await server.request(`/api/portal/links/${create.json.id}/revoke`, {
+        method: "POST",
+        jar: jars.principal,
+      });
+      assert.equal(revoke.status, 200, revoke.text);
+
+      const revokedSession = await server.request("/api/portal/session", {
+        method: "POST",
+        body: { token: create.json.token },
+      });
+      assert.equal(revokedSession.status, 401);
+    });
+  });
+
   describe("HELP → User manuals (README + Help page)", () => {
     it("role filtering matches manualsForRole catalog rules", () => {
       assert.deepEqual(
@@ -672,7 +740,8 @@ describe("User manual automation", () => {
       ]) {
         assert.match(text, /Hrs history/, `${name} should document hours history`);
         assert.match(text, /Open timetable/, `${name} should document the teachers accordion`);
-        assert.match(text, /Still missing marks/, `${name} should document the pending-uploads accordion`);
+        assert.match(text, /Exam queue/, `${name} should document the Exam queue hub`);
+        assert.match(text, /Missing/, `${name} should document the Exam queue Missing tab`);
         assert.match(text, /Click and drag/, `${name} should document daily-board drag scroll`);
         assert.match(text, /Modules & Security/, `${name} should name school profile tabs`);
         assert.match(text, /Classes in this exam/, `${name} should document exam class selection`);

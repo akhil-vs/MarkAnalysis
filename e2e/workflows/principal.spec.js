@@ -84,12 +84,15 @@ test.describe("Principal manual — complete application workflow", () => {
     await expect(page.locator("main").getByRole("button", { name: /Save leave/i })).toBeVisible();
   });
 
-  test("§3.1 Mark progress — chase & approve queue", async ({ page }) => {
+  test("§3.1 Exam queue — Missing tab (chase & approve)", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
-    await goNav(page, "Mark progress");
-    await expect(page).toHaveURL(/\/pending-uploads/);
-    await expectPageTitle(page, "Mark progress");
-    await expect(page.locator("main")).toContainText(/Still missing marks|awaiting your approval|Every assigned teacher/i);
+    await goNav(page, "Exam queue");
+    await expect(page).toHaveURL(/\/exam-queue/);
+    await expectPageTitle(page, "Exam queue");
+    await expect(page.getByRole("tab", { name: /^Missing$/i })).toBeVisible();
+    await expect(page.locator("main")).toContainText(
+      /Still missing marks|awaiting your approval|Every assigned teacher|Chase teachers|No missing|missing register/i
+    );
     const trigger = page.locator("main .accordion-trigger").first();
     if (await trigger.count()) {
       await expect(trigger).toBeVisible();
@@ -98,11 +101,13 @@ test.describe("Principal manual — complete application workflow", () => {
     }
   });
 
-  test("§3.2 Access requests inbox", async ({ page }) => {
+  test("§3.2 Exam queue — Access requests tab", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
-    await goNav(page, "Access requests");
-    await expect(page).toHaveURL(/\/approvals/);
-    await expectPageTitle(page, "Approvals");
+    await goNav(page, "Exam queue");
+    await expectPageTitle(page, "Exam queue");
+    await page.getByRole("tab", { name: /^Access requests$/i }).click();
+    await expect(page).toHaveURL(/tab=access/);
+    await expect(page.locator("main")).toContainText(/late-entry|edit request|access|pending|no pending/i);
   });
 
   test("§3.4 Consolidated lists", async ({ page }) => {

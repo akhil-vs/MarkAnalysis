@@ -99,6 +99,18 @@ npm run test:app
 
 HTML report: `reports/playwright-html/index.html` (also `reports/playwright-report.json`).
 
+### Full automated test report (all user types)
+
+Runs unit + API + role-manual automation + Playwright E2E and writes a consolidated report for every user type (platform admin, principal, co-ordinator, teacher, multi-campus principal, portal guest, public anonymous):
+
+```bash
+npm run test:full-report
+# or with a wipe+seed first:
+npm run test:full-report:prepare
+```
+
+Outputs: `reports/full-automated-test-report.html` (also `.md` / `.json`).
+
 ### Deploy auth config (Vercel / production)
 
 Set these on the Vercel project (or host env) before going live:

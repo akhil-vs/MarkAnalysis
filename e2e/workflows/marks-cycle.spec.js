@@ -20,8 +20,9 @@ test.describe("Cross-role marks cycle (manuals exam workflow)", () => {
     const teacherPage = await teacher.newPage();
     await goRoute(teacherPage, ROUTES.dashboard);
     await goNav(teacherPage, "Mark register");
+    await expect(teacherPage).toHaveURL(/\/marks/);
     await expectPageTitle(teacherPage, "Mark register");
-    await expect(teacherPage.locator("main")).toContainText(/exam|class|subject|marks|Biology|student/i);
+    await expect(teacherPage.locator("main")).toContainText(/exam|class|subject|marks|Biology|student|paper/i);
     await teacher.close();
 
     const coord = await browser.newContext({
@@ -29,11 +30,11 @@ test.describe("Cross-role marks cycle (manuals exam workflow)", () => {
     });
     const coordPage = await coord.newPage();
     await goRoute(coordPage, ROUTES.dashboard);
-    await goNav(coordPage, "Mark progress");
-    await expectPageTitle(coordPage, "Mark progress");
-    await expect(coordPage.locator("main")).toContainText(/Biology|Meera|pending|awaiting|teacher|upload/i);
-    await goNav(coordPage, "Access requests");
-    await expectPageTitle(coordPage, "Approvals");
+    await goNav(coordPage, "Exam queue");
+    await expectPageTitle(coordPage, "Exam queue");
+    await expect(coordPage.locator("main")).toContainText(/Biology|Meera|pending|awaiting|teacher|upload|missing|Chase/i);
+    await coordPage.getByRole("tab", { name: /^Access requests$/i }).click();
+    await expect(coordPage).toHaveURL(/tab=access/);
     await coord.close();
 
     const principal = await browser.newContext({
@@ -41,8 +42,8 @@ test.describe("Cross-role marks cycle (manuals exam workflow)", () => {
     });
     const principalPage = await principal.newPage();
     await goRoute(principalPage, ROUTES.dashboard);
-    await goNav(principalPage, "Mark progress");
-    await expectPageTitle(principalPage, "Mark progress");
+    await goNav(principalPage, "Exam queue");
+    await expectPageTitle(principalPage, "Exam queue");
     await expectNavLink(principalPage, "Mark register", { visible: false });
     await principal.close();
   });

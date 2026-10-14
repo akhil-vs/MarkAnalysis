@@ -15,6 +15,8 @@
     "test:e2e": "npx playwright test --config=e2e/playwright.config.js",
     "test:e2e:report": "npx playwright show-report reports/playwright-html",
     "test:app": "npm run test:manual-automation && npm run test:e2e",
+    "test:full-report": "node scripts/run-full-automated-tests.mjs",
+    "test:full-report:prepare": "PREPARE_DB=1 SEED=1 node scripts/run-full-automated-tests.mjs",
     "docs:pitch-pptx": "node scripts/generate-principal-pitch-pptx.mjs"
   },
   "dependencies": {
