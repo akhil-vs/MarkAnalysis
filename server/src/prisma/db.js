@@ -1,7 +1,5 @@
 import "dotenv/config";
 import "temporal-polyfill/full/global";
-import fs from "node:fs";
-import path from "node:path";
 import { Pool } from "pg";
 import postgres from "@prisma/orm-postgres/runtime";
 import contractJson from "./contract.json" with { type: "json" };
@@ -12,10 +10,6 @@ const connectionString = resolveDatabaseUrl();
 if (connectionString && !process.env.DATABASE_URL) {
   process.env.DATABASE_URL = connectionString;
 }
-
-// #region agent log
-fs.appendFileSync('/opt/cursor/logs/debug.log',JSON.stringify({location:'db.js:module',message:'db.js pool init inputs',data:{hasConnectionString:Boolean(connectionString),connectionStringLen:connectionString?connectionString.length:0,hasDatabaseUrl:Boolean(process.env.DATABASE_URL),hasPostgresPrismaUrl:Boolean(process.env.POSTGRES_PRISMA_URL),hasPostgresUrl:Boolean(process.env.POSTGRES_URL),cwd:process.cwd(),dotenvPathExists:fs.existsSync(path.join(process.cwd(),'.env')),runId:'post-fix'},timestamp:Date.now(),hypothesisId:'A'})+'\n');
-// #endregion
 
 export const pool = connectionString
   ? new Pool({
@@ -33,10 +27,6 @@ export const pool = connectionString
       keepAliveInitialDelayMillis: 10000,
     })
   : null;
-
-// #region agent log
-fs.appendFileSync('/opt/cursor/logs/debug.log',JSON.stringify({location:'db.js:pool',message:'pool export result',data:{poolIsNull:pool===null,poolType:pool===null?'null':typeof pool,usingPgBranch:Boolean(pool),runId:'post-fix'},timestamp:Date.now(),hypothesisId:'A'})+'\n');
-// #endregion
 
 export const db = postgres({
   contractJson,

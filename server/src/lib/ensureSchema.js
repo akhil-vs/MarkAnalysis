@@ -1,5 +1,4 @@
 import { randomUUID } from "node:crypto";
-import fs from "node:fs";
 import { prisma } from "./prisma.js";
 
 const TIMETABLE_MIGRATION = "20260908103000_teacher_timetable";
@@ -464,9 +463,6 @@ async function ensureStaffNoticeEnum() {
 }
 
 async function columnExists(tableName, columnName) {
-  // #region agent log
-  try{fs.appendFileSync('/opt/cursor/logs/debug.log',JSON.stringify({location:'ensureSchema.js:columnExists',message:'columnExists calling $queryRaw',data:{tableName,columnName},timestamp:Date.now(),hypothesisId:'C'})+'\n');}catch(_e){}
-  // #endregion
   const rows = await prisma.$queryRaw`
     SELECT EXISTS (
       SELECT 1

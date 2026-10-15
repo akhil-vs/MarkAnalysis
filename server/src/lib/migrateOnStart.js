@@ -1,5 +1,4 @@
 import { spawn } from "node:child_process";
-import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { hasDatabaseUrl } from "./databaseUrl.js";
@@ -18,9 +17,6 @@ let migratePromise = null;
  * Returns true when migrate exited 0, false when skipped/failed.
  */
 export function runMigrateDeploy({ timeoutMs = 25_000 } = {}) {
-  // #region agent log
-  try{fs.appendFileSync('/opt/cursor/logs/debug.log',JSON.stringify({location:'migrateOnStart.js:runMigrateDeploy',message:'migrate URL env check',data:{hasDatabaseUrl:hasDatabaseUrl(),hasEnvDatabaseUrl:Boolean(process.env.DATABASE_URL),hasPostgresPrismaUrl:Boolean(process.env.POSTGRES_PRISMA_URL),hasPostgresUrl:Boolean(process.env.POSTGRES_URL),runId:'post-fix'},timestamp:Date.now(),hypothesisId:'E'})+'\n');}catch(_e){}
-  // #endregion
   if (!hasDatabaseUrl()) {
     return Promise.resolve({ ok: false, skipped: true, reason: "no-database-url" });
   }
