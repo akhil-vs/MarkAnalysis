@@ -27,7 +27,7 @@ Remaining work that would make this suitable for a live school:
 - ~~**Parent / student read-only portal~~ (principal-issued `/portal` link; approved marks for one exam)
 - ~~**Multi-tenant schools~~ (shared DB, `School` tenant + join code; staff signup scoped per school)
 - ~~Email digests for pending sign-ups, late entry, deadlines, approvals~~ (`EmailOutbox` + SMTP flush; School profile toggle; platform Run digests)
-- ~~Force password change after admin reset; gate demo one-click accounts~~ (`mustChangePassword`, `VITE_ENABLE_DEMO_LOGIN`)
+- ~~Force password change after admin reset; remove demo one-click accounts~~ (`mustChangePassword`; demo login removed from `/login`)
 - ~~Server-side search/pagination for students, staff, and audit log~~
 - ~~Incomplete consolidated PDF watermark / hard block for official download~~ (`official=1` → 409 when incomplete; preview PDF watermark)
 

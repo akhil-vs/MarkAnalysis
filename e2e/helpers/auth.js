@@ -1,6 +1,6 @@
 import { expect } from "@playwright/test";
 
-/** Shared demo accounts from the seed / login page. */
+/** Shared seed accounts used by E2E auth setup. */
 export const ACCOUNTS = {
   principal: {
     name: "Dr. Kavita Rao",
@@ -69,21 +69,25 @@ function escapeRegExp(s) {
 }
 
 /**
- * Sign in via the one-click demo button on /login (Vite DEV enables demos).
+ * Sign in with email + password on /login (seed password is password123).
  */
-export async function demoLogin(page, account) {
+export async function formLogin(page, account, password = "password123") {
   await page.goto("/login");
   await page.getByRole("heading", { name: /sign in/i }).waitFor({ state: "visible" });
-  const btn = page.getByRole("button").filter({
-    has: page.getByText(account.name, { exact: true }),
-  });
-  await btn.first().click();
+  await page.locator('input[type="email"]').fill(account.email);
+  await page.locator('input[type="password"]').fill(password);
+  await page.getByRole("button", { name: /^sign in$/i }).click();
   if (account.role === "Platform admin") {
     await page.waitForURL(/\/platform/);
   } else {
     await page.waitForURL((url) => url.pathname === "/" || url.pathname === "");
   }
   await page.locator("main").waitFor({ state: "visible" });
+}
+
+/** @deprecated Use formLogin — one-click demo accounts were removed from /login. */
+export async function demoLogin(page, account) {
+  return formLogin(page, account);
 }
 
 export async function signOut(page) {

@@ -41,7 +41,6 @@ Product, security, and ops foundations are in place. Public registration and pri
 
 - [ ] Browser tab title and favicon show School Marks Analytics
 - [ ] Landing hero shows the full product name + one tagline + Sign in / Request pilot
-- [ ] Demo build has `VITE_ENABLE_DEMO_LOGIN` off unless it is an internal sandbox
 - [ ] School profile logo/name set on the pilot campus before showing PDF/Excel outputs
 - [ ] Pitch deck + leave-behind printed or attached (`docs/pitch/`)
 
@@ -62,9 +61,8 @@ Outreach templates: [`docs/pitch/`](./pitch/README.md).
 
 Operators must complete [SECURITY.md](../SECURITY.md) and:
 
-- [ ] `DATABASE_URL` and strong `JWT_SECRET` (≥16 chars)
+- [ ] `DATABASE_URL` and strong `JWT_SECRET` (≥16 chars); on Vercel also set pooled `POSTGRES_URL` / `POSTGRES_PRISMA_URL`
 - [ ] `PLATFORM_ADMIN_PASSWORD` set; then `PLATFORM_ADMIN_PASSWORD_LOCKED=true`
-- [ ] `VITE_ENABLE_DEMO_LOGIN` unset/`false` on the production build
 - [ ] `CLIENT_ORIGIN` includes every real SPA origin (custom domains)
 - [ ] `PILOT_NOTIFY_EMAIL` (preferred) or `VITE_PILOT_CONTACT_EMAIL` so form submissions queue email
 - [ ] Optional: `SMTP_*` for digests and pilot notify delivery; otherwise accept outbox “skipped”

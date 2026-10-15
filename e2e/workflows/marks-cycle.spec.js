@@ -97,9 +97,12 @@ test.describe("Cross-role marks cycle (manuals exam workflow)", () => {
     await ctx.close();
   });
 
-  test("Public login page loads with demo accounts", async ({ page }) => {
+  test("Public login page loads sign-in form", async ({ page }) => {
     await page.goto("/login");
     await expect(page.getByRole("heading", { name: /sign in/i })).toBeVisible();
-    await expect(page.getByText(/Dr\. Kavita Rao|Sanjay Menon|Anita Sharma/i).first()).toBeVisible();
+    await expect(page.locator('input[type="email"]')).toBeVisible();
+    await expect(page.locator('input[type="password"]')).toBeVisible();
+    await expect(page.getByRole("button", { name: /^sign in$/i })).toBeVisible();
+    await expect(page.getByText(/Dr\. Kavita Rao|password123/i)).toHaveCount(0);
   });
 });

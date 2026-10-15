@@ -8,7 +8,7 @@
  * - 100 teachers with weekly timetables
  * - Subjects aligned to CBSE middle / secondary / senior-secondary practice
  *
- * Demo logins (password123) are preserved for the UI and integration tests.
+ * Seed logins (password123) are preserved for local/E2E integration tests.
  */
 import bcrypt from "bcryptjs";
 import { ensurePlatformAdmin } from "../src/lib/ensurePlatformAdmin.js";
