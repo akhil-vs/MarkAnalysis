@@ -1,6 +1,8 @@
 import { spawn } from "node:child_process";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { hasDatabaseUrl } from "./databaseUrl.js";
 import { ensurePlatformAdmin } from "./ensurePlatformAdmin.js";
 import { ensureAuthSchema, ensurePendingSchema } from "./ensureSchema.js";
 import { prisma } from "./prisma.js";
@@ -16,7 +18,10 @@ let migratePromise = null;
  * Returns true when migrate exited 0, false when skipped/failed.
  */
 export function runMigrateDeploy({ timeoutMs = 25_000 } = {}) {
-  if (!process.env.DATABASE_URL && !process.env.POSTGRES_PRISMA_URL && !process.env.POSTGRES_URL) {
+  // #region agent log
+  try{fs.appendFileSync('/opt/cursor/logs/debug.log',JSON.stringify({location:'migrateOnStart.js:runMigrateDeploy',message:'migrate URL env check',data:{hasDatabaseUrl:hasDatabaseUrl(),hasEnvDatabaseUrl:Boolean(process.env.DATABASE_URL),hasPostgresPrismaUrl:Boolean(process.env.POSTGRES_PRISMA_URL),hasPostgresUrl:Boolean(process.env.POSTGRES_URL),runId:'post-fix'},timestamp:Date.now(),hypothesisId:'E'})+'\n');}catch(_e){}
+  // #endregion
+  if (!hasDatabaseUrl()) {
     return Promise.resolve({ ok: false, skipped: true, reason: "no-database-url" });
   }
   if (process.env.SKIP_MIGRATE_DEPLOY === "true") {
@@ -98,6 +103,18 @@ function allowEnsureSchema({ migrateOk } = {}) {
 export function bootstrapSchema() {
   if (!bootstrapPromise) {
     bootstrapPromise = (async () => {
+      if (!hasDatabaseUrl()) {
+        lastSchemaBootstrap = {
+          mode: "no-database-url",
+          migrate: { ok: false, skipped: true, reason: "no-database-url" },
+          ensureSchema: false,
+          at: new Date().toISOString(),
+        };
+        console.warn(
+          "schema bootstrap skipped: no DATABASE_URL / POSTGRES_URL / POSTGRES_PRISMA_URL"
+        );
+        return lastSchemaBootstrap;
+      }
       const vercelFastPath =
         Boolean(process.env.VERCEL) && process.env.FORCE_MIGRATE_DEPLOY !== "true";
       if (vercelFastPath) {
@@ -199,6 +216,15 @@ async function ensureSeedPlatformAdmin() {
 export function bootstrapAuthSchema() {
   if (!authBootstrapPromise) {
     authBootstrapPromise = (async () => {
+      if (!hasDatabaseUrl()) {
+        const err = new Error(
+          "Database is not configured. Set DATABASE_URL (or POSTGRES_URL / POSTGRES_PRISMA_URL)."
+        );
+        err.status = 503;
+        err.code = "DB_NOT_CONFIGURED";
+        err.expose = true;
+        throw err;
+      }
       const vercelFastPath =
         Boolean(process.env.VERCEL) && process.env.FORCE_MIGRATE_DEPLOY !== "true";
       if (!vercelFastPath) {

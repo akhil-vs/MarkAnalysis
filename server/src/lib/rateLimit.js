@@ -1,9 +1,10 @@
 /**
  * Rate limiter for auth and other sensitive writes.
- * Uses Postgres when DATABASE_URL is set (shared across serverless instances);
+ * Uses Postgres when a database URL is set (shared across serverless instances);
  * falls back to per-process memory for unit tests / local without a DB.
  */
 import { clientIp } from "./clientIp.js";
+import { hasDatabaseUrl } from "./databaseUrl.js";
 import { prisma } from "./prisma.js";
 
 const memoryHits = new Map();
@@ -11,7 +12,7 @@ const memoryHits = new Map();
 function useDatabaseStore() {
   if (process.env.RATE_LIMIT_STORE === "memory") return false;
   if (process.env.RATE_LIMIT_STORE === "database") return true;
-  return Boolean(process.env.DATABASE_URL);
+  return hasDatabaseUrl();
 }
 
 function pruneMemory(now) {

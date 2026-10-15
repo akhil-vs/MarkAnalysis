@@ -2,6 +2,7 @@
  * Prisma Client v6-compatible façade over Prisma ORM 8 (`db.orm.public.*`).
  */
 import { AsyncLocalStorage } from "node:async_hooks";
+import fs from "node:fs";
 import { and, or, not } from "@prisma/orm-postgres/orm-client";
 import { extendPrismaWithTenant } from "./tenant.js";
 
@@ -887,7 +888,18 @@ export function createPrismaCompat(db, options = {}) {
   }
 
   async function requirePool() {
-    if (!pool) throw new Error("createPrismaCompat: `pool` is required for raw SQL helpers");
+    // #region agent log
+    try{fs.appendFileSync('/opt/cursor/logs/debug.log',JSON.stringify({location:'prismaCompat.js:requirePool',message:'requirePool invoked',data:{poolFalsy:!pool,poolType:pool==null?'nullish':typeof pool,runId:'post-fix'},timestamp:Date.now(),hypothesisId:'C'})+'\n');}catch(_e){}
+    // #endregion
+    if (!pool) {
+      const err = new Error(
+        "Database is not configured. Set DATABASE_URL (or POSTGRES_URL / POSTGRES_PRISMA_URL)."
+      );
+      err.status = 503;
+      err.code = "DB_NOT_CONFIGURED";
+      err.expose = true;
+      throw err;
+    }
     return pool;
   }
 

@@ -1,6 +1,7 @@
 import express from "express";
 import cors from "cors";
 import compression from "compression";
+import fs from "node:fs";
 import { buildCorsAllowlist, isCorsOriginAllowed } from "./lib/corsAllowlist.js";
 import cookieParser from "cookie-parser";
 import { authRouter } from "./routes/auth.js";
@@ -58,10 +59,16 @@ function awaitSchema(_req, _res, next) {
 }
 /** Login/refresh/me only need auth tables — full catch-up runs in the background. */
 function awaitAuthSchema(_req, _res, next) {
+  // #region agent log
+  try{fs.appendFileSync('/opt/cursor/logs/debug.log',JSON.stringify({location:'app.js:awaitAuthSchema',message:'login path awaiting auth schema',data:{path:_req.path,hasAuthSchemaReady:Boolean(authSchemaReady),hasDatabaseUrl:Boolean(process.env.DATABASE_URL),hasPostgresUrl:Boolean(process.env.POSTGRES_URL),hasPostgresPrismaUrl:Boolean(process.env.POSTGRES_PRISMA_URL)},timestamp:Date.now(),hypothesisId:'C'})+'\n');}catch(_e){}
+  // #endregion
   if (!authSchemaReady) authSchemaReady = bootstrapAuthSchema();
   authSchemaReady
     .then(() => next())
     .catch((err) => {
+      // #region agent log
+      try{fs.appendFileSync('/opt/cursor/logs/debug.log',JSON.stringify({location:'app.js:awaitAuthSchema:catch',message:'auth schema bootstrap rejected',data:{error:String(err?.message||err)},timestamp:Date.now(),hypothesisId:'C'})+'\n');}catch(_e){}
+      // #endregion
       // A rejected promise must not stick forever — otherwise every login stays 503.
       authSchemaReady = null;
       next(err);
