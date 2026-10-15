@@ -112,13 +112,25 @@ function isPrismaValidationError(err) {
 
 function isDatabaseUnavailable(err) {
   const code = prismaErrorCode(err);
+  const msg = String(err?.message || err?.cause?.message || "");
   return (
     err?.name === "PrismaClientInitializationError" ||
     code === "P1001" ||
     code === "P1002" ||
     code === "P1017" ||
     code === "ECONNREFUSED" ||
-    code === "57P01"
+    code === "ECONNRESET" ||
+    code === "ETIMEDOUT" ||
+    code === "ENOTFOUND" ||
+    code === "57P01" ||
+    code === "53300" ||
+    /timeout exceeded when trying to connect/i.test(msg) ||
+    /Connection terminated/i.test(msg) ||
+    /Connection refused/i.test(msg) ||
+    /getaddrinfo/i.test(msg) ||
+    /database unreachable/i.test(msg) ||
+    /sorry, too many clients/i.test(msg) ||
+    /remaining connection slots are reserved/i.test(msg)
   );
 }
 

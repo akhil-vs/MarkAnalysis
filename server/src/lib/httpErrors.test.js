@@ -103,6 +103,12 @@ describe("toErrorPayload", () => {
     const payload = toErrorPayload(down, { production: true });
     assert.equal(payload.status, 503);
     assert.match(payload.body.error, /unavailable/i);
+
+    const timeout = new Error("timeout exceeded when trying to connect");
+    timeout.code = "ETIMEDOUT";
+    const timedOut = toErrorPayload(timeout, { production: true });
+    assert.equal(timedOut.status, 503);
+    assert.equal(timedOut.body.code, "DB_UNAVAILABLE");
   });
 
   it("maps missing database configuration to 503", () => {

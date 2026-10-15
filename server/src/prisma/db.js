@@ -3,7 +3,7 @@ import "temporal-polyfill/full/global";
 import { Pool } from "pg";
 import postgres from "@prisma/orm-postgres/runtime";
 import contractJson from "./contract.json" with { type: "json" };
-import { resolveDatabaseUrl } from "../lib/databaseUrl.js";
+import { isServerlessRuntime, resolveDatabaseUrl } from "../lib/databaseUrl.js";
 
 const connectionString = resolveDatabaseUrl();
 // Keep Prisma CLI / migrate helpers that only read DATABASE_URL aligned with aliases.
@@ -11,20 +11,21 @@ if (connectionString && !process.env.DATABASE_URL) {
   process.env.DATABASE_URL = connectionString;
 }
 
+const serverless = isServerlessRuntime();
+
 export const pool = connectionString
   ? new Pool({
       connectionString,
-      // Optimized connection pool settings
-      max: 20, // Maximum pool size for high concurrency
-      min: 5, // Keep minimum connections warm
-      idleTimeoutMillis: 30000, // Close idle connections after 30s
-      connectionTimeoutMillis: 2000, // Fail fast on connection issues
-      // Prevent long-running queries from blocking
-      statement_timeout: 30000, // 30 seconds max per query
-      query_timeout: 30000,
-      // Enable keep-alive
-      keepAlive: true,
-      keepAliveInitialDelayMillis: 10000,
+      // Serverless (Vercel): one connection per isolate, no warm min — Neon direct
+      // URLs + min>0 were a common source of login "Server error" / unreachable DB.
+      max: serverless ? 1 : 20,
+      min: 0,
+      idleTimeoutMillis: serverless ? 5_000 : 30_000,
+      // Neon cold start / wake can exceed 2s; keep local snappy but allow serverless headroom.
+      connectionTimeoutMillis: serverless ? 10_000 : 5_000,
+      allowExitOnIdle: true,
+      keepAlive: !serverless,
+      ...(serverless ? {} : { keepAliveInitialDelayMillis: 10_000 }),
     })
   : null;
 
