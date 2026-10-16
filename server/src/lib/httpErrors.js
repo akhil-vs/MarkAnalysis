@@ -112,13 +112,25 @@ function isPrismaValidationError(err) {
 
 function isDatabaseUnavailable(err) {
   const code = prismaErrorCode(err);
+  const msg = String(err?.message || err?.cause?.message || "");
   return (
     err?.name === "PrismaClientInitializationError" ||
     code === "P1001" ||
     code === "P1002" ||
     code === "P1017" ||
     code === "ECONNREFUSED" ||
-    code === "57P01"
+    code === "ECONNRESET" ||
+    code === "ETIMEDOUT" ||
+    code === "ENOTFOUND" ||
+    code === "57P01" ||
+    code === "53300" ||
+    /timeout exceeded when trying to connect/i.test(msg) ||
+    /Connection terminated/i.test(msg) ||
+    /Connection refused/i.test(msg) ||
+    /getaddrinfo/i.test(msg) ||
+    /database unreachable/i.test(msg) ||
+    /sorry, too many clients/i.test(msg) ||
+    /remaining connection slots are reserved/i.test(msg)
   );
 }
 
@@ -184,6 +196,18 @@ export function toErrorPayload(err, { production = process.env.NODE_ENV === "pro
   if (isPrismaValidationError(err)) {
     return { status: 400, body: { error: production ? "Invalid request" : "Invalid request" } };
   }
+  if (err?.code === "DB_NOT_CONFIGURED") {
+    return {
+      status: 503,
+      body: {
+        error:
+          String(err.message || "").trim() ||
+          "Database is not configured. Set DATABASE_URL (or POSTGRES_URL / POSTGRES_PRISMA_URL).",
+        code: "DB_NOT_CONFIGURED",
+      },
+    };
+  }
+
   if (isDatabaseUnavailable(err)) {
     return { status: 503, body: { error: "Database is unavailable. Try again shortly.", code: "DB_UNAVAILABLE" } };
   }

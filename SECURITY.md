@@ -10,7 +10,6 @@ If you discover a vulnerability, email the repository maintainers privately. Do 
 - [ ] Optional dedicated `MFA_ENCRYPTION_KEY` for TOTP secrets (falls back to JWT_SECRET)
 - [ ] Keep `ALLOW_PUBLIC_SCHOOL_REGISTRATION` unset/`false` unless you intentionally open self-serve campus creation
 - [ ] `PLATFORM_ADMIN_PASSWORD` set + `PLATFORM_ADMIN_PASSWORD_LOCKED=true` in production
-- [ ] `VITE_ENABLE_DEMO_LOGIN` unset/`false` on production builds
 - [ ] `CLIENT_ORIGIN` includes every SPA origin that uses cookie auth
 - [ ] `TRUST_PROXY` correct for your reverse proxy / Vercel
 - [ ] CSP left enforced (default in production); only disable temporarily while debugging embeds

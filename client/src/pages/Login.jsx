@@ -12,26 +12,6 @@ import {
 } from "../lib/branding.js";
 import PoweredBy from "../components/PoweredBy.jsx";
 
-const DEMO_PASSWORD = "password123";
-
-/** One-click demos: on in Vite dev unless explicitly disabled; off in production builds unless enabled. */
-const DEMO_LOGIN_ENABLED =
-  import.meta.env.VITE_ENABLE_DEMO_LOGIN === "true" ||
-  (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO_LOGIN !== "false");
-
-const DEMO_ACCOUNTS = [
-  { name: "Platform Admin", role: "Platform admin", email: "admin@platform.edu", schoolId: "PLT-A01" },
-  { name: "Dr. Kavita Rao", role: "Principal", email: "principal@school.edu", schoolId: "SCH-P01" },
-  { name: "Sanjay Menon", role: "Exam Coordinator", email: "coordinator@school.edu", schoolId: "SCH-C01" },
-  { name: "Anita Sharma", role: "Teacher · Mathematics", email: "anita.sharma@school.edu", schoolId: "SCH-T01" },
-  { name: "Rahul Mehta", role: "Teacher · Physics", email: "rahul.mehta@school.edu", schoolId: "SCH-T02" },
-  { name: "Priya Nair", role: "Teacher · Chemistry", email: "priya.nair@school.edu", schoolId: "SCH-T03" },
-  { name: "David Thomas", role: "Teacher · English", email: "david.thomas@school.edu", schoolId: "SCH-T04" },
-  { name: "Meera Iyer", role: "Teacher · Biology", email: "meera.iyer@school.edu", schoolId: "SCH-T05" },
-  { name: "Kiran Bose", role: "Teacher · Mathematics", email: "kiran.bose@school.edu", schoolId: "SCH-T06" },
-  { name: "Asha Menon", role: "Principal · Riverside", email: "principal@riverside.school", schoolId: "RIV-P01" },
-];
-
 export default function Login() {
   const { user, login, verifyMfa, beginOptimisticLogin, logout } = useAuth();
   const navigate = useNavigate();
@@ -39,7 +19,7 @@ export default function Login() {
   const [email, setEmail] = useState("");
   const [schoolId, setSchoolId] = useState("");
   const [joinCode, setJoinCode] = useState("");
-  const [password, setPassword] = useState(DEMO_LOGIN_ENABLED ? DEMO_PASSWORD : "");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState("");
   const [mfaChallenge, setMfaChallenge] = useState(null);
@@ -61,18 +41,9 @@ export default function Login() {
     navigate(data?.user?.mustChangePassword ? "/profile" : home);
   }
 
-  function roleHintFromAccount(account) {
-    if (!account?.role) return null;
-    if (account.role === "Platform admin") return "PLATFORM_ADMIN";
-    if (account.role === "Principal" || account.role.startsWith("Principal")) return "PRINCIPAL";
-    if (account.role === "Exam Coordinator") return "EXAM_COORDINATOR";
-    if (account.role.startsWith("Teacher")) return "TEACHER";
-    return null;
-  }
-
-  async function signIn(payload, { roleHint } = {}) {
+  async function signIn(payload) {
     setError("");
-    const optimistic = beginOptimisticLogin({ ...payload, roleHint });
+    const optimistic = beginOptimisticLogin(payload);
     if (optimistic) {
       // Cached shell is already applied — navigate immediately (0ms paint).
       goHome(optimistic);
@@ -152,23 +123,6 @@ export default function Login() {
     }
   }
 
-  async function quickLogin(account) {
-    setBusy(account.email);
-    setMode("email");
-    setEmail(account.email);
-    setPassword(DEMO_PASSWORD);
-    const roleHint = roleHintFromAccount(account);
-    preloadDashboardModules(roleHint);
-    await signIn({ email: account.email, password: DEMO_PASSWORD }, { roleHint });
-  }
-
-  const teachers = DEMO_ACCOUNTS.filter((a) => a.role.startsWith("Teacher"));
-  const leadership = DEMO_ACCOUNTS.filter((a) => a.role === "Principal" || a.role === "Exam Coordinator");
-  const platform = DEMO_ACCOUNTS.filter((a) => a.role === "Platform admin");
-  const subtitle = DEMO_LOGIN_ENABLED
-    ? "Use any staff account. Seed password is password123."
-    : "Sign in with your school email or staff ID.";
-
   if (mfaChallenge) {
     return (
       <AuthShell
@@ -219,7 +173,7 @@ export default function Login() {
   }
 
   return (
-    <AuthShell title="Sign in" subtitle={subtitle}>
+    <AuthShell title="Sign in" subtitle="Sign in with your school email or staff ID.">
       <form onSubmit={onSubmit} className="space-y-4">
         <div className="flex gap-2 text-xs">
           {["email", "schoolId"].map((m) => (
@@ -297,51 +251,7 @@ export default function Login() {
         <p className="mt-4 text-center text-sm text-ink-700/70">
           <a className="underline" href="/portal">Parent / student portal</a>
         </p>
-
-      {DEMO_LOGIN_ENABLED && (
-        <div className="mt-8">
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mb-2">Platform</h2>
-          <div className="space-y-2">
-            {platform.map((account) => (
-              <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
-            ))}
-          </div>
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mt-5 mb-2">Leadership</h2>
-          <div className="space-y-2">
-            {leadership.map((account) => (
-              <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
-            ))}
-          </div>
-          <h2 className="text-xs font-medium uppercase tracking-wide text-ink-700/60 mt-5 mb-2">All teachers</h2>
-          <div className="space-y-2">
-            {teachers.map((account) => (
-              <QuickLogin key={account.email} account={account} busy={busy} onClick={quickLogin} />
-            ))}
-          </div>
-        </div>
-      )}
     </AuthShell>
-  );
-}
-
-function QuickLogin({ account, busy, onClick }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onClick(account)}
-      disabled={Boolean(busy)}
-      className="w-full text-left card px-3 py-2.5 hover:border-clay-500 disabled:opacity-60"
-    >
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-sm font-medium">{account.name}</div>
-          <div className="text-xs text-ink-700/60">{account.role} · {account.email}</div>
-        </div>
-        <span className="text-xs text-clay-600 shrink-0">
-          <BusyLabel busy={busy === account.email} idle="Sign in" busyText="Signing in…" />
-        </span>
-      </div>
-    </button>
   );
 }
 
@@ -360,9 +270,6 @@ export function AuthShell({ title, subtitle, children }) {
           </p>
         </div>
         <div className="space-y-2">
-          {DEMO_LOGIN_ENABLED && (
-            <div className="text-sm text-cream/40">Every seed account uses password123</div>
-          )}
           <PoweredBy tone="dark" />
         </div>
       </div>

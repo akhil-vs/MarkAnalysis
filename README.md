@@ -118,13 +118,13 @@ Set these on the Vercel project (or host env) before going live:
 | Variable | Required | Notes |
 |---|---|---|
 | `DATABASE_URL` | yes | Postgres URL used at runtime for migrate/ensure + queries |
+| `POSTGRES_URL` / `POSTGRES_PRISMA_URL` | Vercel | Pooled aliases (Neon/Vercel Postgres). On Vercel the API prefers these over a direct `DATABASE_URL` so serverless login can reach the DB |
 | `JWT_SECRET` | yes | ≥16 random chars (≥32 recommended); boot fails on Vercel/production if weak |
 | `MFA_ENCRYPTION_KEY` | no | Optional dedicated key for MFA secrets; else derived from `JWT_SECRET` |
 | `ALLOW_PUBLIC_SCHOOL_REGISTRATION` | no | Keep unset/`false`; API refuses self-serve school registration unless `true` |
 | `JWT_ACCESS_EXPIRES` | no | Access cookie TTL (default `15m`) |
 | `CLIENT_ORIGIN` | no* | Comma-separated SPA origins. \*Not needed when the SPA and `/api` share one Vercel deployment |
 | `COOKIE_SECURE` | no | Force `Secure` cookies; auto-on when `VERCEL` or `NODE_ENV=production` |
-| `VITE_ENABLE_DEMO_LOGIN` | no | Build-time; leave unset/`false` so demo one-click logins stay hidden |
 | `VITE_PILOT_CONTACT_EMAIL` | no | Build-time mailto for “Request a school pilot” (else vendor site URL) |
 | `VITE_PILOT_CONTACT_URL` | no | Build-time URL override for pilot CTA (default PencilLabs site) |
 | `PLATFORM_ADMIN_PASSWORD` | prod | Required to create the platform admin on first boot. Never use the documented seed password (`password123`) in production |
@@ -139,7 +139,7 @@ Leadership can set the **school name, address, affiliation, and logo** under **S
 
 ## Seed logins
 
-All seed passwords are `password123`. The login page also has one-click sign-in for every account.
+All seed passwords are `password123`. Sign in on `/login` with email (or school ID) and password.
 
 | Role | Email | School ID |
 |---|---|---|

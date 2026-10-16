@@ -97,12 +97,7 @@ export function deployAuthEnvDocs() {
     {
       name: "DATABASE_URL",
       required: true,
-      note: "Postgres connection string for the API and migrate-on-boot.",
-    },
-    {
-      name: "VITE_ENABLE_DEMO_LOGIN",
-      required: false,
-      note: "Client build flag. Leave unset/false in production so one-click demo accounts stay hidden.",
+      note: "Postgres connection string for the API and migrate-on-boot. On Vercel, also set POSTGRES_URL / POSTGRES_PRISMA_URL (pooled); serverless prefers those over a direct DATABASE_URL.",
     },
     {
       name: "PLATFORM_ADMIN_PASSWORD",

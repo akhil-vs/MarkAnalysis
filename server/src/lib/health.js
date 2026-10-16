@@ -77,12 +77,14 @@ export async function buildHealthPayload({
           "Vercel ensure-only boot; rely on CI Migrate database (or FORCE_MIGRATE_DEPLOY=true)";
       }
     }
-  } catch {
+  } catch (err) {
     payload.ok = false;
+    const code = String(err?.code || err?.cause?.code || "").trim();
     payload.db = {
       ok: false,
       latencyMs: Date.now() - started,
       error: "database unreachable",
+      ...(code && !/password|user|host/i.test(code) ? { code } : {}),
     };
   }
 

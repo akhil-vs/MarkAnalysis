@@ -887,7 +887,15 @@ export function createPrismaCompat(db, options = {}) {
   }
 
   async function requirePool() {
-    if (!pool) throw new Error("createPrismaCompat: `pool` is required for raw SQL helpers");
+    if (!pool) {
+      const err = new Error(
+        "Database is not configured. Set DATABASE_URL (or POSTGRES_URL / POSTGRES_PRISMA_URL)."
+      );
+      err.status = 503;
+      err.code = "DB_NOT_CONFIGURED";
+      err.expose = true;
+      throw err;
+    }
     return pool;
   }
 
