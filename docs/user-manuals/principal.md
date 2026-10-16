@@ -43,8 +43,11 @@ The page is split into tabs. Jump to the section you need:
 | **Classes** | Create a class with several divisions at once (**Add class with divisions**, **Fill A–D** for a quick start); assign a **class teacher** per division. The drop-down labels teachers who are already class teacher of another section. The **Registered class sections** directory expands a grade to manage divisions — search by class, section, or teacher; filter by class teacher / status; export CSV. |
 | **Subjects** | Add subjects to the pool with **Max marks** (theory ceiling for mark entry). Optional **Practical max** (leave blank for theory-only). Tick **Elective (enroll selected students only)** and use **Enrollments** to pick students. Then select which pool subjects each class uses. |
 | **Students** | Add or import the roll; upload photos for hall tickets (or use **Marks → Student photos**). |
-| **Exams** | Create exams; under **Classes in this exam** choose which classes sit under it (**Select all** / **Clear**, or toggle **Class {name}** — editable later). Set paper dates (same date for all, or per class/subject); set **Max marks [consolidation]**; **Lock for consolidation** when ready. If one class paper timetable is complete, **Copy class timetable to all classes**. |
 | **Promote** | After a year, promote a class to the next section without losing prior marks. |
+
+### 2.2b Exams (`Today → Exams`)
+
+Create and edit exams on the **Exam calendar** (not under Records). Under **Classes in this exam** choose which classes sit under it (**Select all** / **Clear**, or toggle **Class {name}** — editable later). Set paper dates (same date for all, or per class/subject); set **Max marks [consolidation]**; **Lock for consolidation** when ready. If one class paper timetable is complete, **Copy class timetable to all classes**.
 
 ### 2.3 Staff (`School setup → Staff`)
 

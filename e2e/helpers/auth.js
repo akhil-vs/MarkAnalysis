@@ -34,6 +34,7 @@ export const ROUTES = {
   dashboard: "/",
   marks: "/marks",
   upload: "/upload",
+  exams: "/exams",
   pendingUploads: "/exam-queue?tab=missing",
   examQueue: "/exam-queue",
   examQueueMissing: "/exam-queue?tab=missing",

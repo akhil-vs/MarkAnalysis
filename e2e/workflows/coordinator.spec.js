@@ -64,6 +64,14 @@ test.describe("Exam co-ordinator manual — complete application workflow", () =
     await expectPageTitle(page, "Bulk upload");
   });
 
+  test("§3.2b Exams — dedicated exam calendar", async ({ page }) => {
+    await goRoute(page, ROUTES.dashboard);
+    await goNav(page, "Exams");
+    await expect(page).toHaveURL(/\/exams/);
+    await expectPageTitle(page, "Exam calendar");
+    await expect(page.locator("main")).toContainText(/Schedule exam|Edit exam/i);
+  });
+
   test("§3.3 Exam queue — Missing / progress", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
     await goNav(page, "Exam queue");
