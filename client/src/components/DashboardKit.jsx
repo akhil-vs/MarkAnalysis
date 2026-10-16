@@ -179,8 +179,8 @@ export function EmptyExamDashboard({
           },
           {
             title: "Schedule the first exam",
-            body: "Add a term exam under Records → Exams. That becomes the working paper for this desk.",
-            to: "/manage?tab=Exams",
+            body: "Add a term exam under Today → Exams. That becomes the working paper for this desk.",
+            to: "/exams",
             cta: "Schedule an exam",
           },
           {
@@ -212,7 +212,7 @@ export function EmptyExamDashboard({
         help={help}
         actions={
           leadership && !noAssignments ? (
-            <Link className="btn-accent" to="/manage?tab=Exams">
+            <Link className="btn-accent" to="/exams">
               Schedule an exam
             </Link>
           ) : null

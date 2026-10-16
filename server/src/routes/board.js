@@ -32,7 +32,7 @@ const REVAL_INCLUDE = {
   reviewedBy: { select: { id: true, name: true } },
 };
 
-/* ── Exam paper calendar (same ExamPaperSchedule writer as Records → Exams) ── */
+/* ── Exam paper calendar (same ExamPaperSchedule writer as Today → Exams) ── */
 
 boardRouter.get("/exam-papers", async (req, res) => {
   const examId = req.query.examId;

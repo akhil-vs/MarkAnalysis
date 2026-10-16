@@ -202,7 +202,7 @@ On Vercel cold start the API **does not** spawn `prisma migrate deploy` by defau
 
 ## Consolidated mark lists
 
-Principal and exam coordinator set **Max marks** (mark entry) under **Records → Subjects**, and **Max marks [consolidation]** when they schedule an exam under **Records → Exams**, then **Lock for consolidation**. Consolidated lists **scale** each paper from Max marks onto that exam’s consolidation ceiling, so subject marks and overall percentages stay within 100%. Mark entry still validates against Max marks. Unlock an exam’s consolidation ceiling only if a correction is needed.
+Principal and exam coordinator set **Max marks** (mark entry) under **Records → Subjects**, and **Max marks [consolidation]** when they schedule an exam under **Today → Exams**, then **Lock for consolidation**. Consolidated lists **scale** each paper from Max marks onto that exam’s consolidation ceiling, so subject marks and overall percentages stay within 100%. Mark entry still validates against Max marks. Unlock an exam’s consolidation ceiling only if a correction is needed.
 
 Once teachers have entered marks for an exam and leadership has **approved** them, the exam coordinator or principal can generate the official **consolidated mark list** for a class. **Class teachers** can open and download the list for their own section only when every subject register for that class is fully approved.
 
@@ -216,7 +216,7 @@ Principals and exam coordinators can send in-app notices to teachers about **dea
 
 - **Pending uploads** and the leadership dashboards: notify everyone still missing marks, or one teacher
 - **Consolidated lists**: notify the teachers for an incomplete class
-- **Records → Exams**: send a deadline reminder
+- **Today → Exams**: send a deadline reminder
 - **Staff**: notify one teacher or all teachers
 
 ## Live ops, board product, and CPD

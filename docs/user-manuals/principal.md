@@ -143,7 +143,7 @@ On theory + practical papers these codes apply to **theory only**.
 1. Pick exam, class, and division.
 2. Create/edit batch details (title, venue, instructions). Tick **Print student photos when available**.
 3. Preview on the right (**With photo** count); **Download PDF (5 / A4)** (or the PDF button beside each division).
-4. Paper dates **and start times** must exist under Records → Exams for every class that needs tickets (or fill one class and use **Copy class timetable to all classes**).
+4. Paper dates **and start times** must exist under Today → Exams for every class that needs tickets (or fill one class and use **Copy class timetable to all classes**).
 
 Upload photos under **Marks → Student photos** (or Records → Students). Use **Bulk upload by admission no** with files named like `ADM-10B-01.jpg`, or add one photo per student. PNG or JPEG, 1 MB or smaller. Unmatched files can be removed with **Remove unmatched**.
 
@@ -197,7 +197,7 @@ Send in-app notices from:
 
 - Exam queue / Mark progress / dashboards (pending or one teacher)
 - Consolidated lists (incomplete class)
-- Records → Exams (deadline reminder)
+- Today → Exams (deadline reminder)
 - Staff (one teacher or all)
 
 Teachers see notices in the bell and on their dashboard, with links into the relevant register.

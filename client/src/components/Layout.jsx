@@ -513,21 +513,27 @@ export default function Layout() {
 }
 
 function AnalysisNav({ item, analysisOpen, pathname, onNavigate }) {
-  const open = analysisOpen || pathname === item.to;
+  const [manualOpen, setManualOpen] = useState(false);
+  // Expand when already under analysis, when the hub is open, or when the user toggles the section.
+  // Parent is a disclosure — not a link to the hub — so users pick a report once, not twice.
+  const open = analysisOpen || pathname === item.to || manualOpen;
+  const onHub = pathname === item.to;
   return (
     <div>
-      <NavLink
-        to={item.to}
-        onClick={onNavigate}
-        className={({ isActive }) =>
-          `flex items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm ${
-            isActive || analysisOpen ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
-          }`
-        }
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setManualOpen((v) => !v)}
+        className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5 text-sm text-left ${
+          open || onHub ? "bg-white/10 text-white" : "text-cream/70 hover:bg-white/5 hover:text-cream"
+        }`}
       >
         <NavIcon name={item.icon} />
-        <span>{item.label}</span>
-      </NavLink>
+        <span className="min-w-0 flex-1 truncate">{item.label}</span>
+        <span className="text-[10px] text-cream/40" aria-hidden="true">
+          {open ? "▾" : "▸"}
+        </span>
+      </button>
       {open && item.children?.length > 0 && (
         <div className="ml-3 mt-1 space-y-0.5 border-l border-white/10 pl-2">
           {item.children.map((child) => (

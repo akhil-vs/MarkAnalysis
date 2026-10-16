@@ -52,7 +52,7 @@ function papersScheduleComplete(papers) {
 }
 
 const SCHEDULE_INCOMPLETE_HINT =
-  "Set a date and start time for every paper under Records → Exams before downloading.";
+  "Set a date and start time for every paper under Exams before downloading.";
 
 export default function HallTickets() {
   const toast = useToast();
@@ -567,7 +567,7 @@ export default function HallTickets() {
                         </div>
                       ) : (
                         <EmptyNote>
-                          No paper calendar rows yet — tickets will use the exam date. Set paper dates under Records → Exams.
+                          No paper calendar rows yet — tickets will use the exam date. Set paper dates under Exams.
                         </EmptyNote>
                       )}
                     </div>

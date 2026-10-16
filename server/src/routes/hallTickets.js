@@ -273,7 +273,7 @@ hallTicketsRouter.get("/pdf", async (req, res) => {
   const bundle = await buildPreviewBundle({ exam, classSection, issue, includePhotoBytes: true });
   if (!bundle.scheduleComplete) {
     return res.status(400).json({
-      error: "Set a date and start time for every paper under Records → Exams before downloading hall tickets.",
+      error: "Set a date and start time for every paper under Exams before downloading hall tickets.",
     });
   }
   await hydrateTicketPhotos(bundle.tickets);

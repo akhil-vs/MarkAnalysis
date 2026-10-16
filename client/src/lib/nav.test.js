@@ -1,10 +1,24 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+  NAV_GROUPS,
+  PLATFORM_NAV_GROUPS,
   guardFeatureForRoute,
   guardRolesForRoute,
   navGroupsForRole,
 } from "./nav.js";
+
+function collectNavDestinations(groups) {
+  const destinations = [];
+  function walk(items) {
+    for (const item of items || []) {
+      if (item.to) destinations.push({ id: item.id, to: item.to });
+      if (item.children) walk(item.children);
+    }
+  }
+  for (const group of groups) walk(group.items);
+  return destinations;
+}
 
 describe("guardFeatureForRoute", () => {
   it("does not feature-gate platform console routes", () => {
@@ -123,5 +137,36 @@ describe("navGroupsForRole", () => {
   it("shows HELP for platform admins", () => {
     assert.ok(navIds("PLATFORM_ADMIN").includes("help"));
     assert.ok(navGroupLabels("PLATFORM_ADMIN").includes("HELP"));
+  });
+
+  it("keeps school nav destinations unique (no duplicate routes)", () => {
+    const dests = collectNavDestinations(NAV_GROUPS);
+    const byTo = new Map();
+    for (const d of dests) {
+      const prev = byTo.get(d.to);
+      assert.equal(
+        prev,
+        undefined,
+        `Duplicate nav destination ${d.to}: ${prev} and ${d.id}`
+      );
+      byTo.set(d.to, d.id);
+    }
+    assert.equal(byTo.get("/exams"), "exams");
+    assert.equal(byTo.get("/manage"), "records");
+    assert.notEqual(byTo.get("/exams"), byTo.get("/manage"));
+  });
+
+  it("keeps platform nav destinations unique", () => {
+    const dests = collectNavDestinations(PLATFORM_NAV_GROUPS);
+    const byTo = new Map();
+    for (const d of dests) {
+      const prev = byTo.get(d.to);
+      assert.equal(
+        prev,
+        undefined,
+        `Duplicate platform nav destination ${d.to}: ${prev} and ${d.id}`
+      );
+      byTo.set(d.to, d.id);
+    }
   });
 });
