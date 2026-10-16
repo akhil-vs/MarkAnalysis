@@ -2,6 +2,8 @@
 
 Role-based guides for day-to-day use of the School Marks Analytics platform.
 
+For a meeting-ready overview aimed at the principal and exam co-ordinator, see [Meeting pitch — Principal & Exam Co-ordinator](../meeting-pitch-principal-coordinator.md).
+
 | Role | Manual (Markdown) | PDF |
 |---|---|---|
 | **Principal** | [Principal user manual](./principal.md) | [`principal-user-manual.pdf`](../../client/public/help/principal-user-manual.pdf) |
