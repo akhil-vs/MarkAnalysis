@@ -428,8 +428,8 @@ export default function BoardOps() {
             <h3 className="font-serif text-lg">Schedule a paper</h3>
             <p className="text-xs text-ink-700/55">
               Edits here use the same paper schedule as{" "}
-              <Link className="underline underline-offset-2" to="/manage?tab=Exams">
-                Records → Exams
+              <Link className="underline underline-offset-2" to="/exams">
+                Exams
               </Link>
               . Use this form for venues and board calendar detail; use Records to set dates for a whole class at once.
             </p>

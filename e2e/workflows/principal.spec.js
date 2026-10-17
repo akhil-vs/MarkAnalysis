@@ -28,7 +28,7 @@ test.describe("Principal manual — complete application workflow", () => {
     await expect(page.locator("main")).toContainText(/join code|DEMO-JOIN/i);
   });
 
-  test("§2.2 Records — classes, subjects, students, exams tabs", async ({ page }) => {
+  test("§2.2 Records — classes, subjects, students, promote tabs", async ({ page }) => {
     await goRoute(page, ROUTES.dashboard);
     await goNav(page, "Records");
     await expect(page).toHaveURL(/\/manage/);
@@ -39,10 +39,19 @@ test.describe("Principal manual — complete application workflow", () => {
       .locator("option")
       .allTextContents();
     expect(teacherOptions.some((text) => /already class teacher of/i.test(text))).toBeTruthy();
-    for (const tab of ["Subjects", "Students", "Exams"]) {
+    for (const tab of ["Subjects", "Students", "Promote"]) {
       await page.locator("main").getByRole("button", { name: new RegExp(`^${tab}$`, "i") }).click();
       await expect(page.locator("main")).toBeVisible();
     }
+    await expect(page.locator("main").getByRole("button", { name: /^Exams$/i })).toHaveCount(0);
+  });
+
+  test("§2.2b Exams — dedicated exam calendar (not a Records tab)", async ({ page }) => {
+    await goRoute(page, ROUTES.dashboard);
+    await goNav(page, "Exams");
+    await expect(page).toHaveURL(/\/exams/);
+    await expectPageTitle(page, "Exam calendar");
+    await expect(page.locator("main")).toContainText(/Schedule exam|Edit exam/i);
   });
 
   test("§2.3 Staff — active teachers and co-ordinators listed", async ({ page }) => {

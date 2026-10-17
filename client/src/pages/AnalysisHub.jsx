@@ -36,7 +36,7 @@ export default function AnalysisHub() {
     <div>
       <PageHeader
         title={NAV_TITLES.analysis}
-        subtitle="Start with a question, or browse every report"
+        subtitle="Suggested questions for this exam, plus every report under Insights"
       />
 
       {questions.length > 0 && (

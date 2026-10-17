@@ -127,7 +127,7 @@ On an open register, leadership can **Moderate** marks with a recorded reason (g
 
 ### 3.7 Hall tickets (`Marks → Hall tickets`)
 
-Create and edit batches (title, venue, instructions; **Print student photos when available**), preview (**With photo**), and **Download PDF (5 / A4)**. Ensure paper schedule dates **and start times** exist under Records → Exams for every class that needs tickets (or fill one class and use **Copy class timetable to all classes**).
+Create and edit batches (title, venue, instructions; **Print student photos when available**), preview (**With photo**), and **Download PDF (5 / A4)**. Ensure paper schedule dates **and start times** exist under Today → Exams for every class that needs tickets (or fill one class and use **Copy class timetable to all classes**).
 
 Upload photos under **Marks → Student photos**: **Bulk upload by admission no** (files named like `ADM-10B-01.jpg`) or one photo per student. PNG or JPEG, 1 MB or smaller. Use **Remove unmatched** to drop files that did not match.
 

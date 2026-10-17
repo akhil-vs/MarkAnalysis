@@ -110,12 +110,12 @@ export const PAGE_HELP = {
   consolidated: {
     title: "What's on this page",
     about: "Full mark list for a class: every subject side by side, totals, averages, grades, and ranks — once papers are approved. Totals use the selected exam’s consolidation max marks.",
-    useful: "The list you print or share after an exam. Set that exam’s consolidation ceiling under Records → Exams. Class teachers see their section when every paper in that section is in.",
+    useful: "The list you print or share after an exam. Set that exam’s consolidation ceiling under Exams. Class teachers see their section when every paper in that section is in.",
   },
   hallTickets: {
     title: "What's on this page",
     about: "Class hall tickets for a selected exam: student identity and photo, paper schedule, venue, and instructions. Five tickets print on each A4 page (Download PDF (5 / A4)). Principals and exam coordinators create and edit batches; teachers can view and download for their classes.",
-    useful: "Pick an exam, then a class and division. Preview loads on the right with a With photo count. Use Download PDF (5 / A4) or the PDF button beside each division to print. Create/save a batch to store title, venue, and instructions, and tick Print student photos when available. Upload photos under Student photos. Paper dates and start times come from Records → Exams — if one class timetable is done, leadership can copy it to the other classes.",
+    useful: "Pick an exam, then a class and division. Preview loads on the right with a With photo count. Use Download PDF (5 / A4) or the PDF button beside each division to print. Create/save a batch to store title, venue, and instructions, and tick Print student photos when available. Upload photos under Student photos. Paper dates and start times come from Exams — if one class timetable is done, leadership can copy it to the other classes.",
   },
   studentPhotos: {
     title: "What's on this page",
@@ -247,7 +247,7 @@ export const DEEP_INSIGHT_PANEL_HELP = {
   boardCounts: {
     title: "Board-style counts",
     about: "Pass, distinction, and fail counts using the pass percent and distinction minimum from School profile. A dual-ceiling note appears when a subject’s entry max differs from this exam’s consolidation max.",
-    useful: "Match board reporting language before you print lists. If maxima have drifted, correct entry max under Records → Subjects and the exam’s consolidation max under Records → Exams.",
+    useful: "Match board reporting language before you print lists. If maxima have drifted, correct entry max under Records → Subjects and the exam’s consolidation max under Exams.",
   },
   distinction: {
     title: "Distinction list",

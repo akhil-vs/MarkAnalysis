@@ -299,12 +299,12 @@ export default function ConsolidatedLists({ embedded = false } = {}) {
             <p className="text-sm text-ink-700/70 mt-0.5">
               {examCeil != null
                 ? locked
-                  ? `This exam’s consolidated mark list (CML) ceiling is ${examCeil} and is locked. Unlock it under Records → Exams to change it.`
-                  : `This exam’s consolidated mark list (CML) ceiling is ${examCeil}. Lock it under Records → Exams before publishing official lists.`
-                : "Set Max marks [consolidation] when you schedule the exam under Records → Exams."}
+                  ? `This exam’s consolidated mark list (CML) ceiling is ${examCeil} and is locked. Unlock it under Exams to change it.`
+                  : `This exam’s consolidated mark list (CML) ceiling is ${examCeil}. Lock it under Exams before publishing official lists.`
+                : "Set Max marks [consolidation] when you schedule the exam under Exams."}
             </p>
           </div>
-          <Link className="btn-ghost" to="/manage?tab=Exams">
+          <Link className="btn-ghost" to="/exams">
             {locked ? "View exams" : "Set max marks"}
           </Link>
         </div>
