@@ -18,7 +18,7 @@
 - Set `trust proxy` via `TRUST_PROXY` (defaults to 1 hop on Vercel/production). Rate limits use `req.ip` only — never raw `X-Forwarded-For`.
 - CSP enforces in production/Vercel by default; set `CSP_ENFORCE=false` to stay report-only.
 - Passwords: min 10 chars, letter + number (`validatePasswordPolicy`). Hashing via `bcryptjs` (`hashPassword` / `verifyPassword`).
-- Optional error reporting: set `SENTRY_DSN` and install `@sentry/node`.
+- Optional error reporting: set `SENTRY_DSN` (`@sentry/node` is a server dependency).
 
 ## School pilots
 

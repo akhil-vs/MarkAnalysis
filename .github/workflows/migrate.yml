@@ -28,6 +28,8 @@ jobs:
         run: |
           if [ -z "$DATABASE_URL" ]; then
             echo "::error::DATABASE_URL secret is not set — refusing to skip migrate on main"
+            echo "::error::Set repository secret DATABASE_URL (Settings → Secrets and variables → Actions) to the production Postgres URL, then re-run this workflow."
+            echo "::error::See docs/SCHOOL_PILOT_READINESS.md go-live checklist and SECURITY.md."
             exit 1
           fi
           npm ci

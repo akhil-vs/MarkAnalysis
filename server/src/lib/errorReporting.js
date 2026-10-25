@@ -1,6 +1,6 @@
 /**
- * Optional error reporting. When SENTRY_DSN is set and @sentry/node is
- * installed, errors are forwarded. Otherwise they only go to the structured logger.
+ * Optional error reporting. When SENTRY_DSN is set, errors are forwarded via
+ * @sentry/node. Otherwise they only go to the structured logger.
  */
 import { logger } from "./logger.js";
 
@@ -25,7 +25,7 @@ export async function initErrorReporting() {
     } catch (err) {
       logger.warn("sentry_unavailable", {
         error: err?.message || String(err),
-        hint: "Install @sentry/node or unset SENTRY_DSN",
+        hint: "Unset SENTRY_DSN or ensure @sentry/node resolves in this runtime",
       });
       return null;
     }

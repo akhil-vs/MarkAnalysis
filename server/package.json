@@ -9,7 +9,7 @@
     "start": "node dist/src/index.js",
     "seed": "node prisma/seed.js",
     "ensure:admin": "node scripts/ensurePlatformAdmin.mjs",
-    "test": "node --test 'src/lib/**/*.test.js'",
+    "test": "node --test 'src/lib/**/*.test.js' 'src/middleware/**/*.test.js'",
     "test:api": "node --test 'src/test/api.*.test.js'",
     "test:manual-automation": "node ../scripts/run-manual-automation.mjs",
     "test:all": "npm test && npm run test:api",
@@ -27,6 +27,7 @@
   "dependencies": {
     "@prisma/cli-engine": "^0.3.0",
     "@prisma/orm-postgres": "^8.0.0-rc.11",
+    "@sentry/node": "^10.76.2",
     "bcryptjs": "^3.0.2",
     "compression": "^1.8.2",
     "cookie-parser": "^1.4.7",

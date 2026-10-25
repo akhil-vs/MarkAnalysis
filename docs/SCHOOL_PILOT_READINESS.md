@@ -62,14 +62,16 @@ Outreach templates: [`docs/pitch/`](./pitch/README.md).
 Operators must complete [SECURITY.md](../SECURITY.md) and:
 
 - [ ] `DATABASE_URL` and strong `JWT_SECRET` (≥16 chars); on Vercel also set pooled `POSTGRES_URL` / `POSTGRES_PRISMA_URL`
+- [ ] GitHub Actions repository secret `DATABASE_URL` so **Migrate database** succeeds on main (fail-closed if unset)
 - [ ] `PLATFORM_ADMIN_PASSWORD` set; then `PLATFORM_ADMIN_PASSWORD_LOCKED=true`
 - [ ] `CLIENT_ORIGIN` includes every real SPA origin (custom domains)
 - [ ] `PILOT_NOTIFY_EMAIL` (preferred) or `VITE_PILOT_CONTACT_EMAIL` so form submissions queue email
 - [ ] Optional: `SMTP_*` for digests and pilot notify delivery; otherwise accept outbox “skipped”
-- [ ] Optional: `SENTRY_DSN` for error reporting
+- [ ] Optional: `SENTRY_DSN` (+ `SENTRY_ENVIRONMENT`) for error reporting
 - [ ] Deep health `GET /api/health?deep=1` returns `db.ok: true` after migrate / catch-up (`PilotRequest` table present)
 - [ ] Platform admin can provision from **School pilots** without seed passwords
 - [ ] Confirm lawful basis / consent for student marks & photos with the school
+- [ ] Direct `/register-school` shows invite-only copy (self-serve form hidden while `SHOW_PUBLIC_REGISTRATION` is false)
 
 ## Recommended pilot shape
 

@@ -24,6 +24,27 @@ export default function RegisterSchool() {
     return <Navigate to="/school" replace />;
   }
 
+  if (!SHOW_PUBLIC_REGISTRATION) {
+    return (
+      <AuthShell
+        title="School registration is invite-only"
+        subtitle="Self-serve school registration is closed. New campuses are provisioned after a school pilot request."
+      >
+        <div className="space-y-3">
+          <p className="text-sm text-ink-700/80">
+            Principals: request a school pilot. Staff joining an existing school should ask their principal for the join code.
+          </p>
+          <Link to="/request-pilot" className="btn-primary inline-flex w-full justify-center">
+            Request a school pilot
+          </Link>
+          <p className="text-sm text-ink-700/70">
+            Already approved? <Link className="underline" to="/login">Sign in</Link>
+          </p>
+        </div>
+      </AuthShell>
+    );
+  }
+
   function set(key, value) {
     setForm((f) => ({ ...f, [key]: value }));
   }
@@ -88,11 +109,9 @@ export default function RegisterSchool() {
         <button className="btn-primary w-full" disabled={busy}>
           <BusyLabel busy={busy} idle="Create school" busyText="Creating school…" />
         </button>
-        {SHOW_PUBLIC_REGISTRATION && (
-          <p className="text-sm text-ink-700/70">
-            Staff joining an existing school? <Link className="underline" to="/signup">Request access</Link>
-          </p>
-        )}
+        <p className="text-sm text-ink-700/70">
+          Staff joining an existing school? <Link className="underline" to="/signup">Request access</Link>
+        </p>
         <p className="text-sm text-ink-700/70">
           Already approved? <Link className="underline" to="/login">Sign in</Link>
         </p>

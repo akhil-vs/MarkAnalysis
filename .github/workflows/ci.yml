@@ -31,10 +31,15 @@ jobs:
           npm run build
       - name: Dependency audit (high+)
         run: |
-          (cd server && npm audit --audit-level=high) || true
-          (cd client && npm audit --audit-level=high) || true
-        # Soft gate: report findings without failing the build until lockfiles are cleaned.
-        # Set AUDIT_STRICT=1 in the workflow env to fail on high/critical.
+          # Client: fail on high/critical (lockfile kept clean of high+).
+          (cd client && npm audit --audit-level=high)
+          # Server: still soft — remaining highs are mostly Prisma/exceljs transitive and need upstream bumps.
+          # Set AUDIT_STRICT=1 to fail the server audit too.
+          if [ "${AUDIT_STRICT:-}" = "1" ]; then
+            (cd server && npm audit --audit-level=high)
+          else
+            (cd server && npm audit --audit-level=high) || true
+          fi
 
   lint:
     runs-on: ubuntu-latest
