@@ -16,7 +16,8 @@ If you discover a vulnerability, email the repository maintainers privately. Do 
 - [ ] `PILOT_NOTIFY_EMAIL` (or `VITE_PILOT_CONTACT_EMAIL`) so `/request-pilot` submissions can queue mail
 - [ ] SMTP configured or accept that digests / pilot notify stay in `EmailOutbox` as skipped
 - [ ] Use `scripts/pg-dump-backup.sh` (or managed PITR) for DR; platform JSON backup is not a full restore
-- [ ] Optional: `SENTRY_DSN` for error reporting
+- [ ] Optional: `SENTRY_DSN` for error reporting (`@sentry/node` is bundled with the server)
+- [ ] GitHub Actions secret `DATABASE_URL` set so the **Migrate database** workflow can advance production schema on main
 
 ## Known product posture
 
