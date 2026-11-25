@@ -6,7 +6,7 @@ Method: source and config review, `npm audit` in `client/` and `server/`, and a 
 
 Rank key: 🔴 Blocker (must fix before launch) · 🟠 High · 🟡 Medium · 🟢 Nice-to-have.
 
-**Verdict:** no unconditional code blocker. The app is closer to a controlled pilot than to an open launch. Six high findings should be closed or explicitly accepted, and the operator checklist in section 10 must be confirmed on the real host. If the public site is the Docker Compose web container, finding O1 becomes a blocker for uploads.
+**Verdict:** no unconditional code blocker. The app is closer to a controlled pilot than to an open launch. Five high findings should be closed or explicitly accepted, and the operator checklist in section 10 must be confirmed on the real host. Compose nginx now accepts the API’s upload size (O1). Vercel’s serverless body limit is still a platform cap, and public Docker still needs TLS (S4).
 
 ---
 
@@ -102,7 +102,7 @@ The charts chunk is 421.66 kB raw / 112.81 kB gzip. It is split out of the entry
 
 ## 3. Backend / API
 
-**Status: FAIL** (0 blockers, 0 high, 5 medium)
+**Status: FAIL** (0 blockers, 0 high, 3 medium)
 
 ### Checklist
 
@@ -111,10 +111,10 @@ The charts chunk is 421.66 kB raw / 112.81 kB gzip. It is split out of the entry
 | Auth on staff routers | Pass — every staff router calls `use(auth)` or is mounted under `timetableRouter`, which does (`server/src/routes/timetable.js` lines 36–47). Public routes are login, signup, school lookup/register, pilot submit, portal session, health, and cron |
 | Input validation | Partial — hand-written checks and `validatePasswordPolicy`. No shared schema library, so coverage varies by route |
 | HTTP status and error shape | Pass — `{ error, code? }` from handlers and `toErrorPayload` (`server/src/lib/httpErrors.js`). Unknown `/api` paths return 404 (`server/src/app.js` lines 156–158) |
-| Stack traces to clients | Pass in production — `toErrorPayload` replaces 500 messages with `"Server error"` when `NODE_ENV=production` (`httpErrors.js` lines 215–223). See B4 for the monitoring exception |
+| Stack traces to clients | Pass in production — `toErrorPayload` replaces 500 messages with `"Server error"` when `NODE_ENV=production` (`httpErrors.js` lines 215–223). Monitoring routes use the same helper (B4) |
 | Rate limiting | Partial — auth, signup, registration, join-code lookup, portal session, uploads, and backup are limited. Store fails closed in production (`server/src/lib/rateLimit.js` lines 13–17). No global limit |
 | CORS | Pass — explicit allowlist, credentials on, no `*` reflection (`server/src/lib/corsAllowlist.js` lines 6–26, `server/src/app.js` lines 96–107) |
-| Body size | Pass for JSON — `express.json({ limit: "2mb" })` (`app.js` line 109). File limits are 5 MB spreadsheets and 1 MB images. See O1 for the Docker proxy |
+| Body size | Pass for JSON — `express.json({ limit: "2mb" })` (`app.js` line 109). File limits are 5 MB spreadsheets and 1 MB images. Compose nginx allows 100 MB (O1). Vercel’s serverless body limit is still a platform cap |
 | Timeouts | Partial — Vercel function `maxDuration` 60 (`vercel.json` lines 63–67). Pool connect timeout 5s, 10s on serverless (`server/src/prisma/db.js` lines 15–29) |
 | Race conditions | Pass for the paths reviewed — mark writes use `$transaction` (`server/src/lib/markSave.js` line 198). Refresh reuse outside a 15s window revokes all sessions (`server/src/lib/authCookies.js` lines 71–91) |
 | Jobs, email, webhooks | Pass — flush retries `FAILED` mail up to 6 attempts with backoff and does not log the recipient or subject (B1). No inbound webhooks. Cron routes require a ≥16 character `CRON_SECRET` compared with `timingSafeEqual` (`server/src/lib/cronAuth.js` lines 7–18) |
@@ -125,17 +125,17 @@ The charts chunk is 421.66 kB raw / 112.81 kB gzip. It is split out of the entry
 
 `flushEmailOutbox` still marks a new row `SKIPPED` when SMTP is unset, and it leaves an existing `FAILED` row alone so a later flush can send it once SMTP is configured. A send error stores `meta.mailAttempts` and `meta.retryAt` (15 minutes, then 1 hour, 4 hours, 12 hours, 24 hours) and the next flush selects that `FAILED` row until 6 attempts. `GET`/`POST /api/cron/mail` and `POST /api/platform/mail/flush` return counts only. Logs use the outbox id and kind (`mail_sent`, `mail_send_failed`, `mail_skipped_no_smtp`), not the address or subject. Rows that were already `FAILED` before this change have no attempt count, so the next flush treats them as due and may send them.
 
-#### B2 🟡 `JWT_ACCESS_EXPIRES` does not change the cookie lifetime
+#### B2 Resolved — access-cookie lifetime follows `JWT_ACCESS_EXPIRES`
 
-`signToken` uses `process.env.JWT_ACCESS_EXPIRES || "15m"` (`server/src/middleware/auth.js` lines 263–275). The `sma_access` cookie `maxAge` is a hard-coded 15 minutes (`server/src/lib/authCookies.js` lines 7–8 and 36–37). `deployAuthConfig.js` lines 81–83 describe that variable as the access-cookie lifetime. Setting it to `5m` or `1h` makes the JWT and the cookie disagree. Refresh is 14 days (`authCookies.js` lines 8–9).
+`setAccessCookie` reads `JWT_ACCESS_EXPIRES` on each response (`accessCookieMaxAgeMs` in `server/src/lib/authCookies.js`). `15m`, `30s`, `1h`, and `2d` match the JWT. An unrecognised value stays at 15 minutes. Refresh is still 14 days. `server/src/lib/authCookies.test.js` and the login case in `server/src/test/api.launchFlows.test.js` lock the `Max-Age`.
 
 #### B3 🟡 Password reset is admin-only
 
 Principals reset a staff password and force a change (`server/src/routes/users.js` lines 1021–1047). Platform admins can reset a principal (`server/src/routes/platform.js` line 458). There is no forgot-password or emailed reset. A principal who loses both password and MFA recovery codes needs the platform admin.
 
-#### B4 🟡 Monitoring responses include `err.message`
+#### B4 Resolved — monitoring failures use `toErrorPayload`
 
-`GET /api/monitoring/performance`, `/health`, and `/cache/stats` are platform-admin only (`server/src/routes/monitoring.js` lines 16–17), but failures return `err.message` (lines 39–44 and 80–85) instead of `toErrorPayload`. That can surface driver text to the admin browser.
+`GET /api/monitoring/performance`, `/health`, `/cache/stats`, and cache clear are still platform-admin only. Their catch blocks call `monitoringErrorResponse`, which is `toErrorPayload`. In production a 500 body is `"Server error"` and does not include driver text. `server/src/lib/monitoringError.test.js` locks that.
 
 #### B5 🟡 Upload and abuse limits are uneven
 
@@ -175,7 +175,7 @@ Parent links are issued as `/portal#t=…` (`server/src/routes/portal.js` line 1
 
 #### D2 🟡 A class register is loaded in one query
 
-`parsePageQuery` is unpaged unless the caller passes `page` or the route sets `defaultPaged` (`server/src/lib/pagination.js` lines 8–15). `GET /api/students` uses `defaultPaged: !scopedClass`, and the unpaged branch returns every matching student (`server/src/routes/students.js` lines 279–301). That is reasonable for one section of ~40 pupils and expensive if a client asks for many sections at once. `GET /api/platform/schools` can also return every school when paging is omitted (`server/src/routes/platform.js` lines 205–212).
+`parsePageQuery` is unpaged unless the caller passes `page` or the route sets `defaultPaged` (`server/src/lib/pagination.js`). One section of ~40 pupils is still returned as an array, which is what class rosters expect. `GET /api/students?classSectionIds=` now rejects more than 40 ids with 400 (`parseClassSectionIds` in `server/src/lib/studentQuery.js`). `GET /api/platform/schools` can still return every school when paging is omitted.
 
 #### D3 🟡 Seed skip log still advertises `password123`
 
@@ -212,7 +212,7 @@ When users already exist, `server/prisma/seed.js` lines 286–291 print that the
 
 #### S2 🟠 Production can boot with no usable platform admin
 
-`ensurePlatformAdmin` logs a warning and returns when it refuses the default password (`server/src/lib/ensurePlatformAdmin.js` lines 111–116). `ensureSeedPlatformAdmin` catches errors and does not fail the process (`server/src/lib/migrateOnStart.js` lines 196–208). `assertDeployAuthConfig` exits on a weak `JWT_SECRET` (`server/src/lib/deployAuthConfig.js` lines 23–28) but does not require `PLATFORM_ADMIN_PASSWORD`. A first production boot with only `JWT_SECRET` and `DATABASE_URL` serves traffic and has nobody who can provision schools.
+`ensurePlatformAdmin` logs a warning and returns when it refuses the default password (`server/src/lib/ensurePlatformAdmin.js`). `ensureSeedPlatformAdmin` catches errors and does not fail the process. `assertDeployAuthConfig` exits on a weak `JWT_SECRET` but does not require `PLATFORM_ADMIN_PASSWORD`. A first production boot with only `JWT_SECRET` and `DATABASE_URL` still serves traffic. Deep health now counts active `PLATFORM_ADMIN` users and, when `NODE_ENV=production`, `VERCEL`, or `REQUIRE_SECURE_AUTH=true`, sets `platformAdmin.ok` false and returns 503 (`platformAdminHealth` in `server/src/lib/health.js`). Development and CI stay 200 so a missing flag does not fail those probes. The process itself still starts.
 
 Login does reject `password123` on a production host (`auth.js` lines 383–387), and `ALLOW_DEFAULT_PLATFORM_ADMIN` is opt-in.
 
@@ -236,7 +236,7 @@ Login does reject `password123` on a production host (`auth.js` lines 383–387)
 
 ## 6. Testing
 
-**Status: PASS** (0 blockers, 0 high, 1 medium)
+**Status: PASS** (0 blockers, 0 high, 0 medium)
 
 ### Checklist
 
@@ -245,31 +245,23 @@ Login does reject `password123` on a production host (`auth.js` lines 383–387)
 | Unit tests | Pass — broad `node --test` coverage under `server/src/lib/**/*.test.js` and client `src/lib/*.test.js` |
 | API integration | Pass in CI — `.github/workflows/ci.yml` job `api-integration` seeds Postgres 16 and runs `npm run test:api`, plus `scripts/pg-dump-restore-check.sh` |
 | E2E | Pass in CI — Playwright on `ubuntu-24.04` for principal, coordinator, teacher, portal, and the marks cycle (`e2e/workflows/`) |
-| Critical flows with no automated test | Fail — see T1. No payments product, so no payment tests |
+| Critical flows with no automated test | Pass — session, marks cycle, platform load errors, upload cap, and concurrent cross-school saves are covered (T1). Login-label association, photo alt, and contrast stay under F2 and F4. No payments product |
 
 ### Findings
 
-#### T1 🟡 Launch-critical UI and abuse cases are untested
+#### T1 Resolved — launch-critical flows have unit, API, and browser coverage
 
-Existing tests do not cover:
+Keyboard names, photo `alt`, and contrast are still F2 and F4. They are not part of this suite. Payments are not a product surface.
 
-- An automated browser case for platform home / schools / pilot inbox when the API returns 500 (the screen now shows `LoadError` — F1).
-- Keyboard names for login fields, photo alt text, or contrast.
-- A spreadsheet larger than the edge body limit (finding O1).
-- Load or multi-tenant isolation under concurrent mark saves.
-
-### Proposed test plan (do not implement until approved)
-
-1. **Unit:** cookie `maxAge` follows `JWT_ACCESS_EXPIRES`; `toErrorPayload` used by monitoring. Mailer retry is covered by `server/src/lib/mailer.test.js` and by `GET`/`POST /api/cron/mail` plus `POST /api/platform/mail/flush` in `server/src/test/api.mail.test.js`.
-2. **API:** platform admin missing on production boot returns a non-2xx health or a documented degraded flag; student list with many section ids stays bounded; cron rejects a short secret (already present — keep it).
-3. **E2E:** login → change temporary password → save a draft mark → coordinator approves → official consolidated download. Second spec: platform schools page shows an error, not a spinner, when overview is stubbed to 500.
-4. **Payments:** none in this product. Do not add a payment suite.
+- **Unit.** `accessCookieMaxAgeMs` follows `JWT_ACCESS_EXPIRES` (`server/src/lib/authCookies.test.js`). Monitoring failures go through `toErrorPayload` (`server/src/lib/monitoringError.test.js`). `parseClassSectionIds` rejects more than 40 ids (`server/src/lib/studentQuery.test.js`). `client/nginx.conf` `client_max_body_size` is at least the 5 MB spreadsheet cap and the 100 × 1 MB bulk-photo cap (`server/src/lib/uploadLimits.test.js`). `platformAdminHealth` fails only on a production-like boot (`server/src/lib/health.test.js`). A short `CRON_SECRET` stays covered by `server/src/lib/cronAuth.test.js`. Mailer retry was already covered.
+- **API.** `server/src/test/api.launchFlows.test.js`: login `Max-Age` follows `JWT_ACCESS_EXPIRES=1h`; a `mustChangePassword` account can set a new password; deep health includes `platformAdmin`; a student list of 41 section ids is 400; a spreadsheet over 5 MB is 400; a teacher draft, coordinator approval, and official xlsx download succeed while a second school’s concurrent save does not write that mark.
+- **E2E.** `e2e/workflows/launch-flows.spec.js`: sign in, change the password, sign in with the new one, and restore the seed password; platform home, schools, and pilot requests show `LoadError` when those GETs are stubbed to 500; 9-A Biology on Final Exam 2025-26 requests late entry, saves a draft, submits, a coordinator approves, and the principal downloads Official Excel.
 
 ---
 
 ## 7. DevOps / deployment
 
-**Status: FAIL** (0 blockers, 1 high, 1 medium)
+**Status: FAIL** (0 blockers, 0 high, 1 medium)
 
 ### Checklist
 
@@ -279,15 +271,15 @@ Existing tests do not cover:
 | Env vars documented | Pass — `server/.env.example` and the table in `README.md` lines 126–140 |
 | Dev / staging / prod configs | Partial — `NODE_ENV`, `VERCEL`, and `REQUIRE_SECURE_AUTH` switch policy. No staging overlay in the repo |
 | CI | Pass with a hole — on push to `main` and on pull requests: server unit tests, client tests, client build, syntax check, API tests, E2E. Server audit is non-blocking (S1). Migrate workflow fails closed if `secrets.DATABASE_URL` is empty (`.github/workflows/migrate.yml` lines 29–33) |
-| Docker / health | Partial — Compose healthchecks for Postgres and `GET /api/health` (`docker-compose.yml` lines 15–18 and 47–57). See O1 |
+| Docker / health | Partial — Compose healthchecks for Postgres and `GET /api/health` (`docker-compose.yml` lines 15–18 and 47–57). Nginx `client_max_body_size` is 100m (O1) |
 | Zero-downtime and rollback | Not provable — Vercel deploys are atomic at the platform. Compose `restart` replaces the container. Schema rollback is D1 |
 | Domain, SSL, CDN, caching | Not in repo — see Questions. API responses are `no-store` (`server/src/app.js` lines 114–115). Analytics GET sets `private, max-age=30` (`server/src/routes/analytics.js` lines 111–116) |
 
 ### Findings
 
-#### O1 🟠 Docker’s nginx proxy will reject the uploads the API allows
+#### O1 Resolved — Compose nginx accepts the API upload size
 
-`client/nginx.conf` has no `client_max_body_size` (default 1 MB) and no `gzip`. The API allows 5 MB spreadsheets (`server/src/routes/marks.js` line 75, `students.js` line 32, `users.js` line 43) and bulk photos of up to 100 × 1 MB (`students.js` lines 30–39). Compose publishes the site on port 8080 through that proxy (`docker-compose.yml` lines 60–69). Those uploads fail at nginx before Express. Vercel’s serverless body limit is also below 5 MB (platform limit, not in this repo); the multer cap should match the real edge.
+`client/nginx.conf` sets `client_max_body_size 100m`, which covers a 5 MB spreadsheet (`SPREADSHEET_MAX_BYTES` in `server/src/lib/uploadLimits.js`) and a bulk photo body of 100 × 1 MB. `server/src/lib/uploadLimits.test.js` fails if the directive drops below either cap. An over-5 MB spreadsheet is still rejected by the API with 400. There is still no `gzip`. Vercel’s serverless body limit is a platform cap and is not changed here.
 
 #### O2 🟡 Client and API images do not use the same Node major
 
@@ -354,12 +346,12 @@ Health checks exist (`GET /api/health`, deep DB ping, platform deep health). The
 
 ## 10. Launch checklist
 
-Do these in order. Items 1–4 are operator blockers even though the code does not fail the build. Items 5, 6, and 10–13 are the high findings still open. Items 7–9 are done.
+Do these in order. Items 1–4 are operator blockers even though the code does not fail the build. Items 5, 6, and 10–12 are the high findings still open. Items 7–9, 14, and 21 are done. Item 13 is TLS and HSTS only; the Compose upload limit is done.
 
 ### Confirm before go-live (operator)
 
-1. 🔴 Choose the edge (Vercel, Docker Compose, or something else) and make the upload limit match it. If the public URL is Compose port 8080, fix O1 first or bulk photos and larger spreadsheets never arrive.
-2. 🔴 Set production env and prove a boot: `DATABASE_URL` plus a pooled `POSTGRES_URL` / `POSTGRES_PRISMA_URL` on serverless, `JWT_SECRET` ≥32 random characters, `PLATFORM_ADMIN_PASSWORD` then `PLATFORM_ADMIN_PASSWORD_LOCKED=true`, `CLIENT_ORIGIN` for every real origin, `CRON_SECRET` ≥16, `COOKIE_SECURE` left on. Confirm `GET /api/health?deep=1` is `db.ok: true` and `migrations.ok: true`.
+1. 🔴 Choose the edge (Vercel, Docker Compose, or something else). Compose nginx now allows 100 MB, which covers the API’s spreadsheet and bulk-photo caps (O1). Vercel’s serverless body limit is still a platform cap and is smaller than a 5 MB spreadsheet.
+2. 🔴 Set production env and prove a boot: `DATABASE_URL` plus a pooled `POSTGRES_URL` / `POSTGRES_PRISMA_URL` on serverless, `JWT_SECRET` ≥32 random characters, `PLATFORM_ADMIN_PASSWORD` then `PLATFORM_ADMIN_PASSWORD_LOCKED=true`, `CLIENT_ORIGIN` for every real origin, `CRON_SECRET` ≥16, `COOKIE_SECURE` left on. Confirm `GET /api/health?deep=1` is `db.ok: true`, `migrations.ok: true`, and `platformAdmin.ok: true`. A production-like boot with no active platform admin returns 503.
 3. 🔴 Set the GitHub Actions secret `DATABASE_URL` so `.github/workflows/migrate.yml` applies `server/migrations/app` and you are not depending on `ensureSchema.js`.
 4. 🔴 Counsel sign-off for children’s marks, photos, and guardian contacts: lawful basis, DPA with each school, retention, and who answers a deletion request. The in-app privacy page is not that document (S5).
 
@@ -371,20 +363,20 @@ Do these in order. Items 1–4 are operator blockers even though the code does n
 8. ✅ Failed mail is retried up to 6 times with backoff, and flush logs omit the recipient and subject (B1). SMTP still has to be configured or new rows stay `SKIPPED`.
 9. ✅ Compose `backup` schedules `scripts/pg-dump-backup.sh` (daily, keep 14) and `backup-rehearse` / CI run `pg_restore` into a scratch database (D1). A managed-Postgres host still needs that provider's PITR.
 10. 🟠 Either gate `npm audit --audit-level=high` for `server/` or record an exception for the Prisma CLI transitive highs (S1).
-11. 🟠 Fail or flag boot when production has no platform admin (S2). Do not launch on the seed password.
+11. 🟠 Deep health now flags a production boot with no platform admin (503, `platformAdmin.ok: false`). The process still starts (S2). Do not launch on the seed password.
 12. 🟠 Turn on `SENTRY_DSN` (or an equivalent) and an uptime check on `/api/health` (V1).
-13. 🟠 If Docker is public, put TLS in front of nginx and set HSTS (S4, O1).
+13. 🟠 If Docker is public, put TLS in front of nginx and set HSTS (S4). The upload body limit matches the API (O1).
 
 ### Medium, after the list above
 
-14. 🟡 Align cookie `maxAge` with `JWT_ACCESS_EXPIRES` (B2).
+14. ✅ Access-cookie `maxAge` follows `JWT_ACCESS_EXPIRES` (B2). Unrecognised values stay at 15 minutes.
 15. 🟡 Associate login/MFA labels, give student photos a name in `alt`, and check contrast (F2, F4).
 16. 🟡 `robots.txt`, sitemap, `og:image`, per-route titles (F3).
 17. 🟡 Self-service password reset, or a written support path for a locked-out principal (B3).
 18. 🟡 Shorten refresh or add an idle timeout for shared staff PCs (B6). Avoid keeping pupil dashboards in `sessionStorage` (S3).
-19. 🟡 Cap unpaged student and school lists (D2).
+19. 🟡 `GET /api/students?classSectionIds=` now rejects more than 40 ids. `GET /api/platform/schools` can still return every school when paging is omitted (D2).
 20. 🟡 Fix the seed log that still prints `password123` (D3) and the docs that still say 10-character passwords (C1).
-21. 🟡 Add the E2E and API cases in section 6 (T1).
+21. ✅ Unit, API, and E2E coverage for the launch flows in section 6 (T1). Login labels, photo alt, and contrast remain F2 and F4.
 22. 🟡 Use the same Node major in both Dockerfiles (O2).
 23. 🟡 Add OpenAPI and a one-page incident runbook (C2).
 
@@ -401,7 +393,7 @@ Do these in order. Items 1–4 are operator blockers even though the code does n
 
 These are not findings. The repo cannot answer them.
 
-1. Which host is the launch edge: Vercel, the Compose `web` service, or another proxy? O1 and S4 change severity with that answer.
+1. Which host is the launch edge: Vercel, the Compose `web` service, or another proxy? Compose now allows a 100 MB body. Vercel’s platform body limit and TLS in front of Docker (S4) still depend on that answer.
 2. Is GitHub secret `DATABASE_URL` set on this repository today, and does it point at production or at a scratch database?
 3. Is `PLATFORM_ADMIN_PASSWORD` already set and locked, and has that admin enrolled MFA?
 4. Who is the data controller for pupil data, and is a DPA already signed with the first school?
@@ -420,15 +412,15 @@ These are not findings. The repo cannot answer them.
 |---|---|---:|---:|---:|
 | 1. Architecture and code quality | FAIL | 0 | 2 | 2 |
 | 2. Frontend / design / UX | FAIL | 0 | 0 | 4 |
-| 3. Backend / API | FAIL | 0 | 0 | 5 |
+| 3. Backend / API | FAIL | 0 | 0 | 3 |
 | 4. Database | FAIL | 0 | 0 | 2 |
 | 5. Security | FAIL | 0 | 2 | 3 |
-| 6. Testing | PASS | 0 | 0 | 1 |
-| 7. DevOps / deployment | FAIL | 0 | 1 | 1 |
+| 6. Testing | PASS | 0 | 0 | 0 |
+| 7. DevOps / deployment | FAIL | 0 | 0 | 1 |
 | 8. Observability and operations | FAIL | 0 | 1 | 1 |
 | 9. Documentation | PASS | 0 | 0 | 2 |
-| **Total** | **FAIL** | **0** | **6** | **21** |
+| **Total** | **FAIL** | **0** | **5** | **18** |
 
 Nice-to-have items (F5, B7, S6, O3) are not in the medium column. Section 10 items 1–4 are operator blockers that sit outside the code counts.
 
-No code will be changed until you approve which findings to fix.
+Closed items are marked resolved in the sections above. Open findings are unchanged.
