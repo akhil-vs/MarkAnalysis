@@ -23,6 +23,9 @@ pg_dump --format=custom --no-owner --no-acl --file="$DUMP" "$DATABASE_URL"
 
 psql "$ROOT_URL" -v ON_ERROR_STOP=1 -c "DROP DATABASE IF EXISTS \"${SCRATCH_DB}\";"
 psql "$ROOT_URL" -v ON_ERROR_STOP=1 -c "CREATE DATABASE \"${SCRATCH_DB}\";"
-pg_restore --no-owner --exit-on-error --dbname="$SCRATCH_URL" "$DUMP"
+# PostgreSQL 17+ clients emit SET transaction_timeout, which a 16 server rejects.
+pg_restore --no-owner -f - "$DUMP" \
+  | grep -v -E '^SET transaction_timeout[[:space:]]' \
+  | psql "$SCRATCH_URL" -v ON_ERROR_STOP=1
 psql "$SCRATCH_URL" -v ON_ERROR_STOP=1 -c "SELECT 1 AS restored;"
 echo "Restore check passed"

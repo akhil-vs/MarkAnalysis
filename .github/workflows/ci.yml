@@ -103,7 +103,8 @@ jobs:
           ./scripts/pg-dump-restore-check.sh
 
   e2e:
-    runs-on: ubuntu-latest
+    # Playwright 1.55 cannot install Chromium on ubuntu-latest once that image is 26.04.
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:16-alpine

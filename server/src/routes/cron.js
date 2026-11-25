@@ -15,7 +15,7 @@ function guard(req, res) {
   return true;
 }
 
-/** Hourly mail flush plus a bounded pupil-retention pass. Vercel Cron uses GET. */
+/** Scheduled mail flush plus a bounded pupil-retention pass. Vercel Cron uses GET. */
 cronRouter.all("/mail", async (req, res) => {
   if (!guard(req, res)) return;
   const mail = await flushEmailOutbox({ limit: 40 });
