@@ -9,6 +9,17 @@ import { tenantCacheSize } from "../lib/tenantCache.js";
 import { isRedisAvailable, getCacheStats } from "../lib/redisCache.js";
 import { checkMaterializedViewsHealth } from "../lib/materializedViews.js";
 import { auth, requireRole } from "../middleware/auth.js";
+import { toErrorPayload } from "../lib/httpErrors.js";
+
+/** Monitoring failures go through the same payload as the API error handler. */
+export function monitoringErrorResponse(err) {
+  return toErrorPayload(err);
+}
+
+function sendMonitoringError(res, err) {
+  const { status, body } = monitoringErrorResponse(err);
+  res.status(status).json(body);
+}
 
 export const monitoringRouter = Router();
 
@@ -37,10 +48,7 @@ monitoringRouter.get("/performance", async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    res.status(500).json({ 
-      error: "Failed to get performance stats",
-      message: err.message 
-    });
+    sendMonitoringError(res, err);
   }
 });
 
@@ -78,11 +86,7 @@ monitoringRouter.get("/health", async (req, res) => {
     const statusCode = health.checks.database.available ? 200 : 503;
     res.status(statusCode).json(health);
   } catch (err) {
-    res.status(503).json({
-      status: "unhealthy",
-      error: err.message,
-      timestamp: new Date().toISOString(),
-    });
+    sendMonitoringError(res, err);
   }
 });
 
@@ -104,10 +108,7 @@ monitoringRouter.get("/cache/stats", async (req, res) => {
 
     res.json(stats);
   } catch (err) {
-    res.status(500).json({
-      error: "Failed to get cache stats",
-      message: err.message,
-    });
+    sendMonitoringError(res, err);
   }
 });
 
@@ -134,9 +135,6 @@ monitoringRouter.post("/cache/clear", async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (err) {
-    res.status(500).json({
-      error: "Failed to clear caches",
-      message: err.message,
-    });
+    sendMonitoringError(res, err);
   }
 });

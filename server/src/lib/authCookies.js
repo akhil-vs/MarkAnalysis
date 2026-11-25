@@ -8,6 +8,20 @@ const ACCESS_MAX_AGE_MS = 15 * 60 * 1000;
 const REFRESH_DAYS = 14;
 const REFRESH_MAX_AGE_MS = REFRESH_DAYS * 24 * 60 * 60 * 1000;
 
+const DURATION_MS = { ms: 1, s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 };
+
+/**
+ * Cookie lifetime for the access token. Matches jsonwebtoken's string form
+ * (`15m`, `1h`, `30s`, `2d`). A missing or unrecognised value stays at 15 minutes,
+ * the same default as `signToken`.
+ */
+export function accessCookieMaxAgeMs(expires = process.env.JWT_ACCESS_EXPIRES || "15m") {
+  const raw = String(expires ?? "").trim();
+  const match = /^(\d+)(ms|s|m|h|d)$/i.exec(raw);
+  if (!match) return ACCESS_MAX_AGE_MS;
+  return Number(match[1]) * DURATION_MS[match[2].toLowerCase()];
+}
+
 export function hashRefreshToken(raw) {
   return createHash("sha256").update(String(raw)).digest("hex");
 }
@@ -34,7 +48,7 @@ function cookieBase() {
 }
 
 export function setAccessCookie(res, token) {
-  res.cookie(ACCESS_COOKIE, token, { ...cookieBase(), maxAge: ACCESS_MAX_AGE_MS });
+  res.cookie(ACCESS_COOKIE, token, { ...cookieBase(), maxAge: accessCookieMaxAgeMs() });
 }
 
 export function setRefreshCookie(res, token) {
@@ -121,6 +135,7 @@ export async function revokeAllRefreshSessions(userId) {
 export const __test = {
   ACCESS_MAX_AGE_MS,
   REFRESH_MAX_AGE_MS,
+  accessCookieMaxAgeMs,
   hashRefreshToken,
   newRefreshToken,
 };

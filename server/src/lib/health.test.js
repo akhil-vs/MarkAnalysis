@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { buildHealthPayload, markBootTime, migrationHealth } from "./health.js";
+import { buildHealthPayload, markBootTime, migrationHealth, platformAdminHealth } from "./health.js";
 
 describe("health payload", () => {
   it("returns shallow ok without DB", async () => {
@@ -21,5 +21,14 @@ describe("health payload", () => {
       true
     );
     assert.equal(migrationHealth({ mode: "vercel-ensure-only" }, { NODE_ENV: "development" }).ok, true);
+  });
+
+  it("flags a production boot with no platform admin", () => {
+    const production = { NODE_ENV: "production" };
+    assert.equal(platformAdminHealth(true, production).ok, true);
+    const missing = platformAdminHealth(false, production);
+    assert.equal(missing.ok, false);
+    assert.match(missing.note, /platform admin/i);
+    assert.equal(platformAdminHealth(false, { NODE_ENV: "development" }).ok, true);
   });
 });

@@ -7,6 +7,8 @@ import { cell, parseDob, parseSpreadsheet } from "../lib/upload.js";
 import { academicYearFromDate, nextAcademicYear, nextClassName } from "../lib/stats.js";
 import { assertAllowedAcademicYear } from "../lib/academicYears.js";
 import { pageResult, parsePageQuery } from "../lib/pagination.js";
+import { parseClassSectionIds } from "../lib/studentQuery.js";
+import { BULK_PHOTO_MAX_FILES, SPREADSHEET_MAX_BYTES } from "../lib/uploadLimits.js";
 import { getSchoolLetterhead, getSchoolProfile, LOGO_MAX_BYTES, parseLogoFile } from "../lib/school.js";
 import { publicStudent } from "../lib/hallTickets.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
@@ -27,9 +29,7 @@ studentsRouter.use(requireSchoolTenant);
 
 const requireRecordsWrite = [requireRole("PRINCIPAL", "EXAM_COORDINATOR"), requireFeature("records")];
 
-const BULK_PHOTO_MAX_FILES = 100;
-
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: SPREADSHEET_MAX_BYTES } });
 const photoUpload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: LOGO_MAX_BYTES },
@@ -251,11 +251,9 @@ studentsRouter.get("/", async (req, res) => {
   const { classSectionId, classSectionIds } = req.query;
   let where = {};
   if (classSectionIds) {
-    const ids = String(classSectionIds)
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    if (ids.length) where.classSectionId = { in: ids };
+    const parsed = parseClassSectionIds(classSectionIds);
+    if (parsed.error) return res.status(400).json({ error: parsed.error });
+    if (parsed.ids.length) where.classSectionId = { in: parsed.ids };
   } else if (classSectionId) {
     where.classSectionId = classSectionId;
   }
