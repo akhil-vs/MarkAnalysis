@@ -10,9 +10,14 @@ export function generateStaffTempPassword(length = 12) {
   const bytes = randomBytes(length);
   let out = "";
   for (let i = 0; i < length; i += 1) out += alphabet[bytes[i] % alphabet.length];
-  // Guarantee letter + digit for policy compliance.
-  if (!/[A-Za-z]/.test(out)) out = `A${out.slice(1)}`;
-  if (!/[0-9]/.test(out)) out = `${out.slice(0, -1)}7`;
+  // Guarantee upper, lower, and a digit so production policy accepts the temp password.
+  const chars = out.split("");
+  if (chars.length >= 3) {
+    if (!/[A-Z]/.test(out)) chars[0] = "A";
+    if (!/[a-z]/.test(chars.join(""))) chars[1] = "a";
+    if (!/[0-9]/.test(chars.join(""))) chars[2] = "7";
+    out = chars.join("");
+  }
   return out;
 }
 

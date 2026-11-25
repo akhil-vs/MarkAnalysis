@@ -33,6 +33,24 @@ export const logger = {
 };
 
 /**
+ * Log the path and the query parameter names only.
+ * Values can be a pupil name or a portal token.
+ */
+export function requestLogFields(url) {
+  const raw = String(url || "");
+  const q = raw.indexOf("?");
+  if (q === -1) return { path: raw };
+  const path = raw.slice(0, q);
+  let queryKeys = [];
+  try {
+    queryKeys = [...new URLSearchParams(raw.slice(q + 1)).keys()];
+  } catch {
+    queryKeys = [];
+  }
+  return { path, queryKeys };
+}
+
+/**
  * Express middleware: log method, path, status, durationMs.
  */
 export function requestLogMiddleware(req, res, next) {
@@ -41,10 +59,9 @@ export function requestLogMiddleware(req, res, next) {
     const status = res.statusCode;
     const fields = {
       method: req.method,
-      path: req.originalUrl || req.url,
+      ...requestLogFields(req.originalUrl || req.url),
       status,
       durationMs: Date.now() - started,
-      ip: req.ip || undefined,
     };
     if (status >= 500) logger.error("request", fields);
     else if (status >= 400) logger.warn("request", fields);

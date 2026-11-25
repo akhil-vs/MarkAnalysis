@@ -20,7 +20,7 @@ export const RESTORE_CAPABILITIES = {
     "Platform JSON backup is a configuration / paper-schedule export. Use pg_dump (scripts/pg-dump-backup.sh) or managed Postgres PITR for disaster recovery.",
 };
 
-const TENANT_EXPORT_MODELS = [
+export const TENANT_EXPORT_MODELS = [
   { key: "classSections", model: "classSection" },
   { key: "subjects", model: "subject" },
   {
@@ -28,16 +28,24 @@ const TENANT_EXPORT_MODELS = [
     model: "user",
     omit: { passwordHash: true, mfaSecret: true, mfaRecoveryHashes: true },
   },
-  // Never dump binary student photos or guardian contact into plaintext backups.
+  // Roster identity only. Marks, photos, dates of birth, and guardian contact stay out.
   {
     key: "students",
     model: "student",
-    omit: { photoBytes: true, guardianEmail: true, photoStorageKey: true },
+    omit: {
+      photoBytes: true,
+      photoMimeType: true,
+      photoStorageKey: true,
+      guardianEmail: true,
+      guardianPhone: true,
+      guardianName: true,
+      dob: true,
+      admissionNo: true,
+    },
   },
   { key: "exams", model: "exam" },
   { key: "teacherAssignments", model: "teacherAssignment" },
   { key: "studentSubjectEnrollments", model: "studentSubjectEnrollment" },
-  { key: "marks", model: "mark" },
   { key: "periods", model: "period" },
   { key: "timetableEntries", model: "timetableEntry" },
   { key: "teacherLeaves", model: "teacherLeave" },
@@ -118,10 +126,17 @@ export async function createBackup({ schoolId = null } = {}) {
         "logoBytes",
         "logoStorageKey",
         "photoBytes",
+        "photoMimeType",
         "photoStorageKey",
         "guardianEmail",
+        "guardianPhone",
+        "guardianName",
+        "dob",
+        "admissionNo",
+        "marks",
         "passwordHash",
         "mfaSecret",
+        "mfaRecoveryHashes",
       ],
       tenants,
     };

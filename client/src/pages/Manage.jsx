@@ -1216,12 +1216,13 @@ function StudentsTab() {
           studentIds: [row.id],
           examId: latest?.id || undefined,
           label: `${row.name} portal`,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
         },
       });
       const url = `${window.location.origin}${data.portalPath}`;
       try {
         await navigator.clipboard.writeText(url);
-        toast.success("Portal link copied to clipboard.");
+        toast.success("Portal link copied. It expires in 30 days.");
       } catch {
         toast.success(`Portal link: ${url}`);
       }

@@ -9,18 +9,18 @@ This platform stores **student and staff personal data** (names, emails, dates o
 | Staff accounts | Leadership / platform admin | Passwords stored as bcrypt hashes only |
 | Student records & marks | Teachers (scoped), leadership | Class teachers get section-wide read access |
 | Student photos | Staff with Student photos feature | Binary in DB (or filesystem keys when `BLOB_STORAGE=filesystem`); **omitted from platform backups** |
-| Guardian email / address / phone | Staff (scoped) | **Omitted from platform backups** |
-| Parent portal | Holder of issued link token | Read-only approved marks for linked students |
+| Guardian email / phone / name, date of birth, admission number | Staff (scoped) | **Omitted from platform JSON backups**, along with marks and photos |
+| Parent portal | Holder of issued link token | Read-only approved marks. Links expire within 90 days (30 by default) |
 | School pilot requests | Platform admin | Contact name, email, phone, school details from `/request-pilot` |
 
 ## Operator obligations
 
 1. **Lawful basis / consent** — Confirm your board/school policy covers processing of student marks and photos before go-live (FERPA, GDPR, DPDP, or local equivalent).
-2. **Retention** — Define how long marks, photos, and portal links are kept after a student leaves. Use platform school data delete tools for campus offboarding. Define how long unanswered **pilot requests** are retained.
+2. **Retention** — Principals set a leaver retention period on School profile. Left and transferred pupils are erased after 31 March of their academic year plus that many years. Campus offboarding remains on the platform console. Define how long unanswered **pilot requests** are retained.
 3. **Access** — Prefer least privilege via Staff → Role access; enable MFA for leadership.
-4. **Exports** — Platform JSON backups omit passwords, MFA secrets, logos, student photos, and guardian contact fields. Merge-restore only updates school profile fields and exam paper schedules — use `scripts/pg-dump-backup.sh` (or managed PITR) for disaster recovery. Store any downloaded backup encrypted at rest.
-5. **Parent portal** — Issue time-limited links; revoke when no longer needed. Share links only with guardians.
-6. **DSAR / deletion** — Leadership can remove school data categories via the platform console; coordinate legal review for individual student erasure requests.
+4. **Exports** — Platform JSON backups omit passwords, MFA secrets, logos, student photos, dates of birth, guardian contact, admission numbers, and marks. Merge-restore only updates school profile fields and exam paper schedules — use `scripts/pg-dump-backup.sh` (or managed PITR) for disaster recovery. `scripts/pg-dump-restore-check.sh` proves a dump can be restored. Store any downloaded backup encrypted at rest.
+5. **Parent portal** — Every issued link expires (default 30 days, maximum 90). Revoke when no longer needed. Share links only with guardians.
+6. **DSAR / deletion** — Leadership can delete one pupil from the student register (marks, photo, and portal links go with the row) or erase due leavers from School profile. Campus-wide category delete remains on the platform console.
 7. **Pilot enquiries** — Treat `/request-pilot` submissions as sales/contact data; only platform admins should access the **School pilots** inbox.
 
 ## Application controls already in place

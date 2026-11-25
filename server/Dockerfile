@@ -11,8 +11,9 @@ RUN npm ci && npm run build
 FROM node:24-alpine AS runner
 WORKDIR /app
 ENV NODE_ENV=production
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/dist ./dist
-COPY --from=deps /app/package.json ./package.json
+COPY --from=deps --chown=node:node /app/node_modules ./node_modules
+COPY --from=deps --chown=node:node /app/dist ./dist
+COPY --from=deps --chown=node:node /app/package.json ./package.json
+USER node
 EXPOSE 4000
 CMD ["sh", "-c", "cd dist && npx prisma db migrate --advance-ref db && node src/index.js"]

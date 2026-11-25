@@ -21,6 +21,13 @@ describe("validatePasswordPolicy", () => {
   it("accepts seed-compatible strong enough passwords", () => {
     assert.equal(validatePasswordPolicy("password123"), null);
   });
+
+  it("requires mixed case and 12 characters in production", () => {
+    const env = { NODE_ENV: "production" };
+    assert.match(validatePasswordPolicy("password123", env), /12/);
+    assert.match(validatePasswordPolicy("longpassword1", env), /upper and lower/);
+    assert.equal(validatePasswordPolicy("Longpassword1", env), null);
+  });
 });
 
 describe("hashPassword / verifyPassword", () => {

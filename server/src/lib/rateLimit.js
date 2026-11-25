@@ -6,8 +6,16 @@
 import { clientIp } from "./clientIp.js";
 import { hasDatabaseUrl } from "./databaseUrl.js";
 import { prisma } from "./prisma.js";
+import { isProductionLike } from "./ensurePlatformAdmin.js";
 
 const memoryHits = new Map();
+
+/** Production store failures stay closed. Local and tests fall back to memory. */
+export function rateLimitOnStoreError(env = process.env) {
+  if (env.RATE_LIMIT_FAIL_OPEN === "true") return "memory";
+  if (isProductionLike(env)) return "closed";
+  return "memory";
+}
 
 function useDatabaseStore() {
   if (process.env.RATE_LIMIT_STORE === "memory") return false;
@@ -72,7 +80,14 @@ export function rateLimit({
         ? await consumeDatabase(key, windowMs)
         : consumeMemory(key, windowMs);
     } catch (err) {
-      // Table may not exist yet on a brand-new deploy — degrade to memory.
+      // Production must not fall open to a per-process counter that resets on every instance.
+      if (rateLimitOnStoreError() === "closed") {
+        console.error("rateLimit database store failed:", err?.message || err);
+        return res.status(503).json({
+          error: "Request protection is unavailable. Try again shortly.",
+          code: "RATE_LIMIT_UNAVAILABLE",
+        });
+      }
       console.warn("rateLimit database store failed; using memory:", err?.message || err);
       entry = consumeMemory(key, windowMs);
     }

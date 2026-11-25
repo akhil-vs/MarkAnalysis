@@ -10,6 +10,7 @@ import {
   parseCurrentAcademicYearPatch,
   publicAcademicYears,
 } from "./academicYears.js";
+import { publicPrivacySettings } from "./pupilPrivacy.js";
 
 const OPTIONAL_TEXT_FIELDS = [
   "shortName",
@@ -235,6 +236,7 @@ export function publicSchool(profile, { grading, workingDays, includeJoinCode = 
     optionalModules,
     academicYears,
     currentAcademicYear,
+    privacySettings,
     ...rest
   } = profile;
   const hasLogo =
@@ -250,6 +252,7 @@ export function publicSchool(profile, { grading, workingDays, includeJoinCode = 
     grading,
     academicYears: years.academicYears,
     currentAcademicYear: years.currentAcademicYear,
+    privacy: publicPrivacySettings(privacySettings),
     ...(includeJoinCode ? { joinCode } : {}),
   };
 }

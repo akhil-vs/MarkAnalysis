@@ -9,15 +9,15 @@ const SECTIONS = [
   },
   {
     title: "Who can see it",
-    body: "Access is role-scoped. Teachers see assigned registers; leadership sees school-wide views; parent portal holders see only approved marks for linked students via an issued link. Passwords are stored as bcrypt hashes only.",
+    body: "Access is role-scoped. Teachers see assigned registers; leadership sees school-wide views; parent portal holders see only approved marks for linked students. Every portal link expires within 90 days. Passwords are stored as bcrypt hashes only.",
   },
   {
     title: "School control",
-    body: "Each campus is a tenant. Principals approve staff, set the school profile and letterhead, and can revoke parent portal links. Platform tools support campus offboarding and category deletes.",
+    body: "Each campus is a tenant. Principals approve staff, set the school profile and letterhead, erase an individual pupil, and can revoke parent portal links. A retention period erases left and transferred pupils after 31 March of their academic year plus that many years. Platform tools support campus offboarding and category deletes.",
   },
   {
     title: "Safeguards already in place",
-    body: "httpOnly session cookies with refresh rotation, optional TOTP MFA, activity and mark audit logs, and official consolidated downloads blocked until registers are approved. Platform backups omit photos and guardian contact fields.",
+    body: "httpOnly session cookies with refresh rotation, optional TOTP MFA (required for the platform admin in production), activity and mark audit logs, and official consolidated downloads blocked until registers are approved. Platform JSON backups omit marks, photos, dates of birth, and guardian contact fields.",
   },
   {
     title: "Operator obligations",

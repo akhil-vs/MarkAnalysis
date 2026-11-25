@@ -121,6 +121,8 @@ model School {
   currentAcademicYear String?
   /// CBSE/Gulf assessment policy: grading scheme, pass modes, region extras, teacher-compare rules.
   assessmentPolicy    Jsonb?
+  /// Pupil retention years and the principal's processing acknowledgement.
+  privacySettings     Jsonb?
 
   users                 User[]
   classSections         ClassSection[]

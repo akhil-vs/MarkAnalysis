@@ -23,7 +23,7 @@ describe("authCookies", () => {
 
   it("uses short access and long refresh lifetimes", () => {
     assert.equal(__test.ACCESS_MAX_AGE_MS, 15 * 60 * 1000);
-    assert.equal(__test.REFRESH_MAX_AGE_MS, 30 * 24 * 60 * 60 * 1000);
+    assert.equal(__test.REFRESH_MAX_AGE_MS, 14 * 24 * 60 * 60 * 1000);
   });
 
   it("treats a recently revoked token as a rotation race, not reuse", () => {

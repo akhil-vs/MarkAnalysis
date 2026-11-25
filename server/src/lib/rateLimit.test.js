@@ -3,6 +3,7 @@ import { describe, it, beforeEach } from "node:test";
 import {
   authAttemptKey,
   rateLimit,
+  rateLimitOnStoreError,
   _resetRateLimitMemoryForTests,
 } from "./rateLimit.js";
 
@@ -66,6 +67,15 @@ describe("rateLimit", () => {
     assert.equal(nextCalled, false);
     assert.equal(res.statusCode, 429);
     assert.equal(res.body.code, "RATE_LIMITED");
+  });
+});
+
+describe("rateLimitOnStoreError", () => {
+  it("closes in production and stays open for tests", () => {
+    assert.equal(rateLimitOnStoreError({ NODE_ENV: "production" }), "closed");
+    assert.equal(rateLimitOnStoreError({ VERCEL: "1" }), "closed");
+    assert.equal(rateLimitOnStoreError({ NODE_ENV: "production", RATE_LIMIT_FAIL_OPEN: "true" }), "memory");
+    assert.equal(rateLimitOnStoreError({ NODE_ENV: "test" }), "memory");
   });
 });
 

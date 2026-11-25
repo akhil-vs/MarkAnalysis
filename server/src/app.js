@@ -37,6 +37,7 @@ import { logger, requestLogMiddleware } from "./lib/logger.js";
 import { dataLoaderMiddleware } from "./lib/dataLoaders.js";
 import { performanceMiddleware } from "./lib/performance.js";
 import { monitoringRouter } from "./routes/monitoring.js";
+import { cronRouter } from "./routes/cron.js";
 
 markBootTime();
 void initErrorReporting();
@@ -150,6 +151,7 @@ app.use("/api/analytics", analyticsRouter);
 app.use("/api/exports", exportsRouter);
 app.use("/api/portal", portalRouter);
 app.use("/api/monitoring", monitoringRouter);
+app.use("/api/cron", cronRouter);
 
 app.use("/api", (req, res) => {
   res.status(404).json({ error: "Not found" });
