@@ -6,7 +6,7 @@ Method: source and config review, `npm audit` in `client/` and `server/`, and a 
 
 Rank key: 🔴 Blocker (must fix before launch) · 🟠 High · 🟡 Medium · 🟢 Nice-to-have.
 
-**Verdict:** no unconditional code blocker. The app is closer to a controlled pilot than to an open launch. Eight high findings should be closed or explicitly accepted, and the operator checklist in section 10 must be confirmed on the real host. If the public site is the Docker Compose web container, finding O1 becomes a blocker for uploads.
+**Verdict:** no unconditional code blocker. The app is closer to a controlled pilot than to an open launch. Seven high findings should be closed or explicitly accepted, and the operator checklist in section 10 must be confirmed on the real host. If the public site is the Docker Compose web container, finding O1 becomes a blocker for uploads.
 
 ---
 
@@ -108,7 +108,7 @@ The charts chunk is 421.66 kB raw / 112.81 kB gzip. It is split out of the entry
 
 ## 3. Backend / API
 
-**Status: FAIL** (0 blockers, 1 high, 5 medium)
+**Status: FAIL** (0 blockers, 0 high, 5 medium)
 
 ### Checklist
 
@@ -123,13 +123,13 @@ The charts chunk is 421.66 kB raw / 112.81 kB gzip. It is split out of the entry
 | Body size | Pass for JSON — `express.json({ limit: "2mb" })` (`app.js` line 109). File limits are 5 MB spreadsheets and 1 MB images. See O1 for the Docker proxy |
 | Timeouts | Partial — Vercel function `maxDuration` 60 (`vercel.json` lines 63–67). Pool connect timeout 5s, 10s on serverless (`server/src/prisma/db.js` lines 15–29) |
 | Race conditions | Pass for the paths reviewed — mark writes use `$transaction` (`server/src/lib/markSave.js` line 198). Refresh reuse outside a 15s window revokes all sessions (`server/src/lib/authCookies.js` lines 71–91) |
-| Jobs, email, webhooks | Fail — see B1. No inbound webhooks. Cron routes require a ≥16 character `CRON_SECRET` compared with `timingSafeEqual` (`server/src/lib/cronAuth.js` lines 7–18) |
+| Jobs, email, webhooks | Pass — flush retries `FAILED` mail up to 6 attempts with backoff and does not log the recipient or subject (B1). No inbound webhooks. Cron routes require a ≥16 character `CRON_SECRET` compared with `timingSafeEqual` (`server/src/lib/cronAuth.js` lines 7–18) |
 
 ### Findings
 
-#### B1 🟠 Mail queue does not retry, and it logs the recipient
+#### B1 Resolved — failed mail is retried, and logs omit the recipient
 
-`flushEmailOutbox` (`server/src/lib/mailer.js` lines 76–105) marks a row `SKIPPED` when SMTP is unset and `FAILED` on the first send error. Later cron runs only select `PENDING` (lines 63–66), so a blip permanently drops pilot notifications and digests. Line 78 logs `to=` and `subject=` via `console.info`, which puts staff and parent addresses in platform logs.
+`flushEmailOutbox` still marks a new row `SKIPPED` when SMTP is unset, and it leaves an existing `FAILED` row alone so a later flush can send it once SMTP is configured. A send error stores `meta.mailAttempts` and `meta.retryAt` (15 minutes, then 1 hour, 4 hours, 12 hours, 24 hours) and the next flush selects that `FAILED` row until 6 attempts. `GET`/`POST /api/cron/mail` and `POST /api/platform/mail/flush` return counts only. Logs use the outbox id and kind (`mail_sent`, `mail_send_failed`, `mail_skipped_no_smtp`), not the address or subject. Rows that were already `FAILED` before this change have no attempt count, so the next flush treats them as due and may send them.
 
 #### B2 🟡 `JWT_ACCESS_EXPIRES` does not change the cookie lifetime
 
@@ -261,13 +261,12 @@ Existing tests do not cover:
 
 - Platform home / schools / pilot inbox when the API returns 500 (finding F1).
 - Keyboard names for login fields, photo alt text, or contrast.
-- Email retry after SMTP failure (finding B1).
 - A spreadsheet larger than the edge body limit (finding O1).
 - Load or multi-tenant isolation under concurrent mark saves.
 
 ### Proposed test plan (do not implement until approved)
 
-1. **Unit:** cookie `maxAge` follows `JWT_ACCESS_EXPIRES`; mailer retries `FAILED` with a cap; `toErrorPayload` used by monitoring.
+1. **Unit:** cookie `maxAge` follows `JWT_ACCESS_EXPIRES`; `toErrorPayload` used by monitoring. Mailer retry is covered by `server/src/lib/mailer.test.js` and by `GET`/`POST /api/cron/mail` plus `POST /api/platform/mail/flush` in `server/src/test/api.mail.test.js`.
 2. **API:** platform admin missing on production boot returns a non-2xx health or a documented degraded flag; student list with many section ids stays bounded; cron rejects a short secret (already present — keep it).
 3. **E2E:** login → change temporary password → save a draft mark → coordinator approves → official consolidated download. Second spec: platform schools page shows an error, not a spinner, when overview is stubbed to 500.
 4. **Payments:** none in this product. Do not add a payment suite.
@@ -329,7 +328,7 @@ Health checks exist (`GET /api/health`, deep DB ping, platform deep health). The
 
 #### V2 🟡 Some logs are unstructured and include SQL or mail text
 
-`ensureSchema.js` warnings include `err.message`. `mailer.js` line 78 logs recipient and subject. `captureException` writes `err.stack` to stdout (`errorReporting.js` lines 36–40), which is appropriate for operators and noisy if a log vendor retains stacks next to pupil ids in the request path. The request middleware itself does not log bodies.
+`ensureSchema.js` warnings include `err.message`. The mailer no longer logs the recipient or subject (B1). `captureException` writes `err.stack` to stdout (`errorReporting.js` lines 36–40), which is appropriate for operators and noisy if a log vendor retains stacks next to pupil ids in the request path. The request middleware itself does not log bodies.
 
 ---
 
@@ -375,7 +374,7 @@ Do these in order. Items 1–4 are operator blockers even though the code does n
 5. 🟠 Decide whether shipping Prisma 8 RCs is acceptable for this launch (A1). If yes, freeze the lockfile and do not run a blind `npm update`.
 6. 🟠 One migration path only (A2). Do not run legacy `server/prisma/migrations` against production.
 7. 🟠 Platform home, schools, and pilot inbox must show an error instead of an infinite spinner (F1).
-8. 🟠 SMTP: either configure it and retry `FAILED` mail, or accept that pilot email is best-effort and the in-app inbox is the source of truth (B1). Stop logging recipient addresses.
+8. ✅ Failed mail is retried up to 6 times with backoff, and flush logs omit the recipient and subject (B1). SMTP still has to be configured or new rows stay `SKIPPED`.
 9. ✅ Compose `backup` schedules `scripts/pg-dump-backup.sh` (daily, keep 14) and `backup-rehearse` / CI run `pg_restore` into a scratch database (D1). A managed-Postgres host still needs that provider's PITR.
 10. 🟠 Either gate `npm audit --audit-level=high` for `server/` or record an exception for the Prisma CLI transitive highs (S1).
 11. 🟠 Fail or flag boot when production has no platform admin (S2). Do not launch on the seed password.
@@ -427,14 +426,14 @@ These are not findings. The repo cannot answer them.
 |---|---|---:|---:|---:|
 | 1. Architecture and code quality | FAIL | 0 | 2 | 2 |
 | 2. Frontend / design / UX | FAIL | 0 | 1 | 4 |
-| 3. Backend / API | FAIL | 0 | 1 | 5 |
+| 3. Backend / API | FAIL | 0 | 0 | 5 |
 | 4. Database | FAIL | 0 | 0 | 2 |
 | 5. Security | FAIL | 0 | 2 | 3 |
 | 6. Testing | PASS | 0 | 0 | 1 |
 | 7. DevOps / deployment | FAIL | 0 | 1 | 1 |
 | 8. Observability and operations | FAIL | 0 | 1 | 1 |
 | 9. Documentation | PASS | 0 | 0 | 2 |
-| **Total** | **FAIL** | **0** | **8** | **21** |
+| **Total** | **FAIL** | **0** | **7** | **21** |
 
 Nice-to-have items (F5, B7, S6, O3) are not in the medium column. Section 10 items 1–4 are operator blockers that sit outside the code counts.
 
