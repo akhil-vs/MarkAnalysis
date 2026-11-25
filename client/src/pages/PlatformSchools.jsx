@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
+import { LoadError } from "../components/LoadError.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { LoadingState } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
@@ -16,17 +17,31 @@ export default function PlatformSchools() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const [schools, setSchools] = useState(null);
+  const [error, setError] = useState("");
   const status = params.get("status") || "";
   const { q, setQ, filtered } = useTableSearch(schools || [], {
     getSearchText: (s) => searchHaystack(s.name, s.slug, s.board, s.affiliationNo, s.email, s.status),
   });
 
   useEffect(() => {
+    let cancelled = false;
     const query = status ? `?status=${encodeURIComponent(status)}` : "";
     setSchools(null);
+    setError("");
     api(`/api/platform/schools${query}`)
-      .then((data) => setSchools(Array.isArray(data) ? data : data.items || []))
-      .catch((err) => toast.error(err.message || "Could not load schools"));
+      .then((data) => {
+        if (cancelled) return;
+        setSchools(Array.isArray(data) ? data : data.items || []);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const message = err.message || "Could not load schools";
+        setError(message);
+        toast.error(message);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [status, toast]);
 
   function setStatus(next) {
@@ -36,6 +51,7 @@ export default function PlatformSchools() {
     setParams(nextParams, { replace: true });
   }
 
+  if (error && !schools) return <LoadError message={error} />;
   if (!schools) return <LoadingState label="Loading schools…" />;
 
   return (

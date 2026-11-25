@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../api.js";
+import { LoadError } from "../components/LoadError.jsx";
 import { PageHeader, Kpi } from "../components/Layout.jsx";
 import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
@@ -24,15 +25,33 @@ export default function PlatformHome() {
   const toast = useToast();
   const [data, setData] = useState(null);
   const [health, setHealth] = useState(null);
+  const [error, setError] = useState("");
+  const [healthError, setHealthError] = useState("");
   const [busy, setBusy] = useState("");
 
   useEffect(() => {
+    let cancelled = false;
     api("/api/platform/overview")
-      .then(setData)
-      .catch((err) => toast.error(err.message || "Could not load platform overview"));
+      .then((result) => {
+        if (!cancelled) setData(result);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const message = err.message || "Could not load platform overview";
+        setError(message);
+        toast.error(message);
+      });
     api("/api/platform/health/deep")
-      .then(setHealth)
-      .catch(() => {});
+      .then((result) => {
+        if (!cancelled) setHealth(result);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        setHealthError(err.message || "Could not load live ops health");
+      });
+    return () => {
+      cancelled = true;
+    };
   }, [toast]);
 
   const kpis = data?.kpis || {};
@@ -74,6 +93,7 @@ export default function PlatformHome() {
     }
   }
 
+  if (error && !data) return <LoadError message={error} />;
   if (!data) return <LoadingState label="Loading platform…" />;
 
   return (
@@ -103,11 +123,15 @@ export default function PlatformHome() {
 
       <section className="card p-4 mb-6 space-y-3">
         <h2 className="font-serif text-lg">Live ops</h2>
-        <p className="text-sm text-ink-700/70">
-          Health{health ? `: ${health.ok ? "ok" : "degraded"}` : ""}
-          {health?.db ? ` · DB ${health.db.ok ? `${health.db.latencyMs}ms` : "down"}` : ""}
-          {health ? ` · SMTP ${health.smtpConfigured ? "configured" : "not set"}` : ""}
-        </p>
+        {healthError ? (
+          <LoadError message={healthError} fallback="Could not load live ops health." />
+        ) : (
+          <p className="text-sm text-ink-700/70">
+            Health{health ? `: ${health.ok ? "ok" : "degraded"}` : ""}
+            {health?.db ? ` · DB ${health.db.ok ? `${health.db.latencyMs}ms` : "down"}` : ""}
+            {health ? ` · SMTP ${health.smtpConfigured ? "configured" : "not set"}` : ""}
+          </p>
+        )}
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-accent" disabled={Boolean(busy)} onClick={runBackup}>
             <BusyLabel busy={busy === "backup"} idle="Download backup" busyText="Exporting…" />

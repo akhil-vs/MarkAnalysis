@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { api } from "../api.js";
+import { LoadError } from "../components/LoadError.jsx";
 import { PageHeader } from "../components/Layout.jsx";
 import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { TableToolbar } from "../components/TableToolbar.jsx";
@@ -37,6 +38,7 @@ export default function PlatformPilotRequests() {
   const status = searchParams.get("status") || "";
   const [q, setQ] = useState(searchParams.get("q") || "");
   const [data, setData] = useState(null);
+  const [error, setError] = useState("");
   const [busyId, setBusyId] = useState("");
   const [selected, setSelected] = useState(null);
 
@@ -44,11 +46,14 @@ export default function PlatformPilotRequests() {
     const params = new URLSearchParams({ page: "1", pageSize: "50" });
     if (status) params.set("status", status);
     if (q.trim()) params.set("q", q.trim());
+    setError("");
     try {
       const result = await api(`/api/platform/pilot-requests?${params}`);
       setData(result);
     } catch (err) {
-      toast.error(err.message || "Could not load pilot requests");
+      const message = err.message || "Could not load pilot requests";
+      setError(message);
+      toast.error(message);
     }
   }, [status, q, toast]);
 
@@ -106,6 +111,7 @@ export default function PlatformPilotRequests() {
 
   const items = data?.items || data || [];
 
+  if (error && !data) return <LoadError message={error} />;
   if (!data) return <LoadingState label="Loading pilot requests…" />;
 
   return (
@@ -140,6 +146,12 @@ export default function PlatformPilotRequests() {
           </select>
         </label>
       </TableToolbar>
+
+      {error ? (
+        <div className="mt-4">
+          <LoadError message={error} />
+        </div>
+      ) : null}
 
       <div className="mt-4 grid gap-4 lg:grid-cols-[1.2fr_0.8fr]">
         <section className="card overflow-hidden">
