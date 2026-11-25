@@ -6,7 +6,7 @@ Method: source and config review, `npm audit` in `client/` and `server/`, and a 
 
 Rank key: 🔴 Blocker (must fix before launch) · 🟠 High · 🟡 Medium · 🟢 Nice-to-have.
 
-**Verdict:** no unconditional code blocker. The app is closer to a controlled pilot than to an open launch. Seven high findings should be closed or explicitly accepted, and the operator checklist in section 10 must be confirmed on the real host. If the public site is the Docker Compose web container, finding O1 becomes a blocker for uploads.
+**Verdict:** no unconditional code blocker. The app is closer to a controlled pilot than to an open launch. Six high findings should be closed or explicitly accepted, and the operator checklist in section 10 must be confirmed on the real host. If the public site is the Docker Compose web container, finding O1 becomes a blocker for uploads.
 
 ---
 
@@ -54,15 +54,15 @@ Root `package.json` lines 22–36 list Express, Prisma RC, `csv-parse` `^5.6.0`,
 
 ## 2. Frontend / design / UX
 
-**Status: FAIL** (0 blockers, 1 high, 4 medium)
+**Status: FAIL** (0 blockers, 0 high, 4 medium)
 
 ### Checklist
 
 | Check | Result |
 |---|---|
-| Responsive layout | Pass on inspection — viewport meta (`client/index.html` line 5), `sm:` / `lg:` breakpoints, 44px-class field heights (`client/src/index.css` line 137), phone task bar (`client/src/components/MobileTaskBar.jsx` lines 22–26). Not executed in a browser |
+| Responsive layout | Pass on inspection — viewport meta (`client/index.html` line 5), `sm:` / `lg:` breakpoints, 44px-class field heights (`client/src/index.css` line 137), phone task bar (`client/src/components/MobileTaskBar.jsx` lines 22–26). Platform console pages were opened at 1280 and 390; the rest of the app was not rechecked in a browser |
 | Design tokens | Pass — ink / paper / cream / clay / moss and IBM Plex + Source Serif in `client/tailwind.config.js` lines 10–27. Not every screen uses only those tokens |
-| Loading, empty, and error states | Fail — see F1 and F6. Many desks do use `LoadError` (pending uploads, principal and teacher homes) |
+| Loading, empty, and error states | Partial — platform home, schools, and pilot inbox show `LoadError` when the load fails (F1). Analysis home still hides a failed insight fetch (F6). Many desks already use `LoadError` |
 | Form validation and messages | Pass — shared parsers in `client/src/lib/formValidation.js`, used by login and signup, with `FieldError`. API errors go through `client/src/lib/apiErrorMessage.js` |
 | Accessibility | Fail — see F2 and F4. Focus rings exist on `.field` (`client/src/index.css` line 137). Menu buttons have `aria-label` (`client/src/components/Layout.jsx` lines 380, 457) |
 | SEO | Partial — see F3. `client/index.html` lines 7–20 has description, `og:title`, `og:description`, `og:type`, favicon, `lang="en"` |
@@ -72,15 +72,9 @@ Root `package.json` lines 22–36 list Express, Prisma RC, `csv-parse` `^5.6.0`,
 
 ### Findings
 
-#### F1 🟠 Platform console stays on a spinner when the load fails
+#### F1 Resolved — a failed platform load shows an error
 
-These screens set data only on success, toast on failure, and render `<LoadingState>` while data is still null:
-
-- `client/src/pages/PlatformHome.jsx` lines 29–35 and 77
-- `client/src/pages/PlatformSchools.jsx` lines 24–39
-- `client/src/pages/PlatformPilotRequests.jsx` lines 47–52 and 109
-
-A 500 or a network error on the page used to provision a school looks like a permanent load. Deep health on the platform home is swallowed entirely (`PlatformHome.jsx` line 35, empty `catch`).
+Platform home, schools, and the pilot inbox still toast on failure. They now also set an error and render `LoadError` instead of `LoadingState` when there is nothing to show. A later refresh that fails keeps the list that already loaded and repeats `LoadError` above it. Deep health on the platform home shows `LoadError` in the Live ops card instead of an empty `catch`. The copy and clay alert style are the same component the other desks use.
 
 #### F2 🟡 Several controls are unnamed for assistive tech
 
@@ -259,7 +253,7 @@ Login does reject `password123` on a production host (`auth.js` lines 383–387)
 
 Existing tests do not cover:
 
-- Platform home / schools / pilot inbox when the API returns 500 (finding F1).
+- An automated browser case for platform home / schools / pilot inbox when the API returns 500 (the screen now shows `LoadError` — F1).
 - Keyboard names for login fields, photo alt text, or contrast.
 - A spreadsheet larger than the edge body limit (finding O1).
 - Load or multi-tenant isolation under concurrent mark saves.
@@ -324,7 +318,7 @@ There is no `staging` env file or second Compose project. Promoting “the Verce
 
 #### V1 🟠 Nothing pages anyone unless you add it outside the repo
 
-Health checks exist (`GET /api/health`, deep DB ping, platform deep health). They do not notify. Sentry is optional. There is no uptime monitor, no log drain, and no alert on `RATE_LIMIT_UNAVAILABLE`, migrate-unhealthy, or mail `FAILED`. A silent pilot-request inbox (B1 plus F1) is the likely first incident.
+Health checks exist (`GET /api/health`, deep DB ping, platform deep health). They do not notify. Sentry is optional. There is no uptime monitor, no log drain, and no alert on `RATE_LIMIT_UNAVAILABLE`, migrate-unhealthy, or mail `FAILED`. A failed platform load is visible in the page (F1); nothing pages an operator.
 
 #### V2 🟡 Some logs are unstructured and include SQL or mail text
 
@@ -360,7 +354,7 @@ Health checks exist (`GET /api/health`, deep DB ping, platform deep health). The
 
 ## 10. Launch checklist
 
-Do these in order. Items 1–4 are operator blockers even though the code does not fail the build. Items 5–13 are the high findings above.
+Do these in order. Items 1–4 are operator blockers even though the code does not fail the build. Items 5, 6, and 10–13 are the high findings still open. Items 7–9 are done.
 
 ### Confirm before go-live (operator)
 
@@ -373,7 +367,7 @@ Do these in order. Items 1–4 are operator blockers even though the code does n
 
 5. 🟠 Decide whether shipping Prisma 8 RCs is acceptable for this launch (A1). If yes, freeze the lockfile and do not run a blind `npm update`.
 6. 🟠 One migration path only (A2). Do not run legacy `server/prisma/migrations` against production.
-7. 🟠 Platform home, schools, and pilot inbox must show an error instead of an infinite spinner (F1).
+7. ✅ Platform home, schools, and the pilot inbox show `LoadError` instead of an infinite spinner when the load fails (F1). Deep health failure is shown in Live ops.
 8. ✅ Failed mail is retried up to 6 times with backoff, and flush logs omit the recipient and subject (B1). SMTP still has to be configured or new rows stay `SKIPPED`.
 9. ✅ Compose `backup` schedules `scripts/pg-dump-backup.sh` (daily, keep 14) and `backup-rehearse` / CI run `pg_restore` into a scratch database (D1). A managed-Postgres host still needs that provider's PITR.
 10. 🟠 Either gate `npm audit --audit-level=high` for `server/` or record an exception for the Prisma CLI transitive highs (S1).
@@ -425,7 +419,7 @@ These are not findings. The repo cannot answer them.
 | Section | Status | Blockers | High | Medium |
 |---|---|---:|---:|---:|
 | 1. Architecture and code quality | FAIL | 0 | 2 | 2 |
-| 2. Frontend / design / UX | FAIL | 0 | 1 | 4 |
+| 2. Frontend / design / UX | FAIL | 0 | 0 | 4 |
 | 3. Backend / API | FAIL | 0 | 0 | 5 |
 | 4. Database | FAIL | 0 | 0 | 2 |
 | 5. Security | FAIL | 0 | 2 | 3 |
@@ -433,7 +427,7 @@ These are not findings. The repo cannot answer them.
 | 7. DevOps / deployment | FAIL | 0 | 1 | 1 |
 | 8. Observability and operations | FAIL | 0 | 1 | 1 |
 | 9. Documentation | PASS | 0 | 0 | 2 |
-| **Total** | **FAIL** | **0** | **7** | **21** |
+| **Total** | **FAIL** | **0** | **6** | **21** |
 
 Nice-to-have items (F5, B7, S6, O3) are not in the medium column. Section 10 items 1–4 are operator blockers that sit outside the code counts.
 
