@@ -41,8 +41,11 @@ Production dependencies currently track **Prisma ORM 8 release candidates** (`pr
 
 ## Backups & DR
 
-- Platform JSON backup (`POST /api/platform/backup`) exports configuration-oriented rows and **merge-restores only school profile fields + exam paper schedules**. Response includes `restoreCapabilities`.
-- For disaster recovery use `scripts/pg-dump-backup.sh` (or managed Postgres PITR), not the JSON export.
+- Platform JSON backup (`POST /api/platform/backup`) exports configuration-oriented rows and **merge-restores only school profile fields + exam paper schedules**. Response includes `restoreCapabilities`. It is not a disaster-recovery copy.
+- Compose service `backup` runs `scripts/pg-dump-backup.sh` on a loop (`BACKUP_INTERVAL_SECONDS`, default 86400, minimum 60) and writes custom-format dumps to the `backups` volume. `BACKUP_KEEP` (default 14 on that service) deletes older top-level `marks-*.dump` files after a successful dump. A manual run with `BACKUP_KEEP` unset does not delete existing files.
+- Rehearse restore without modifying the live database: `docker compose --profile rehearse run --rm backup-rehearse`, or `scripts/pg-dump-restore-check.sh`. Both restore into a scratch database (`marks_restore_check` by default) and drop it. The script refuses to use the live database name, `postgres`, `template0`, or `template1`. CI runs the same check against the ephemeral database.
+- Managed Postgres (Vercel and other hosted databases) should use the provider's point-in-time recovery. Do not store these dumps as GitHub Actions artifacts; they contain pupil data.
+- App migrations under `server/migrations/app/` are forward-only (`operations` only). Rollback is restore a dump, or redeploy an older build against a schema it still understands. Do not add a down migration to reverse applied SQL.
 
 ## Blob storage
 

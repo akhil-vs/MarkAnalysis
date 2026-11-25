@@ -68,6 +68,59 @@ services:
     ports:
       - "8080:80"
 
+  # Full pg_dump on a schedule. The volume is a complete copy of pupil data;
+  # it is not published. Managed Postgres should use provider PITR instead.
+  backup:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-marks}:${POSTGRES_PASSWORD:-marks}@db:5432/${POSTGRES_DB:-marks}
+      BACKUP_DIR: /backups
+      BACKUP_INTERVAL_SECONDS: ${BACKUP_INTERVAL_SECONDS:-86400}
+      BACKUP_KEEP: ${BACKUP_KEEP:-14}
+    volumes:
+      - ./scripts/pg-dump-backup.sh:/opt/sma/pg-dump-backup.sh:ro
+      - backups:/backups
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        interval="$${BACKUP_INTERVAL_SECONDS:-86400}"
+        case "$$interval" in
+          ''|*[!0-9]*) echo "BACKUP_INTERVAL_SECONDS must be an integer >= 60" >&2; exit 1 ;;
+        esac
+        if [ "$$interval" -lt 60 ]; then
+          echo "BACKUP_INTERVAL_SECONDS must be >= 60" >&2
+          exit 1
+        fi
+        echo "Scheduled pg_dump every $${interval}s into /backups (keep $${BACKUP_KEEP:-0})"
+        while true; do
+          if ! /bin/sh /opt/sma/pg-dump-backup.sh; then
+            echo "pg_dump failed; retrying in $${interval}s" >&2
+          fi
+          sleep "$$interval"
+        done
+
+  # One-shot restore rehearsal into a scratch database. Not started by default.
+  # docker compose --profile rehearse run --rm backup-rehearse
+  backup-rehearse:
+    image: postgres:16-alpine
+    profiles: ["rehearse"]
+    restart: "no"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgresql://${POSTGRES_USER:-marks}:${POSTGRES_PASSWORD:-marks}@db:5432/${POSTGRES_DB:-marks}
+      RESTORE_CHECK_DB: ${RESTORE_CHECK_DB:-marks_restore_check}
+    volumes:
+      - ./scripts/pg-dump-restore-check.sh:/opt/sma/pg-dump-restore-check.sh:ro
+    entrypoint: ["/bin/sh", "/opt/sma/pg-dump-restore-check.sh"]
+
 volumes:
   pgdata:
   blobdata:
+  backups:

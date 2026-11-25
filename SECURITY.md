@@ -15,7 +15,7 @@ If you discover a vulnerability, email the repository maintainers privately. Do 
 - [ ] CSP left enforced (default in production); only disable temporarily while debugging embeds
 - [ ] `PILOT_NOTIFY_EMAIL` (or `VITE_PILOT_CONTACT_EMAIL`) so `/request-pilot` submissions can queue mail
 - [ ] SMTP configured or accept that digests / pilot notify stay in `EmailOutbox` as skipped
-- [ ] Use `scripts/pg-dump-backup.sh` (or managed PITR) for DR; platform JSON backup is not a full restore
+- [ ] Disaster recovery is the Compose `backup` service (scheduled `pg_dump`, keep 14) or managed PITR. Platform JSON backup is not a full restore. Rehearse with `docker compose --profile rehearse run --rm backup-rehearse` or `scripts/pg-dump-restore-check.sh`
 - [ ] Optional: `SENTRY_DSN` for error reporting (`@sentry/node` is bundled with the server)
 - [ ] `CRON_SECRET` (≥16 chars) so Vercel Cron can flush mail and apply pupil retention. The routes stay closed until it is set
 - [ ] Do not sign in with the documented seed password `password123` — production login rejects it
