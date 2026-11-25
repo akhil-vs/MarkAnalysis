@@ -49,6 +49,7 @@ const LIVE_STAFF_SELECT = {
   name: true,
   tenantId: true,
   mustChangePassword: true,
+  mfaEnabled: true,
 };
 
 const LIVE_USER_TTL_MS = 10_000;
@@ -87,6 +88,7 @@ export function applyLiveStaffUser(user) {
       name: user.name,
       tenantId: user.tenantId || null,
       mustChangePassword: Boolean(user.mustChangePassword),
+      mfaEnabled: Boolean(user.mfaEnabled),
     },
   };
 }
@@ -119,6 +121,16 @@ function bindStaffRequest(req, res, next, live, cont) {
   return runWithTenant(req.user.tenantId, () => cont());
 }
 
+/** Production platform admins must enrol MFA before using the console. */
+export function platformAdminMfaRequired(env = process.env) {
+  if (env.PLATFORM_ADMIN_REQUIRE_MFA === "false") return false;
+  return (
+    env.NODE_ENV === "production" ||
+    Boolean(env.VERCEL) ||
+    env.REQUIRE_SECURE_AUTH === "true"
+  );
+}
+
 /** Block API use until a required password change is completed. */
 export function rejectIfMustChangePassword(req, res, next) {
   if (!req.user?.userId || req.allowMustChangePassword) return next();
@@ -126,6 +138,21 @@ export function rejectIfMustChangePassword(req, res, next) {
     return res.status(403).json({
       error: "Password change required",
       code: "MUST_CHANGE_PASSWORD",
+    });
+  }
+  return next();
+}
+
+export function rejectIfPlatformAdminNeedsMfa(req, res, next) {
+  if (req.allowPlatformMfaSetup) return next();
+  if (
+    req.user?.role === "PLATFORM_ADMIN" &&
+    !req.user.mfaEnabled &&
+    platformAdminMfaRequired()
+  ) {
+    return res.status(403).json({
+      error: "Enable MFA before using the platform console.",
+      code: "MFA_SETUP_REQUIRED",
     });
   }
   return next();
@@ -145,13 +172,22 @@ function withLiveStaff(req, res, next, cont) {
 }
 
 export function auth(req, res, next) {
-  return withLiveStaff(req, res, next, () => rejectIfMustChangePassword(req, res, next));
+  return withLiveStaff(req, res, next, () =>
+    rejectIfMustChangePassword(req, res, () => rejectIfPlatformAdminNeedsMfa(req, res, next))
+  );
 }
 
 /** Authenticate, but allow callers who still need to change a temporary password. */
 export function authAllowPasswordChange(req, res, next) {
   req.allowMustChangePassword = true;
+  req.allowPlatformMfaSetup = true;
   return withLiveStaff(req, res, next, () => next());
+}
+
+/** Authenticate while a platform admin is still enrolling MFA. */
+export function authAllowPlatformMfaSetup(req, res, next) {
+  req.allowPlatformMfaSetup = true;
+  return auth(req, res, next);
 }
 
 export function requireRole(...roles) {

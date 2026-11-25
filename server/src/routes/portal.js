@@ -7,6 +7,7 @@ import { formatMarkCell } from "../lib/markCodes.js";
 import { gradeFromPercent, percentOf } from "../lib/grades.js";
 import { ensurePendingSchema } from "../lib/ensureSchema.js";
 import { hashPortalToken, mintPortalToken } from "../lib/portalToken.js";
+import { resolvePortalExpiry } from "../lib/portalExpiry.js";
 import { runWithoutTenant, runWithTenant } from "../lib/tenant.js";
 
 export const portalRouter = Router();
@@ -76,13 +77,9 @@ portalRouter.post(
       if (!exam) return res.status(400).json({ error: "Exam not found" });
     }
 
-    let expires = null;
-    if (expiresAt) {
-      expires = new Date(expiresAt);
-      if (Number.isNaN(expires.getTime())) {
-        return res.status(400).json({ error: "Invalid expiry" });
-      }
-    }
+    const expiry = resolvePortalExpiry(expiresAt);
+    if (!expiry.ok) return res.status(400).json({ error: expiry.error });
+    const expires = expiry.expiresAt;
 
     const raw = mintPortalToken();
     const link = await prisma.portalAccessLink.create({

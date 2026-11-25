@@ -5,7 +5,7 @@ export const ACCESS_COOKIE = "sma_access";
 export const REFRESH_COOKIE = "sma_refresh";
 
 const ACCESS_MAX_AGE_MS = 15 * 60 * 1000;
-const REFRESH_DAYS = 30;
+const REFRESH_DAYS = 14;
 const REFRESH_MAX_AGE_MS = REFRESH_DAYS * 24 * 60 * 60 * 1000;
 
 export function hashRefreshToken(raw) {

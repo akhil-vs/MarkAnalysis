@@ -19,6 +19,7 @@ import {
   matchPhotoFileToStudent,
   normalizeAdmissionKey,
 } from "../lib/studentPhotos.js";
+import { eraseDuePupils, erasePupil, parsePrivacySettings } from "../lib/pupilPrivacy.js";
 
 export const studentsRouter = Router();
 studentsRouter.use(auth);
@@ -634,9 +635,27 @@ studentsRouter.patch("/:id", ...requireRecordsWrite, async (req, res) => {
   res.json(omitPhoto(updated));
 });
 
+studentsRouter.post("/retention/apply", ...requireRecordsWrite, async (req, res) => {
+  const profile = await getSchoolProfile();
+  const settings = parsePrivacySettings(profile?.privacySettings);
+  if (!settings.retentionYears) {
+    return res.status(400).json({ error: "Set a retention period on the school profile first" });
+  }
+  const result = await eraseDuePupils({
+    retentionYears: settings.retentionYears,
+    actorId: req.user.userId,
+  });
+  res.json({ ok: true, retentionYears: settings.retentionYears, ...result });
+});
+
 studentsRouter.delete("/:id", ...requireRecordsWrite, async (req, res) => {
-  await prisma.student.delete({ where: { id: req.params.id } });
-  res.json({ ok: true });
+  try {
+    const result = await erasePupil(req.params.id, { actorId: req.user.userId });
+    res.json({ ok: true, ...result });
+  } catch (err) {
+    if (err.status) return res.status(err.status).json({ error: err.message });
+    throw err;
+  }
 });
 
 studentsRouter.post("/promote", ...requireRecordsWrite, async (req, res) => {

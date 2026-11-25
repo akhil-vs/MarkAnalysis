@@ -29,6 +29,8 @@ import {
   DEFAULT_ASSESSMENT_POLICY,
   parseAssessmentPolicyPatch,
 } from "../lib/assessmentPolicy.js";
+import { ensurePrivacySettingsColumn } from "../lib/ensureSchema.js";
+import { parsePrivacyPatch } from "../lib/pupilPrivacy.js";
 
 export const schoolRouter = Router();
 schoolRouter.use(auth);
@@ -64,6 +66,20 @@ function schoolJson(req, profile) {
 schoolRouter.get("/", async (req, res) => {
   const profile = await getSchoolProfile();
   res.json(schoolJson(req, profile));
+});
+
+schoolRouter.patch("/privacy", requireRole("PRINCIPAL"), async (req, res) => {
+  await ensurePrivacySettingsColumn();
+  const profile = await getSchoolProfile();
+  const patch = parsePrivacyPatch(req.body || {}, profile.privacySettings);
+  if (patch.error) return res.status(400).json({ error: patch.error });
+  const updated = await prisma.school.update({
+    where: { id: profile.id },
+    data: { privacySettings: patch.settings },
+    omit: { logoBytes: true },
+  });
+  invalidateSchoolProfileCache();
+  res.json(schoolJson(req, updated));
 });
 
 schoolRouter.get("/setup-status", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), async (_req, res) => {

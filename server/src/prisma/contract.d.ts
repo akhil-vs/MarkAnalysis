@@ -34,7 +34,7 @@ import type {
 } from '@prisma/orm-postgres/contract/types';
 
 export type StorageHash =
-  StorageHashBase<'2aa438b98b1c3be0fd4cf2fc200fdd3d8ac89cf46af1a08602eab3cd7c467090'>;
+  StorageHashBase<'a703eb59edcea56514b96ef930fb6ede3221faedda7250237f3ce3f7bd513d5c'>;
 export type ExecutionHash =
   ExecutionHashBase<'e3f5bde3c11a8a42958df84dc1248a0f5f43b66be23c468cc6cea6a6e16e1803'>;
 export type ProfileHash =
@@ -621,6 +621,7 @@ export type FieldOutputTypes = {
       readonly academicYears: CodecTypes['pg/jsonb@1']['output'] | null;
       readonly currentAcademicYear: CodecTypes['pg/text@1']['output'] | null;
       readonly assessmentPolicy: CodecTypes['pg/jsonb@1']['output'] | null;
+      readonly privacySettings: CodecTypes['pg/jsonb@1']['output'] | null;
     };
     readonly Student: {
       readonly id: CodecTypes['pg/text@1']['output'];
@@ -1112,6 +1113,7 @@ export type FieldInputTypes = {
       readonly academicYears: CodecTypes['pg/jsonb@1']['input'] | null;
       readonly currentAcademicYear: CodecTypes['pg/text@1']['input'] | null;
       readonly assessmentPolicy: CodecTypes['pg/jsonb@1']['input'] | null;
+      readonly privacySettings: CodecTypes['pg/jsonb@1']['input'] | null;
     };
     readonly Student: {
       readonly id: CodecTypes['pg/text@1']['input'];
@@ -1593,6 +1595,7 @@ export type StorageColumnTypes = {
       readonly phone: CodecTypes['pg/text@1']['output'] | null;
       readonly pincode: CodecTypes['pg/text@1']['output'] | null;
       readonly principalName: CodecTypes['pg/text@1']['output'] | null;
+      readonly privacySettings: CodecTypes['pg/jsonb@1']['output'] | null;
       readonly recognitionNo: CodecTypes['pg/text@1']['output'] | null;
       readonly roleFeatureAccess: CodecTypes['pg/jsonb@1']['output'] | null;
       readonly shortName: CodecTypes['pg/text@1']['output'] | null;
@@ -2084,6 +2087,7 @@ export type StorageColumnInputTypes = {
       readonly phone: CodecTypes['pg/text@1']['input'] | null;
       readonly pincode: CodecTypes['pg/text@1']['input'] | null;
       readonly principalName: CodecTypes['pg/text@1']['input'] | null;
+      readonly privacySettings: CodecTypes['pg/jsonb@1']['input'] | null;
       readonly recognitionNo: CodecTypes['pg/text@1']['input'] | null;
       readonly roleFeatureAccess: CodecTypes['pg/jsonb@1']['input'] | null;
       readonly shortName: CodecTypes['pg/text@1']['input'] | null;
@@ -2204,855 +2208,6 @@ export type StorageColumnInputTypes = {
     };
   };
 };
-
-export namespace Models {
-  export type public_School = {
-    id: CodecTypes['pg/text@1']['output'];
-    slug: CodecTypes['pg/text@1']['output'];
-    joinCode: CodecTypes['pg/text@1']['output'];
-    name: CodecTypes['pg/text@1']['output'];
-    shortName: CodecTypes['pg/text@1']['output'] | null;
-    motto: CodecTypes['pg/text@1']['output'] | null;
-    logoBytes: CodecTypes['pg/bytea@1']['output'] | null;
-    logoMimeType: CodecTypes['pg/text@1']['output'] | null;
-    logoStorageKey: CodecTypes['pg/text@1']['output'] | null;
-    board: CodecTypes['pg/text@1']['output'] | null;
-    affiliationNo: CodecTypes['pg/text@1']['output'] | null;
-    udiseCode: CodecTypes['pg/text@1']['output'] | null;
-    recognitionNo: CodecTypes['pg/text@1']['output'] | null;
-    establishedYear: CodecTypes['pg/int4@1']['output'] | null;
-    principalName: CodecTypes['pg/text@1']['output'] | null;
-    address: CodecTypes['pg/text@1']['output'] | null;
-    city: CodecTypes['pg/text@1']['output'] | null;
-    district: CodecTypes['pg/text@1']['output'] | null;
-    state: CodecTypes['pg/text@1']['output'] | null;
-    pincode: CodecTypes['pg/text@1']['output'] | null;
-    phone: CodecTypes['pg/text@1']['output'] | null;
-    alternatePhone: CodecTypes['pg/text@1']['output'] | null;
-    email: CodecTypes['pg/text@1']['output'] | null;
-    website: CodecTypes['pg/text@1']['output'] | null;
-    status: 'ACTIVE' | 'SUSPENDED';
-    passPercent: CodecTypes['pg/float8@1']['output'];
-    distinctionMin: CodecTypes['pg/float8@1']['output'];
-    gradeBands: CodecTypes['pg/jsonb@1']['output'] | null;
-    examWeights: CodecTypes['pg/jsonb@1']['output'] | null;
-    workingDays: CodecTypes['pg/jsonb@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    emailDigestsEnabled: CodecTypes['pg/bool@1']['output'];
-    digestEmail: CodecTypes['pg/text@1']['output'] | null;
-    customStaffRoles: CodecTypes['pg/jsonb@1']['output'] | null;
-    roleFeatureAccess: CodecTypes['pg/jsonb@1']['output'] | null;
-    optionalModules: CodecTypes['pg/jsonb@1']['output'] | null;
-    academicYears: CodecTypes['pg/jsonb@1']['output'] | null;
-    currentAcademicYear: CodecTypes['pg/text@1']['output'] | null;
-    assessmentPolicy: CodecTypes['pg/jsonb@1']['output'] | null;
-    activityAudits: public_ActivityAudit[];
-    assignments: public_TeacherAssignment[];
-    boardPacks: public_BoardPack[];
-    classSections: public_ClassSection[];
-    cpdAppraisals: public_CpdAppraisal[];
-    cpdCertificates: public_CpdCertificate[];
-    cpdObservations: public_CpdObservation[];
-    cpdTrainingPlans: public_CpdTrainingPlan[];
-    emailOutbox: public_EmailOutbox[];
-    examPaperSchedules: public_ExamPaperSchedule[];
-    exams: public_Exam[];
-    hallTicketIssues: public_HallTicketIssue[];
-    markAudits: public_MarkAudit[];
-    markEntryRequests: public_MarkEntryAccessRequest[];
-    marks: public_Mark[];
-    notifications: public_Notification[];
-    periods: public_Period[];
-    pilotRequests: public_PilotRequest[];
-    portalLinks: public_PortalAccessLink[];
-    reportCardReleases: public_ReportCardRelease[];
-    revaluationRequests: public_RevaluationRequest[];
-    students: public_Student[];
-    subjectEnrollments: public_StudentSubjectEnrollment[];
-    subjectPoolItems: public_SubjectPoolItem[];
-    subjects: public_Subject[];
-    teacherLeaves: public_TeacherLeave[];
-    timetableEntries: public_TimetableEntry[];
-    timetableSubstitutions: public_TimetableSubstitution[];
-    users: public_User[];
-    readonly [RelationKeys]?:
-      | 'activityAudits'
-      | 'assignments'
-      | 'boardPacks'
-      | 'classSections'
-      | 'cpdAppraisals'
-      | 'cpdCertificates'
-      | 'cpdObservations'
-      | 'cpdTrainingPlans'
-      | 'emailOutbox'
-      | 'examPaperSchedules'
-      | 'exams'
-      | 'hallTicketIssues'
-      | 'markAudits'
-      | 'markEntryRequests'
-      | 'marks'
-      | 'notifications'
-      | 'periods'
-      | 'pilotRequests'
-      | 'portalLinks'
-      | 'reportCardReleases'
-      | 'revaluationRequests'
-      | 'students'
-      | 'subjectEnrollments'
-      | 'subjectPoolItems'
-      | 'subjects'
-      | 'teacherLeaves'
-      | 'timetableEntries'
-      | 'timetableSubstitutions'
-      | 'users';
-  };
-  export type public_User = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'] | null;
-    name: CodecTypes['pg/text@1']['output'];
-    email: CodecTypes['pg/text@1']['output'] | null;
-    schoolId: CodecTypes['pg/text@1']['output'] | null;
-    passwordHash: CodecTypes['pg/text@1']['output'];
-    mustChangePassword: CodecTypes['pg/bool@1']['output'];
-    mfaEnabled: CodecTypes['pg/bool@1']['output'];
-    mfaSecret: CodecTypes['pg/text@1']['output'] | null;
-    mfaRecoveryHashes: CodecTypes['pg/jsonb@1']['output'] | null;
-    role: 'PLATFORM_ADMIN' | 'PRINCIPAL' | 'EXAM_COORDINATOR' | 'TEACHER';
-    roleTitle: CodecTypes['pg/text@1']['output'] | null;
-    status: 'PENDING' | 'ACTIVE' | 'REJECTED';
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    workspace: CodecTypes['pg/jsonb@1']['output'] | null;
-    activityAudits: public_ActivityAudit[];
-    assignments: public_TeacherAssignment[];
-    audits: public_MarkAudit[];
-    boardPacksCreated: public_BoardPack[];
-    classTeacherOf: public_ClassSection[];
-    consolidationLocks: public_Exam[];
-    coverSubstitutions: public_TimetableSubstitution[];
-    cpdAppraisalsAsAppraiser: public_CpdAppraisal[];
-    cpdAppraisalsAsTeacher: public_CpdAppraisal[];
-    cpdCertificates: public_CpdCertificate[];
-    cpdCertificatesIssued: public_CpdCertificate[];
-    cpdObservationsAsObserver: public_CpdObservation[];
-    cpdObservationsAsTeacher: public_CpdObservation[];
-    cpdPlansCreated: public_CpdTrainingPlan[];
-    cpdPlansOwned: public_CpdTrainingPlan[];
-    enteredMarks: public_Mark[];
-    hallTicketsCreated: public_HallTicketIssue[];
-    hallTicketsUpdated: public_HallTicketIssue[];
-    leavesCreated: public_TeacherLeave[];
-    markEntryRequests: public_MarkEntryAccessRequest[];
-    notifications: public_Notification[];
-    originalSubstitutions: public_TimetableSubstitution[];
-    pilotRequestsReviewed: public_PilotRequest[];
-    portalLinks: public_PortalAccessLink[];
-    refreshTokens: public_RefreshToken[];
-    reportCardSigned: public_ReportCardRelease[];
-    revaluationsRequested: public_RevaluationRequest[];
-    revaluationsReviewed: public_RevaluationRequest[];
-    reviewedMarkEntryRequests: public_MarkEntryAccessRequest[];
-    substitutionsAssigned: public_TimetableSubstitution[];
-    teacherLeaves: public_TeacherLeave[];
-    tenant: public_School | null;
-    timetableEntries: public_TimetableEntry[];
-    readonly [RelationKeys]?:
-      | 'activityAudits'
-      | 'assignments'
-      | 'audits'
-      | 'boardPacksCreated'
-      | 'classTeacherOf'
-      | 'consolidationLocks'
-      | 'coverSubstitutions'
-      | 'cpdAppraisalsAsAppraiser'
-      | 'cpdAppraisalsAsTeacher'
-      | 'cpdCertificates'
-      | 'cpdCertificatesIssued'
-      | 'cpdObservationsAsObserver'
-      | 'cpdObservationsAsTeacher'
-      | 'cpdPlansCreated'
-      | 'cpdPlansOwned'
-      | 'enteredMarks'
-      | 'hallTicketsCreated'
-      | 'hallTicketsUpdated'
-      | 'leavesCreated'
-      | 'markEntryRequests'
-      | 'notifications'
-      | 'originalSubstitutions'
-      | 'pilotRequestsReviewed'
-      | 'portalLinks'
-      | 'refreshTokens'
-      | 'reportCardSigned'
-      | 'revaluationsRequested'
-      | 'revaluationsReviewed'
-      | 'reviewedMarkEntryRequests'
-      | 'substitutionsAssigned'
-      | 'teacherLeaves'
-      | 'tenant'
-      | 'timetableEntries';
-  };
-  export type public_RefreshToken = {
-    id: CodecTypes['pg/text@1']['output'];
-    userId: CodecTypes['pg/text@1']['output'];
-    tokenHash: CodecTypes['pg/text@1']['output'];
-    expiresAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    revokedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    userAgent: CodecTypes['pg/text@1']['output'] | null;
-    user: public_User;
-    readonly [RelationKeys]?: 'user';
-  };
-  export type public_ClassSection = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    className: CodecTypes['pg/text@1']['output'];
-    section: CodecTypes['pg/text@1']['output'];
-    classTeacherId: CodecTypes['pg/text@1']['output'] | null;
-    assignments: public_TeacherAssignment[];
-    classTeacher: public_User | null;
-    hallTicketIssues: public_HallTicketIssue[];
-    markEntryRequests: public_MarkEntryAccessRequest[];
-    reportCardReleases: public_ReportCardRelease[];
-    students: public_Student[];
-    tenant: public_School;
-    timetableEntries: public_TimetableEntry[];
-    timetableSubstitutions: public_TimetableSubstitution[];
-    readonly [RelationKeys]?:
-      | 'assignments'
-      | 'classTeacher'
-      | 'hallTicketIssues'
-      | 'markEntryRequests'
-      | 'reportCardReleases'
-      | 'students'
-      | 'tenant'
-      | 'timetableEntries'
-      | 'timetableSubstitutions';
-  };
-  export type public_SubjectPoolItem = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    name: CodecTypes['pg/text@1']['output'];
-    maxMarks: CodecTypes['pg/int4@1']['output'];
-    isElective: CodecTypes['pg/bool@1']['output'];
-    practicalMaxMarks: CodecTypes['pg/int4@1']['output'] | null;
-    category: CodecTypes['pg/text@1']['output'] | null;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'tenant';
-  };
-  export type public_Subject = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    name: CodecTypes['pg/text@1']['output'];
-    className: CodecTypes['pg/text@1']['output'];
-    maxMarks: CodecTypes['pg/int4@1']['output'];
-    isElective: CodecTypes['pg/bool@1']['output'];
-    practicalMaxMarks: CodecTypes['pg/int4@1']['output'] | null;
-    category: CodecTypes['pg/text@1']['output'] | null;
-    assignments: public_TeacherAssignment[];
-    enrollments: public_StudentSubjectEnrollment[];
-    markEntryRequests: public_MarkEntryAccessRequest[];
-    marks: public_Mark[];
-    paperSchedules: public_ExamPaperSchedule[];
-    revaluationRequests: public_RevaluationRequest[];
-    tenant: public_School;
-    timetableEntries: public_TimetableEntry[];
-    timetableSubstitutions: public_TimetableSubstitution[];
-    readonly [RelationKeys]?:
-      | 'assignments'
-      | 'enrollments'
-      | 'markEntryRequests'
-      | 'marks'
-      | 'paperSchedules'
-      | 'revaluationRequests'
-      | 'tenant'
-      | 'timetableEntries'
-      | 'timetableSubstitutions';
-  };
-  export type public_StudentSubjectEnrollment = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    studentId: CodecTypes['pg/text@1']['output'];
-    subjectId: CodecTypes['pg/text@1']['output'];
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    student: public_Student;
-    subject: public_Subject;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'student' | 'subject' | 'tenant';
-  };
-  export type public_TeacherAssignment = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    userId: CodecTypes['pg/text@1']['output'];
-    classSectionId: CodecTypes['pg/text@1']['output'];
-    subjectId: CodecTypes['pg/text@1']['output'];
-    classSection: public_ClassSection;
-    subject: public_Subject;
-    tenant: public_School;
-    user: public_User;
-    readonly [RelationKeys]?: 'classSection' | 'subject' | 'tenant' | 'user';
-  };
-  export type public_Student = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    name: CodecTypes['pg/text@1']['output'];
-    rollNo: CodecTypes['pg/text@1']['output'];
-    admissionNo: CodecTypes['pg/text@1']['output'] | null;
-    classSectionId: CodecTypes['pg/text@1']['output'];
-    academicYear: CodecTypes['pg/text@1']['output'];
-    status: 'ACTIVE' | 'PROMOTED' | 'TRANSFERRED' | 'LEFT';
-    dob: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    guardianName: CodecTypes['pg/text@1']['output'] | null;
-    guardianPhone: CodecTypes['pg/text@1']['output'] | null;
-    guardianEmail: CodecTypes['pg/text@1']['output'] | null;
-    photoBytes: CodecTypes['pg/bytea@1']['output'] | null;
-    photoMimeType: CodecTypes['pg/text@1']['output'] | null;
-    photoStorageKey: CodecTypes['pg/text@1']['output'] | null;
-    promotedFromId: CodecTypes['pg/text@1']['output'] | null;
-    classSection: public_ClassSection;
-    marks: public_Mark[];
-    promotedFrom: public_Student | null;
-    promotedTo: public_Student[];
-    revaluationRequests: public_RevaluationRequest[];
-    subjectEnrollments: public_StudentSubjectEnrollment[];
-    tenant: public_School;
-    readonly [RelationKeys]?:
-      | 'classSection'
-      | 'marks'
-      | 'promotedFrom'
-      | 'promotedTo'
-      | 'revaluationRequests'
-      | 'subjectEnrollments'
-      | 'tenant';
-  };
-  export type public_PortalAccessLink = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    tokenHash: CodecTypes['pg/text@1']['output'];
-    label: CodecTypes['pg/text@1']['output'] | null;
-    studentIds: ReadonlyArray<CodecTypes['pg/text@1']['output']>;
-    examId: CodecTypes['pg/text@1']['output'] | null;
-    expiresAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    revokedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    createdById: CodecTypes['pg/text@1']['output'];
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    createdBy: public_User;
-    exam: public_Exam | null;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'createdBy' | 'exam' | 'tenant';
-  };
-  export type public_Exam = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    name: CodecTypes['pg/text@1']['output'];
-    term: CodecTypes['pg/text@1']['output'];
-    academicYear: CodecTypes['pg/text@1']['output'];
-    date: CodecTypes['pg/timestamptz-string@1']['output'];
-    type: 'UNIT_TEST' | 'MID_TERM' | 'FINAL';
-    marksEntryDeadline: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    includedClassNames: CodecTypes['pg/jsonb@1']['output'] | null;
-    consolidationMaxMarks: CodecTypes['pg/int4@1']['output'];
-    consolidationLocked: CodecTypes['pg/bool@1']['output'];
-    consolidationLockedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    consolidationLockedById: CodecTypes['pg/text@1']['output'] | null;
-    boardPacks: public_BoardPack[];
-    consolidationLockedBy: public_User | null;
-    hallTicketIssues: public_HallTicketIssue[];
-    markEntryRequests: public_MarkEntryAccessRequest[];
-    marks: public_Mark[];
-    paperSchedules: public_ExamPaperSchedule[];
-    portalLinks: public_PortalAccessLink[];
-    reportCardReleases: public_ReportCardRelease[];
-    revaluationRequests: public_RevaluationRequest[];
-    tenant: public_School;
-    readonly [RelationKeys]?:
-      | 'boardPacks'
-      | 'consolidationLockedBy'
-      | 'hallTicketIssues'
-      | 'markEntryRequests'
-      | 'marks'
-      | 'paperSchedules'
-      | 'portalLinks'
-      | 'reportCardReleases'
-      | 'revaluationRequests'
-      | 'tenant';
-  };
-  export type public_MarkEntryAccessRequest = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    examId: CodecTypes['pg/text@1']['output'];
-    teacherId: CodecTypes['pg/text@1']['output'];
-    classSectionId: CodecTypes['pg/text@1']['output'];
-    subjectId: CodecTypes['pg/text@1']['output'];
-    kind: 'LATE_ENTRY' | 'EDIT';
-    status: 'PENDING' | 'APPROVED' | 'REJECTED';
-    message: CodecTypes['pg/text@1']['output'] | null;
-    requestedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    reviewedById: CodecTypes['pg/text@1']['output'] | null;
-    reviewedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    classSection: public_ClassSection;
-    exam: public_Exam;
-    reviewedBy: public_User | null;
-    subject: public_Subject;
-    teacher: public_User;
-    tenant: public_School;
-    readonly [RelationKeys]?:
-      'classSection' | 'exam' | 'reviewedBy' | 'subject' | 'teacher' | 'tenant';
-  };
-  export type public_Mark = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    studentId: CodecTypes['pg/text@1']['output'];
-    subjectId: CodecTypes['pg/text@1']['output'];
-    examId: CodecTypes['pg/text@1']['output'];
-    marksObtained: CodecTypes['pg/float8@1']['output'] | null;
-    practicalMarks: CodecTypes['pg/float8@1']['output'] | null;
-    outcome: 'SCORED' | 'ABSENT' | 'EXEMPT' | 'WITHHELD';
-    enteredById: CodecTypes['pg/text@1']['output'];
-    status: 'DRAFT' | 'SUBMITTED' | 'APPROVED';
-    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    audits: public_MarkAudit[];
-    enteredBy: public_User;
-    exam: public_Exam;
-    student: public_Student;
-    subject: public_Subject;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'audits' | 'enteredBy' | 'exam' | 'student' | 'subject' | 'tenant';
-  };
-  export type public_MarkAudit = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    markId: CodecTypes['pg/text@1']['output'];
-    changedById: CodecTypes['pg/text@1']['output'];
-    oldValue: CodecTypes['pg/float8@1']['output'] | null;
-    newValue: CodecTypes['pg/float8@1']['output'];
-    reason: CodecTypes['pg/text@1']['output'] | null;
-    timestamp: CodecTypes['pg/timestamptz-string@1']['output'];
-    changedBy: public_User;
-    mark: public_Mark;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'changedBy' | 'mark' | 'tenant';
-  };
-  export type public_ActivityAudit = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    actorId: CodecTypes['pg/text@1']['output'];
-    action:
-      | 'MARK_CHANGED'
-      | 'MARK_DELETED'
-      | 'MARK_SUBMITTED'
-      | 'MARK_APPROVED'
-      | 'MARK_UNAPPROVED'
-      | 'MARK_MODERATED'
-      | 'ACCESS_REQUESTED'
-      | 'ACCESS_APPROVED'
-      | 'ACCESS_REJECTED'
-      | 'USER_CREATED'
-      | 'USER_STATUS_CHANGED'
-      | 'USER_ROLE_CHANGED'
-      | 'USER_PASSWORD_RESET'
-      | 'EXAM_CREATED'
-      | 'EXAM_UPDATED'
-      | 'EXAM_DELETED'
-      | 'SCHOOL_CREATED'
-      | 'SCHOOL_UPDATED'
-      | 'SCHOOL_STATUS_CHANGED'
-      | 'SCHOOL_DATA_DELETED'
-      | 'SCHOOL_DELETED'
-      | 'USER_UPDATED'
-      | 'USER_DELETED'
-      | 'USER_ASSIGNMENTS_TRANSFERRED'
-      | 'MFA_ENABLED'
-      | 'MFA_DISABLED'
-      | 'REPORT_CARD_PUBLISHED'
-      | 'REPORT_CARD_SIGNED_OFF'
-      | 'REVALUATION_REQUESTED'
-      | 'REVALUATION_REVIEWED'
-      | 'BOARD_PACK_CREATED'
-      | 'PARENT_NOTIFIED'
-      | 'BACKUP_CREATED'
-      | 'BACKUP_RESTORED'
-      | 'CPD_UPDATED'
-      | 'HALL_TICKET_CREATED'
-      | 'HALL_TICKET_UPDATED'
-      | 'HALL_TICKET_DELETED'
-      | 'TEACHER_LEAVE_CREATED'
-      | 'TEACHER_LEAVE_REQUESTED'
-      | 'TEACHER_LEAVE_APPROVED'
-      | 'TEACHER_LEAVE_REJECTED'
-      | 'TEACHER_LEAVE_CANCELLED'
-      | 'SUBSTITUTE_ASSIGNED'
-      | 'SUBSTITUTE_REMOVED';
-    summary: CodecTypes['pg/text@1']['output'];
-    examId: CodecTypes['pg/text@1']['output'] | null;
-    meta: CodecTypes['pg/jsonb@1']['output'] | null;
-    timestamp: CodecTypes['pg/timestamptz-string@1']['output'];
-    actor: public_User;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'actor' | 'tenant';
-  };
-  export type public_Notification = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    userId: CodecTypes['pg/text@1']['output'];
-    type:
-      | 'LATE_ENTRY_REQUESTED'
-      | 'LATE_ENTRY_APPROVED'
-      | 'LATE_ENTRY_REJECTED'
-      | 'EDIT_REQUESTED'
-      | 'EDIT_APPROVED'
-      | 'EDIT_REJECTED'
-      | 'MARKS_SUBMITTED'
-      | 'DEADLINE_REMINDER'
-      | 'INCOMPLETE_MARKLIST'
-      | 'STAFF_NOTICE'
-      | 'DIGEST'
-      | 'REPORT_CARD_READY'
-      | 'REVALUATION_UPDATE'
-      | 'PARENT_PORTAL'
-      | 'CPD_NOTICE';
-    title: CodecTypes['pg/text@1']['output'];
-    body: CodecTypes['pg/text@1']['output'];
-    link: CodecTypes['pg/text@1']['output'] | null;
-    meta: CodecTypes['pg/jsonb@1']['output'] | null;
-    readAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    tenant: public_School;
-    user: public_User;
-    readonly [RelationKeys]?: 'tenant' | 'user';
-  };
-  export type public_Period = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    name: CodecTypes['pg/text@1']['output'];
-    sortOrder: CodecTypes['pg/int4@1']['output'];
-    startTime: CodecTypes['pg/text@1']['output'];
-    endTime: CodecTypes['pg/text@1']['output'];
-    isBreak: CodecTypes['pg/bool@1']['output'];
-    entries: public_TimetableEntry[];
-    substitutions: public_TimetableSubstitution[];
-    tenant: public_School;
-    readonly [RelationKeys]?: 'entries' | 'substitutions' | 'tenant';
-  };
-  export type public_TimetableEntry = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    teacherId: CodecTypes['pg/text@1']['output'];
-    classSectionId: CodecTypes['pg/text@1']['output'];
-    subjectId: CodecTypes['pg/text@1']['output'];
-    periodId: CodecTypes['pg/text@1']['output'];
-    dayOfWeek: CodecTypes['pg/int4@1']['output'];
-    room: CodecTypes['pg/text@1']['output'] | null;
-    classSection: public_ClassSection;
-    period: public_Period;
-    subject: public_Subject;
-    teacher: public_User;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'classSection' | 'period' | 'subject' | 'teacher' | 'tenant';
-  };
-  export type public_TeacherLeave = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    teacherId: CodecTypes['pg/text@1']['output'];
-    startDate: CodecTypes['pg/text@1']['output'];
-    endDate: CodecTypes['pg/text@1']['output'];
-    leaveType: CodecTypes['pg/text@1']['output'];
-    periodIds: CodecTypes['pg/jsonb@1']['output'] | null;
-    reason: CodecTypes['pg/text@1']['output'] | null;
-    status: CodecTypes['pg/text@1']['output'];
-    createdById: CodecTypes['pg/text@1']['output'];
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    createdBy: public_User;
-    substitutions: public_TimetableSubstitution[];
-    teacher: public_User;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'createdBy' | 'substitutions' | 'teacher' | 'tenant';
-  };
-  export type public_TimetableSubstitution = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    leaveId: CodecTypes['pg/text@1']['output'] | null;
-    date: CodecTypes['pg/text@1']['output'];
-    periodId: CodecTypes['pg/text@1']['output'];
-    classSectionId: CodecTypes['pg/text@1']['output'];
-    subjectId: CodecTypes['pg/text@1']['output'];
-    originalTeacherId: CodecTypes['pg/text@1']['output'];
-    substituteTeacherId: CodecTypes['pg/text@1']['output'];
-    sourceTimetableEntryId: CodecTypes['pg/text@1']['output'] | null;
-    assignedById: CodecTypes['pg/text@1']['output'];
-    notes: CodecTypes['pg/text@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    assignedBy: public_User;
-    classSection: public_ClassSection;
-    leave: public_TeacherLeave | null;
-    originalTeacher: public_User;
-    period: public_Period;
-    subject: public_Subject;
-    substituteTeacher: public_User;
-    tenant: public_School;
-    readonly [RelationKeys]?:
-      | 'assignedBy'
-      | 'classSection'
-      | 'leave'
-      | 'originalTeacher'
-      | 'period'
-      | 'subject'
-      | 'substituteTeacher'
-      | 'tenant';
-  };
-  export type public_HallTicketIssue = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    examId: CodecTypes['pg/text@1']['output'];
-    classSectionId: CodecTypes['pg/text@1']['output'];
-    title: CodecTypes['pg/text@1']['output'] | null;
-    instructions: CodecTypes['pg/text@1']['output'] | null;
-    defaultVenue: CodecTypes['pg/text@1']['output'] | null;
-    examCentre: CodecTypes['pg/text@1']['output'] | null;
-    includePhoto: CodecTypes['pg/bool@1']['output'];
-    internalNotes: CodecTypes['pg/text@1']['output'] | null;
-    createdById: CodecTypes['pg/text@1']['output'];
-    updatedById: CodecTypes['pg/text@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    classSection: public_ClassSection;
-    createdBy: public_User;
-    exam: public_Exam;
-    tenant: public_School;
-    updatedBy: public_User | null;
-    readonly [RelationKeys]?: 'classSection' | 'createdBy' | 'exam' | 'tenant' | 'updatedBy';
-  };
-  export type public_ExamPaperSchedule = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    examId: CodecTypes['pg/text@1']['output'];
-    subjectId: CodecTypes['pg/text@1']['output'];
-    className: CodecTypes['pg/text@1']['output'] | null;
-    paperDate: CodecTypes['pg/timestamptz-string@1']['output'];
-    startTime: CodecTypes['pg/text@1']['output'] | null;
-    endTime: CodecTypes['pg/text@1']['output'] | null;
-    venue: CodecTypes['pg/text@1']['output'] | null;
-    maxMarks: CodecTypes['pg/int4@1']['output'] | null;
-    notes: CodecTypes['pg/text@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    exam: public_Exam;
-    subject: public_Subject;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'exam' | 'subject' | 'tenant';
-  };
-  export type public_ReportCardRelease = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    examId: CodecTypes['pg/text@1']['output'];
-    classSectionId: CodecTypes['pg/text@1']['output'];
-    status: 'DRAFT' | 'PUBLISHED' | 'SIGNED_OFF';
-    publishedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    signedOffAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    signedOffById: CodecTypes['pg/text@1']['output'] | null;
-    parentsNotifiedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    notes: CodecTypes['pg/text@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    classSection: public_ClassSection;
-    exam: public_Exam;
-    signedOffBy: public_User | null;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'classSection' | 'exam' | 'signedOffBy' | 'tenant';
-  };
-  export type public_RevaluationRequest = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    examId: CodecTypes['pg/text@1']['output'];
-    studentId: CodecTypes['pg/text@1']['output'];
-    subjectId: CodecTypes['pg/text@1']['output'];
-    status: 'PENDING' | 'APPROVED' | 'REJECTED' | 'COMPLETED';
-    reason: CodecTypes['pg/text@1']['output'] | null;
-    requestedById: CodecTypes['pg/text@1']['output'];
-    reviewedById: CodecTypes['pg/text@1']['output'] | null;
-    reviewedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    reviewNotes: CodecTypes['pg/text@1']['output'] | null;
-    originalMarks: CodecTypes['pg/float8@1']['output'] | null;
-    revisedMarks: CodecTypes['pg/float8@1']['output'] | null;
-    feePaid: CodecTypes['pg/bool@1']['output'];
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    exam: public_Exam;
-    requestedBy: public_User;
-    reviewedBy: public_User | null;
-    student: public_Student;
-    subject: public_Subject;
-    tenant: public_School;
-    readonly [RelationKeys]?:
-      'exam' | 'requestedBy' | 'reviewedBy' | 'student' | 'subject' | 'tenant';
-  };
-  export type public_BoardPack = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    examId: CodecTypes['pg/text@1']['output'];
-    label: CodecTypes['pg/text@1']['output'] | null;
-    status: 'PENDING' | 'READY' | 'FAILED';
-    manifest: CodecTypes['pg/jsonb@1']['output'] | null;
-    createdById: CodecTypes['pg/text@1']['output'];
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    readyAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    error: CodecTypes['pg/text@1']['output'] | null;
-    createdBy: public_User;
-    exam: public_Exam;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'createdBy' | 'exam' | 'tenant';
-  };
-  export type public_CpdTrainingPlan = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    teacherId: CodecTypes['pg/text@1']['output'];
-    title: CodecTypes['pg/text@1']['output'];
-    description: CodecTypes['pg/text@1']['output'] | null;
-    academicYear: CodecTypes['pg/text@1']['output'];
-    status: 'PLANNED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED';
-    targetHours: CodecTypes['pg/float8@1']['output'] | null;
-    completedHours: CodecTypes['pg/float8@1']['output'];
-    createdById: CodecTypes['pg/text@1']['output'];
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    createdBy: public_User;
-    teacher: public_User;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'createdBy' | 'teacher' | 'tenant';
-  };
-  export type public_CpdObservation = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    teacherId: CodecTypes['pg/text@1']['output'];
-    observerId: CodecTypes['pg/text@1']['output'];
-    observedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    classLabel: CodecTypes['pg/text@1']['output'] | null;
-    subjectLabel: CodecTypes['pg/text@1']['output'] | null;
-    rating: CodecTypes['pg/int4@1']['output'] | null;
-    strengths: CodecTypes['pg/text@1']['output'] | null;
-    developmentAreas: CodecTypes['pg/text@1']['output'] | null;
-    notes: CodecTypes['pg/text@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    observer: public_User;
-    teacher: public_User;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'observer' | 'teacher' | 'tenant';
-  };
-  export type public_CpdAppraisal = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    teacherId: CodecTypes['pg/text@1']['output'];
-    appraiserId: CodecTypes['pg/text@1']['output'];
-    academicYear: CodecTypes['pg/text@1']['output'];
-    periodLabel: CodecTypes['pg/text@1']['output'] | null;
-    overallRating: CodecTypes['pg/int4@1']['output'] | null;
-    goalsMet: CodecTypes['pg/text@1']['output'] | null;
-    nextGoals: CodecTypes['pg/text@1']['output'] | null;
-    comments: CodecTypes['pg/text@1']['output'] | null;
-    signedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    appraiser: public_User;
-    teacher: public_User;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'appraiser' | 'teacher' | 'tenant';
-  };
-  export type public_CpdCertificate = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'];
-    teacherId: CodecTypes['pg/text@1']['output'];
-    title: CodecTypes['pg/text@1']['output'];
-    provider: CodecTypes['pg/text@1']['output'] | null;
-    hours: CodecTypes['pg/float8@1']['output'] | null;
-    earnedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    expiresAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    certificateNo: CodecTypes['pg/text@1']['output'] | null;
-    notes: CodecTypes['pg/text@1']['output'] | null;
-    issuedById: CodecTypes['pg/text@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    issuedBy: public_User | null;
-    teacher: public_User;
-    tenant: public_School;
-    readonly [RelationKeys]?: 'issuedBy' | 'teacher' | 'tenant';
-  };
-  export type public_EmailOutbox = {
-    id: CodecTypes['pg/text@1']['output'];
-    tenantId: CodecTypes['pg/text@1']['output'] | null;
-    toEmail: CodecTypes['pg/text@1']['output'];
-    subject: CodecTypes['pg/text@1']['output'];
-    bodyText: CodecTypes['pg/text@1']['output'];
-    bodyHtml: CodecTypes['pg/text@1']['output'] | null;
-    kind: CodecTypes['pg/text@1']['output'];
-    status: 'PENDING' | 'SENT' | 'FAILED' | 'SKIPPED';
-    meta: CodecTypes['pg/jsonb@1']['output'] | null;
-    error: CodecTypes['pg/text@1']['output'] | null;
-    sentAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    tenant: public_School | null;
-    readonly [RelationKeys]?: 'tenant';
-  };
-  export type public_PilotRequest = {
-    id: CodecTypes['pg/text@1']['output'];
-    schoolName: CodecTypes['pg/text@1']['output'];
-    board: CodecTypes['pg/text@1']['output'] | null;
-    contactName: CodecTypes['pg/text@1']['output'];
-    contactEmail: CodecTypes['pg/text@1']['output'];
-    contactPhone: CodecTypes['pg/text@1']['output'] | null;
-    roleTitle: CodecTypes['pg/text@1']['output'] | null;
-    examNameOrType: CodecTypes['pg/text@1']['output'] | null;
-    targetClasses: CodecTypes['pg/text@1']['output'] | null;
-    preferredStartDate: CodecTypes['pg/text@1']['output'] | null;
-    notes: CodecTypes['pg/text@1']['output'] | null;
-    status: 'PENDING' | 'CONTACTED' | 'DECLINED' | 'PROVISIONED';
-    schoolId: CodecTypes['pg/text@1']['output'] | null;
-    reviewedById: CodecTypes['pg/text@1']['output'] | null;
-    reviewedAt: CodecTypes['pg/timestamptz-string@1']['output'] | null;
-    reviewNote: CodecTypes['pg/text@1']['output'] | null;
-    sourceIp: CodecTypes['pg/text@1']['output'] | null;
-    userAgent: CodecTypes['pg/text@1']['output'] | null;
-    createdAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    updatedAt: CodecTypes['pg/timestamptz-string@1']['output'];
-    reviewedBy: public_User | null;
-    school: public_School | null;
-    readonly [RelationKeys]?: 'reviewedBy' | 'school';
-  };
-}
-
-export declare const models: {
-  public: {
-    School: Models.public_School;
-    User: Models.public_User;
-    RefreshToken: Models.public_RefreshToken;
-    ClassSection: Models.public_ClassSection;
-    SubjectPoolItem: Models.public_SubjectPoolItem;
-    Subject: Models.public_Subject;
-    StudentSubjectEnrollment: Models.public_StudentSubjectEnrollment;
-    TeacherAssignment: Models.public_TeacherAssignment;
-    Student: Models.public_Student;
-    PortalAccessLink: Models.public_PortalAccessLink;
-    Exam: Models.public_Exam;
-    MarkEntryAccessRequest: Models.public_MarkEntryAccessRequest;
-    Mark: Models.public_Mark;
-    MarkAudit: Models.public_MarkAudit;
-    ActivityAudit: Models.public_ActivityAudit;
-    Notification: Models.public_Notification;
-    Period: Models.public_Period;
-    TimetableEntry: Models.public_TimetableEntry;
-    TeacherLeave: Models.public_TeacherLeave;
-    TimetableSubstitution: Models.public_TimetableSubstitution;
-    HallTicketIssue: Models.public_HallTicketIssue;
-    ExamPaperSchedule: Models.public_ExamPaperSchedule;
-    ReportCardRelease: Models.public_ReportCardRelease;
-    RevaluationRequest: Models.public_RevaluationRequest;
-    BoardPack: Models.public_BoardPack;
-    CpdTrainingPlan: Models.public_CpdTrainingPlan;
-    CpdObservation: Models.public_CpdObservation;
-    CpdAppraisal: Models.public_CpdAppraisal;
-    CpdCertificate: Models.public_CpdCertificate;
-    EmailOutbox: Models.public_EmailOutbox;
-    PilotRequest: Models.public_PilotRequest;
-  };
-};
-
 export type TypeMaps = TypeMapsType<
   CodecTypes,
   QueryOperationTypes,
@@ -4572,6 +3727,42 @@ type ContractBase = Omit<
                   readonly unique: false;
                 },
                 {
+                  readonly name: 'Mark_examId_status_studentId_idx_02464b9b';
+                  readonly prefix: 'Mark_examId_status_studentId_idx';
+                  readonly columns: readonly ['examId', 'status', 'studentId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Mark_examId_subjectId_status_idx_4ae4a212';
+                  readonly prefix: 'Mark_examId_subjectId_status_idx';
+                  readonly columns: readonly ['examId', 'subjectId', 'status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Mark_studentId_examId_idx_0e0772d8';
+                  readonly prefix: 'Mark_studentId_examId_idx';
+                  readonly columns: readonly ['studentId', 'examId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Mark_status_examId_subjectId_studentId_idx_4410d6f8';
+                  readonly prefix: 'Mark_status_examId_subjectId_studentId_idx';
+                  readonly columns: readonly ['status', 'examId', 'subjectId', 'studentId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Mark_enteredById_status_examId_idx_239fe39d';
+                  readonly prefix: 'Mark_enteredById_status_examId_idx';
+                  readonly columns: readonly ['enteredById', 'status', 'examId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Mark_subjectId_examId_status_idx_1364a391';
+                  readonly prefix: 'Mark_subjectId_examId_status_idx';
+                  readonly columns: readonly ['subjectId', 'examId', 'status'];
+                  readonly unique: false;
+                },
+                {
                   readonly name: 'Mark_subjectId_idx_84df2a1d';
                   readonly prefix: 'Mark_subjectId_idx';
                   readonly columns: readonly ['subjectId'];
@@ -4710,6 +3901,24 @@ type ContractBase = Omit<
                   readonly name: 'MarkAudit_markId_idx_683904f6';
                   readonly prefix: 'MarkAudit_markId_idx';
                   readonly columns: readonly ['markId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'MarkAudit_timestamp_idx_a2429bb8';
+                  readonly prefix: 'MarkAudit_timestamp_idx';
+                  readonly columns: readonly ['timestamp'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'MarkAudit_changedById_timestamp_idx_cb284813';
+                  readonly prefix: 'MarkAudit_changedById_timestamp_idx';
+                  readonly columns: readonly ['changedById', 'timestamp'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'MarkAudit_tenantId_timestamp_idx_699dc902';
+                  readonly prefix: 'MarkAudit_tenantId_timestamp_idx';
+                  readonly columns: readonly ['tenantId', 'timestamp'];
                   readonly unique: false;
                 },
                 {
@@ -6073,6 +5282,11 @@ type ContractBase = Omit<
                   readonly codecId: 'pg/jsonb@1';
                   readonly nullable: true;
                 };
+                readonly privacySettings: {
+                  readonly nativeType: 'jsonb';
+                  readonly codecId: 'pg/jsonb@1';
+                  readonly nullable: true;
+                };
               };
               primaryKey: { readonly columns: readonly ['id'] };
               uniques: readonly [
@@ -6187,6 +5401,24 @@ type ContractBase = Omit<
                   readonly name: 'Student_tenantId_idx_c93ed4f1';
                   readonly prefix: 'Student_tenantId_idx';
                   readonly columns: readonly ['tenantId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Student_classSectionId_status_idx_5d63d2bf';
+                  readonly prefix: 'Student_classSectionId_status_idx';
+                  readonly columns: readonly ['classSectionId', 'status'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Student_status_academicYear_idx_cc1bdaeb';
+                  readonly prefix: 'Student_status_academicYear_idx';
+                  readonly columns: readonly ['status', 'academicYear'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'Student_tenantId_status_idx_d3d04256';
+                  readonly prefix: 'Student_tenantId_status_idx';
+                  readonly columns: readonly ['tenantId', 'status'];
                   readonly unique: false;
                 },
                 {
@@ -6525,6 +5757,24 @@ type ContractBase = Omit<
                   readonly name: 'TeacherAssignment_subjectId_idx_84df2a1d';
                   readonly prefix: 'TeacherAssignment_subjectId_idx';
                   readonly columns: readonly ['subjectId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherAssignment_userId_classSectionId_idx_bf8880e2';
+                  readonly prefix: 'TeacherAssignment_userId_classSectionId_idx';
+                  readonly columns: readonly ['userId', 'classSectionId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherAssignment_classSectionId_subjectId_idx_90b1ca64';
+                  readonly prefix: 'TeacherAssignment_classSectionId_subjectId_idx';
+                  readonly columns: readonly ['classSectionId', 'subjectId'];
+                  readonly unique: false;
+                },
+                {
+                  readonly name: 'TeacherAssignment_tenantId_userId_idx_6c855033';
+                  readonly prefix: 'TeacherAssignment_tenantId_userId_idx';
+                  readonly columns: readonly ['tenantId', 'userId'];
                   readonly unique: false;
                 },
                 {
@@ -7557,7 +6807,6 @@ type ContractBase = Omit<
               readonly actor: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['actorId'];
                   readonly targetFields: readonly ['id'];
@@ -7569,7 +6818,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -7648,7 +6896,6 @@ type ContractBase = Omit<
               readonly createdBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['createdById'];
                   readonly targetFields: readonly ['id'];
@@ -7657,7 +6904,6 @@ type ContractBase = Omit<
               readonly exam: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Exam' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['examId'];
                   readonly targetFields: readonly ['id'];
@@ -7669,7 +6915,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -7731,7 +6976,6 @@ type ContractBase = Omit<
               readonly classTeacher: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['classTeacherId'];
                   readonly targetFields: readonly ['id'];
@@ -7787,7 +7031,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -7896,7 +7139,6 @@ type ContractBase = Omit<
               readonly appraiser: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['appraiserId'];
                   readonly targetFields: readonly ['id'];
@@ -7905,7 +7147,6 @@ type ContractBase = Omit<
               readonly teacher: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['teacherId'];
                   readonly targetFields: readonly ['id'];
@@ -7917,7 +7158,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -8008,7 +7248,6 @@ type ContractBase = Omit<
               readonly issuedBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['issuedById'];
                   readonly targetFields: readonly ['id'];
@@ -8017,7 +7256,6 @@ type ContractBase = Omit<
               readonly teacher: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['teacherId'];
                   readonly targetFields: readonly ['id'];
@@ -8029,7 +7267,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -8116,7 +7353,6 @@ type ContractBase = Omit<
               readonly observer: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['observerId'];
                   readonly targetFields: readonly ['id'];
@@ -8125,7 +7361,6 @@ type ContractBase = Omit<
               readonly teacher: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['teacherId'];
                   readonly targetFields: readonly ['id'];
@@ -8137,7 +7372,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -8228,7 +7462,6 @@ type ContractBase = Omit<
               readonly createdBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['createdById'];
                   readonly targetFields: readonly ['id'];
@@ -8237,7 +7470,6 @@ type ContractBase = Omit<
               readonly teacher: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['teacherId'];
                   readonly targetFields: readonly ['id'];
@@ -8249,7 +7481,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -8343,7 +7574,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -8452,7 +7682,6 @@ type ContractBase = Omit<
               readonly consolidationLockedBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['consolidationLockedById'];
                   readonly targetFields: readonly ['id'];
@@ -8538,7 +7767,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -8626,7 +7854,6 @@ type ContractBase = Omit<
               readonly exam: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Exam' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['examId'];
                   readonly targetFields: readonly ['id'];
@@ -8638,7 +7865,6 @@ type ContractBase = Omit<
                   readonly model: 'Subject';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['subjectId'];
                   readonly targetFields: readonly ['id'];
@@ -8650,7 +7876,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -8748,7 +7973,6 @@ type ContractBase = Omit<
                   readonly model: 'ClassSection';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['classSectionId'];
                   readonly targetFields: readonly ['id'];
@@ -8757,7 +7981,6 @@ type ContractBase = Omit<
               readonly createdBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['createdById'];
                   readonly targetFields: readonly ['id'];
@@ -8766,7 +7989,6 @@ type ContractBase = Omit<
               readonly exam: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Exam' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['examId'];
                   readonly targetFields: readonly ['id'];
@@ -8778,7 +8000,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -8787,7 +8008,6 @@ type ContractBase = Omit<
               readonly updatedBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['updatedById'];
                   readonly targetFields: readonly ['id'];
@@ -8888,7 +8108,6 @@ type ContractBase = Omit<
               readonly enteredBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['enteredById'];
                   readonly targetFields: readonly ['id'];
@@ -8897,7 +8116,6 @@ type ContractBase = Omit<
               readonly exam: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Exam' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['examId'];
                   readonly targetFields: readonly ['id'];
@@ -8909,7 +8127,6 @@ type ContractBase = Omit<
                   readonly model: 'Student';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['studentId'];
                   readonly targetFields: readonly ['id'];
@@ -8921,7 +8138,6 @@ type ContractBase = Omit<
                   readonly model: 'Subject';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['subjectId'];
                   readonly targetFields: readonly ['id'];
@@ -8933,7 +8149,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -9000,7 +8215,6 @@ type ContractBase = Omit<
               readonly changedBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['changedById'];
                   readonly targetFields: readonly ['id'];
@@ -9009,7 +8223,6 @@ type ContractBase = Omit<
               readonly mark: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Mark' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['markId'];
                   readonly targetFields: readonly ['id'];
@@ -9021,7 +8234,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -9115,7 +8327,6 @@ type ContractBase = Omit<
                   readonly model: 'ClassSection';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['classSectionId'];
                   readonly targetFields: readonly ['id'];
@@ -9124,7 +8335,6 @@ type ContractBase = Omit<
               readonly exam: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Exam' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['examId'];
                   readonly targetFields: readonly ['id'];
@@ -9133,7 +8343,6 @@ type ContractBase = Omit<
               readonly reviewedBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['reviewedById'];
                   readonly targetFields: readonly ['id'];
@@ -9145,7 +8354,6 @@ type ContractBase = Omit<
                   readonly model: 'Subject';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['subjectId'];
                   readonly targetFields: readonly ['id'];
@@ -9154,7 +8362,6 @@ type ContractBase = Omit<
               readonly teacher: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['teacherId'];
                   readonly targetFields: readonly ['id'];
@@ -9166,7 +8373,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -9252,7 +8458,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -9261,7 +8466,6 @@ type ContractBase = Omit<
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['userId'];
                   readonly targetFields: readonly ['id'];
@@ -9345,7 +8549,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -9466,7 +8669,6 @@ type ContractBase = Omit<
               readonly reviewedBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['reviewedById'];
                   readonly targetFields: readonly ['id'];
@@ -9478,7 +8680,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['schoolId'];
                   readonly targetFields: readonly ['id'];
@@ -9569,7 +8770,6 @@ type ContractBase = Omit<
               readonly createdBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['createdById'];
                   readonly targetFields: readonly ['id'];
@@ -9578,7 +8778,6 @@ type ContractBase = Omit<
               readonly exam: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Exam' };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['examId'];
                   readonly targetFields: readonly ['id'];
@@ -9590,7 +8789,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -9658,7 +8856,6 @@ type ContractBase = Omit<
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['userId'];
                   readonly targetFields: readonly ['id'];
@@ -9756,7 +8953,6 @@ type ContractBase = Omit<
                   readonly model: 'ClassSection';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['classSectionId'];
                   readonly targetFields: readonly ['id'];
@@ -9765,7 +8961,6 @@ type ContractBase = Omit<
               readonly exam: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Exam' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['examId'];
                   readonly targetFields: readonly ['id'];
@@ -9774,7 +8969,6 @@ type ContractBase = Omit<
               readonly signedOffBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['signedOffById'];
                   readonly targetFields: readonly ['id'];
@@ -9786,7 +8980,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -9896,7 +9089,6 @@ type ContractBase = Omit<
               readonly exam: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'Exam' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['examId'];
                   readonly targetFields: readonly ['id'];
@@ -9905,7 +9097,6 @@ type ContractBase = Omit<
               readonly requestedBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['requestedById'];
                   readonly targetFields: readonly ['id'];
@@ -9914,7 +9105,6 @@ type ContractBase = Omit<
               readonly reviewedBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['reviewedById'];
                   readonly targetFields: readonly ['id'];
@@ -9926,7 +9116,6 @@ type ContractBase = Omit<
                   readonly model: 'Student';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['studentId'];
                   readonly targetFields: readonly ['id'];
@@ -9938,7 +9127,6 @@ type ContractBase = Omit<
                   readonly model: 'Subject';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['subjectId'];
                   readonly targetFields: readonly ['id'];
@@ -9950,7 +9138,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -10149,6 +9336,10 @@ type ContractBase = Omit<
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/text@1' };
               };
               readonly assessmentPolicy: {
+                readonly nullable: true;
+                readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
+              };
+              readonly privacySettings: {
                 readonly nullable: true;
                 readonly type: { readonly kind: 'scalar'; readonly codecId: 'pg/jsonb@1' };
               };
@@ -10509,6 +9700,7 @@ type ContractBase = Omit<
                 readonly academicYears: { readonly column: 'academicYears' };
                 readonly currentAcademicYear: { readonly column: 'currentAcademicYear' };
                 readonly assessmentPolicy: { readonly column: 'assessmentPolicy' };
+                readonly privacySettings: { readonly column: 'privacySettings' };
               };
             };
           };
@@ -10593,7 +9785,6 @@ type ContractBase = Omit<
                   readonly model: 'ClassSection';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['classSectionId'];
                   readonly targetFields: readonly ['id'];
@@ -10613,7 +9804,6 @@ type ContractBase = Omit<
                   readonly model: 'Student';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['promotedFromId'];
                   readonly targetFields: readonly ['id'];
@@ -10658,7 +9848,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -10721,7 +9910,6 @@ type ContractBase = Omit<
                   readonly model: 'Student';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['studentId'];
                   readonly targetFields: readonly ['id'];
@@ -10733,7 +9921,6 @@ type ContractBase = Omit<
                   readonly model: 'Subject';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['subjectId'];
                   readonly targetFields: readonly ['id'];
@@ -10745,7 +9932,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -10869,7 +10055,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -10951,7 +10136,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -11002,7 +10186,6 @@ type ContractBase = Omit<
                   readonly model: 'ClassSection';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['classSectionId'];
                   readonly targetFields: readonly ['id'];
@@ -11014,7 +10197,6 @@ type ContractBase = Omit<
                   readonly model: 'Subject';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['subjectId'];
                   readonly targetFields: readonly ['id'];
@@ -11026,7 +10208,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -11035,7 +10216,6 @@ type ContractBase = Omit<
               readonly user: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['userId'];
                   readonly targetFields: readonly ['id'];
@@ -11115,7 +10295,6 @@ type ContractBase = Omit<
               readonly createdBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['createdById'];
                   readonly targetFields: readonly ['id'];
@@ -11135,7 +10314,6 @@ type ContractBase = Omit<
               readonly teacher: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['teacherId'];
                   readonly targetFields: readonly ['id'];
@@ -11147,7 +10325,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -11215,7 +10392,6 @@ type ContractBase = Omit<
                   readonly model: 'ClassSection';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['classSectionId'];
                   readonly targetFields: readonly ['id'];
@@ -11227,7 +10403,6 @@ type ContractBase = Omit<
                   readonly model: 'Period';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['periodId'];
                   readonly targetFields: readonly ['id'];
@@ -11239,7 +10414,6 @@ type ContractBase = Omit<
                   readonly model: 'Subject';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['subjectId'];
                   readonly targetFields: readonly ['id'];
@@ -11248,7 +10422,6 @@ type ContractBase = Omit<
               readonly teacher: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['teacherId'];
                   readonly targetFields: readonly ['id'];
@@ -11260,7 +10433,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -11344,7 +10516,6 @@ type ContractBase = Omit<
               readonly assignedBy: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['assignedById'];
                   readonly targetFields: readonly ['id'];
@@ -11356,7 +10527,6 @@ type ContractBase = Omit<
                   readonly model: 'ClassSection';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['classSectionId'];
                   readonly targetFields: readonly ['id'];
@@ -11368,7 +10538,6 @@ type ContractBase = Omit<
                   readonly model: 'TeacherLeave';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['leaveId'];
                   readonly targetFields: readonly ['id'];
@@ -11377,7 +10546,6 @@ type ContractBase = Omit<
               readonly originalTeacher: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['originalTeacherId'];
                   readonly targetFields: readonly ['id'];
@@ -11389,7 +10557,6 @@ type ContractBase = Omit<
                   readonly model: 'Period';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['periodId'];
                   readonly targetFields: readonly ['id'];
@@ -11401,7 +10568,6 @@ type ContractBase = Omit<
                   readonly model: 'Subject';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['subjectId'];
                   readonly targetFields: readonly ['id'];
@@ -11410,7 +10576,6 @@ type ContractBase = Omit<
               readonly substituteTeacher: {
                 readonly to: { readonly namespace: 'public' & NamespaceId; readonly model: 'User' };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['substituteTeacherId'];
                   readonly targetFields: readonly ['id'];
@@ -11422,7 +10587,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: false;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];
@@ -11865,7 +11029,6 @@ type ContractBase = Omit<
                   readonly model: 'School';
                 };
                 readonly cardinality: 'N:1';
-                readonly nullable: true;
                 readonly on: {
                   readonly localFields: readonly ['tenantId'];
                   readonly targetFields: readonly ['id'];

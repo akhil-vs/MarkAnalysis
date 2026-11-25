@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Navigate } from "react-router-dom";
+import { Navigate, useLocation } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
 import { PageHeader } from "../components/Layout.jsx";
@@ -19,6 +19,7 @@ const ROLE_LABEL = {
 
 export default function Profile() {
   const { user, loading, changePassword, refresh } = useAuth();
+  const location = useLocation();
   const toast = useToast();
   const [form, setForm] = useState({
     currentPassword: "",
@@ -141,6 +142,11 @@ export default function Profile() {
         title={NAV_TITLES.profile}
         subtitle={platform ? "Platform admin account, password, and MFA" : "Account details, password, and MFA"}
       />
+      {location.state?.mfaSetupRequired && !user.mfaEnabled && (
+        <div className="mb-4 rounded-xl border border-clay-500/30 bg-clay-500/10 px-4 py-3 text-sm text-ink-900" role="status">
+          Enable MFA before using the platform console. Other platform pages stay closed until this is on.
+        </div>
+      )}
       {user.mustChangePassword && (
         <div className="mb-4 rounded-xl border border-clay-500/30 bg-clay-500/10 px-4 py-3 text-sm text-ink-900" role="status">
           You must set a new password before using the rest of the app.

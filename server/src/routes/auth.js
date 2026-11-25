@@ -5,6 +5,9 @@ import { parseEmail } from "../lib/numbers.js";
 import {
   auth,
   authAllowPasswordChange,
+  authAllowPlatformMfaSetup,
+  invalidateLiveStaffUserCache,
+  platformAdminMfaRequired,
   publicUser,
   signToken,
 } from "../middleware/auth.js";
@@ -33,7 +36,7 @@ import {
 } from "../lib/totp.js";
 import { ensureAuthSchema, resetAuthSchemaEnsure } from "../lib/ensureSchema.js";
 import { isSchemaDriftError } from "../lib/httpErrors.js";
-import { hashPassword, validatePasswordPolicy, verifyPassword } from "../lib/password.js";
+import { hashPassword, isBlockedProductionPassword, validatePasswordPolicy, verifyPassword } from "../lib/password.js";
 import {
   buildHomeDashboardForLogin,
   homeDashboardPath,
@@ -377,6 +380,12 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
   if (!passwordOk) {
     return res.status(401).json({ error: "Invalid credentials" });
   }
+  if (isBlockedProductionPassword(password)) {
+    return res.status(403).json({
+      error: "This password is not allowed on a production host. Reset it before signing in.",
+      code: "PASSWORD_BLOCKED",
+    });
+  }
 
   if (user.role === "PLATFORM_ADMIN") {
     if (user.status !== "ACTIVE") {
@@ -385,7 +394,11 @@ authRouter.post("/login", authWriteLimit, async (req, res) => {
     if (user.mfaEnabled && user.mfaSecret) {
       return res.json(issueMfaChallenge(user));
     }
-    return res.json(await runWithoutTenant(() => establishSession(req, res, user, prefetched)));
+    const session = await runWithoutTenant(() => establishSession(req, res, user, prefetched));
+    if (platformAdminMfaRequired() && !user.mfaEnabled) {
+      return res.json({ ...session, mfaSetupRequired: true });
+    }
+    return res.json(session);
   }
 
   const school = await runWithoutTenant(() =>
@@ -470,7 +483,7 @@ authRouter.post("/mfa/verify", authWriteLimit, async (req, res) => {
   return completeLoginAfterMfa(req, res, user);
 });
 
-authRouter.post("/mfa/setup", auth, async (req, res) => {
+authRouter.post("/mfa/setup", authAllowPlatformMfaSetup, async (req, res) => {
   const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
   if (!user) return res.status(404).json({ error: "Not found" });
   if (user.mfaEnabled) {
@@ -488,7 +501,7 @@ authRouter.post("/mfa/setup", auth, async (req, res) => {
   });
 });
 
-authRouter.post("/mfa/enable", auth, async (req, res) => {
+authRouter.post("/mfa/enable", authAllowPlatformMfaSetup, async (req, res) => {
   const { code } = req.body || {};
   const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
   const plain = mfaPlainSecret(user);
@@ -499,6 +512,7 @@ authRouter.post("/mfa/enable", auth, async (req, res) => {
     return res.status(400).json({ error: "Invalid authentication code" });
   }
   const recoveryCodes = generateRecoveryCodes();
+  invalidateLiveStaffUserCache(user.id);
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: {
@@ -527,6 +541,12 @@ authRouter.post("/mfa/disable", auth, async (req, res) => {
   const { password, code } = req.body || {};
   const user = await prisma.user.findUnique({ where: { id: req.user.userId } });
   if (!user) return res.status(404).json({ error: "Not found" });
+  if (user.role === "PLATFORM_ADMIN" && platformAdminMfaRequired()) {
+    return res.status(403).json({
+      error: "Platform admin MFA stays on in production.",
+      code: "MFA_REQUIRED",
+    });
+  }
   if (!password || !(await verifyPassword(password, user.passwordHash))) {
     return res.status(401).json({ error: "Password is incorrect" });
   }
@@ -534,6 +554,7 @@ authRouter.post("/mfa/disable", auth, async (req, res) => {
   if (user.mfaEnabled && disablePlain && !verifyTotp(disablePlain, code)) {
     return res.status(401).json({ error: "Invalid authentication code" });
   }
+  invalidateLiveStaffUserCache(user.id);
   const updated = await prisma.user.update({
     where: { id: user.id },
     data: { mfaEnabled: false, mfaSecret: null, mfaRecoveryHashes: null },

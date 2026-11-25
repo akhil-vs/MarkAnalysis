@@ -5,6 +5,7 @@
  */
 import { flushEmailOutbox } from "./mailer.js";
 import { runSchoolDigests } from "./digests.js";
+import { applyDueRetention } from "./pupilPrivacy.js";
 import { logger } from "./logger.js";
 
 let timer = null;
@@ -28,7 +29,7 @@ export function shouldEnableBackgroundJobs(env = process.env) {
 export async function runBackgroundJobTick({ flushMail = true, digests = false } = {}) {
   if (running) return { skipped: true, reason: "already-running" };
   running = true;
-  const result = { mail: null, digests: null };
+  const result = { mail: null, digests: null, retention: null };
   try {
     if (flushMail) {
       try {
@@ -37,6 +38,12 @@ export async function runBackgroundJobTick({ flushMail = true, digests = false }
         logger.warn("background mail flush failed", { error: err?.message || String(err) });
         result.mail = { error: err?.message || String(err) };
       }
+    }
+    try {
+      result.retention = await applyDueRetention({ limit: 40 });
+    } catch (err) {
+      logger.warn("background retention failed", { error: err?.message || String(err) });
+      result.retention = { error: err?.message || String(err) };
     }
     if (digests) {
       try {

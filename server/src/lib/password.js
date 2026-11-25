@@ -7,24 +7,46 @@ import bcrypt from "bcryptjs";
 
 const ROUNDS = 10;
 
-/** Minimum length for new / changed passwords. */
+/** Minimum length for new / changed passwords outside production. */
 export const PASSWORD_MIN_LENGTH = 10;
+/** Production staff passwords. */
+export const PASSWORD_MIN_LENGTH_PRODUCTION = 12;
+
+export function isProductionPasswordPolicy(env = process.env) {
+  return env.NODE_ENV === "production" || Boolean(env.VERCEL) || env.REQUIRE_SECURE_AUTH === "true";
+}
+
+/** Documented seed password. Rejected at login on a production host. */
+export function isBlockedProductionPassword(password, env = process.env) {
+  if (!isProductionPasswordPolicy(env)) return false;
+  return String(password ?? "") === "password123";
+}
 
 /**
  * Validate password strength for new credentials.
- * Requires length ≥ 10, at least one letter and one digit.
+ * Development: length ≥ 10, one letter, one digit.
+ * Production: length ≥ 12, upper and lower case, and a digit.
  * Returns null when valid, or an error message string.
  */
-export function validatePasswordPolicy(password) {
+export function validatePasswordPolicy(password, env = process.env) {
   const value = String(password ?? "");
-  if (value.length < PASSWORD_MIN_LENGTH) {
-    return `Password must be at least ${PASSWORD_MIN_LENGTH} characters`;
+  const production = isProductionPasswordPolicy(env);
+  const min = production ? PASSWORD_MIN_LENGTH_PRODUCTION : PASSWORD_MIN_LENGTH;
+  if (value.length < min) {
+    return `Password must be at least ${min} characters`;
   }
-  if (!/[A-Za-z]/.test(value)) {
+  if (production) {
+    if (!/[a-z]/.test(value) || !/[A-Z]/.test(value)) {
+      return "Password must include upper and lower case letters";
+    }
+  } else if (!/[A-Za-z]/.test(value)) {
     return "Password must include at least one letter";
   }
   if (!/[0-9]/.test(value)) {
     return "Password must include at least one number";
+  }
+  if (isBlockedProductionPassword(value, env)) {
+    return "That password is not allowed";
   }
   return null;
 }

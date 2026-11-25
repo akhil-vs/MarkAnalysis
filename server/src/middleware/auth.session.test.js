@@ -20,6 +20,7 @@ describe("applyLiveStaffUser", () => {
       name: "Anita",
       tenantId: "school-1",
       mustChangePassword: true,
+      mfaEnabled: false,
     });
   });
 

@@ -3,6 +3,28 @@ import { getLastSchemaBootstrap } from "./migrateOnStart.js";
 
 let bootStartedAt = Date.now();
 
+/**
+ * Production boots that skipped `prisma db migrate` are not healthy.
+ * ALLOW_VERCEL_ENSURE_ONLY=true is an explicit temporary bypass.
+ */
+export function migrationHealth(bootstrap, env = process.env) {
+  const mode = bootstrap?.mode || null;
+  const risky = mode === "vercel-ensure-only" || mode === "migrate-failed-ensure-fallback";
+  const productionLike =
+    env.NODE_ENV === "production" || Boolean(env.VERCEL) || env.REQUIRE_SECURE_AUTH === "true";
+  const bypass = env.ALLOW_VERCEL_ENSURE_ONLY === "true";
+  const ok = !risky || !productionLike || bypass;
+  return {
+    ok,
+    mode,
+    ...(ok
+      ? {}
+      : {
+          note: "Schema was not applied by prisma db migrate. Run the Migrate database workflow, or set ALLOW_VERCEL_ENSURE_ONLY=true only as a temporary bypass.",
+        }),
+  };
+}
+
 export function markBootTime(when = Date.now()) {
   bootStartedAt = when;
 }
@@ -46,6 +68,9 @@ export async function buildHealthPayload({
   try {
     await prisma.$queryRaw`SELECT 1 AS ok`;
     payload.db = { ok: true, latencyMs: Date.now() - started };
+    const migrations = migrationHealth(getLastSchemaBootstrap());
+    payload.migrations = migrations;
+    if (!migrations.ok) payload.ok = false;
 
     if (includeSchema) {
       const [mfaEnabled, mfaSecret, emailDigestsEnabled, digestEmail, guardianEmail] =

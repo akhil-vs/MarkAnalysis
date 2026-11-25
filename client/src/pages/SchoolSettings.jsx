@@ -20,6 +20,7 @@ import {
 } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { useAuth } from "../auth.jsx";
+import PupilPrivacyCard from "../components/PupilPrivacyCard.jsx";
 
 const EMPTY = {
   name: "",
@@ -522,6 +523,7 @@ export default function SchoolSettings() {
         subtitle="School identity, letterhead, academic years, working week, bell schedule, and grading used across reports and timetables"
       />
       <ProfileTabBar tab={tab} onChange={selectTab} />
+      {user?.role === "PRINCIPAL" && tab === "identity" ? <PupilPrivacyCard /> : null}
 
       {tab === "schedule" ? (
         <div className="max-w-4xl">

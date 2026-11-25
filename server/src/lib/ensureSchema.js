@@ -1558,6 +1558,20 @@ export async function ensureAssessmentPolicyColumns() {
   await recordMigration(ASSESSMENT_POLICY_MIGRATION, ASSESSMENT_POLICY_CHECKSUM);
 }
 
+const PRIVACY_SETTINGS_MIGRATION = "20261125120000_privacy_settings";
+const PRIVACY_SETTINGS_CHECKSUM = "privacy-settings-catchup-v1";
+
+/** JSON retention rule and processing acknowledgement on School. */
+export async function ensurePrivacySettingsColumn() {
+  const hasColumn = await columnExists("School", "privacySettings");
+  if (hasColumn) {
+    await recordMigration(PRIVACY_SETTINGS_MIGRATION, PRIVACY_SETTINGS_CHECKSUM);
+    return;
+  }
+  await applyStatements([`ALTER TABLE "School" ADD COLUMN IF NOT EXISTS "privacySettings" JSONB`]);
+  await recordMigration(PRIVACY_SETTINGS_MIGRATION, PRIVACY_SETTINGS_CHECKSUM);
+}
+
 const USER_WORKSPACE_MIGRATION = "20261008120000_user_workspace";
 const USER_WORKSPACE_CHECKSUM = "user-workspace-catchup-v1";
 
@@ -1905,6 +1919,7 @@ export async function ensurePendingSchema() {
         await ensureExamIncludedClassesColumn();
         await ensureSchoolAcademicYearsColumns();
         await ensureAssessmentPolicyColumns();
+        await ensurePrivacySettingsColumn();
         await ensureUserWorkspaceColumn();
         await ensurePerformanceIndexes();
         await ensureTeacherLeaveSchema();
@@ -1940,6 +1955,7 @@ export async function ensurePendingSchema() {
         ensureExamIncludedClassesColumn(),
         ensureSchoolAcademicYearsColumns(),
         ensureAssessmentPolicyColumns(),
+        ensurePrivacySettingsColumn(),
         ensureUserWorkspaceColumn(),
         ensurePerformanceIndexes(),
         ensureTeacherLeaveSchema(),

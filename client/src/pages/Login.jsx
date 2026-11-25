@@ -57,6 +57,10 @@ export default function Login() {
         setRecoveryCode("");
         return;
       }
+      if (data?.mfaSetupRequired) {
+        navigate("/profile", { replace: true, state: { mfaSetupRequired: true } });
+        return;
+      }
       if (!optimistic) goHome(data);
       // Optimistic path: applySession already hydrated fresh dashboard in place.
     } catch (err) {

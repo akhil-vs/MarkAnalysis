@@ -95,6 +95,12 @@ jobs:
           npm ci
           SEED=1 npm run db:prepare
           npm run test:api
+      - name: Prove pg_dump restore
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y postgresql-client
+          chmod +x scripts/pg-dump-restore-check.sh
+          ./scripts/pg-dump-restore-check.sh
 
   e2e:
     runs-on: ubuntu-latest
