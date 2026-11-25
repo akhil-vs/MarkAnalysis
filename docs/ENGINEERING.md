@@ -54,7 +54,8 @@ Production dependencies currently track **Prisma ORM 8 release candidates** (`pr
 
 ## Background jobs
 
-- Long-running API (`server/src/index.js`) can flush the email outbox and run digests via `ENABLE_BACKGROUND_JOBS` (on by default in non-Vercel production). Disabled on Vercel — use platform **Run digests** / **Flush mail** there.
+- Long-running API (`server/src/index.js`) can flush the email outbox and run digests via `ENABLE_BACKGROUND_JOBS` (on by default in non-Vercel production). Disabled on Vercel — use platform **Run digests** / **Flush mail** or `GET /api/cron/mail` there.
+- A failed send stays `FAILED` and is retried up to 6 attempts (15 minutes, then 1h, 4h, 12h, 24h). Logs record the outbox id and kind, not the recipient or subject. With SMTP unset, new rows are `SKIPPED` and existing `FAILED` rows are left for the next flush after SMTP is configured.
 
 ## Deferred / follow-on
 
