@@ -72,6 +72,14 @@ docker compose up --build
 
 `JWT_SECRET` is required (Compose refuses to start the API with the placeholder). API on [http://localhost:4000](http://localhost:4000), web on [http://localhost:8080](http://localhost:8080). The API container runs `prisma db migrate` before listening.
 
+The `backup` service runs `scripts/pg-dump-backup.sh` every 24 hours (`BACKUP_INTERVAL_SECONDS`, minimum 60) and keeps 14 dumps (`BACKUP_KEEP`) on the `backups` volume. That volume is a full database copy, including pupil data, and is not published. List dumps with `docker compose exec backup ls -1 /backups`. Rehearse a restore into a scratch database (the live database is not modified):
+
+```bash
+docker compose --profile rehearse run --rm backup-rehearse
+```
+
+A hosted database should use the provider's point-in-time recovery instead of this container.
+
 ### API integration tests
 
 Unit tests stay DB-free (`npm test`). Real HTTP + Postgres coverage lives in `server/src/test/`:
@@ -224,7 +232,7 @@ Principals and exam coordinators can send in-app notices to teachers about **dea
 - **Health**: `GET /api/health` (liveness) and `GET /api/health?deep=1` (DB ping only). Schema inventory is on platform admin deep health. Helmet CSP enforces in production/Vercel by default.
 - **MFA**: Profile → enable TOTP; login then asks for a 6-digit code (or recovery code).
 - **Email digests**: enable on School profile; platform admin can **Run email digests** / **Flush mail queue**. Configure `SMTP_URL` or `SMTP_HOST` (without SMTP, messages stay in `EmailOutbox` as skipped).
-- **Backup**: platform overview → **Download backup** (JSON) via `POST /api/platform/backup`. Student photos and guardian contact fields are omitted. Merge restore via `POST /api/platform/backup/restore`.
+- **Backup**: platform overview → **Download backup** (JSON) via `POST /api/platform/backup`. Student photos and guardian contact fields are omitted. Merge restore via `POST /api/platform/backup/restore` updates school profile fields and exam paper schedules only. Full disaster recovery is the Compose `backup` service or managed point-in-time recovery (`docs/ENGINEERING.md`).
 - **Board ops** (leadership): per-paper exam calendar, report-card publish/sign-off, parent notify, revaluation, board packs.
 - **CPD**: training plans, observations, appraisals, and certificates under **CPD** in the sidebar.
 - **Docs**: [PRIVACY](docs/PRIVACY.md) · [ENGINEERING](docs/ENGINEERING.md) · [SECURITY](SECURITY.md) · [CONTRIBUTING](CONTRIBUTING.md)

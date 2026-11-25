@@ -57,6 +57,8 @@ jobs:
         run: npm ci
       - name: Syntax check (server + client)
         run: npm run lint
+      - name: Disaster-recovery script checks
+        run: sh scripts/pg-dump-dr.test.sh
 
   api-integration:
     runs-on: ubuntu-latest

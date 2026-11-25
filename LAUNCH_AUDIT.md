@@ -6,7 +6,7 @@ Method: source and config review, `npm audit` in `client/` and `server/`, and a 
 
 Rank key: 🔴 Blocker (must fix before launch) · 🟠 High · 🟡 Medium · 🟢 Nice-to-have.
 
-**Verdict:** no unconditional code blocker. The app is closer to a controlled pilot than to an open launch. Nine high findings should be closed or explicitly accepted, and the operator checklist in section 10 must be confirmed on the real host. If the public site is the Docker Compose web container, finding O1 becomes a blocker for uploads.
+**Verdict:** no unconditional code blocker. The app is closer to a controlled pilot than to an open launch. Eight high findings should be closed or explicitly accepted, and the operator checklist in section 10 must be confirmed on the real host. If the public site is the Docker Compose web container, finding O1 becomes a blocker for uploads.
 
 ---
 
@@ -159,7 +159,7 @@ Parent links are issued as `/portal#t=…` (`server/src/routes/portal.js` line 1
 
 ## 4. Database
 
-**Status: FAIL** (0 blockers, 1 high, 2 medium)
+**Status: FAIL** (0 blockers, 0 high, 2 medium)
 
 ### Checklist
 
@@ -169,15 +169,15 @@ Parent links are issued as `/portal#t=…` (`server/src/routes/portal.js` line 1
 | Nullable columns that should be required | Pass for core identity — `passwordHash` and `role` are required. Guardian contact and photos are optional, which matches the product |
 | Indexes for hot paths | Pass for tenant, exam status, notifications, timetable, and audit timestamps. See D2 for list shape |
 | N+1 / unbounded reads | Partial — notifications are capped (`server/src/routes/notifications.js` lines 37–49). See D2 |
-| Migrations ordered and in sync | Partial — forward-only Prisma 8 migrations are ordered by timestamp under `server/migrations/app/`. See A2. No `down` |
+| Migrations ordered and in sync | Partial — forward-only Prisma 8 migrations are ordered by timestamp under `server/migrations/app/`. See A2. No `down` by design: rollback is the scheduled dump (D1), not an in-place down migration |
 | Seed vs production | Pass with a footgun — wipe is refused in production unless `ALLOW_DESTRUCTIVE_SEED=true` (`server/prisma/seed.js` lines 296–299). See D3 |
-| Backup, pool, transactions | Partial — see D1. Pool max 1 on serverless and 20 otherwise (`server/src/prisma/db.js` lines 15–29). Mark saves use a transaction |
+| Backup, pool, transactions | Pass for backup — Compose `backup` runs `scripts/pg-dump-backup.sh` on `BACKUP_INTERVAL_SECONDS` into the `backups` volume (D1). Pool max 1 on serverless and 20 otherwise (`server/src/prisma/db.js` lines 15–29). Mark saves use a transaction |
 
 ### Findings
 
-#### D1 🟠 Restore is a script, not an operated backup
+#### D1 Resolved — Compose schedules `pg_dump`, and restore is rehearsed on a scratch database
 
-`scripts/pg-dump-backup.sh` writes a custom-format dump and prints a `pg_restore` command. Nothing in CI or Compose schedules it. Platform JSON backup is documented as not a full restore (`docs/ENGINEERING.md` lines 42–45). App migrations expose `operations` only (for example `server/migrations/app/20261008T1033_user_workspace/migration.ts` lines 12–13); there is no down migration. Rollback means restore a dump or redeploy an older build against a compatible schema.
+`scripts/pg-dump-backup.sh` still writes a custom-format dump. The Compose `backup` service now runs it on `BACKUP_INTERVAL_SECONDS` (default 86400, minimum 60) into the `backups` volume and, because that service sets `BACKUP_KEEP` (default 14), deletes older top-level `marks-*.dump` files after a successful dump. A one-shot run with `BACKUP_KEEP` unset does not delete existing files. `scripts/pg-dump-restore-check.sh` (CI, and `docker compose --profile rehearse run --rm backup-rehearse`) restores into a scratch database and refuses the live database name. Platform JSON backup remains a partial export (`docs/ENGINEERING.md`). App migrations stay forward-only on purpose (`operations` only, for example `server/migrations/app/20261008T1033_user_workspace/migration.ts` lines 12–13). A down migration was not added: reversing applied SQL is the change that would put existing rows at risk. Rollback is still restore a dump, or redeploy an older build against a compatible schema. A managed-Postgres launch still needs the provider's point-in-time recovery; this repo cannot turn that on.
 
 #### D2 🟡 A class register is loaded in one query
 
@@ -236,7 +236,7 @@ Login does reject `password123` on a production host (`auth.js` lines 383–387)
 
 #### S6 🟢 Tenant isolation is application-level
 
-`docs/ENGINEERING.md` line 62 defers Postgres RLS and composite tenant foreign keys. A raw query that forgets `tenantId` bypasses the proxy. The guard test reduces that risk; it is not a database backstop.
+`docs/ENGINEERING.md` line 65 defers Postgres RLS and composite tenant foreign keys. A raw query that forgets `tenantId` bypasses the proxy. The guard test reduces that risk; it is not a database backstop.
 
 ---
 
@@ -283,7 +283,7 @@ Existing tests do not cover:
 | Check | Result |
 |---|---|
 | Production client build | Pass — this review, `client` `vite build`, exit 0, no warnings |
-| Env vars documented | Pass — `server/.env.example` and the table in `README.md` lines 118–132 |
+| Env vars documented | Pass — `server/.env.example` and the table in `README.md` lines 126–140 |
 | Dev / staging / prod configs | Partial — `NODE_ENV`, `VERCEL`, and `REQUIRE_SECURE_AUTH` switch policy. No staging overlay in the repo |
 | CI | Pass with a hole — on push to `main` and on pull requests: server unit tests, client tests, client build, syntax check, API tests, E2E. Server audit is non-blocking (S1). Migrate workflow fails closed if `secrets.DATABASE_URL` is empty (`.github/workflows/migrate.yml` lines 29–33) |
 | Docker / health | Partial — Compose healthchecks for Postgres and `GET /api/health` (`docker-compose.yml` lines 15–18 and 47–57). See O1 |
@@ -344,7 +344,7 @@ Health checks exist (`GET /api/health`, deep DB ping, platform deep health). The
 | README setup, test, deploy | Pass — local, Docker, seed logins, CI test commands, Vercel env table (`README.md`) |
 | Operator security notes | Pass — `SECURITY.md`, `docs/ENGINEERING.md`, `docs/PRIVACY.md`, `docs/SCHOOL_PILOT_READINESS.md` |
 | API reference | Fail — see C2. Responses send `X-API-Version: 1` (`server/src/app.js` line 118) |
-| Incident runbook | Fail — see C2. Backup command is a comment in `scripts/pg-dump-backup.sh` lines 17–18 |
+| Incident runbook | Fail — see C2. The restore command is printed by `scripts/pg-dump-backup.sh` (lines 48–49) and the rehearsal is in `docs/ENGINEERING.md` |
 | User manuals | Pass — principal, coordinator, teacher under `docs/user-manuals/` and `client/public/help/` |
 
 ### Findings
@@ -355,7 +355,7 @@ Health checks exist (`GET /api/health`, deep DB ping, platform deep health). The
 
 #### C2 🟡 No OpenAPI and no incident runbook
 
-`docs/ENGINEERING.md` lines 56–62 list OpenAPI as deferred. There is no page that says who to call, how to revoke a portal link, how to restore `pg_dump`, or how to roll back a bad migrate. `CONTRIBUTING.md` covers contribution, not a live incident.
+`docs/ENGINEERING.md` lines 59–65 list OpenAPI as deferred. Restore rehearsal is documented there; there is still no page that says who to call, how to revoke a portal link, or how to roll back a bad migrate. `CONTRIBUTING.md` covers contribution, not a live incident.
 
 ---
 
@@ -376,7 +376,7 @@ Do these in order. Items 1–4 are operator blockers even though the code does n
 6. 🟠 One migration path only (A2). Do not run legacy `server/prisma/migrations` against production.
 7. 🟠 Platform home, schools, and pilot inbox must show an error instead of an infinite spinner (F1).
 8. 🟠 SMTP: either configure it and retry `FAILED` mail, or accept that pilot email is best-effort and the in-app inbox is the source of truth (B1). Stop logging recipient addresses.
-9. 🟠 Schedule `scripts/pg-dump-backup.sh` or managed PITR, and rehearse `pg_restore` (D1). CI already has a restore check against the ephemeral database; production needs the same idea.
+9. ✅ Compose `backup` schedules `scripts/pg-dump-backup.sh` (daily, keep 14) and `backup-rehearse` / CI run `pg_restore` into a scratch database (D1). A managed-Postgres host still needs that provider's PITR.
 10. 🟠 Either gate `npm audit --audit-level=high` for `server/` or record an exception for the Prisma CLI transitive highs (S1).
 11. 🟠 Fail or flag boot when production has no platform admin (S2). Do not launch on the seed password.
 12. 🟠 Turn on `SENTRY_DSN` (or an equivalent) and an uptime check on `/api/health` (V1).
@@ -414,7 +414,7 @@ These are not findings. The repo cannot answer them.
 4. Who is the data controller for pupil data, and is a DPA already signed with the first school?
 5. Is SMTP actually configured, and who reads `EmailOutbox` when it is not?
 6. Where do production logs go, and is `SENTRY_DSN` set?
-7. Is Postgres PITR or a scheduled `pg_dump` already running outside this repo?
+7. Compose now schedules `pg_dump` for the Docker stack. If the launch database is managed Postgres, is point-in-time recovery already on, and who can restore it?
 8. Is there a staging project with a separate database, or will the first deploy be production?
 9. Should parent portal links and staff sessions be shorter than 12 hours and 14 days for shared devices?
 10. Are you launching the controlled pilot described in `docs/SCHOOL_PILOT_READINESS.md` (public registration off), or an open signup?
@@ -428,13 +428,13 @@ These are not findings. The repo cannot answer them.
 | 1. Architecture and code quality | FAIL | 0 | 2 | 2 |
 | 2. Frontend / design / UX | FAIL | 0 | 1 | 4 |
 | 3. Backend / API | FAIL | 0 | 1 | 5 |
-| 4. Database | FAIL | 0 | 1 | 2 |
+| 4. Database | FAIL | 0 | 0 | 2 |
 | 5. Security | FAIL | 0 | 2 | 3 |
 | 6. Testing | PASS | 0 | 0 | 1 |
 | 7. DevOps / deployment | FAIL | 0 | 1 | 1 |
 | 8. Observability and operations | FAIL | 0 | 1 | 1 |
 | 9. Documentation | PASS | 0 | 0 | 2 |
-| **Total** | **FAIL** | **0** | **9** | **21** |
+| **Total** | **FAIL** | **0** | **8** | **21** |
 
 Nice-to-have items (F5, B7, S6, O3) are not in the medium column. Section 10 items 1–4 are operator blockers that sit outside the code counts.
 
