@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { hashRefreshToken, isRefreshReuse, newRefreshToken, __test } from "./authCookies.js";
+import { accessCookieMaxAgeMs, hashRefreshToken, isRefreshReuse, newRefreshToken, __test } from "./authCookies.js";
 
 describe("authCookies", () => {
   it("hashes refresh tokens stably with sha256 hex", () => {
@@ -24,6 +24,22 @@ describe("authCookies", () => {
   it("uses short access and long refresh lifetimes", () => {
     assert.equal(__test.ACCESS_MAX_AGE_MS, 15 * 60 * 1000);
     assert.equal(__test.REFRESH_MAX_AGE_MS, 14 * 24 * 60 * 60 * 1000);
+  });
+
+  it("sets the access cookie lifetime from JWT_ACCESS_EXPIRES", () => {
+    const previous = process.env.JWT_ACCESS_EXPIRES;
+    try {
+      delete process.env.JWT_ACCESS_EXPIRES;
+      assert.equal(accessCookieMaxAgeMs(), 15 * 60 * 1000);
+      process.env.JWT_ACCESS_EXPIRES = "1h";
+      assert.equal(accessCookieMaxAgeMs(), 60 * 60 * 1000);
+      assert.equal(accessCookieMaxAgeMs("30s"), 30 * 1000);
+      assert.equal(accessCookieMaxAgeMs("2d"), 2 * 24 * 60 * 60 * 1000);
+      assert.equal(accessCookieMaxAgeMs("nope"), 15 * 60 * 1000);
+    } finally {
+      if (previous === undefined) delete process.env.JWT_ACCESS_EXPIRES;
+      else process.env.JWT_ACCESS_EXPIRES = previous;
+    }
   });
 
   it("treats a recently revoked token as a rotation race, not reuse", () => {

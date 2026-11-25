@@ -109,6 +109,8 @@ export default function LateEntryRequests({ embedded = false } = {}) {
   useEffect(() => {
     if (!ready) return;
     const next = new URLSearchParams();
+    const tab = searchParams.get("tab");
+    if (tab) next.set("tab", tab);
     if (examId) next.set("examId", examId);
     if (status) next.set("status", status);
     if (kind) next.set("kind", kind);

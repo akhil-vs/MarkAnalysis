@@ -11,6 +11,7 @@ import { revokeAllRefreshSessions } from "../lib/authCookies.js";
 import { getSchoolLetterhead } from "../lib/school.js";
 import { writeExcelLetterhead } from "../lib/letterhead.js";
 import { parseSpreadsheet } from "../lib/upload.js";
+import { SPREADSHEET_MAX_BYTES } from "../lib/uploadLimits.js";
 import { hashPassword, validatePasswordPolicy } from "../lib/password.js";
 import {
   STAFF_IMPORT_HEADERS,
@@ -40,7 +41,7 @@ usersRouter.use(auth);
 usersRouter.use(requireSchoolTenant);
 usersRouter.use(requireFeature("staff"));
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: SPREADSHEET_MAX_BYTES } });
 
 async function getSchoolRoleAccessConfig(tenantId) {
   if (!tenantId) return { customStaffRoles: [], roleFeatureAccess: {}, optionalModules: null };

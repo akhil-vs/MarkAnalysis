@@ -21,6 +21,7 @@ import {
   resultFromPlan,
 } from "../lib/markSave.js";
 import { studentWhereForExam } from "../lib/studentScope.js";
+import { SPREADSHEET_MAX_BYTES } from "../lib/uploadLimits.js";
 import { notifyMarksSubmitted } from "../lib/notifications.js";
 import {
   AUDIT_LIMIT,
@@ -72,7 +73,7 @@ const uploadLimit = rateLimit({
   message: "Too many mark uploads. Try again in a few minutes.",
 });
 
-const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: SPREADSHEET_MAX_BYTES } });
 
 async function assignedSubjects(user, classSection, assignments = null) {
   const list = assignments || (await getAssignments(user.userId));

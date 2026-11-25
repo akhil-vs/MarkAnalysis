@@ -1,5 +1,6 @@
 import { prisma } from "./prisma.js";
 import { getLastSchemaBootstrap } from "./migrateOnStart.js";
+import { runWithoutTenant } from "./tenant.js";
 
 let bootStartedAt = Date.now();
 
@@ -22,6 +23,22 @@ export function migrationHealth(bootstrap, env = process.env) {
       : {
           note: "Schema was not applied by prisma db migrate. Run the Migrate database workflow, or set ALLOW_VERCEL_ENSURE_ONLY=true only as a temporary bypass.",
         }),
+  };
+}
+
+/**
+ * Production boots with nobody who can provision schools are degraded.
+ * Development stays ok so a laptop without the flag still serves the probe.
+ */
+export function platformAdminHealth(present, env = process.env) {
+  const productionLike =
+    env.NODE_ENV === "production" || Boolean(env.VERCEL) || env.REQUIRE_SECURE_AUTH === "true";
+  if (!productionLike) return { ok: true, required: false };
+  if (present) return { ok: true, required: true };
+  return {
+    ok: false,
+    required: true,
+    note: "No active platform admin. Set PLATFORM_ADMIN_PASSWORD before serving production traffic.",
   };
 }
 
@@ -71,6 +88,12 @@ export async function buildHealthPayload({
     const migrations = migrationHealth(getLastSchemaBootstrap());
     payload.migrations = migrations;
     if (!migrations.ok) payload.ok = false;
+
+    const adminCount = await runWithoutTenant(() =>
+      prisma.user.count({ where: { role: "PLATFORM_ADMIN", status: "ACTIVE" } })
+    );
+    payload.platformAdmin = platformAdminHealth(adminCount > 0);
+    if (!payload.platformAdmin.ok) payload.ok = false;
 
     if (includeSchema) {
       const [mfaEnabled, mfaSecret, emailDigestsEnabled, digestEmail, guardianEmail] =
