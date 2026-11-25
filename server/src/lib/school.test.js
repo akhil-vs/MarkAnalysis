@@ -41,6 +41,10 @@ describe("formatSchoolAddress / schoolHeaderLines", () => {
     assert.ok(lines.some((l) => l.includes("12 Lake View Road")));
     assert.ok(lines.some((l) => l.includes("office@greenfield.school")));
   });
+
+  it("uses the product name when no school profile exists", () => {
+    assert.deepEqual(schoolHeaderLines(null), ["TermLens"]);
+  });
 });
 
 describe("buildLetterhead / publicSchool", () => {

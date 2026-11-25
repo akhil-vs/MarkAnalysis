@@ -1,8 +1,8 @@
 /**
  * Public product identity — keep UI, docs, PDFs, and outreach aligned.
  */
-export const PRODUCT_NAME = "School Marks Analytics";
-export const PRODUCT_SHORT_NAME = "Marks Analytics";
+export const PRODUCT_NAME = "TermLens";
+export const PRODUCT_SHORT_NAME = "TermLens";
 export const PRODUCT_TAGLINE = "See the school, not just the scores.";
 export const PRODUCT_BLURB =
   "Role-based marks, approvals, timetables, and analytics for principals, exam coordinators, and teachers — built for live campuses.";

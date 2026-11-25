@@ -1,6 +1,6 @@
-# User manuals — School Marks Analytics
+# User manuals — TermLens
 
-Role-based guides for day-to-day use of the School Marks Analytics platform.
+Role-based guides for day-to-day use of the TermLens platform.
 
 | Role | Manual (Markdown) | PDF |
 |---|---|---|

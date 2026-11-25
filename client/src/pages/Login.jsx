@@ -283,7 +283,7 @@ export function AuthShell({ title, subtitle, children }) {
             <Link to="/" className="font-serif text-2xl text-ink-900">
               {PRODUCT_SHORT_NAME}
             </Link>
-            <p className="mt-1 text-sm text-ink-700/65">School Marks Analytics</p>
+            <p className="mt-1 text-sm text-ink-700/65">{PRODUCT_TAGLINE}</p>
           </div>
           <h1 className="font-serif text-2xl sm:text-3xl">{title}</h1>
           <p className="mt-1 mb-6 text-sm text-ink-700/70">{subtitle}</p>

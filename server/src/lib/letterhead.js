@@ -1,3 +1,5 @@
+import { PRODUCT_NAME } from "./branding.js";
+
 /** Vertical space reserved above PDF body content for the repeating letterhead. */
 export const PDF_LETTERHEAD_HEIGHT = 92;
 
@@ -5,9 +7,9 @@ const INK = "#1B2437";
 const MUTED = "#4A5568";
 
 function letterheadLines(letterhead) {
-  if (!letterhead) return [{ text: "School Marks Analytics", style: "name" }];
+  if (!letterhead) return [{ text: PRODUCT_NAME, style: "name" }];
   return [
-    { text: letterhead.name || "School Marks Analytics", style: "name" },
+    { text: letterhead.name || PRODUCT_NAME, style: "name" },
     letterhead.motto ? { text: letterhead.motto, style: "motto" } : null,
     letterhead.affiliationLine ? { text: letterhead.affiliationLine, style: "meta" } : null,
     letterhead.addressLine ? { text: letterhead.addressLine, style: "meta" } : null,

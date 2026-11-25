@@ -62,7 +62,7 @@ test.describe("Cross-role marks cycle (manuals exam workflow)", () => {
       await expect(page.getByRole("link", { name: /^privacy$/i }).first()).toBeVisible();
     }
     await page.goto("/request-pilot");
-    await expect(page.getByRole("heading", { name: /school marks analytics/i })).toBeVisible();
+    await expect(page.getByRole("heading", { name: /termlens/i })).toBeVisible();
     await page.goto("/privacy");
     await expect(page.getByRole("heading", { name: /privacy/i })).toBeVisible();
     await page.goto("/login");

@@ -3,6 +3,8 @@
  * Levels: debug, info, warn, error.
  */
 
+import { SERVICE_NAME } from "./branding.js";
+
 const LEVELS = { debug: 10, info: 20, warn: 30, error: 40 };
 
 function currentLevel() {
@@ -16,7 +18,7 @@ function write(level, msg, fields = {}) {
     level,
     msg: String(msg),
     time: new Date().toISOString(),
-    service: "school-marks-api",
+    service: SERVICE_NAME,
     ...fields,
   };
   const text = JSON.stringify(line);

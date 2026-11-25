@@ -1,4 +1,4 @@
-# Email sequences — School Marks Analytics
+# Email sequences — TermLens
 
 Copy bank for lifecycle emails beyond the core drafts in [`../pitch/principal-outreach-email.md`](../pitch/principal-outreach-email.md).
 
@@ -21,7 +21,7 @@ Use after the meeting-request email in `principal-outreach-email.md` if there is
 Dear Principal [Last Name],
 
 Following my note earlier this week: I am still keen to show how
-School Marks Analytics keeps draft registers separate from official
+TermLens keeps draft registers separate from official
 consolidated lists — so nothing reaches parents until you approve.
 
 Would [Day, date] at [time] or [Day, date] at [time] work for a short
@@ -88,7 +88,7 @@ Send within **4 business hours** of a platform pilot request.
 ```text
 Dear [Name / Principal Last Name],
 
-Thank you for requesting a School Marks Analytics pilot for [School Name].
+Thank you for requesting a TermLens pilot for [School Name].
 We review each request personally (invite-led — not open self-serve signup).
 
 To match the right pilot shape, could you confirm:
@@ -119,7 +119,7 @@ Use after the “campus is ready” email in `principal-outreach-email.md`.
 ```text
 Dear Principal [Last Name],
 
-A short check-in on your School Marks Analytics pilot.
+A short check-in on your TermLens pilot.
 
 By the end of this week it helps if:
 
@@ -187,7 +187,7 @@ With regards,
 
 ### D1 — Expansion (next exam)
 
-**Subject:** `Next exam cycle on School Marks Analytics — [School Name]`
+**Subject:** `Next exam cycle on TermLens — [School Name]`
 
 ```text
 Dear Principal [Last Name],
@@ -236,7 +236,7 @@ Dear Principal [Last Name],
 As [exam window] approaches: when teachers finish marking, how do you
 know every paper is in before the consolidated list goes out?
 
-If that question is still awkward, School Marks Analytics is built for
+If that question is still awkward, TermLens is built for
 exactly that control (draft → approve → official downloads). Happy to
 show it in 30 minutes, or you can note interest at
 [Product URL]/request-pilot.

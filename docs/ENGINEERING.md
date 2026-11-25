@@ -1,4 +1,4 @@
-# Engineering notes — School Marks Analytics
+# Engineering notes — TermLens
 
 ## Schema & migrations
 

@@ -12,7 +12,7 @@ For the full email GTM plan (ICP, cadence, metrics) and follow-up / activation /
 
 1. `Request for a short meeting — marks & results workflow for [School Name]`
 2. `Reducing exam-week consolidation load at [School Name]`
-3. `Pilot conversation: School Marks Analytics for your next unit / mid-term`
+3. `Pilot conversation: TermLens for your next unit / mid-term`
 
 **Recommended:** option 1 for cold outreach; option 2 if you already know their pain; option 3 if a soft introduction already happened.
 
@@ -26,7 +26,7 @@ Subject: Request for a short meeting — marks & results workflow for [School Na
 Dear Principal [Last Name],
 
 I hope this note finds you well. I am writing from PencilLabs regarding
-School Marks Analytics — a role-based platform that helps principals and
+TermLens — a role-based platform that helps principals and
 exam co-ordinators run the full exam cycle without scattered spreadsheets.
 
 In most schools we speak with, the week after an exam still looks familiar:
@@ -34,7 +34,7 @@ teachers keep personal mark sheets, the office merges files under deadline
 pressure, and it is hard to know — with certainty — whether a consolidated
 list is complete before it reaches parents or the board.
 
-School Marks Analytics addresses that with one controlled workflow:
+TermLens addresses that with one controlled workflow:
 
   • Teachers enter marks as drafts and submit their registers
   • You (or your exam co-ordinator) approve before anything becomes official
@@ -61,7 +61,7 @@ and provision a private campus when it is a fit (invite-led; not open
 self-serve signup).
 
 I have attached a short leave-behind summary and can share the PowerPoint
-briefing (School Marks Analytics — Principal Pitch) ahead of our
+briefing (TermLens — Principal Pitch) ahead of our
 conversation if helpful.
 
 Thank you for your time and for the work you do for your students.
@@ -84,7 +84,7 @@ Subject: Thank you — next steps for [School Name] pilot
 
 Dear Principal [Last Name],
 
-Thank you for making time today to discuss School Marks Analytics with
+Thank you for making time today to discuss TermLens with
 [me / us]. It was helpful to understand how [School Name] currently moves
 marks from teachers to consolidated lists, and where the pressure builds
 during exam week.
@@ -98,7 +98,7 @@ As discussed, the proposed next step is a 2–4 week pilot on
 
 I am attaching:
 
-  1. The PowerPoint briefing (School-Marks-Analytics-Principal-Pitch.pptx)
+  1. The PowerPoint briefing (TermLens-Principal-Pitch.pptx)
   2. The one-page leave-behind
   3. A short pilot checklist for your confirmation
 
@@ -126,7 +126,7 @@ Subject: [School Name] pilot campus is ready — next steps
 
 Dear Principal [Last Name],
 
-Your School Marks Analytics pilot campus is ready.
+Your TermLens pilot campus is ready.
 
   • Sign in: [Product URL]/login
   • Principal email: [principal email]

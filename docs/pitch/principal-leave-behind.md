@@ -1,4 +1,4 @@
-# School Marks Analytics — for principals
+# TermLens — for principals
 
 **One controlled exam workflow.** Teachers enter marks. You approve. Results, analytics, and official downloads stay aligned.
 
@@ -41,4 +41,4 @@
 
 ---
 
-School Marks Analytics · Powered by [PencilLabs](https://www.pencillabs.space/)
+TermLens · Powered by [PencilLabs](https://www.pencillabs.space/)

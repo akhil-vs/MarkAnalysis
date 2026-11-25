@@ -24,7 +24,7 @@ test("API responses skip ETag and refuse caching", async () => {
     assert.match(first.headers.get("cache-control") || "", /no-store/i);
     const firstBody = await first.json();
     assert.equal(firstBody.ok, true);
-    assert.equal(firstBody.service, "school-marks-api");
+    assert.equal(firstBody.service, "termlens-api");
 
     const conditional = await fetch(`${base}/api/health`, {
       headers: { "If-None-Match": '"stale-etag"' },

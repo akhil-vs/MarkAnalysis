@@ -1,4 +1,4 @@
-# Launch audit — School Marks Analytics
+# Launch audit — TermLens
 
 Reviewed 25 November 2026 (Europe/London) against the tree on `main`. This is a read-only audit: no application code was changed.
 
