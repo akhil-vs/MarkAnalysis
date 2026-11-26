@@ -4,7 +4,9 @@ import { logActivity } from "../lib/activityAudit.js";
 import { ensureBlobStorageColumns, ensureHallTicketsSchema } from "../lib/ensureSchema.js";
 import {
   buildHallTicketPayload,
+  hallTicketSheetLayout,
   hydrateTicketPhotos,
+  papersAcrossTickets,
   papersHaveDateAndTime,
   parseHallTicketPatch,
   publicHallTicketIssue,
@@ -82,6 +84,8 @@ async function buildPreviewBundle({ exam, classSection, issue, includePhotoBytes
     enrollments,
     issue,
   });
+  const papers = papersAcrossTickets(tickets);
+  const layout = hallTicketSheetLayout(tickets, { schoolLogo: letterhead?.logo });
 
   return {
     letterhead,
@@ -89,10 +93,13 @@ async function buildPreviewBundle({ exam, classSection, issue, includePhotoBytes
     subjects,
     schedules,
     tickets,
+    papers,
     studentCount: students.length,
     photoCount: students.filter((s) => Boolean(s.photoMimeType)).length,
-    paperCount: tickets[0]?.papers?.length || 0,
-    scheduleComplete: papersHaveDateAndTime(tickets[0]?.papers || []),
+    paperCount: papers.length,
+    maxPapersOnTicket: layout.maxPapersOnTicket,
+    ticketsPerPage: layout.perPage,
+    scheduleComplete: papersHaveDateAndTime(papers),
   };
 }
 
@@ -230,6 +237,8 @@ hallTicketsRouter.get("/preview", async (req, res) => {
     studentCount: bundle.studentCount,
     photoCount: bundle.photoCount,
     paperCount: bundle.paperCount,
+    maxPapersOnTicket: bundle.maxPapersOnTicket,
+    ticketsPerPage: bundle.ticketsPerPage,
     scheduleComplete: bundle.scheduleComplete,
     canDownloadPdf: bundle.scheduleComplete,
     students: bundle.students.map((s) => ({
@@ -240,7 +249,7 @@ hallTicketsRouter.get("/preview", async (req, res) => {
       hasPhoto: Boolean(s.photoMimeType),
       paperCount: bundle.tickets.find((t) => t.student.id === s.id)?.papers?.length || 0,
     })),
-    papers: bundle.tickets[0]?.papers || [],
+    papers: bundle.papers,
     defaults: {
       title: `${exam.name} — Hall Ticket`,
       instructions:

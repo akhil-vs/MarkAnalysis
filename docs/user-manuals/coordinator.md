@@ -127,7 +127,7 @@ On an open register, leadership can **Moderate** marks with a recorded reason (g
 
 ### 3.7 Hall tickets (`Marks → Hall tickets`)
 
-Create and edit batches (title, venue, instructions; **Print student photos when available**), preview (**With photo**), and **Download PDF (5 / A4)**. Ensure paper schedule dates **and start times** exist under Today → Exams for every class that needs tickets (or fill one class and use **Copy class timetable to all classes**).
+Create and edit batches (title, venue, instructions; **Print student photos when available**), preview (**With photo**), and **Download PDF**. The button shows how many complete tickets fit on one A4 page once every subject for that student is included (for example **Download PDF (4 / A4)**). Ensure paper schedule dates **and start times** exist under Today → Exams for every class that needs tickets (or fill one class and use **Copy class timetable to all classes**).
 
 Upload photos under **Marks → Student photos**: **Bulk upload by admission no** (files named like `ADM-10B-01.jpg`) or one photo per student. PNG or JPEG, 1 MB or smaller. Use **Remove unmatched** to drop files that did not match.
 
@@ -185,7 +185,7 @@ Available from Exam queue / Mark progress, consolidated lists, exam records, sta
 5. Enter/upload marks yourself only for papers you cover or when covering gaps (including **Th** / **Pr** where used).
 6. **Approve** submitted registers on **Exam queue → Submitted**; handle access requests carefully.
 7. Check Deep insights → **Exam readiness** and subject difficulty.
-8. Produce hall tickets (**Download PDF (5 / A4)**) and **official** consolidated lists when every paper is approved.
+8. Produce hall tickets (**Download PDF**, with every subject on the ticket) and **official** consolidated lists when every paper is approved.
 9. Support Board ops publish/pack steps if your school uses them.
 
 ---

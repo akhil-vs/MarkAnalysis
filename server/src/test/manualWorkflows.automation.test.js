@@ -745,7 +745,8 @@ describe("User manual automation", () => {
         assert.match(text, /Click and drag/, `${name} should document daily-board drag scroll`);
         assert.match(text, /Modules & Security/, `${name} should name school profile tabs`);
         assert.match(text, /Classes in this exam/, `${name} should document exam class selection`);
-        assert.match(text, /Download PDF \(5 \/ A4\)/, `${name} should document hall-ticket PDF label`);
+        assert.match(text, /Download PDF/, `${name} should document hall-ticket PDF`);
+        assert.match(text, /every subject/i, `${name} should document full subject lists on hall tickets`);
       }
       assert.match(teacher, /My leave/, "teacher should document leave requests");
       assert.match(teacher, /Student photos/, "teacher should document student photos");

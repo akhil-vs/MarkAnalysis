@@ -114,8 +114,8 @@ export const PAGE_HELP = {
   },
   hallTickets: {
     title: "What's on this page",
-    about: "Class hall tickets for a selected exam: student identity and photo, paper schedule, venue, and instructions. Five tickets print on each A4 page (Download PDF (5 / A4)). Principals and exam coordinators create and edit batches; teachers can view and download for their classes.",
-    useful: "Pick an exam, then a class and division. Preview loads on the right with a With photo count. Use Download PDF (5 / A4) or the PDF button beside each division to print. Create/save a batch to store title, venue, and instructions, and tick Print student photos when available. Upload photos under Student photos. Paper dates and start times come from Exams — if one class timetable is done, leadership can copy it to the other classes.",
+    about: "Class hall tickets for a selected exam: student identity and photo, every subject that student sits, venue, and instructions. Download PDF fits as many complete tickets as an A4 page can hold once the full subject list is included (the button shows the count, for example 4 / A4). Principals and exam coordinators create and edit batches; teachers can view and download for their classes.",
+    useful: "Pick an exam, then a class and division. Preview loads on the right with a With photo count and the papers each student sits. Download PDF packs complete tickets on each A4 page. Create/save a batch to store title, venue, and instructions, and tick Print student photos when available. Upload photos under Student photos. Paper dates and start times come from Exams — if one class timetable is done, leadership can copy it to the other classes.",
   },
   studentPhotos: {
     title: "What's on this page",

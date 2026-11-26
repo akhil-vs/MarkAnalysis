@@ -284,8 +284,8 @@ export default function HallTickets() {
         title={NAV_TITLES.hallTickets}
         subtitle={
           canEdit
-            ? "Create and adjust class hall tickets, then print five per A4 sheet with student photos."
-            : "View and download class hall tickets for your sections (five per A4 sheet)."
+            ? "Create and adjust class hall tickets, then print every subject for the exam. Each A4 page holds as many complete tickets as that list allows."
+            : "View and download class hall tickets for your sections, with every subject for the exam on each ticket."
         }
       />
 
@@ -372,7 +372,15 @@ export default function HallTickets() {
                     title={scheduleIncompleteMessage || undefined}
                     onClick={downloadPdf}
                   >
-                    <BusyLabel busy={busy === "pdf"} idle="Download PDF (5 / A4)" busyText="Preparing…" />
+                    <BusyLabel
+                      busy={busy === "pdf"}
+                      idle={
+                        preview?.ticketsPerPage
+                          ? `Download PDF (${preview.ticketsPerPage} / A4)`
+                          : "Download PDF"
+                      }
+                      busyText="Preparing…"
+                    />
                   </button>
                 }
               >
@@ -389,6 +397,9 @@ export default function HallTickets() {
                       {preview.studentCount} student{preview.studentCount === 1 ? "" : "s"}
                       {" · "}
                       {preview.paperCount} paper{preview.paperCount === 1 ? "" : "s"}
+                      {preview.ticketsPerPage
+                        ? ` · ${preview.ticketsPerPage} complete ticket${preview.ticketsPerPage === 1 ? "" : "s"} per A4`
+                        : ""}
                       {preview.issue ? " · batch saved" : " · using defaults until you save a batch"}
                       {!canDownloadPdf ? (
                         <p className="mt-1 text-xs text-amber-800">{SCHEDULE_INCOMPLETE_HINT}</p>
@@ -599,8 +610,12 @@ export default function HallTickets() {
                         </table>
                       </div>
                       <p className="mt-2 text-xs text-ink-700/50">
-                        Upload student photos under Student photos (or Records → Students). PDF packs five
-                        tickets per A4 page.
+                        Upload student photos under Student photos (or Records → Students). Each ticket
+                        lists every subject that student sits
+                        {preview.ticketsPerPage
+                          ? `, and ${preview.ticketsPerPage} complete ticket${preview.ticketsPerPage === 1 ? "" : "s"} fit on an A4 page`
+                          : ""}
+                        .
                       </p>
                     </div>
                   </div>
