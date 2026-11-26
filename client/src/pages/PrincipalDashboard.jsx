@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   Bar,
@@ -14,42 +14,43 @@ import {
   YAxis,
 } from "recharts";
 import { api, download } from "../api.js";
-import { LoadError } from "../components/LoadError.jsx";
-import { InlineLoading, LoadingState } from "../components/Spinner.jsx";
 import { useAuth } from "../auth.jsx";
-import Breadcrumb from "../components/Breadcrumb.jsx";
-import { ExamSelect } from "../components/ExamSelect.jsx";
-import { SchoolSectionSelect } from "../components/SchoolSectionSelect.jsx";
 import { YearComparison } from "../components/AnalysisPanels.jsx";
+import Breadcrumb from "../components/Breadcrumb.jsx";
+import CurricularPerformanceHub from "../components/CurricularPerformanceHub.jsx";
 import {
-  BarTrack,
   ChartTooltip,
-  DashboardHero,
   EmptyExamDashboard,
   EmptyNote,
   GRADE_COLORS,
+  GradePill,
   Metric,
   Panel,
-  RankRow,
-  deltaLabel,
   greeting,
 } from "../components/DashboardKit.jsx";
-import CurricularPerformanceHub from "../components/CurricularPerformanceHub.jsx";
-import { helpForPath } from "../lib/pageHelp.js";
+import { ExamSelect } from "../components/ExamSelect.jsx";
+import { PageHelpHint } from "../components/HelpHint.jsx";
+import { LoadError } from "../components/LoadError.jsx";
+import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
+import { PaginatedTable } from "../components/PaginatedTable.jsx";
 import PendingAccessRequests from "../components/PendingAccessRequests.jsx";
 import PendingSubmittedApprovals from "../components/PendingSubmittedApprovals.jsx";
-import NotifyTeachersDialog from "../components/NotifyTeachersDialog.jsx";
+import { SchoolSectionSelect } from "../components/SchoolSectionSelect.jsx";
+import { InlineLoading, LoadingState } from "../components/Spinner.jsx";
+import { TableToolbar } from "../components/TableToolbar.jsx";
 import { useToast } from "../components/Toast.jsx";
-import { yearDelta } from "../lib/exams.js";
+import { apiErrorMessage } from "../lib/apiErrorMessage.js";
 import {
   dashboardApiPath,
   isDashboardPrefetchFresh,
   peekDashboardPrefetch,
   revalidateDashboard,
 } from "../lib/dashboardPrefetch.js";
-import { apiErrorMessage } from "../lib/apiErrorMessage.js";
+import { yearDelta } from "../lib/exams.js";
 import { NAV_LABELS, paths } from "../lib/nav.js";
-import { normalizeSchoolSection, schoolSectionLabel } from "../lib/schoolSections.js";
+import { helpForPath } from "../lib/pageHelp.js";
+import { SCHOOL_SECTIONS, normalizeSchoolSection, schoolSectionLabel } from "../lib/schoolSections.js";
+import { useWorkspaceOptional } from "../workspace.jsx";
 
 /** Strip trailing " · 2025-26" so the same exam type aligns across years. */
 function examTypeLabel(point) {
@@ -73,7 +74,6 @@ function buildLongitudinalSeries(termTrend = [], currentYear) {
       byLabel.set(label, { label, date: point.date, current: null, baseline: null });
     }
     const row = byLabel.get(label);
-    // Prefer earlier dates within the active year so Unit → Mid → Final sorts correctly.
     if (point.academicYear === activeYear && point.date) {
       if (!row.date || new Date(point.date) < new Date(row.date)) row.date = point.date;
     } else if (!row.date && point.date) {
@@ -88,67 +88,275 @@ function buildLongitudinalSeries(termTrend = [], currentYear) {
   return { rows, currentYear: activeYear, baselineYear };
 }
 
-function pendingLeftTone(count) {
-  if (count >= 3) return "bg-clay-500/15 text-clay-600 border-clay-500/30";
-  if (count >= 1) return "bg-[#b06a1a]/12 text-[#8a5214] border-[#b06a1a]/25";
-  return "bg-ink-900/5 text-ink-700/55 border-ink-900/10";
+function echoKey(examId, section) {
+  return `${examId || ""}|${normalizeSchoolSection(section)}`;
 }
 
-function PriorityBadge({ tone, children }) {
-  const cls =
-    tone === "priority"
-      ? "bg-clay-500 text-white"
-      : tone === "action"
-        ? "bg-[#b06a1a] text-white"
-        : "bg-ink-900/10 text-ink-700/70";
-  return (
-    <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${cls}`}>
-      {children}
-    </span>
-  );
+function levelChoices(options) {
+  const list = options?.length ? options : SCHOOL_SECTIONS;
+  return list.map((opt) => {
+    if (!opt.classRange) return { ...opt, shortLabel: "All levels" };
+    const name = opt.shortLabel || opt.label;
+    return { ...opt, shortLabel: `${name} ${opt.classRange.min}–${opt.classRange.max}` };
+  });
 }
 
-function OutcomeRow({ label, value }) {
-  const pct = Math.max(0, Math.min(100, Number(value) || 0));
+function relevantPapers(teacher) {
+  return (teacher.assignments || [])
+    .filter((paper) => {
+      const missing = paper.missing ?? 0;
+      const waiting =
+        paper.status === "AWAITING_APPROVAL" ||
+        ((paper.submitted ?? 0) > 0 && (paper.approved ?? 0) < (paper.expected ?? 0));
+      return missing > 0 || waiting;
+    })
+    .sort(
+      (a, b) =>
+        String(a.classLabel || "").localeCompare(String(b.classLabel || "")) ||
+        String(a.subject || "").localeCompare(String(b.subject || ""))
+    );
+}
+
+function paperNote(paper) {
+  const missing = paper.missing ?? 0;
+  if (missing > 0) {
+    const expected = paper.expected ?? 0;
+    const progress = paper.statusLabel ? `${paper.statusLabel}. ` : "";
+    const count =
+      expected > 0 ? `${missing} of ${expected} marks still empty` : `${missing} marks still empty`;
+    return `${progress}${count}`;
+  }
+  return paper.statusLabel || "Submitted, waiting for approval";
+}
+
+function paperKey(paper, index) {
+  return `${paper.classSectionId || paper.classLabel || "class"}|${paper.subjectId || paper.subject || index}`;
+}
+
+function registerStatus(teacher) {
+  const missing = teacher.missingAssignments ?? 0;
+  const waiting = teacher.awaitingApprovalAssignments ?? 0;
+  if (missing > 0 && waiting > 0) {
+    return {
+      label: missing === 1 ? "1 register not submitted" : `${missing} registers not submitted`,
+      detail: `${waiting === 1 ? "1 other register is" : `${waiting} other registers are`} submitted and waiting for your approval`,
+      tone: missing >= 3 ? "high" : "open",
+    };
+  }
+  if (missing > 0) {
+    return {
+      label: missing === 1 ? "1 register not submitted" : `${missing} registers not submitted`,
+      detail:
+        missing >= 3
+          ? "High: three or more registers still have missing marks"
+          : "Marks are still missing on the papers listed",
+      tone: missing >= 3 ? "high" : "open",
+    };
+  }
+  return {
+    label: waiting === 1 ? "1 register waiting for approval" : `${waiting} registers waiting for approval`,
+    detail: "The teacher has submitted these marks. They stay unpublished until you approve them.",
+    tone: "review",
+  };
+}
+
+function PaperList({ papers }) {
+  const [expanded, setExpanded] = useState(false);
+  if (!papers.length) {
+    return <span className="text-sm text-ink-700/55">Papers are not listed on this summary.</span>;
+  }
+  const shown = expanded ? papers : papers.slice(0, 3);
   return (
-    <div>
-      <div className="flex items-baseline justify-between text-sm mb-1.5">
-        <span className="text-ink-700/70">{label}</span>
-        <span className="tabular-nums font-medium">{pct}%</span>
-      </div>
-      <BarTrack value={pct} color={pct >= 90 ? "#3d6b4f" : pct > 0 ? "#1b2437" : "#d4cdc1"} />
+    <div className="min-w-0">
+      <ul className="space-y-1">
+        {shown.map((paper, index) => (
+          <li key={paperKey(paper, index)} className="text-sm leading-snug break-words">
+            <span className="font-medium text-ink-900">{paper.classLabel}</span>
+            <span className="text-ink-800"> {paper.subject}</span>
+            <span className="text-ink-700/60"> · {paperNote(paper)}</span>
+          </li>
+        ))}
+      </ul>
+      {papers.length > 3 && (
+        <button
+          type="button"
+          className="mt-1 text-xs font-medium text-ink-700 underline decoration-ink-900/20 underline-offset-2"
+          onClick={() => setExpanded((open) => !open)}
+        >
+          {expanded ? "Show fewer papers" : `Show all ${papers.length} papers`}
+        </button>
+      )}
     </div>
   );
 }
+
+function StudentAverageTable({ rows, showRank = false }) {
+  return (
+    <div className="scroll-x">
+      <table className="table table-cards w-full">
+        <thead>
+          <tr>
+            {showRank && (
+              <th scope="col" className="whitespace-nowrap">
+                Rank
+              </th>
+            )}
+            <th scope="col">Student</th>
+            <th scope="col" className="whitespace-nowrap">
+              Roll no.
+            </th>
+            <th scope="col">Class</th>
+            <th scope="col">Average</th>
+            <th scope="col">Grade</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((student, index) => (
+            <tr key={student.studentId}>
+              {showRank && (
+                <td data-label="Rank" className="align-top tabular-nums">
+                  {student.rank ?? index + 1}
+                </td>
+              )}
+              <td data-label="Student" className="align-top">
+                <Link className="font-medium hover:underline" to={paths.student(student.studentId)}>
+                  {student.name}
+                </Link>
+              </td>
+              <td data-label="Roll no." className="align-top tabular-nums">
+                {student.rollNo || "—"}
+              </td>
+              <td data-label="Class" className="align-top">
+                {student.classLabel}
+              </td>
+              <td data-label="Average" className="align-top tabular-nums">
+                {student.average != null ? `${student.average}%` : "—"}
+              </td>
+              <td data-label="Grade" className="align-top">
+                <GradePill grade={student.grade} />
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function TeacherPaperTable({ rows }) {
+  return (
+    <div className="scroll-x">
+      <table className="table table-cards w-full">
+        <thead>
+          <tr>
+            <th scope="col">Teacher</th>
+            <th scope="col">Subject</th>
+            <th scope="col">Class</th>
+            <th scope="col">Average</th>
+            <th scope="col" className="whitespace-nowrap">
+              Pass rate
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={`${row.teacherId || row.teacher}|${row.classLabel}|${row.subject}`}>
+              <td data-label="Teacher" className="align-top">
+                <Link
+                  className="font-medium hover:underline"
+                  to={row.teacherId ? paths.teacher(row.teacherId) : "/analysis/teachers"}
+                >
+                  {row.teacher}
+                </Link>
+              </td>
+              <td data-label="Subject" className="align-top">
+                {row.subject}
+              </td>
+              <td data-label="Class" className="align-top">
+                {row.classLabel}
+              </td>
+              <td data-label="Average" className="align-top tabular-nums">
+                {row.average != null ? `${row.average}%` : "—"}
+              </td>
+              <td data-label="Pass rate" className="align-top tabular-nums">
+                {row.passRate != null ? `${row.passRate}%` : "—"}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const OUTCOME_ROWS = [
+  ["SCORED", "scored", "Scored", "A numeric mark. Included in averages and the pass rate."],
+  ["ABSENT", "absent", "Absent", "Marked absent. Left out of the average."],
+  ["EXEMPT", "exempt", "Exempt", "Marked exempt. Left out of the average."],
+  ["WITHHELD", "withheld", "Withheld", "Marked withheld. Left out of the average."],
+];
 
 export default function PrincipalDashboard() {
   const { user, optimistic } = useAuth();
   const location = useLocation();
   const toast = useToast();
+  const workspace = useWorkspaceOptional();
   const homePath = dashboardApiPath("PRINCIPAL");
-  const [data, setData] = useState(() => peekDashboardPrefetch(homePath, { userId: user?.id }));
-  const [examId, setExamId] = useState(() => data?.exam?.id || "");
+  const prefetched = peekDashboardPrefetch(homePath, { userId: user?.id });
+  const [data, setData] = useState(() => prefetched);
+  const [examId, setExamId] = useState(() => workspace?.examId || prefetched?.exam?.id || "");
   const [schoolSection, setSchoolSection] = useState(() =>
-    normalizeSchoolSection(data?.schoolSection || "ALL")
+    normalizeSchoolSection(workspace?.schoolSection || prefetched?.schoolSection || "ALL")
   );
   const [error, setError] = useState("");
   const [notify, setNotify] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [snapshotOpen, setSnapshotOpen] = useState(true);
+  const [queueQuery, setQueueQuery] = useState("");
+  const [queueFilter, setQueueFilter] = useState("all");
+  const loadSeq = useRef(0);
+  const pendingPublish = useRef("");
+  const appliedWorkspace = useRef("");
 
-  const hasOpsWork = Boolean(
-    data &&
-      !data.empty &&
-      ((data.pendingUploads?.teachers || []).some((t) => t.pending) ||
-        (data.pendingUploads?.teachers || []).some((t) => t.awaitingApproval && !t.pending))
-  );
+  const openTeachers = useMemo(() => {
+    const list = (data?.pendingUploads?.teachers || []).filter((teacher) => teacher.pending || teacher.awaitingApproval);
+    return [...list].sort(
+      (a, b) =>
+        (b.missingAssignments ?? 0) - (a.missingAssignments ?? 0) ||
+        String(a.name || "").localeCompare(String(b.name || ""))
+    );
+  }, [data]);
 
-  useEffect(() => {
-    if (!data || data.empty) return;
-    setSnapshotOpen(!hasOpsWork);
-  }, [hasOpsWork, examId, schoolSection, data?.exam?.id, data?.empty]);
+  const queueRows = useMemo(() => {
+    const query = queueQuery.trim().toLowerCase();
+    return openTeachers.filter((teacher) => {
+      if (queueFilter === "missing" && !teacher.pending) return false;
+      if (queueFilter === "approval" && (teacher.pending || !teacher.awaitingApproval)) return false;
+      if (!query) return true;
+      const blob = [
+        teacher.name,
+        teacher.email,
+        ...(teacher.assignments || []).flatMap((paper) => [paper.classLabel, paper.subject]),
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return blob.includes(query);
+    });
+  }, [openTeachers, queueFilter, queueQuery]);
 
-  async function loadDetail(summary, section = schoolSection) {
+  function publishWorkspace(id, section) {
+    const nextSection = normalizeSchoolSection(section);
+    const key = echoKey(id, nextSection);
+    pendingPublish.current = key;
+    appliedWorkspace.current = key;
+    if (!workspace) return;
+    if (id && id !== workspace.examId) workspace.setExamId(id).catch(() => {});
+    if (nextSection !== normalizeSchoolSection(workspace.schoolSection)) {
+      workspace.setSchoolSection(nextSection).catch(() => {});
+    }
+  }
+
+  async function loadDetail(summary, section = schoolSection, seq = loadSeq.current) {
     if (!summary?.exam?.id || summary.empty) return;
     setDetailLoading(true);
     try {
@@ -158,27 +366,28 @@ export default function PrincipalDashboard() {
       });
       if (section && section !== "ALL") detailQ.set("schoolSection", section);
       const detail = await api(`/api/analytics/school?${detailQ}`);
+      if (seq !== loadSeq.current) return;
       setData((prev) => ({ ...(prev || {}), ...detail }));
       if (detail.schoolSection) setSchoolSection(normalizeSchoolSection(detail.schoolSection));
     } catch {
       // summary already painted
     } finally {
-      setDetailLoading(false);
+      if (seq === loadSeq.current) setDetailLoading(false);
     }
   }
 
   async function load(id, section = schoolSection) {
+    const seq = ++loadSeq.current;
     setError("");
     const base = new URLSearchParams();
     if (id) base.set("examId", id);
-    // Summary first for a fast desk paint; detail charts load in parallel afterward.
-    // Never request include=summary,detail — that forces the expensive monolithic report.
     base.set("include", "summary");
     const nextSection = normalizeSchoolSection(section);
     if (nextSection !== "ALL") base.set("schoolSection", nextSection);
     const path = `/api/analytics/school?${base}`;
     try {
       const payload = await api(path);
+      if (seq !== loadSeq.current) return;
       setData(payload);
       setSchoolSection(normalizeSchoolSection(payload.schoolSection || nextSection));
       if (payload.empty) {
@@ -186,9 +395,9 @@ export default function PrincipalDashboard() {
         return;
       }
       if (payload.exam) setExamId(payload.exam.id);
-      // Fire detail without awaiting so KPIs stay interactive.
-      void loadDetail(payload, nextSection);
+      void loadDetail(payload, nextSection, seq);
     } catch (e) {
+      if (seq !== loadSeq.current) return;
       if (!data) setError(apiErrorMessage(e, "Could not load school view"));
     }
   }
@@ -196,6 +405,7 @@ export default function PrincipalDashboard() {
   function onSchoolSectionChange(next) {
     const section = normalizeSchoolSection(next);
     setSchoolSection(section);
+    publishWorkspace(examId, section);
     load(examId, section);
   }
 
@@ -207,20 +417,22 @@ export default function PrincipalDashboard() {
       if (fresh.exam) setExamId(fresh.exam.id);
       if (fresh.schoolSection) setSchoolSection(normalizeSchoolSection(fresh.schoolSection));
     }
+    // A saved working exam arrives through the workspace effect. Don't paint a
+    // different exam from the prefetch and then lock onto it.
+    if (workspace?.loading || workspace?.examId) return;
     const summary = fresh || data;
-    if (summary) {
-      const section = normalizeSchoolSection(fresh?.schoolSection || schoolSection || "ALL");
-      // Hydrate charts without blocking KPIs already on screen from login prefetch.
+    const section = normalizeSchoolSection(fresh?.schoolSection || schoolSection || "ALL");
+    if (summary && !summary.empty) {
+      if (summary.exam?.id) setExamId(summary.exam.id);
+      setSchoolSection(section);
       void loadDetail(summary, section);
-      // Skip immediate revalidate when login/prefetch is still fresh — cuts mount chatter.
-      if (!isDashboardPrefetchFresh(homePath)) {
+      if (section === "ALL" && !isDashboardPrefetchFresh(homePath)) {
         revalidateDashboard(homePath, {
           userId: user?.id,
           email: user?.email,
           schoolId: user?.schoolId,
           onData: (next) => {
             setData((prev) => {
-              // Don't overwrite a non-All section view with whole-school revalidate.
               if (normalizeSchoolSection(prev?.schoolSection) !== "ALL") return prev;
               return { ...(prev || {}), ...next };
             });
@@ -228,11 +440,41 @@ export default function PrincipalDashboard() {
           },
         });
       }
-    } else {
-      load("");
+      return;
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- home paint once per mount / optimistic flip
+    load("", section);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- paint once per mount / optimistic flip
   }, [optimistic]);
+
+  useEffect(() => {
+    if (optimistic || !workspace || workspace.loading) return;
+    const nextExam = workspace.examId || "";
+    const nextSection = normalizeSchoolSection(workspace.schoolSection || "ALL");
+    const key = echoKey(nextExam, nextSection);
+    if (pendingPublish.current) {
+      if (pendingPublish.current !== key) return;
+      pendingPublish.current = "";
+      appliedWorkspace.current = key;
+      return;
+    }
+    if (appliedWorkspace.current === key) return;
+    appliedWorkspace.current = key;
+    if (!data) {
+      load(nextExam, nextSection);
+      return;
+    }
+    const dataExam = data.exam?.id || "";
+    const sameView =
+      (nextExam || "") === (examId || "") &&
+      nextSection === normalizeSchoolSection(schoolSection) &&
+      (!dataExam || !nextExam || dataExam === nextExam);
+    if (sameView) {
+      if (dataExam && !data.empty && !Array.isArray(data.toppers)) void loadDetail(data, nextSection);
+      return;
+    }
+    load(nextExam, nextSection);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- follow the shared working exam
+  }, [workspace?.examId, workspace?.schoolSection, workspace?.loading, optimistic]);
 
   const grades = useMemo(
     () => Object.entries(data?.gradeDist || {}).map(([grade, count]) => ({ grade, count })),
@@ -248,11 +490,11 @@ export default function PrincipalDashboard() {
     if (yoy) {
       const sign = yoy.diff > 0 ? "+" : "";
       return {
-        text: `${sign}${yoy.diff} vs ${yoy.prev.academicYear} baseline`,
+        text: `${sign}${yoy.diff} points vs ${yoy.prev.academicYear}`,
         tone: yoy.diff > 0 ? "up" : yoy.diff < 0 ? "down" : "flat",
       };
     }
-    return deltaLabel(current?.average, prev?.average);
+    return deltaFromPoints(current?.average, prev?.average);
   }, [data, examId]);
 
   const longitudinal = useMemo(
@@ -274,56 +516,69 @@ export default function PrincipalDashboard() {
     );
   }
 
-  const pending = (data.pendingUploads?.teachers || []).filter((t) => t.pending);
-  const awaitingApproval = (data.pendingUploads?.teachers || []).filter((t) => t.awaitingApproval && !t.pending);
-  // Detail fields arrive in a second request after summary — default to [] so summary paint is safe.
+  const pending = openTeachers.filter((teacher) => teacher.pending);
+  const awaitingApproval = openTeachers.filter((teacher) => teacher.awaitingApproval && !teacher.pending);
   const sections = [...(data.sectionAverages || [])].sort((a, b) => (b.average ?? 0) - (a.average ?? 0));
   const teachers = [...(data.teacherPerf || [])].sort((a, b) => (b.average ?? 0) - (a.average ?? 0));
   const toppers = data.toppers || [];
   const atRisk = data.atRisk || [];
   const examPass = data.examPass || [];
   const passRate = data.kpis.passRate;
+  const scoredStudents = data.outcomeLists?.counts?.students;
   const registersBreached = Boolean(data.readiness?.kpis?.breached);
   const registersPastDeadline = data.readiness?.pastDeadline;
-  const outcomeTotal = data.outcomes?.total ?? 0;
   const pageHelp = helpForPath(location.pathname, user.role);
-
-  const deskLabel = location.pathname.startsWith("/analysis/school")
-    ? NAV_LABELS.analysisSchool
-    : user.role === "PRINCIPAL"
-      ? "Principal desk"
-      : "Exam coordination";
+  const onSchoolOverview = location.pathname.startsWith("/analysis/school");
   const sectionLabel = schoolSectionLabel(schoolSection, data.schoolSections);
-  const scopePhrase = schoolSection === "ALL" ? "School" : sectionLabel;
-  const averageLabel = schoolSection === "ALL" ? "School average" : "Section average";
+  const scopePhrase = schoolSection === "ALL" ? "Whole school" : sectionLabel;
+  const averageLabel = schoolSection === "ALL" ? "School average" : `${sectionLabel} average`;
+  const passPercent = data.boardSummary?.passPercent ?? data.grading?.passPercent ?? 50;
+  const distinctionMin = data.boardSummary?.distinctionMin ?? data.grading?.distinctionMin ?? 90;
+  const examBits = [data.exam.name, data.exam.term, data.exam.academicYear].filter(Boolean);
+  const studentCount = data.kpis.students ?? 0;
+  const averageSentence =
+    data.kpis.schoolAverage != null
+      ? `${averageLabel} is ${data.kpis.schoolAverage}%.`
+      : "No approved marks to average yet.";
+  const summarySentence = `${examBits.join(" · ")}. ${scopePhrase}, ${studentCount} student${
+    studentCount === 1 ? "" : "s"
+  } on roll. ${averageSentence}`;
+  const passValue = scoredStudents === 0 ? "No marks" : passRate != null ? `${passRate}%` : "—";
+  const actionBtn = "w-full sm:w-auto justify-center";
 
   return (
     <div>
-      <Breadcrumb
-        items={[
-          { label: deskLabel, to: location.pathname.startsWith("/analysis/school") ? "/" : undefined },
-          { label: "Academic analysis" },
-        ]}
-      />
+      {onSchoolOverview && (
+        <Breadcrumb
+          items={[
+            { label: NAV_LABELS.analysis, to: "/analysis" },
+            { label: NAV_LABELS.analysisSchool },
+          ]}
+        />
+      )}
 
-      <DashboardHero
-        title={greeting(user.name)}
-        subtitle={`${data.exam.name}${data.exam.term ? ` · ${data.exam.term}` : ""}${schoolSection !== "ALL" ? ` · ${sectionLabel}` : ""}: ${scopePhrase} average ${data.kpis.schoolAverage ?? "—"}% across ${data.kpis.students} students.`}
-        help={pageHelp}
-        actions={
-          <>
-            <ExamSelect exams={data.exams} value={examId} onChange={(id) => load(id, schoolSection)} />
-            <Link className="btn-accent" to={paths.approvals()}>
-              Exam queue
-            </Link>
-            <Link className="btn-ghost" to="/analysis/deep">
+      <header className="mb-5 sm:mb-6">
+        <p className="text-[11px] uppercase tracking-[0.16em] text-ink-700/50 mb-1">
+          {onSchoolOverview ? NAV_LABELS.analysisSchool : "Principal desk"}
+        </p>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div className="min-w-0">
+            <h1 className="font-serif text-2xl sm:text-4xl leading-tight flex items-start gap-2 flex-wrap">
+              <span className="break-words">{greeting(user.name)}</span>
+              <PageHelpHint help={pageHelp} />
+            </h1>
+            <p className="mt-2 text-sm text-ink-700/70 max-w-2xl">{summarySentence}</p>
+          </div>
+          <div className="flex flex-col sm:flex-row sm:flex-wrap gap-2 w-full lg:w-auto lg:justify-end">
+            <Link className={`btn-ghost ${actionBtn}`} to="/analysis/deep">
               Deep insights
             </Link>
-            <Link className="btn-ghost" to={`/consolidated?examId=${examId}`}>
+            <Link className={`btn-ghost ${actionBtn}`} to={`/consolidated?examId=${encodeURIComponent(examId)}`}>
               Consolidated lists
             </Link>
             <button
-              className="btn-moss"
+              type="button"
+              className={`btn-moss ${actionBtn}`}
               onClick={() =>
                 download(`/api/exports/table.xlsx?examId=${examId}`, "marks.xlsx").catch((err) =>
                   toast.error(err.message || "Download failed")
@@ -332,177 +587,75 @@ export default function PrincipalDashboard() {
             >
               Export Excel
             </button>
-          </>
-        }
-      />
+          </div>
+        </div>
+      </header>
 
-      <div className="mb-4 flex flex-wrap items-center gap-3">
-        <span className="text-[11px] uppercase tracking-wider text-ink-700/50">Class level</span>
-        <SchoolSectionSelect
-          value={schoolSection}
-          options={data.schoolSections}
-          onChange={onSchoolSectionChange}
-        />
-      </div>
-
-      <div className="grid lg:grid-cols-2 gap-4 mb-4">
-        <PendingSubmittedApprovals />
-        <PendingAccessRequests />
-      </div>
-
-      <div className="grid lg:grid-cols-12 gap-4 mb-4">
-        <Panel
-          className="lg:col-span-12"
-          title="Needs attention"
-          action={
-            <div className="flex flex-wrap gap-2 items-center">
-              {(pending.length > 0 || awaitingApproval.length > 0) && (
-                <button
-                  type="button"
-                  className="btn-ghost text-xs !min-h-0 !py-1 !px-2.5"
-                  onClick={() =>
-                    setNotify({
-                      kind: pending.length ? "INCOMPLETE" : "DEADLINE",
-                      examId,
-                      audience: pending.length ? "PENDING" : "ALL",
-                      exams: data.exams,
-                    })
-                  }
-                >
-                  Notify all ({pending.length || awaitingApproval.length})
-                </button>
-              )}
-              <Link className="text-xs underline text-ink-700/60" to={paths.approvals()}>
-                Open Exam queue
-              </Link>
-              <Link className="text-xs underline text-ink-700/60" to={paths.pendingUploads()}>
-                Chase missing
-              </Link>
-            </div>
-          }
-        >
-          {pending.length || awaitingApproval.length ? (
-            <div className="space-y-2">
-              {awaitingApproval.map((t) => {
-                const papers = t.assignments
-                  .filter(
-                    (a) =>
-                      a.status === "AWAITING_APPROVAL" ||
-                      ((a.submitted ?? 0) > 0 && (a.approved ?? 0) < a.expected)
-                  )
-                  .map((a) => `${a.classLabel} ${a.subject}`)
-                  .join(" · ");
-                return (
-                  <div
-                    key={`await-${t.teacherId}`}
-                    className="rounded-xl border border-clay-500/20 bg-[#fbf4ec]/80 px-3 py-2.5"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <PriorityBadge tone="action">Action Req.</PriorityBadge>
-                          <span className="text-sm font-medium truncate">{t.name}</span>
-                        </div>
-                        <div className="text-[11px] text-ink-700/50 truncate">{papers}</div>
-                      </div>
-                      <span className="shrink-0 inline-flex items-center rounded-md border border-clay-500/30 bg-clay-500/10 px-2 py-0.5 text-[11px] font-semibold text-clay-600 whitespace-nowrap">
-                        Awaiting approval
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
-              {pending.map((t) => {
-                const left = t.missingAssignments ?? 0;
-                const papers = t.assignments
-                  .filter((a) => a.missing > 0)
-                  .map((a) => `${a.classLabel} ${a.subject}`)
-                  .join(" · ");
-                return (
-                  <div
-                    key={t.teacherId}
-                    className="rounded-xl border border-ink-900/10 bg-white/55 px-3 py-2.5"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap mb-0.5">
-                          <PriorityBadge tone={left >= 3 ? "priority" : "action"}>
-                            {left >= 3 ? "Priority" : "Action Req."}
-                          </PriorityBadge>
-                          <span className="text-sm font-medium truncate">{t.name}</span>
-                        </div>
-                        <div className="text-[11px] text-ink-700/50 truncate">{papers}</div>
-                      </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <span
-                          className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap tabular-nums ${pendingLeftTone(left)}`}
-                        >
-                          {left} left
-                        </span>
-                        <button
-                          type="button"
-                          className="btn-ghost text-xs !min-h-0 !py-1 !px-2.5"
-                          onClick={() =>
-                            setNotify({
-                              kind: "INCOMPLETE",
-                              examId,
-                              audience: "SELECTED",
-                              teacherIds: [t.teacherId],
-                              teacherName: t.name,
-                              exams: data.exams,
-                            })
-                          }
-                        >
-                          Notify
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : (
-            <EmptyNote>No missing registers for this exam.</EmptyNote>
-          )}
-          {atRisk.length > 0 && (
-            <div className="mt-5 pt-4 border-t border-ink-900/10">
-              <div className="text-[11px] uppercase tracking-wider text-ink-700/50 mb-2">
-                Students below {data.boardSummary?.passPercent ?? 50}%
-              </div>
-              {atRisk.slice(0, 4).map((s, i) => (
-                <RankRow
-                  key={s.studentId}
-                  rank={i + 1}
-                  name={s.name}
-                  meta={s.classLabel}
-                  value={`${s.average}%`}
-                  grade={s.grade}
-                  to={paths.student(s.studentId)}
-                />
-              ))}
-            </div>
-          )}
-        </Panel>
-      </div>
+      <section aria-label="Working exam and school level" className="mb-5 card p-3 sm:p-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start">
+          <div className="min-w-0 lg:w-72">
+            <label className="label" htmlFor="principal-working-exam">
+              Working exam
+            </label>
+            <ExamSelect
+              id="principal-working-exam"
+              className="field-filter-grow"
+              exams={data.exams}
+              value={examId}
+              onChange={(id) => {
+                setExamId(id);
+                publishWorkspace(id, schoolSection);
+                load(id, schoolSection);
+              }}
+            />
+            <p className="mt-2 text-xs leading-relaxed text-ink-700/60">
+              The numbers and the register table follow this exam. Other pages keep the same choice.
+            </p>
+          </div>
+          <div className="min-w-0 flex-1">
+            <div className="label">School level</div>
+            <SchoolSectionSelect
+              value={schoolSection}
+              options={levelChoices(data.schoolSections)}
+              onChange={onSchoolSectionChange}
+              aria-label="School level"
+              className="max-w-full"
+            />
+            <p className="mt-2 text-xs leading-relaxed text-ink-700/60">
+              Primary is classes 1–5, Secondary is 6–10, and Senior secondary is 11–12. This is not one
+              division, such as 6-A.
+            </p>
+          </div>
+        </div>
+      </section>
 
       <div className="kpi-grid mb-5">
         <Metric
           label={averageLabel}
-          value={data.kpis.schoolAverage != null ? `${data.kpis.schoolAverage}%` : "—"}
-          hint={trendDelta}
+          value={data.kpis.schoolAverage != null ? `${data.kpis.schoolAverage}%` : "No marks"}
+          hint={
+            data.kpis.schoolAverage != null
+              ? trendDelta
+              : { text: "Approved marks will set this average", tone: "flat" }
+          }
         />
         <Metric
           label="Pass rate"
-          value={passRate != null ? `${passRate}%` : "—"}
-          badge={passRate != null && passRate >= 95 ? { text: "Optimal", tone: "up" } : undefined}
-          hint={{ text: `${data.kpis.students} students on roll`, tone: "flat" }}
+          value={passValue}
+          hint={{
+            text:
+              scoredStudents === 0
+                ? `Pass mark is ${passPercent}%. No scored students yet.`
+                : `Share of scored students at or above ${passPercent}%`,
+            tone: "flat",
+          }}
         />
         <Metric
-          label="Distinction / fail"
-          value={`${data.boardSummary?.distinction ?? 0} / ${data.boardSummary?.fail ?? 0}`}
+          label="Students below pass mark"
+          value={data.boardSummary?.fail ?? 0}
           hint={{
-            text: `≥${data.boardSummary?.distinctionMin ?? 90}% · <${data.boardSummary?.passPercent ?? 50}%`,
-            tone: "flat",
+            text: `${data.boardSummary?.distinction ?? 0} students at distinction (${distinctionMin}% or above)`,
+            tone: (data.boardSummary?.fail ?? 0) > 0 ? "down" : "flat",
           }}
         />
         <Metric
@@ -510,246 +663,445 @@ export default function PrincipalDashboard() {
           value={data.readiness?.kpis?.approvedPct != null ? `${data.readiness.kpis.approvedPct}%` : "—"}
           to="/analysis/deep?tab=readiness"
           tone={registersBreached ? "alert" : undefined}
-          badge={registersBreached ? { text: "Action Req.", tone: "alert" } : undefined}
+          badge={registersBreached ? { text: "Past deadline", tone: "alert" } : undefined}
           hint={{
             text: registersPastDeadline
-              ? `${data.readiness.kpis?.breached ?? 0} past deadline incomplete`
-              : `${data.readiness?.kpis?.awaiting ?? 0} awaiting approval`,
+              ? `${data.readiness.kpis?.breached ?? 0} registers are past the deadline and still incomplete`
+              : `${data.readiness?.kpis?.awaiting ?? 0} registers are submitted and waiting for approval`,
             tone: registersBreached ? "down" : "flat",
           }}
         />
       </div>
 
-      <div className="mb-4 rounded-2xl border border-ink-900/10 bg-white/40">
-        <button
-          type="button"
-          className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left"
-          aria-expanded={snapshotOpen}
-          onClick={() => setSnapshotOpen((v) => !v)}
-        >
-          <div>
-            <div className="font-medium text-ink-900">School snapshot</div>
-            <div className="text-xs text-ink-700/60">
-              Trends, curricular hub, grade mix, and rankings
-              {hasOpsWork ? " — expand after you clear the queue" : ""}
-            </div>
-          </div>
-          <span className="text-xs uppercase tracking-wide text-ink-700/50">
-            {snapshotOpen ? "Hide" : "Show"}
-          </span>
-        </button>
-        {snapshotOpen && (
-          <div className="border-t border-ink-900/10 px-4 pb-4 pt-4">
-            {detailLoading && <InlineLoading label="Loading charts and rankings…" className="mb-4" />}
+      <section aria-labelledby="decisions-heading" className="mb-4">
+        <h2 id="decisions-heading" className="font-serif text-xl sm:text-2xl">
+          Decisions waiting on you
+        </h2>
+        <p className="mt-1 mb-3 max-w-3xl text-sm text-ink-700/65">
+          Submitted marks and access requests cover every exam, not only {data.exam.name}.
+        </p>
+        <div className="space-y-3">
+          <PendingSubmittedApprovals emptyMode="line" />
+          <PendingAccessRequests emptyMode="line" />
+        </div>
+      </section>
 
-            <div className="mb-4">
-              <Panel title="How the school is moving">
-                {longitudinal.rows.length ? (
-                  <>
-                    <ResponsiveContainer width="100%" height={220}>
-                      <LineChart data={longitudinal.rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
-                        <XAxis dataKey="label" tick={{ fontSize: 12 }} />
-                        <YAxis domain={[40, 100]} tick={{ fontSize: 12 }} width={36} />
-                        <Tooltip content={<ChartTooltip />} />
-                        <Legend wrapperStyle={{ fontSize: 12 }} />
-                        {longitudinal.baselineYear && (
-                          <Line
-                            type="monotone"
-                            dataKey="baseline"
-                            name={`${longitudinal.baselineYear} Baseline`}
-                            stroke="#9aa3b2"
-                            strokeWidth={2}
-                            strokeDasharray="6 4"
-                            dot={{ r: 3, fill: "#9aa3b2" }}
-                            connectNulls
-                          />
-                        )}
-                        <Line
-                          type="monotone"
-                          dataKey="current"
-                          name={longitudinal.currentYear ? `${longitudinal.currentYear} Trend` : "Trend"}
-                          stroke="#3d6b4f"
-                          strokeWidth={2.5}
-                          dot={{ r: 4, fill: "#3d6b4f" }}
-                          activeDot={{ r: 5 }}
-                          connectNulls
-                        />
-                      </LineChart>
-                    </ResponsiveContainer>
-                    <div className="mt-3 flex flex-wrap gap-4 text-xs text-ink-700/60">
-                      {examPass.slice(-4).map((e) => (
-                        <span key={e.examId}>
-                          {e.label || e.name}:{" "}
-                          <span className="text-ink-900 font-medium">{e.passRate}% pass</span>
-                        </span>
-                      ))}
-                    </div>
-                  </>
-                ) : (
-                  <EmptyNote>
-                    {detailLoading ? "Loading trend…" : "Not enough exam history to chart movement yet."}
-                  </EmptyNote>
-                )}
-              </Panel>
-            </div>
+      <Panel className="mb-8" title="Open registers">
+        <div className="mb-3 flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+          {pending.length > 0 && (
+            <button
+              type="button"
+              className="btn-ghost text-xs w-full sm:w-auto justify-center !py-2"
+              onClick={() =>
+                setNotify({
+                  kind: "INCOMPLETE",
+                  examId,
+                  audience: "PENDING",
+                  exams: data.exams,
+                })
+              }
+            >
+              Remind {pending.length} with missing marks
+            </button>
+          )}
+          <Link className="btn-ghost text-xs w-full sm:w-auto justify-center !py-2" to={paths.pendingUploads({ examId })}>
+            Open in exam queue
+          </Link>
+        </div>
+        <p className="mb-3 max-w-3xl text-sm text-ink-700/65">
+          Each row is one teacher for {data.exam.name}. A register is one class and one subject, such as 6-A
+          Mathematics. “Not submitted” means marks are still empty. “Waiting for approval” means the teacher has
+          submitted and you have not approved yet.
+        </p>
+        {openTeachers.length === 0 ? (
+          <EmptyNote>Every assigned register for this exam is approved.</EmptyNote>
+        ) : (
+          <>
+            <TableToolbar
+              q={queueQuery}
+              setQ={setQueueQuery}
+              placeholder="Search teacher or class"
+              matched={queueRows.length}
+              total={openTeachers.length}
+              className="mb-3"
+            >
+              <label className="inline-flex items-center gap-2 text-xs text-ink-700/70 min-w-0">
+                <span className="shrink-0">Show</span>
+                <select
+                  className="field-filter max-w-full"
+                  aria-label="Which open registers to show"
+                  value={queueFilter}
+                  onChange={(event) => setQueueFilter(event.target.value)}
+                >
+                  <option value="all">All open ({openTeachers.length})</option>
+                  <option value="missing">Not submitted ({pending.length})</option>
+                  <option value="approval">Waiting for approval ({awaitingApproval.length})</option>
+                </select>
+              </label>
+            </TableToolbar>
+            <PaginatedTable
+              items={queueRows}
+              pageSize={8}
+              resetKey={`${examId}|${schoolSection}|${queueFilter}|${queueQuery}`}
+              itemLabel="teachers"
+              empty="No teachers match this search or filter."
+            >
+              {(rows) => (
+                <table className="table table-cards w-full">
+                  <caption className="sr-only">
+                    Teachers with registers that are not submitted or are waiting for approval
+                  </caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Teacher</th>
+                      <th scope="col">Status</th>
+                      <th scope="col">Papers</th>
+                      <th scope="col">
+                        <span className="sr-only">Action</span>
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.map((teacher) => {
+                      const status = registerStatus(teacher);
+                      const papers = relevantPapers(teacher);
+                      return (
+                        <tr key={teacher.teacherId}>
+                          <td data-label="Teacher" className="align-top min-w-0 sm:min-w-[8rem]">
+                            <div className="min-w-0 text-right sm:text-left">
+                              <div className="font-medium break-words">{teacher.name}</div>
+                              {teacher.email && (
+                                <div className="text-xs text-ink-700/55 break-words">{teacher.email}</div>
+                              )}
+                            </div>
+                          </td>
+                          <td data-label="Status" className="align-top sm:max-w-[16rem]">
+                            <div className="min-w-0 text-right sm:text-left">
+                              <div
+                                className={`text-sm font-medium ${
+                                  status.tone === "high" ? "text-clay-600" : "text-ink-900"
+                                }`}
+                              >
+                                {status.label}
+                              </div>
+                              <div className="mt-0.5 text-xs leading-relaxed text-ink-700/60">{status.detail}</div>
+                            </div>
+                          </td>
+                          <td data-label="Papers" className="align-top">
+                            <PaperList papers={papers} />
+                          </td>
+                          <td data-label="" className="align-top sm:w-40">
+                            {teacher.pending ? (
+                              <button
+                                type="button"
+                                className="btn-ghost text-xs w-full sm:w-auto justify-center"
+                                aria-label={`Send a reminder to ${teacher.name} about registers that are not submitted`}
+                                onClick={() =>
+                                  setNotify({
+                                    kind: "INCOMPLETE",
+                                    examId,
+                                    audience: "SELECTED",
+                                    teacherIds: [teacher.teacherId],
+                                    teacherName: teacher.name,
+                                    exams: data.exams,
+                                  })
+                                }
+                              >
+                                Send reminder
+                              </button>
+                            ) : (
+                              <Link
+                                className="btn-ghost text-xs w-full sm:w-auto justify-center"
+                                to={paths.approvals({ examId })}
+                              >
+                                Review submission
+                              </Link>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              )}
+            </PaginatedTable>
+          </>
+        )}
+      </Panel>
 
-            <CurricularPerformanceHub
-              classWise={data.classWise || []}
-              sections={sections}
-              subjectWise={data.subjectWise || []}
-              teachers={teachers}
-              schoolAverage={data.kpis?.schoolAverage}
-              detailLoading={detailLoading}
-            />
+      <section aria-labelledby="results-heading">
+        <h2 id="results-heading" className="font-serif text-xl sm:text-2xl">
+          Results
+        </h2>
+        <p className="mt-1 mb-4 max-w-3xl text-sm text-ink-700/65">
+          Averages use approved marks for {scopePhrase.toLowerCase()}. Absent, exempt, and withheld entries are
+          counted in the outcome table and are not part of the average.
+        </p>
+        {detailLoading && <InlineLoading label="Loading class, subject, and student rankings…" className="mb-4" />}
 
-            {(grades.length > 0 || detailLoading) && (
-              <div className="mb-4">
-                <Panel title="Grade mix">
-                  {grades.length ? (
-                    <ResponsiveContainer width="100%" height={200}>
-                      <BarChart data={grades}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
-                        <XAxis dataKey="grade" tick={{ fontSize: 12 }} />
-                        <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
-                        <Tooltip content={<ChartTooltip />} />
-                        <Bar dataKey="count" name="Students" radius={[4, 4, 0, 0]}>
-                          {grades.map((g) => (
-                            <Cell key={g.grade} fill={GRADE_COLORS[g.grade] || "#1b2437"} />
-                          ))}
-                        </Bar>
-                      </BarChart>
-                    </ResponsiveContainer>
-                  ) : (
-                    <EmptyNote>{detailLoading ? "Loading grade mix…" : "No grade distribution yet."}</EmptyNote>
+        <div className="mb-4">
+          <Panel title="How the average is moving">
+            <p className="mb-3 text-xs leading-relaxed text-ink-700/60">
+              {longitudinal.baselineYear
+                ? `The solid line is ${longitudinal.currentYear || "this year"}. The dashed line is ${longitudinal.baselineYear}. Exams are matched by name, so Term 1 lines up with Term 1.`
+                : "Each point is the school average for an exam. A previous year is added once that exam has approved marks."}
+            </p>
+            {longitudinal.rows.length ? (
+              <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={longitudinal.rows} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
+                  <XAxis dataKey="label" tick={{ fontSize: 12 }} interval="preserveStartEnd" />
+                  <YAxis domain={[40, 100]} tick={{ fontSize: 12 }} width={36} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: 12 }} />
+                  {longitudinal.baselineYear && (
+                    <Line
+                      type="monotone"
+                      dataKey="baseline"
+                      name={longitudinal.baselineYear}
+                      stroke="#9aa3b2"
+                      strokeWidth={2}
+                      strokeDasharray="6 4"
+                      dot={{ r: 3, fill: "#9aa3b2" }}
+                      connectNulls
+                    />
                   )}
-                </Panel>
+                  <Line
+                    type="monotone"
+                    dataKey="current"
+                    name={longitudinal.currentYear || "This year"}
+                    stroke="#3d6b4f"
+                    strokeWidth={2.5}
+                    dot={{ r: 4, fill: "#3d6b4f" }}
+                    activeDot={{ r: 5 }}
+                    connectNulls
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyNote>
+                {detailLoading ? "Loading the average over time…" : "Not enough exam history to chart movement yet."}
+              </EmptyNote>
+            )}
+            {examPass.length > 0 && (
+              <div className="mt-4 scroll-x">
+                <p className="mb-2 text-xs text-ink-700/60">
+                  Pass rate on recent exams. This is the share of scored students at or above {passPercent}%.
+                </p>
+                <table className="table table-cards w-full">
+                  <thead>
+                    <tr>
+                      <th scope="col">Exam</th>
+                      <th scope="col">Pass rate</th>
+                      <th scope="col">Average</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {examPass.slice(-6).map((exam) => (
+                      <tr key={exam.examId}>
+                        <td data-label="Exam">{exam.label || exam.name}</td>
+                        <td data-label="Pass rate" className="tabular-nums">
+                          {exam.passRate != null ? `${exam.passRate}%` : "—"}
+                        </td>
+                        <td data-label="Average" className="tabular-nums">
+                          {exam.average != null ? `${exam.average}%` : "—"}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             )}
+          </Panel>
+        </div>
 
-            <div className="grid lg:grid-cols-12 gap-4 mb-4">
-              <Panel
-                className="lg:col-span-7"
-                title="Mark-band distribution"
-                action={
-                  <Link className="text-xs underline text-ink-700/60" to="/analysis/deep?tab=outcomes">
-                    Distinction & fail lists
-                  </Link>
-                }
-              >
-                {data.markBands?.length ? (
-                  <ResponsiveContainer width="100%" height={200}>
-                    <BarChart data={data.markBands}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
-                      <XAxis dataKey="key" tick={{ fontSize: 11 }} />
-                      <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
-                      <Tooltip content={<ChartTooltip />} />
-                      <Bar dataKey="count" name="Marks" fill="#1b2437" radius={[4, 4, 0, 0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <EmptyNote>{detailLoading ? "Loading mark bands…" : "No scored marks to band yet."}</EmptyNote>
-                )}
-              </Panel>
-              <Panel className="lg:col-span-5" title="Outcomes">
-                {data.outcomes ? (
-                  <div className="space-y-3">
-                    <OutcomeRow label="Scored" value={data.outcomes.rates?.scored} />
-                    <OutcomeRow label="Absent" value={data.outcomes.rates?.absent} />
-                    <OutcomeRow label="Exempt" value={data.outcomes.rates?.exempt} />
-                    <OutcomeRow label="Withheld" value={data.outcomes.rates?.withheld} />
-                    {outcomeTotal > 0 && (
-                      <div className="pt-3 mt-1 border-t border-ink-900/10 text-xs text-ink-700/55">
-                        <span className="font-medium text-ink-900 tabular-nums">
-                          {data.outcomes.SCORED ?? 0}/{outcomeTotal}
-                        </span>{" "}
-                        registered marks
-                      </div>
-                    )}
-                  </div>
-                ) : (
-                  <EmptyNote>{detailLoading ? "Loading outcomes…" : "No outcome data yet."}</EmptyNote>
-                )}
-              </Panel>
-            </div>
+        <CurricularPerformanceHub
+          classWise={data.classWise || []}
+          sections={sections}
+          subjectWise={data.subjectWise || []}
+          teachers={teachers}
+          schoolAverage={data.kpis?.schoolAverage}
+          detailLoading={detailLoading}
+        />
 
-            <div className="mb-4">
-              <YearComparison series={data.yearComparison} title="Same exam type versus previous years" />
-            </div>
+        <div className="grid lg:grid-cols-12 gap-4 mb-4">
+          <Panel className="lg:col-span-7" title="Grade mix">
+            <p className="mb-3 text-xs text-ink-700/60">Number of students in each grade for this exam.</p>
+            {grades.length ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={grades}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
+                  <XAxis dataKey="grade" tick={{ fontSize: 12 }} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="count" name="Students" radius={[4, 4, 0, 0]}>
+                    {grades.map((grade) => (
+                      <Cell key={grade.grade} fill={GRADE_COLORS[grade.grade] || "#1b2437"} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyNote>{detailLoading ? "Loading grade mix…" : "No grade distribution yet."}</EmptyNote>
+            )}
+          </Panel>
+          <Panel
+            className="lg:col-span-5"
+            title="Mark outcomes"
+            action={
+              <Link className="text-xs underline text-ink-700/60" to="/analysis/deep?tab=outcomes">
+                Distinction and fail lists
+              </Link>
+            }
+          >
+            {data.outcomes ? (
+              <div className="scroll-x">
+                <table className="table table-cards w-full">
+                  <thead>
+                    <tr>
+                      <th scope="col">Outcome</th>
+                      <th scope="col">Count</th>
+                      <th scope="col">Share</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {OUTCOME_ROWS.map(([key, rateKey, label, meaning]) => (
+                      <tr key={key}>
+                        <td data-label="Outcome">
+                          <div className="min-w-0 text-right sm:text-left">
+                            <div className="font-medium">{label}</div>
+                            <div className="text-xs text-ink-700/55">{meaning}</div>
+                          </div>
+                        </td>
+                        <td data-label="Count" className="tabular-nums">
+                          {data.outcomes[key] ?? 0}
+                        </td>
+                        <td data-label="Share" className="tabular-nums">
+                          {data.outcomes.rates?.[rateKey] ?? 0}%
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ) : (
+              <EmptyNote>{detailLoading ? "Loading outcomes…" : "No outcome data yet."}</EmptyNote>
+            )}
+          </Panel>
+        </div>
 
-            <div className="grid lg:grid-cols-2 gap-4">
-              <Panel
-                title="School toppers"
-                action={
-                  <Link className="text-xs underline text-ink-700/60" to="/analysis/students">
-                    All students
-                  </Link>
-                }
-              >
-                {toppers.slice(0, 8).map((s) => (
-                  <RankRow
-                    key={s.studentId}
-                    rank={s.rank}
-                    name={s.name}
-                    meta={s.classLabel}
-                    value={`${s.average}%`}
-                    grade={s.grade}
-                    to={paths.student(s.studentId)}
-                  />
-                ))}
-                {!toppers.length && (
-                  <EmptyNote>{detailLoading ? "Loading rankings…" : "No toppers for this exam yet."}</EmptyNote>
-                )}
-              </Panel>
-              <Panel
-                title="Teacher leaderboard"
-                action={
-                  <Link className="text-xs underline text-ink-700/60" to="/analysis/teachers">
-                    By teacher
-                  </Link>
-                }
-              >
-                {teachers.slice(0, 8).map((row, i) => (
-                  <Link
-                    key={`${row.teacher}-${row.classLabel}-${row.subject}`}
-                    to={row.teacherId ? paths.teacher(row.teacherId) : "/analysis/teachers"}
-                    className="block py-2.5 border-t border-ink-900/10 first:border-0 hover:bg-white/40 -mx-1 px-1 rounded"
-                  >
-                    <div className="flex items-center justify-between text-sm mb-1.5 gap-2">
-                      <div className="min-w-0">
-                        <span className="text-ink-700/40 text-xs mr-2">{i + 1}</span>
-                        <span className="font-medium">{row.teacher}</span>
-                        <span className="text-ink-700/50 text-xs ml-2">
-                          {row.subject} · {row.classLabel}
-                        </span>
-                      </div>
-                      <span className="tabular-nums shrink-0">{row.average}%</span>
-                    </div>
-                    <BarTrack value={row.average} color="#1b2437" />
-                  </Link>
-                ))}
-                {!teachers.length && (
-                  <EmptyNote>
-                    {detailLoading ? "Loading rankings…" : "No teacher averages for this exam yet."}
-                  </EmptyNote>
-                )}
-              </Panel>
-            </div>
-          </div>
-        )}
-      </div>
+        <div className="mb-4">
+          <Panel title="Mark bands">
+            <p className="mb-3 text-xs text-ink-700/60">
+              Count of scored marks in each percent band. 90–100 is the top band.
+            </p>
+            {data.markBands?.length ? (
+              <ResponsiveContainer width="100%" height={200}>
+                <BarChart data={data.markBands}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#e5ddd0" />
+                  <XAxis dataKey="key" tick={{ fontSize: 11 }} interval="preserveStartEnd" />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 12 }} width={28} />
+                  <Tooltip content={<ChartTooltip />} />
+                  <Bar dataKey="count" name="Marks" fill="#1b2437" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <EmptyNote>{detailLoading ? "Loading mark bands…" : "No scored marks to band yet."}</EmptyNote>
+            )}
+          </Panel>
+        </div>
+
+        <div className="mb-4">
+          <YearComparison series={data.yearComparison} title="Same exam type versus previous years" />
+        </div>
+
+        <div className="grid lg:grid-cols-2 gap-4 mb-4">
+          <Panel
+            title="Students below the pass mark"
+            action={
+              <Link className="text-xs underline text-ink-700/60" to="/analysis/students">
+                All students
+              </Link>
+            }
+          >
+            <p className="mb-3 text-xs leading-relaxed text-ink-700/60">
+              Lowest averages under {passPercent}%. This list shows up to 15 students.
+            </p>
+            {!Array.isArray(data.atRisk) ? (
+              <EmptyNote>
+                {detailLoading ? "Loading students below the pass mark…" : "Student averages are not available yet."}
+              </EmptyNote>
+            ) : atRisk.length === 0 ? (
+              <EmptyNote>No student average is below the pass mark of {passPercent}%.</EmptyNote>
+            ) : (
+              <StudentAverageTable rows={atRisk} />
+            )}
+          </Panel>
+          <Panel
+            title="Highest student averages"
+            action={
+              <Link className="text-xs underline text-ink-700/60" to="/analysis/students">
+                All students
+              </Link>
+            }
+          >
+            <p className="mb-3 text-xs leading-relaxed text-ink-700/60">
+              Rank 1 has the highest average of scored marks for this exam.
+            </p>
+            {!Array.isArray(data.toppers) ? (
+              <EmptyNote>{detailLoading ? "Loading highest averages…" : "Student averages are not available yet."}</EmptyNote>
+            ) : toppers.length === 0 ? (
+              <EmptyNote>No student averages for this exam yet.</EmptyNote>
+            ) : (
+              <StudentAverageTable rows={toppers.slice(0, 8)} showRank />
+            )}
+          </Panel>
+        </div>
+
+        <Panel
+          title="Teacher paper averages"
+          action={
+            <Link className="text-xs underline text-ink-700/60" to="/analysis/teachers">
+              All teachers
+            </Link>
+          }
+        >
+          <p className="mb-3 text-xs leading-relaxed text-ink-700/60">
+            Each row is one class and subject. The average is scored marks on that paper. It is not a ranking of
+            teaching quality.
+          </p>
+          {teachers.length ? (
+            <TeacherPaperTable rows={teachers.slice(0, 12)} />
+          ) : (
+            <EmptyNote>
+              {detailLoading ? "Loading teacher averages…" : "No teacher averages for this exam yet."}
+            </EmptyNote>
+          )}
+        </Panel>
+      </section>
 
       {notify && (
         <NotifyTeachersDialog
           {...notify}
           onClose={() => setNotify(null)}
           onSent={(result) => {
-            const n = result.sent ?? 0;
-            if (n) toast.success(`Notified ${n} teacher${n === 1 ? "" : "s"}.`);
-            else toast.info("No new notices sent.");
+            const sent = result.sent ?? 0;
+            if (sent) toast.success(`Reminder sent to ${sent} teacher${sent === 1 ? "" : "s"}.`);
+            else toast.info("No new reminders sent.");
           }}
         />
       )}
     </div>
   );
+}
+
+function deltaFromPoints(current, previous) {
+  if (current == null || previous == null) return null;
+  const diff = Math.round((current - previous) * 10) / 10;
+  if (diff === 0) return { text: "Same as the previous exam", tone: "flat" };
+  const sign = diff > 0 ? "+" : "";
+  return {
+    text: `${sign}${diff} points vs the previous exam`,
+    tone: diff > 0 ? "up" : "down",
+  };
 }

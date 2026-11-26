@@ -12,7 +12,10 @@ export const GRADE_COLORS = {
 };
 
 export function firstName(name = "") {
-  return name.replace(/^Dr\.\s+/i, "").split(" ")[0] || name;
+  const cleaned = String(name)
+    .replace(/^(dr|mr|mrs|ms|miss|prof)\.?\s+/i, "")
+    .trim();
+  return cleaned.split(/\s+/)[0] || String(name || "");
 }
 
 export function greeting(name) {

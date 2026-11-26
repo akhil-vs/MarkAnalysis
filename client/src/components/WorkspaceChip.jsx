@@ -48,13 +48,14 @@ export default function WorkspaceChip({ compact = false, tone = "dark" }) {
       </label>
       {leadership && (
         <label className={labelCls}>
-          <span className="shrink-0">Section</span>
+          <span className="shrink-0">Level</span>
           <select
             className={selectCls.replace("max-w-[11rem]", "max-w-[9rem]")}
             value={schoolSection || "ALL"}
             disabled={loading}
             onChange={(e) => setSchoolSection(e.target.value)}
-            aria-label="School section"
+            aria-label="School level"
+            title="Primary is classes 1–5, Secondary 6–10, Senior secondary 11–12. Not a single division such as 6-A."
           >
             {SCHOOL_SECTIONS.map((s) => (
               <option key={s.id} value={s.id}>

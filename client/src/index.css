@@ -146,6 +146,19 @@ body {
   @apply inline-block w-auto max-w-full min-w-[7.5rem] shrink-0 rounded-lg border border-ink-900/15 bg-white px-2.5 py-2 text-sm outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-500/20 min-h-[2.5rem] sm:min-h-0 sm:py-1.5;
 }
 
+/* Full-width on phones, intrinsic width from `sm` up. Declared after .field-filter so it wins. */
+.field-filter-grow {
+  width: 100%;
+  max-width: 100%;
+}
+
+@media (min-width: 640px) {
+  .field-filter-grow {
+    width: auto;
+    min-width: 16rem;
+  }
+}
+
 .field-search {
   @apply w-full max-w-none min-w-0 rounded-lg border border-ink-900/15 bg-white px-2.5 py-2 text-sm outline-none focus:border-clay-500 focus:ring-2 focus:ring-clay-500/20 min-h-[2.5rem] sm:w-56 sm:max-w-none sm:flex-none sm:min-h-0 sm:py-1.5;
 }
