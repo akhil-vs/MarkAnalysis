@@ -3,6 +3,7 @@ import { Link, Navigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { api, setSessionHint, setToken } from "../api.js";
 import { FieldError } from "../components/FieldError.jsx";
+import { PasswordField } from "../components/PasswordField.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
 import { SHOW_PUBLIC_REGISTRATION } from "../lib/publicAccess.js";
@@ -102,8 +103,15 @@ export default function RegisterSchool() {
           <input className="field" type="email" required autoComplete="email" value={form.email} onChange={(e) => set("email", e.target.value)} />
         </div>
         <div>
-          <label className="label">Password</label>
-          <input className="field" type="password" required minLength={10} autoComplete="new-password" value={form.password} onChange={(e) => set("password", e.target.value)} />
+          <label className="label" htmlFor="register-password">Password</label>
+          <PasswordField
+            id="register-password"
+            required
+            minLength={10}
+            autoComplete="new-password"
+            value={form.password}
+            onChange={(value) => set("password", value)}
+          />
         </div>
         {error && <FieldError message={error} />}
         <button className="btn-primary w-full" disabled={busy}>
