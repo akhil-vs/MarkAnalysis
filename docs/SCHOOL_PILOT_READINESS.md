@@ -1,6 +1,6 @@
 # School pilot readiness — branding & go-live
 
-Assessment for approaching schools on a **test / pilot** basis with School Marks Analytics (PencilLabs).
+Assessment for approaching schools on a **test / pilot** basis with TermLens (PencilLabs).
 
 ## Verdict
 
@@ -31,7 +31,7 @@ Product, security, and ops foundations are in place. Public registration and pri
 
 ### Gaps to watch when pitching
 
-1. **Name length** — Use **School Marks Analytics** in outreach and the first viewport; **Marks Analytics** is fine in tight chrome.
+1. **Name** — Use **TermLens** in outreach, the first viewport, and tight chrome.
 2. **Generic product stage** — The landing mock (“Final Exam · 2025-26”) is illustrative; for a live demo, prefer the seeded Greenfield campus or the prospect’s provisioned school.
 3. **Trust links** — Privacy and pilot request must stay linked from the public footer before sending principals to the site.
 4. **No open pricing** — Correct for test outreach; if a principal asks “what does it cost?”, use the leave-behind / conversation, not the disabled plans section.
@@ -39,7 +39,7 @@ Product, security, and ops foundations are in place. Public registration and pri
 
 ### Brand checklist before a campus visit
 
-- [ ] Browser tab title and favicon show School Marks Analytics
+- [ ] Browser tab title and favicon show TermLens
 - [ ] Landing hero shows the full product name + one tagline + Sign in / Request pilot
 - [ ] School profile logo/name set on the pilot campus before showing PDF/Excel outputs
 - [ ] Pitch deck + leave-behind printed or attached (`docs/pitch/`)

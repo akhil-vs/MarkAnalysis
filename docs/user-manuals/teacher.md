@@ -1,6 +1,6 @@
 # Teacher user manual
 
-School Marks Analytics — guide for the **Teacher** role.
+TermLens — guide for the **Teacher** role.
 
 Teachers enter and submit marks for assigned papers, request leave, respond to leadership notices, review their own class analytics, upload photos for their classes, and (if they are a **class teacher**) download consolidated lists for their section when every paper is approved.
 

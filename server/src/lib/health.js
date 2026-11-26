@@ -1,3 +1,4 @@
+import { SERVICE_NAME } from "./branding.js";
 import { prisma } from "./prisma.js";
 import { getLastSchemaBootstrap } from "./migrateOnStart.js";
 import { runWithoutTenant } from "./tenant.js";
@@ -72,7 +73,7 @@ export async function buildHealthPayload({
 } = {}) {
   const payload = {
     ok: true,
-    service: "school-marks-api",
+    service: SERVICE_NAME,
     version: process.env.npm_package_version || "1.0.0",
     uptimeSec: Math.round(process.uptime()),
     bootAgeSec: Math.round((Date.now() - bootStartedAt) / 1000),

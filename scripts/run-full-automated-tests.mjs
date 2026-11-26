@@ -11,6 +11,7 @@ import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { PRODUCT_NAME } from "../server/src/lib/branding.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -386,7 +387,7 @@ async function main() {
   const overallPass = suites.every((s) => s.exitCode === 0) && totals.fail === 0;
 
   const report = {
-    title: "School Marks Analytics — Automated Test Report (All User Types)",
+    title: `${PRODUCT_NAME} — Automated Test Report (All User Types)`,
     generatedAt: finishedAt,
     startedAt,
     stamp,

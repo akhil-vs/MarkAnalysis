@@ -1,3 +1,4 @@
+import { PRODUCT_NAME } from "./branding.js";
 import { prisma } from "./prisma.js";
 import { ensurePendingSchema } from "./ensureSchema.js";
 import { newJoinCode, slugifySchoolName } from "./schoolIdentity.js";
@@ -88,8 +89,8 @@ export function formatSchoolAddress(profile) {
 }
 
 export function schoolHeaderLines(profile) {
-  if (!profile) return ["School Marks Analytics"];
-  const lines = [profile.name || "School Marks Analytics"];
+  if (!profile) return [PRODUCT_NAME];
+  const lines = [profile.name || PRODUCT_NAME];
   if (profile.motto) lines.push(String(profile.motto).trim());
   const meta = [
     profile.board ? `Affiliated to ${profile.board}` : null,
@@ -118,7 +119,7 @@ async function resolveLogoBuffer(profile) {
 export async function buildLetterhead(profile) {
   if (!profile) {
     return {
-      name: "School Marks Analytics",
+      name: PRODUCT_NAME,
       motto: null,
       affiliationLine: null,
       addressLine: null,
@@ -130,7 +131,7 @@ export async function buildLetterhead(profile) {
   }
   const logo = await resolveLogoBuffer(profile);
   return {
-    name: profile.name || "School Marks Analytics",
+    name: profile.name || PRODUCT_NAME,
     motto: profile.motto ? String(profile.motto).trim() : null,
     affiliationLine:
       [

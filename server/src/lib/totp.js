@@ -1,4 +1,5 @@
 import { createHmac, randomBytes, timingSafeEqual } from "node:crypto";
+import { PRODUCT_NAME } from "./branding.js";
 
 const BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
 
@@ -77,7 +78,7 @@ export function verifyTotp(secret, token, { window = 1, step = 30, digits = 6, n
   return false;
 }
 
-export function totpAuthUrl({ secret, accountName, issuer = "School Marks Analytics" }) {
+export function totpAuthUrl({ secret, accountName, issuer = PRODUCT_NAME }) {
   const label = encodeURIComponent(`${issuer}:${accountName}`);
   const params = new URLSearchParams({
     secret,

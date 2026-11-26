@@ -1,10 +1,11 @@
 /**
- * Generates docs/pitch/School-Marks-Analytics-Principal-Pitch.pptx
+ * Generates docs/pitch/TermLens-Principal-Pitch.pptx
  * Run: node scripts/generate-principal-pitch-pptx.mjs
  */
 import PptxGenJS from "pptxgenjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { PRODUCT_NAME } from "../server/src/lib/branding.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outPath = path.join(
@@ -12,7 +13,7 @@ const outPath = path.join(
   "..",
   "docs",
   "pitch",
-  "School-Marks-Analytics-Principal-Pitch.pptx",
+  "TermLens-Principal-Pitch.pptx",
 );
 
 const COLORS = {
@@ -35,12 +36,12 @@ const pptx = new PptxGenJS();
 pptx.defineLayout({ name: "PITCH_WIDE", width: 13.333, height: 7.5 });
 pptx.layout = "PITCH_WIDE";
 pptx.author = "PencilLabs";
-pptx.title = "School Marks Analytics — Principal Meeting Pitch";
+pptx.title = `${PRODUCT_NAME} — Principal Meeting Pitch`;
 pptx.subject = "Principal briefing for school adoption";
 
 function addFooter(slide, page, total = 8, dark = false) {
   const ink = dark ? "C8D0D8" : COLORS.muted;
-  slide.addText("School Marks Analytics · PencilLabs", {
+  slide.addText(`${PRODUCT_NAME} · PencilLabs`, {
     x: 0.5,
     y: 7.1,
     w: 8,
@@ -275,7 +276,7 @@ function panel(slide, { x, y, w, h, fill = COLORS.white, line = COLORS.line }) {
     h: 7.5,
     fill: { color: COLORS.paper },
   });
-  kicker(s, "School Marks Analytics");
+  kicker(s, PRODUCT_NAME);
   s.addText("One controlled workflow from draft to official.", {
     x: 0.7,
     y: 0.85,

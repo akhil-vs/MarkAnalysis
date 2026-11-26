@@ -1,4 +1,4 @@
-# Feature backlog — School Marks Analytics
+# Feature backlog — TermLens
 
 Shipped in the implementation-order pass: absent/exempt/withheld codes, class-teacher read access, school profile on PDFs, student promotion with academic-year enrollments, principal password reset, and CI (unit tests + client build).
 

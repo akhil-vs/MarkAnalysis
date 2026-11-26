@@ -4,7 +4,7 @@ Professional materials for a **30–45 minute** conversation with a school princ
 
 | File | Use |
 |---|---|
-| [`School-Marks-Analytics-Principal-Pitch.pptx`](./School-Marks-Analytics-Principal-Pitch.pptx) | **Downloadable PowerPoint** (8 slides) for meetings and email attachments |
+| [`TermLens-Principal-Pitch.pptx`](./TermLens-Principal-Pitch.pptx) | **Downloadable PowerPoint** (8 slides) for meetings and email attachments |
 | [`principal-meeting-presentation.html`](./principal-meeting-presentation.html) | Interactive browser deck (same narrative) |
 | [`principal-outreach-email.md`](./principal-outreach-email.md) | Cold outreach + thank-you + post-provision drafts |
 | [`principal-leave-behind.md`](./principal-leave-behind.md) | One-page summary / pilot checklist to leave or attach |
