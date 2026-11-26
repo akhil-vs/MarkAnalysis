@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { BarTrack, EmptyNote, Panel } from "./DashboardKit.jsx";
+import { EmptyNote, Panel } from "./DashboardKit.jsx";
+import { PaginatedTable } from "./PaginatedTable.jsx";
 import { TableToolbar } from "./TableToolbar.jsx";
 import {
   HUB_TABS,
@@ -13,20 +14,26 @@ import { paths } from "../lib/nav.js";
 
 export { HUB_TABS, SORT_OPTIONS, benchmarkStatus, filterHubRows, sortHubRows };
 
-function StatusPill({ status }) {
-  const tone =
-    status.tone === "up"
-      ? "bg-moss-500/12 text-moss-600 border-moss-500/25"
-      : status.tone === "warn"
-        ? "bg-[#b06a1a]/12 text-[#8a5214] border-[#b06a1a]/25"
-        : status.tone === "down"
-          ? "bg-clay-500/12 text-clay-600 border-clay-500/25"
-          : "bg-ink-900/5 text-ink-700/60 border-ink-900/10";
-  return (
-    <span className={`inline-flex items-center rounded-md border px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${tone}`}>
-      {status.text}
-    </span>
-  );
+const TAB_HELP = {
+  class: "One row per class, with every division combined. Class 6 includes 6-A, 6-B, and the rest.",
+  division: "One row per division, such as 6-A. A division is a class section, not the school level at the top of the page.",
+  subject: "One row per subject for the school level selected at the top of the page.",
+};
+
+function comparedWithAverage(average, schoolAverage) {
+  if (average == null || Number.isNaN(Number(average))) {
+    return { text: "Not scored yet", tone: "flat" };
+  }
+  if (schoolAverage == null || Number.isNaN(Number(schoolAverage))) {
+    return { text: "School average not ready", tone: "flat" };
+  }
+  const diff = Math.round((Number(average) - Number(schoolAverage)) * 10) / 10;
+  if (diff === 0) return { text: "Same as the school average", tone: "flat" };
+  const sign = diff > 0 ? "+" : "−";
+  return {
+    text: `${sign}${Math.abs(diff)} points`,
+    tone: diff > 0 ? "up" : "down",
+  };
 }
 
 function SegmentedControl({ value, onChange, tabs }) {
@@ -34,7 +41,7 @@ function SegmentedControl({ value, onChange, tabs }) {
     <div
       role="tablist"
       aria-label="Curricular performance view"
-      className="inline-flex flex-wrap rounded-lg border border-ink-900/12 bg-paper/70 p-1 gap-0.5"
+      className="inline-flex max-w-full flex-wrap rounded-lg border border-ink-900/12 bg-paper/70 p-1 gap-0.5"
     >
       {tabs.map((tab) => {
         const active = value === tab.id;
@@ -59,100 +66,12 @@ function SegmentedControl({ value, onChange, tabs }) {
   );
 }
 
-function MetricCard({ to, title, average, passRate, enrollment, status, meta }) {
-  const body = (
-    <div className="h-full rounded-xl border border-ink-900/10 bg-white/55 p-3.5 sm:p-4 transition group-hover:border-moss-500/40 group-hover:bg-white/80">
-      <div className="flex items-start justify-between gap-2 mb-3">
-        <div className="min-w-0">
-          <div className="font-serif text-lg leading-tight truncate group-hover:underline">{title}</div>
-          {meta && <div className="mt-0.5 text-[11px] text-ink-700/50 truncate">{meta}</div>}
-        </div>
-        <StatusPill status={status} />
-      </div>
-      <div className="mb-2.5">
-        <div className="flex items-baseline justify-between gap-2 text-sm mb-1.5">
-          <span className="text-ink-700/60">Cohort average</span>
-          <span className="tabular-nums font-semibold text-ink-900">{average != null ? `${average}%` : "—"}</span>
-        </div>
-        <BarTrack value={average} color="#3d6b4f" />
-      </div>
-      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-ink-900/8">
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-ink-700/45">Pass rate</div>
-          <div className="mt-0.5 text-sm tabular-nums font-medium">{passRate != null ? `${passRate}%` : "—"}</div>
-        </div>
-        <div>
-          <div className="text-[10px] uppercase tracking-wider text-ink-700/45">Students</div>
-          <div className="mt-0.5 text-sm tabular-nums font-medium">{enrollment != null ? enrollment : "—"}</div>
-        </div>
-      </div>
-    </div>
-  );
-  return to ? (
-    <Link to={to} className="block group h-full">
-      {body}
-    </Link>
-  ) : (
-    <div className="h-full">{body}</div>
-  );
-}
-
-function DivisionRow({ row }) {
-  return (
-    <Link
-      to={row.to}
-      className="flex items-center gap-3 rounded-lg border border-ink-900/8 bg-white/45 px-3 py-2.5 hover:bg-white/80 hover:border-moss-500/30 transition group"
-    >
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2 flex-wrap">
-          <span className="text-sm font-medium group-hover:underline truncate">{row.label}</span>
-          <StatusPill status={row.status} />
-        </div>
-        <div className="mt-1.5">
-          <BarTrack value={row.average} color="#3d6b4f" />
-        </div>
-      </div>
-      <div className="shrink-0 text-right">
-        <div className="text-sm tabular-nums font-semibold">{row.average != null ? `${row.average}%` : "—"}</div>
-        <div className="text-[11px] text-ink-700/50 tabular-nums">
-          {row.passRate != null ? `${row.passRate}% pass` : "—"} · {row.enrollment ?? "—"}
-        </div>
-      </div>
-    </Link>
-  );
-}
-
-function SubjectRow({ row }) {
-  return (
-    <Link
-      to={row.to}
-      className="block rounded-lg border border-ink-900/8 bg-white/45 px-3 py-2.5 hover:bg-white/80 hover:border-moss-500/30 transition group"
-    >
-      <div className="flex items-start justify-between gap-3 mb-1.5">
-        <div className="min-w-0">
-          <div className="text-sm font-medium group-hover:underline truncate">{row.label}</div>
-          {row.meta && <div className="text-[11px] text-ink-700/50 truncate mt-0.5">{row.meta}</div>}
-        </div>
-        <div className="shrink-0 text-right">
-          <div className="text-sm tabular-nums font-semibold">{row.average != null ? `${row.average}%` : "—"}</div>
-          <div className="text-[11px] text-ink-700/50 tabular-nums">
-            {row.passRate != null ? `${row.passRate}% pass` : "—"}
-          </div>
-        </div>
-      </div>
-      <div className="flex items-center gap-3">
-        <div className="flex-1 min-w-0">
-          <BarTrack value={row.average} />
-        </div>
-        <StatusPill status={row.status} />
-      </div>
-    </Link>
-  );
+function percent(value) {
+  return value != null && value !== "" ? `${value}%` : "—";
 }
 
 /**
- * Unified Class / Division / Subject viewport for the Principal desk.
- * Replaces stacked progress-bar lists with a segmented modular hub.
+ * Class, division, and subject results for the principal desk.
  */
 export default function CurricularPerformanceHub({
   classWise = [],
@@ -179,49 +98,49 @@ export default function CurricularPerformanceHub({
 
   const classRows = useMemo(
     () =>
-      (classWise || []).map((s) => ({
-        id: s.className,
-        label: s.label || `Class ${s.className}`,
-        average: s.average,
-        passRate: s.passRate,
-        enrollment: s.studentCount,
-        status: benchmarkStatus(s.average, schoolAverage),
-        meta: s.sectionCount != null ? `${s.sectionCount} division${s.sectionCount === 1 ? "" : "s"}` : undefined,
-        to: paths.classGroup(s.className),
-        searchText: [s.label, s.className, "class"].filter(Boolean).join(" "),
+      (classWise || []).map((row) => ({
+        id: row.className,
+        label: row.label || `Class ${row.className}`,
+        average: row.average,
+        passRate: row.passRate,
+        enrollment: row.studentCount,
+        sectionCount: row.sectionCount,
+        status: benchmarkStatus(row.average, schoolAverage),
+        to: paths.classGroup(row.className),
+        searchText: [row.label, row.className, "class"].filter(Boolean).join(" "),
       })),
     [classWise, schoolAverage]
   );
 
   const divisionRows = useMemo(
     () =>
-      (sections || []).map((s) => ({
-        id: s.id,
-        label: s.label,
-        average: s.average,
-        passRate: s.passRate,
-        enrollment: s.studentCount,
-        status: benchmarkStatus(s.average, schoolAverage),
-        to: paths.classSection(s.id),
-        searchText: [s.label, s.className, s.section].filter(Boolean).join(" "),
+      (sections || []).map((row) => ({
+        id: row.id,
+        label: row.label,
+        average: row.average,
+        passRate: row.passRate,
+        enrollment: row.studentCount,
+        status: benchmarkStatus(row.average, schoolAverage),
+        to: paths.classSection(row.id),
+        searchText: [row.label, row.className, row.section].filter(Boolean).join(" "),
       })),
     [sections, schoolAverage]
   );
 
   const subjectRows = useMemo(
     () =>
-      (subjectWise || []).map((s) => {
-        const faculty = [...(facultyBySubject.get(s.name) || [])];
+      (subjectWise || []).map((row) => {
+        const faculty = [...(facultyBySubject.get(row.name) || [])];
         return {
-          id: s.name,
-          label: s.name,
-          average: s.average,
-          passRate: s.passRate,
-          enrollment: s.count,
-          status: benchmarkStatus(s.average, schoolAverage),
-          meta: faculty.length ? faculty.slice(0, 3).join(" · ") : undefined,
-          to: paths.subjectByName(s.name),
-          searchText: [s.name, ...faculty].filter(Boolean).join(" "),
+          id: row.name,
+          label: row.name,
+          average: row.average,
+          passRate: row.passRate,
+          enrollment: row.count,
+          faculty,
+          status: benchmarkStatus(row.average, schoolAverage),
+          to: paths.subjectByName(row.name),
+          searchText: [row.name, ...faculty].filter(Boolean).join(" "),
         };
       }),
     [subjectWise, schoolAverage, facultyBySubject]
@@ -253,19 +172,20 @@ export default function CurricularPerformanceHub({
       </Link>
     ) : null;
 
+  const nameHeader = tab === "class" ? "Class" : tab === "division" ? "Division" : "Subject";
+  const countHeader = tab === "class" ? "Divisions" : tab === "subject" ? "Scored marks" : "Students";
+
   return (
     <Panel className="mb-4" title="Curricular performance" action={moreLink}>
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between mb-4">
+      <div className="mb-4 flex flex-col gap-3">
         <SegmentedControl value={tab} onChange={setTab} tabs={HUB_TABS} />
-        <p className="text-xs text-ink-700/55 sm:text-right max-w-sm">
-          Compare standards, divisions, and subjects against the school average without scrolling stacked lists.
-        </p>
+        <p className="max-w-3xl text-xs leading-relaxed text-ink-700/60">{TAB_HELP[tab]}</p>
       </div>
 
       <TableToolbar
         q={query}
         setQ={setQuery}
-        placeholder="Search standard, division, or faculty…"
+        placeholder="Search this table"
         matched={visible.length}
         total={sourceRows.length}
         className="mb-4"
@@ -275,7 +195,7 @@ export default function CurricularPerformanceHub({
           <select
             className="field-filter !min-w-[9.5rem]"
             value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
+            onChange={(event) => setSortBy(event.target.value)}
             aria-label="Sort curricular rows"
           >
             {SORT_OPTIONS.map((opt) => (
@@ -291,33 +211,72 @@ export default function CurricularPerformanceHub({
         <EmptyNote>{emptyMessage}</EmptyNote>
       ) : !visible.length ? (
         <EmptyNote>No matches for “{query.trim()}”.</EmptyNote>
-      ) : tab === "class" ? (
-        <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-3">
-          {visible.map((row) => (
-            <MetricCard
-              key={row.id}
-              to={row.to}
-              title={row.label}
-              average={row.average}
-              passRate={row.passRate}
-              enrollment={row.enrollment}
-              status={row.status}
-              meta={row.meta}
-            />
-          ))}
-        </div>
-      ) : tab === "division" ? (
-        <div className="grid sm:grid-cols-2 gap-2.5">
-          {visible.map((row) => (
-            <DivisionRow key={row.id} row={row} />
-          ))}
-        </div>
       ) : (
-        <div className="grid sm:grid-cols-2 gap-2.5">
-          {visible.map((row) => (
-            <SubjectRow key={row.id} row={row} />
-          ))}
-        </div>
+        <PaginatedTable
+          items={visible}
+          pageSize={12}
+          resetKey={`${tab}|${query}|${sortBy}`}
+          itemLabel="rows"
+          empty="No rows in this view."
+        >
+          {(rows) => (
+            <table className="table table-cards w-full">
+              <thead>
+                <tr>
+                  <th scope="col">{nameHeader}</th>
+                  {tab === "class" && <th scope="col">Divisions</th>}
+                  {tab === "subject" && <th scope="col">Teachers</th>}
+                  <th scope="col">{tab === "class" ? "Students" : countHeader}</th>
+                  <th scope="col">Average</th>
+                  <th scope="col">Pass rate</th>
+                  <th scope="col">Vs school average</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => {
+                  const versus = comparedWithAverage(row.average, schoolAverage);
+                  const versusClass =
+                    versus.tone === "up" ? "text-moss-600" : versus.tone === "down" ? "text-clay-600" : "text-ink-700/70";
+                  return (
+                    <tr key={row.id}>
+                      <td data-label={nameHeader} className="align-top">
+                        {row.to ? (
+                          <Link className="font-medium hover:underline" to={row.to}>
+                            {row.label}
+                          </Link>
+                        ) : (
+                          <span className="font-medium">{row.label}</span>
+                        )}
+                      </td>
+                      {tab === "class" && (
+                        <td data-label="Divisions" className="align-top tabular-nums">
+                          {row.sectionCount ?? "—"}
+                        </td>
+                      )}
+                      {tab === "subject" && (
+                        <td data-label="Teachers" className="align-top break-words">
+                          {row.faculty?.length ? row.faculty.join(", ") : "—"}
+                        </td>
+                      )}
+                      <td data-label={tab === "class" ? "Students" : countHeader} className="align-top tabular-nums">
+                        {row.enrollment ?? "—"}
+                      </td>
+                      <td data-label="Average" className="align-top tabular-nums">
+                        {percent(row.average)}
+                      </td>
+                      <td data-label="Pass rate" className="align-top tabular-nums">
+                        {percent(row.passRate)}
+                      </td>
+                      <td data-label="Vs school average" className={`align-top ${versusClass}`}>
+                        {versus.text}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          )}
+        </PaginatedTable>
       )}
     </Panel>
   );

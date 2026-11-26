@@ -9,8 +9,8 @@ export const PAGE_HELP = {
   },
   dashboardPrincipal: {
     title: "What's on this page",
-    about: "Ops-first principal desk for the selected exam: approvals inbox, needs attention / notify, then a School snapshot of averages, grade mix, and rankings.",
-    useful: "Clear the exam queue first, then open School snapshot or Deep insights for briefing numbers.",
+    about: "Principal desk for one working exam and one school level: headline results, a table of open registers, and submitted marks or access requests waiting on you.",
+    useful: "Set the working exam and school level at the top. Remind teachers whose registers are not submitted, approve marks that are waiting, then read the results tables.",
   },
   dashboardCoordinator: {
     title: "What's on this page",

@@ -12,7 +12,7 @@ import { paths } from "../lib/nav.js";
  * Cross-exam submitted marks waiting for leadership approval.
  * Approve in place — no need to pick exam/class first.
  */
-export default function PendingSubmittedApprovals({ className = "", limit = 8 }) {
+export default function PendingSubmittedApprovals({ className = "", limit = 8, emptyMode }) {
   const { optimistic } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
@@ -74,17 +74,39 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
 
   const list = rows || [];
   const shown = list.slice(0, limit);
+  const queueLink = (
+    <Link className="text-sm underline text-ink-700/70 shrink-0" to={paths.approvals()}>
+      {list.length ? `View all (${list.length})` : "Open exam queue"}
+    </Link>
+  );
+
+  if (emptyMode === "line" && (rows == null || shown.length === 0)) {
+    return (
+      <div className="flex flex-col gap-2 rounded-xl border border-ink-900/10 bg-white/50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-4">
+        <p className="text-sm text-ink-800">
+          <span className="font-medium">Submitted marks. </span>
+          {rows == null ? (
+            <span className="text-ink-700/70">Checking every exam…</span>
+          ) : error ? (
+            <span className="text-clay-600">{error}</span>
+          ) : (
+            <span className="text-ink-700/70">None waiting on any exam.</span>
+          )}
+        </p>
+        {queueLink}
+      </div>
+    );
+  }
 
   return (
     <Panel
       className={className}
       title="Submitted marks to approve"
-      action={
-        <Link className="text-xs underline text-ink-700/60" to={paths.approvals()}>
-          {list.length ? `View all (${list.length})` : "Open approvals"}
-        </Link>
-      }
+      action={queueLink}
     >
+      <p className="mb-3 text-xs leading-relaxed text-ink-700/60">
+        These rows can belong to any exam. Approving one row does not approve another teacher’s register.
+      </p>
       {rows == null ? (
         <p className="text-sm text-ink-700/55 inline-flex items-center gap-2">
           <Spinner className="h-3.5 w-3.5" label="" />
@@ -95,7 +117,7 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
       ) : shown.length === 0 ? (
         <EmptyNote>No submissions currently waiting for approval.</EmptyNote>
       ) : (
-        <div className={`relative space-y-3 ${busyKey ? "pointer-events-none" : ""}`}>
+        <div className={`relative ${busyKey ? "pointer-events-none" : ""}`}>
           {busyKey && (
             <div
               className="absolute inset-0 z-10 flex items-center justify-center bg-cream/50 rounded-lg"
@@ -108,45 +130,68 @@ export default function PendingSubmittedApprovals({ className = "", limit = 8 })
               </div>
             </div>
           )}
-          {shown.map((r) => {
-            const key = `${r.examId}|${r.classSectionId}|${r.subjectId}|${r.teacherId}`;
-            return (
-              <div
-                key={key}
-                className="flex flex-wrap items-start justify-between gap-3 border-b border-ink-900/5 pb-3 last:border-0 last:pb-0"
-              >
-                <div className="min-w-0">
-                  <div className="text-sm font-medium">{r.teacherName}</div>
-                  <div className="text-[11px] text-ink-700/55">
-                    {r.examName} · {r.classLabel} · {r.subjectName}
-                  </div>
-                  <div className="text-[10px] text-ink-700/40 mt-0.5">
-                    {r.submittedCount} submitted mark{r.submittedCount === 1 ? "" : "s"}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-2 shrink-0">
-                  <Link
-                    className="btn-ghost text-xs"
-                    to={paths.marks({
-                      examId: r.examId,
-                      classSectionId: r.classSectionId,
-                      subjectId: r.subjectId,
-                    })}
-                  >
-                    Open register
-                  </Link>
-                  <button
-                    type="button"
-                    className="btn-accent"
-                    disabled={Boolean(busyKey)}
-                    onClick={() => approve(r)}
-                  >
-                    <BusyLabel busy={busyKey === key} idle="Approve submitted" busyText="Approving…" />
-                  </button>
-                </div>
-              </div>
-            );
-          })}
+          <div className="scroll-x">
+            <table className="table table-cards w-full">
+              <thead>
+                <tr>
+                  <th scope="col">Teacher</th>
+                  <th scope="col">Exam</th>
+                  <th scope="col">Class</th>
+                  <th scope="col">Subject</th>
+                  <th scope="col">Submitted marks</th>
+                  <th scope="col">
+                    <span className="sr-only">Actions</span>
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {shown.map((row) => {
+                  const key = `${row.examId}|${row.classSectionId}|${row.subjectId}|${row.teacherId}`;
+                  return (
+                    <tr key={key}>
+                      <td data-label="Teacher" className="align-top font-medium">
+                        {row.teacherName}
+                      </td>
+                      <td data-label="Exam" className="align-top">
+                        {row.examName}
+                      </td>
+                      <td data-label="Class" className="align-top">
+                        {row.classLabel}
+                      </td>
+                      <td data-label="Subject" className="align-top">
+                        {row.subjectName}
+                      </td>
+                      <td data-label="Submitted marks" className="align-top tabular-nums">
+                        {row.submittedCount}
+                      </td>
+                      <td data-label="" className="align-top">
+                        <div className="flex flex-col sm:flex-row flex-wrap gap-2 sm:justify-end">
+                          <Link
+                            className="btn-ghost text-xs w-full sm:w-auto justify-center"
+                            to={paths.marks({
+                              examId: row.examId,
+                              classSectionId: row.classSectionId,
+                              subjectId: row.subjectId,
+                            })}
+                          >
+                            Open register
+                          </Link>
+                          <button
+                            type="button"
+                            className="btn-accent text-xs w-full sm:w-auto justify-center"
+                            disabled={Boolean(busyKey)}
+                            onClick={() => approve(row)}
+                          >
+                            <BusyLabel busy={busyKey === key} idle="Approve" busyText="Approving…" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </Panel>

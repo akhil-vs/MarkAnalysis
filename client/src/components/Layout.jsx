@@ -270,6 +270,12 @@ export default function Layout() {
     pendingCount == null && missingCount == null
       ? null
       : (Number(pendingCount) || 0) + (Number(missingCount) || 0);
+  // The principal desk and school overview render their own working-exam and school-level
+  // controls and keep them in sync with the workspace. A second pair here is a different
+  // control for the same choice.
+  const pageOwnsExamScope =
+    location.pathname === "/analysis/school" ||
+    (location.pathname === "/" && user.role === "PRINCIPAL");
   const badges = {
     pending: pendingCount,
     missing: missingCount,
@@ -469,7 +475,7 @@ export default function Layout() {
                   <SchoolBrand school={school || user.school} compact />
                 )}
               </Link>
-              {!platform && (
+              {!platform && !pageOwnsExamScope && (
                 <div className="hidden sm:block">
                   <WorkspaceChip compact />
                 </div>
@@ -498,7 +504,7 @@ export default function Layout() {
 
         <main className="flex-1 min-w-0 h-full overflow-y-auto overscroll-y-contain overflow-x-clip pt-[calc(3.5rem+env(safe-area-inset-top,0px))] lg:pt-0">
           <div className="max-w-7xl mx-auto w-full min-w-0 px-3 py-4 sm:px-6 sm:py-8">
-            {!platform && (
+            {!platform && !pageOwnsExamScope && (
               <div className="mb-4 hidden lg:flex lg:justify-end">
                 <WorkspaceChip tone="light" />
               </div>

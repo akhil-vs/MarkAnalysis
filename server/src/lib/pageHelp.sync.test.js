@@ -27,7 +27,7 @@ test("role-specific dashboard help is distinct", () => {
   assert.equal(helpIdForPath("/"), "dashboard");
   assert.notEqual(principal.about, coordinator.about);
   assert.notEqual(principal.about, teacher.about);
-  assert.match(principal.about, /Ops-first|School snapshot/i);
+  assert.match(principal.about, /working exam|open registers/i);
   assert.match(coordinator.about, /upload queue/i);
   assert.match(teacher.about, /Your papers/);
 });

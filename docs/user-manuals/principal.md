@@ -12,9 +12,9 @@ The principal owns school setup, staff access, leave and cover, mark approval, l
 2. Enter your **email**, **school ID**, and **password**.
 3. If MFA is enabled, enter the 6-digit authenticator code (or a recovery code).
 
-You land on the **Principal desk** (`/`): an ops-first view with approvals, **Needs attention** / notify, and Exam queue shortcuts. School averages and the Curricular Performance Hub live under **School snapshot** (collapsed when work is waiting). Use Deep insights and Consolidated lists from the hero actions.
+You land on the **Principal desk** (`/`): headline results for the **working exam**, a table of **open registers**, and any submitted marks or access requests waiting on you. **School level** limits those figures to Primary (classes 1–5), Secondary (6–10), or Senior secondary (11–12). It is not a single division such as 6-A. Deep insights, consolidated lists, and Excel export are in the page header.
 
-- Use the **exam selector** at the top to switch the working exam. Teachers and leadership share the same latest exam by default.
+- **Working exam** and **School level** on this desk are the only copies of those controls. Other pages reuse the same choice. Teachers and leadership share the latest exam until you change it.
 - Open the **?** hint on any page for a short “what’s on this page” tip (and **How it is useful**).
 - Download this guide any time from **HELP → User manuals**.
 
