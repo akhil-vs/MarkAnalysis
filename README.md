@@ -1,4 +1,4 @@
-# School Marks Analytics Platform
+# TermLens
 
 Role-based marks upload and analytics for principals, exam coordinators, and teachers.
 
@@ -236,5 +236,3 @@ Principals and exam coordinators can send in-app notices to teachers about **dea
 - **Board ops** (leadership): per-paper exam calendar, report-card publish/sign-off, parent notify, revaluation, board packs.
 - **CPD**: training plans, observations, appraisals, and certificates under **CPD** in the sidebar.
 - **Docs**: [PRIVACY](docs/PRIVACY.md) · [ENGINEERING](docs/ENGINEERING.md) · [SECURITY](SECURITY.md) · [CONTRIBUTING](CONTRIBUTING.md)
-
-# MarkAnalysis

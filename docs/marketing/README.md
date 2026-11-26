@@ -1,6 +1,6 @@
 # Marketing
 
-Go-to-market materials for **School Marks Analytics** (PencilLabs). Motion is **invite / sales-led school pilots**; public self-serve registration and pricing CTAs stay off.
+Go-to-market materials for **TermLens** (PencilLabs). Motion is **invite / sales-led school pilots**; public self-serve registration and pricing CTAs stay off.
 
 | Doc | Use |
 |---|---|

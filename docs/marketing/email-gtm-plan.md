@@ -1,4 +1,4 @@
-# Email GTM plan — School Marks Analytics
+# Email GTM plan — TermLens
 
 **Owner:** Marketing (PencilLabs) · **Channel primary:** email · **Motion:** invite / sales-led school pilots  
 **Product one-liner:** We replace exam-week Excel chase with approved mark registers, school-branded reports, and one place for leadership to see what is still missing.
@@ -43,7 +43,7 @@ Do **not** measure success by list size or open rate alone. In this market, a sh
 
 **Tone:** Institutional, respectful, concrete. Spell the school name correctly. Never lead with pricing, stack, or “AI.” Avoid vendor-first language inside the school’s mental frame — they care about exam week, not PencilLabs.
 
-**Brand rule in copy:** Full name **School Marks Analytics** on first mention; **Marks Analytics** only in tight subject lines if needed. Vendor line: PencilLabs.
+**Brand rule in copy:** Use **TermLens** on first mention and in subject lines. Vendor line: PencilLabs.
 
 ---
 

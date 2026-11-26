@@ -1,4 +1,4 @@
-# Privacy & data protection — School Marks Analytics
+# Privacy & data protection — TermLens
 
 This platform stores **student and staff personal data** (names, emails, dates of birth, admission numbers, guardian contacts, photos, marks). Operators must treat it as regulated education / personal data.
 

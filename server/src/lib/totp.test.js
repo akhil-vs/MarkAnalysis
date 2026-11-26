@@ -39,6 +39,7 @@ describe("totp", () => {
     const url = totpAuthUrl({ secret: "JBSWY3DPEHPK3PXP", accountName: "a@b.c" });
     assert.match(url, /^otpauth:\/\/totp\//);
     assert.match(url, /secret=JBSWY3DPEHPK3PXP/);
+    assert.match(url, /issuer=TermLens/);
   });
 
   it("consumes recovery codes once", () => {

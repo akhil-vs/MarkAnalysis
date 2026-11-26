@@ -4,6 +4,7 @@ import PDFDocument from "pdfkit";
 import { prisma } from "../lib/prisma.js";
 import { gradeFromPercent, mean, percentOf, round1 } from "../lib/grades.js";
 import { formatMarkCell, isScoredMark } from "../lib/markCodes.js";
+import { PRODUCT_NAME } from "../lib/branding.js";
 import { getSchoolLetterhead } from "../lib/school.js";
 import { studentWhereForExam } from "../lib/studentScope.js";
 import { auth, isLeadership, requireFeature, requireRole, teacherIsClassTeacher, teacherCanAccess } from "../middleware/auth.js";
@@ -331,7 +332,7 @@ exportsRouter.get("/table.xlsx", requireRole("PRINCIPAL", "EXAM_COORDINATOR"), a
 
 async function writeConsolidatedWorkbook(built, letterhead, { official = false } = {}) {
   const workbook = new ExcelJS.Workbook();
-  workbook.creator = letterhead?.name || "Marks Analytics";
+  workbook.creator = letterhead?.name || PRODUCT_NAME;
   const sheet = workbook.addWorksheet("Consolidated mark list", {
     pageSetup: { orientation: "landscape", fitToPage: true, fitToWidth: 1, paperSize: 9 },
   });

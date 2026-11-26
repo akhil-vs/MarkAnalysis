@@ -12,6 +12,7 @@
  */
 import fs from "node:fs";
 import path from "node:path";
+import { PRODUCT_NAME } from "../../lib/branding.js";
 
 function esc(value) {
   return String(value ?? "")
@@ -68,7 +69,7 @@ function renderHtml(summary) {
 <body style="margin:0;font-family:ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f8fafc;color:#0f172a">
   <main style="max-width:1100px;margin:0 auto;padding:32px 20px 64px">
     <header style="margin-bottom:28px">
-      <p style="margin:0 0 6px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#64748b">School Marks Analytics</p>
+      <p style="margin:0 0 6px;font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:#64748b">${PRODUCT_NAME}</p>
       <h1 style="margin:0 0 8px;font-size:28px;line-height:1.2">User Manual Automation Report</h1>
       <p style="margin:0;color:#475569;max-width:62ch">API workflow coverage derived from the Principal, Exam co-ordinator, and Teacher user manuals.</p>
     </header>

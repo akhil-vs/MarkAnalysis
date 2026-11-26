@@ -1,4 +1,4 @@
-# Security policy — School Marks Analytics
+# Security policy — TermLens
 
 ## Reporting
 

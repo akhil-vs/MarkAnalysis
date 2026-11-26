@@ -7,6 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import PDFDocument from "pdfkit";
+import { PRODUCT_NAME } from "../server/src/lib/branding.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, "..");
@@ -18,19 +19,19 @@ const MANUALS = [
     source: "principal.md",
     outfile: "principal-user-manual.pdf",
     title: "Principal user manual",
-    subtitle: "School Marks Analytics",
+    subtitle: PRODUCT_NAME,
   },
   {
     source: "coordinator.md",
     outfile: "coordinator-user-manual.pdf",
     title: "Exam co-ordinator user manual",
-    subtitle: "School Marks Analytics",
+    subtitle: PRODUCT_NAME,
   },
   {
     source: "teacher.md",
     outfile: "teacher-user-manual.pdf",
     title: "Teacher user manual",
-    subtitle: "School Marks Analytics",
+    subtitle: PRODUCT_NAME,
   },
 ];
 
@@ -172,7 +173,7 @@ function renderManual(manual) {
       margins: { top: 56, bottom: 56, left: 54, right: 54 },
       info: {
         Title: manual.title,
-        Author: "School Marks Analytics",
+        Author: PRODUCT_NAME,
         Subject: manual.subtitle,
       },
     });

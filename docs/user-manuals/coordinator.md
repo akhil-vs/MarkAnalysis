@@ -1,6 +1,6 @@
 # Exam co-ordinator user manual
 
-School Marks Analytics — guide for the **Exam co-ordinator** (co-ordinator) role.
+TermLens — guide for the **Exam co-ordinator** (co-ordinator) role.
 
 The co-ordinator runs the exam operations desk: school records, teacher chase-ups, mark entry when needed, approvals, leave cover, consolidated lists, hall tickets, and operational analytics. You work alongside the principal; some school-admin actions (join code rotation, co-ordinator accounts, Role access) stay with the principal.
 

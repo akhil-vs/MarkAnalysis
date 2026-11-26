@@ -1,6 +1,6 @@
 # Principal user manual
 
-School Marks Analytics — guide for the **Principal** role.
+TermLens — guide for the **Principal** role.
 
 The principal owns school setup, staff access, leave and cover, mark approval, leadership analytics, and board-facing outputs. Principals **do not type or bulk-upload marks**; teachers and exam co-ordinators enter registers, and you review and approve them.
 

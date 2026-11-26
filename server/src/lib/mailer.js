@@ -7,6 +7,7 @@
  * the recipient address or subject.
  */
 import nodemailer from "nodemailer";
+import { DEFAULT_MAIL_FROM } from "./branding.js";
 import { prisma } from "./prisma.js";
 import { logger } from "./logger.js";
 import { runWithoutTenant } from "./tenant.js";
@@ -183,7 +184,7 @@ export async function flushEmailOutbox({ limit = 50, transport, client, now } = 
     const batch = await selectRetryable(db, limit, clock());
     if (!batch.length) return { sent: 0, failed: 0, skipped: 0, processed: 0 };
 
-    const from = process.env.SMTP_FROM || "noreply@school-marks.local";
+    const from = process.env.SMTP_FROM || DEFAULT_MAIL_FROM;
     let sent = 0;
     let failed = 0;
 

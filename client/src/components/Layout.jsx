@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { useAuth } from "../auth.jsx";
+import { PRODUCT_NAME } from "../lib/branding.js";
 import { isAnalysisPath, navGroupsForRole } from "../lib/nav.js";
 import { isLeadership, isPlatformAdmin } from "../lib/roles.js";
 import { PageHelpHint } from "./HelpHint.jsx";
@@ -234,7 +235,7 @@ function SchoolBrand({ school, compact = false }) {
     };
   }, [school?.hasLogo, school?.updatedAt]);
 
-  const title = school?.shortName || school?.name || "School Marks Analytics";
+  const title = school?.shortName || school?.name || PRODUCT_NAME;
   const subtitle = school?.shortName && school?.name ? school.name : "School performance suite";
 
   return (
