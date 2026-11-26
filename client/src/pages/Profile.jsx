@@ -6,6 +6,7 @@ import { PageHeader } from "../components/Layout.jsx";
 import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError } from "../components/FieldError.jsx";
+import { PasswordField } from "../components/PasswordField.jsx";
 import { firstError, parsePassword } from "../lib/formValidation.js";
 import { NAV_TITLES } from "../lib/nav.js";
 import { isPlatformAdmin } from "../lib/roles.js";
@@ -200,35 +201,39 @@ export default function Profile() {
         <form className="card p-5 space-y-3" onSubmit={onSubmit}>
           <h3 className="font-serif text-lg">Change password</h3>
           <div>
-            <label className="label">Current password</label>
-            <input
-              className="field"
-              type="password"
+            <label className="label" htmlFor="profile-current-password">Current password</label>
+            <PasswordField
+              id="profile-current-password"
+              name="currentPassword"
+              autoComplete="current-password"
               required
               value={form.currentPassword}
-              onChange={(e) => setForm({ ...form, currentPassword: e.target.value })}
+              onChange={(value) => setForm({ ...form, currentPassword: value })}
             />
           </div>
           <div>
-            <label className="label">New password</label>
-            <input
-              className="field"
-              type="password"
+            <label className="label" htmlFor="profile-new-password">New password</label>
+            <PasswordField
+              id="profile-new-password"
+              name="newPassword"
+              autoComplete="new-password"
+              allowGenerate
               required
               minLength={10}
               value={form.newPassword}
-              onChange={(e) => setForm({ ...form, newPassword: e.target.value })}
+              onChange={(value) => setForm({ ...form, newPassword: value })}
             />
           </div>
           <div>
-            <label className="label">Confirm new password</label>
-            <input
-              className="field"
-              type="password"
+            <label className="label" htmlFor="profile-confirm-password">Confirm new password</label>
+            <PasswordField
+              id="profile-confirm-password"
+              name="confirmPassword"
+              autoComplete="new-password"
               required
               minLength={10}
               value={form.confirmPassword}
-              onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+              onChange={(value) => setForm({ ...form, confirmPassword: value })}
             />
           </div>
           {error && <FieldError message={error} />}
@@ -322,13 +327,13 @@ export default function Profile() {
             <form className="space-y-3 rounded-lg border border-ink-900/10 bg-white/60 p-4 max-w-lg" onSubmit={disableMfa}>
               <h4 className="font-medium text-sm">Disable MFA</h4>
               <div>
-                <label className="label">Password</label>
-                <input
-                  className="field"
-                  type="password"
+                <label className="label" htmlFor="profile-disable-mfa-password">Password</label>
+                <PasswordField
+                  id="profile-disable-mfa-password"
+                  autoComplete="current-password"
                   required
                   value={disableForm.password}
-                  onChange={(e) => setDisableForm({ ...disableForm, password: e.target.value })}
+                  onChange={(value) => setDisableForm({ ...disableForm, password: value })}
                 />
               </div>
               <div>

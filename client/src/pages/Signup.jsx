@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { FieldError } from "../components/FieldError.jsx";
+import { PasswordField } from "../components/PasswordField.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import {
   firstError,
@@ -133,15 +134,14 @@ export default function Signup() {
           <label className="label" htmlFor="signup-password">
             Password
           </label>
-          <input
+          <PasswordField
             id="signup-password"
-            className="field"
-            type="password"
             required
             minLength={PASSWORD_MIN_LENGTH}
             autoComplete="new-password"
+            allowGenerate
             value={form.password}
-            onChange={(e) => set("password", e.target.value)}
+            onChange={(value) => set("password", value)}
           />
           <p className="mt-1 text-xs text-ink-700/60">
             At least {PASSWORD_MIN_LENGTH} characters with a letter and a number.

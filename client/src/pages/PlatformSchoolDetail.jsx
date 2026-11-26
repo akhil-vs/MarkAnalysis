@@ -3,6 +3,7 @@ import { Link, useNavigate, useParams } from "react-router-dom";
 import { api } from "../api.js";
 import { PageHeader, Kpi } from "../components/Layout.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
+import { PasswordField } from "../components/PasswordField.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { BusyLabel, LoadingState } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
@@ -379,13 +380,15 @@ export default function PlatformSchoolDetail() {
                 <input className="field" value={principal.schoolId} onChange={(e) => setPrincipal({ ...principal, schoolId: e.target.value })} />
               </div>
               <div>
-                <label className="label">Password (optional)</label>
-                <input
-                  className="field"
-                  type="password"
+                <label className="label" htmlFor="add-principal-password">Password (optional)</label>
+                <PasswordField
+                  id="add-principal-password"
+                  name="principalPassword"
+                  autoComplete="new-password"
+                  allowGenerate
                   minLength={10}
                   value={principal.password}
-                  onChange={(e) => setPrincipal({ ...principal, password: e.target.value })}
+                  onChange={(value) => setPrincipal({ ...principal, password: value })}
                   placeholder="Leave blank to generate"
                 />
               </div>

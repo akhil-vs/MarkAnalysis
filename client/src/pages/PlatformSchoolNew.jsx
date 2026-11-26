@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { api } from "../api.js";
 import { PageHeader } from "../components/Layout.jsx";
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
+import { PasswordField } from "../components/PasswordField.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { firstError, parseEmail, parsePassword, parseSlug, requiredText, slugifyName } from "../lib/formValidation.js";
@@ -179,13 +180,15 @@ export default function PlatformSchoolNew() {
             <input className="field" value={form.principalSchoolId} onChange={(e) => set("principalSchoolId", e.target.value)} placeholder="SCH-P01" />
           </div>
           <div>
-            <label className="label">Password (optional)</label>
-            <input
-              className="field"
-              type="password"
+            <label className="label" htmlFor="new-school-principal-password">Password (optional)</label>
+            <PasswordField
+              id="new-school-principal-password"
+              name="principalPassword"
+              autoComplete="new-password"
+              allowGenerate
               minLength={10}
               value={form.principalPassword}
-              onChange={(e) => set("principalPassword", e.target.value)}
+              onChange={(value) => set("principalPassword", value)}
               placeholder="Leave blank to generate"
             />
           </div>

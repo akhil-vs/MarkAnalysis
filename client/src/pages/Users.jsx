@@ -9,6 +9,8 @@ import { BusyLabel, InlineLoading } from "../components/Spinner.jsx";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { useToast } from "../components/Toast.jsx";
 import { FieldError } from "../components/FieldError.jsx";
+import { PasswordField } from "../components/PasswordField.jsx";
+import { generatePassword } from "../lib/passwordField.js";
 import { firstError, parseEmail, parsePassword, requiredText } from "../lib/formValidation.js";
 import { canAddCoordinator, canHoldClassroomAssignments, isLeadership } from "../lib/roles.js";
 import { NAV_TITLES } from "../lib/nav.js";
@@ -81,23 +83,12 @@ function avatarTone(seed) {
   return AVATAR_TONES[hash];
 }
 
-function generateTempPassword(length = 10) {
-  const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
-  const values = new Uint32Array(length);
-  if (typeof crypto !== "undefined" && crypto.getRandomValues) {
-    crypto.getRandomValues(values);
-  } else {
-    for (let i = 0; i < length; i += 1) values[i] = Math.floor(Math.random() * alphabet.length);
-  }
-  return Array.from(values, (n) => alphabet[n % alphabet.length]).join("");
-}
-
 function emptyStaffForm(role = "TEACHER") {
   return {
     name: "",
     email: "",
     schoolId: "",
-    password: generateTempPassword(),
+    password: generatePassword(),
     role,
     roleTitle: null,
     customRoleId: null,
@@ -371,7 +362,6 @@ export default function Users() {
   const [busyId, setBusyId] = useState("");
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [showPassword, setShowPassword] = useState(false);
   const [form, setForm] = useState(() => emptyStaffForm());
   const [formError, setFormError] = useState("");
   const [staffRoles, setStaffRoles] = useState([]);
@@ -411,7 +401,6 @@ export default function Users() {
     });
     setAddingRole(false);
     setNewRoleName("");
-    setShowPassword(false);
     setFormError("");
     // Scroll the page (main overflow container) so the floating edit form sits at the top.
     requestAnimationFrame(() => {
@@ -424,7 +413,6 @@ export default function Users() {
     setForm(emptyStaffForm());
     setAddingRole(false);
     setNewRoleName("");
-    setShowPassword(false);
     setFormError("");
   }
 
@@ -722,7 +710,6 @@ export default function Users() {
         },
       });
       setForm(emptyStaffForm());
-      setShowPassword(false);
       toast.success("Staff account created and active. They can sign in now.");
       await loadUsers();
     } catch (err) {
@@ -961,49 +948,16 @@ export default function Users() {
           </div>
           {!editingId && (
             <div>
-              <div className="mb-1 flex items-center justify-between gap-2">
-                <label className="label !mb-0">Temporary Password</label>
-                <button
-                  type="button"
-                  className="text-xs font-medium text-moss-600 hover:text-moss-600/80"
-                  onClick={() => {
-                    setForm({ ...form, password: generateTempPassword() });
-                    setShowPassword(true);
-                  }}
-                >
-                  Auto-generate
-                </button>
-              </div>
-              <div className="relative">
-                <input
-                  className="field pr-10"
-                  type={showPassword ? "text" : "password"}
-                  required
-                  minLength={10}
-                  autoComplete="new-password"
-                  value={form.password}
-                  onChange={(e) => setForm({ ...form, password: e.target.value })}
-                />
-                <button
-                  type="button"
-                  className="absolute inset-y-0 right-0 px-3 text-ink-700/55 hover:text-ink-900"
-                  aria-label={showPassword ? "Hide password" : "Show password"}
-                  onClick={() => setShowPassword((v) => !v)}
-                >
-                  {showPassword ? (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                      <path d="M3 3l18 18" strokeLinecap="round" />
-                      <path d="M10.6 10.6a2 2 0 0 0 2.8 2.8" strokeLinecap="round" />
-                      <path d="M9.9 5.1A10.4 10.4 0 0 1 12 5c5 0 8.5 4.2 9.7 6-.5.8-1.4 2-2.7 3.2M6.1 6.1C4.4 7.4 3.3 8.9 2.3 11c1.2 1.8 4.7 6 9.7 6 1.2 0 2.3-.2 3.3-.6" strokeLinecap="round" />
-                    </svg>
-                  ) : (
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                      <path d="M2.3 12C3.5 10.2 7 6 12 6s8.5 4.2 9.7 6c-1.2 1.8-4.7 6-9.7 6s-8.5-4.2-9.7-6z" />
-                      <circle cx="12" cy="12" r="2.5" />
-                    </svg>
-                  )}
-                </button>
-              </div>
+              <label className="label" htmlFor="staff-temporary-password">Temporary Password</label>
+              <PasswordField
+                id="staff-temporary-password"
+                required
+                minLength={10}
+                autoComplete="new-password"
+                allowGenerate
+                value={form.password}
+                onChange={(value) => setForm({ ...form, password: value })}
+              />
             </div>
           )}
           <div>
@@ -2017,15 +1971,19 @@ function ResetPasswordModal({ user, onClose, onDone }) {
       <form className="card w-full max-w-md rounded-b-none sm:rounded-xl p-5 space-y-3 safe-pb" onSubmit={save}>
         <h3 className="font-serif text-xl">Reset password for {user.name}</h3>
         <p className="text-sm text-ink-700/65">They can change it again from their profile after signing in.</p>
-        <input
-          className="field"
-          type="text"
-          minLength={10}
-          required
-          value={password}
-          disabled={busy}
-          onChange={(e) => setPassword(e.target.value)}
-        />
+        <div>
+          <label className="label" htmlFor="reset-staff-password">New password</label>
+          <PasswordField
+            id="reset-staff-password"
+            autoComplete="new-password"
+            allowGenerate
+            minLength={10}
+            required
+            disabled={busy}
+            value={password}
+            onChange={setPassword}
+          />
+        </div>
         {error && <FieldError message={error} />}
         <div className="flex flex-wrap gap-2">
           <button className="btn-primary flex-1 sm:flex-none" disabled={busy}>

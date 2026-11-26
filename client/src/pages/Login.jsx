@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, Navigate, useNavigate } from "react-router-dom";
 import { useAuth } from "../auth.jsx";
 import { FieldError } from "../components/FieldError.jsx";
+import { PasswordField } from "../components/PasswordField.jsx";
 import { BusyLabel } from "../components/Spinner.jsx";
 import { firstError, parseEmail, parseJoinCode, parsePassword, requiredText } from "../lib/formValidation.js";
 import { preloadDashboardModules } from "../lib/dashboardPrefetch.js";
@@ -230,14 +231,13 @@ export default function Login() {
           </>
         )}
         <div>
-          <label className="label">Password</label>
-          <input
-            className="field"
-            type="password"
+          <label className="label" htmlFor="login-password">Password</label>
+          <PasswordField
+            id="login-password"
             autoComplete="current-password"
             required
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
           />
         </div>
         {error && <FieldError message={error} />}
