@@ -362,6 +362,7 @@ export default function Users() {
   const [busyId, setBusyId] = useState("");
   const [creating, setCreating] = useState(false);
   const [importing, setImporting] = useState(false);
+  const [revealPassword, setRevealPassword] = useState(0);
   const [form, setForm] = useState(() => emptyStaffForm());
   const [formError, setFormError] = useState("");
   const [staffRoles, setStaffRoles] = useState([]);
@@ -948,13 +949,25 @@ export default function Users() {
           </div>
           {!editingId && (
             <div>
-              <label className="label" htmlFor="staff-temporary-password">Temporary Password</label>
+              <div className="mb-1 flex items-center justify-between gap-2">
+                <label className="label !mb-0" htmlFor="staff-temporary-password">Temporary Password</label>
+                <button
+                  type="button"
+                  className="text-xs font-medium text-moss-600 hover:text-moss-600/80"
+                  onClick={() => {
+                    setForm({ ...form, password: generatePassword() });
+                    setRevealPassword((n) => n + 1);
+                  }}
+                >
+                  Auto-generate
+                </button>
+              </div>
               <PasswordField
                 id="staff-temporary-password"
                 required
                 minLength={10}
                 autoComplete="new-password"
-                allowGenerate
+                revealRequest={revealPassword}
                 value={form.password}
                 onChange={(value) => setForm({ ...form, password: value })}
               />
@@ -1976,7 +1989,6 @@ function ResetPasswordModal({ user, onClose, onDone }) {
           <PasswordField
             id="reset-staff-password"
             autoComplete="new-password"
-            allowGenerate
             minLength={10}
             required
             disabled={busy}

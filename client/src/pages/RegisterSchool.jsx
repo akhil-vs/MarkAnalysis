@@ -109,7 +109,6 @@ export default function RegisterSchool() {
             required
             minLength={10}
             autoComplete="new-password"
-            allowGenerate
             value={form.password}
             onChange={(value) => set("password", value)}
           />

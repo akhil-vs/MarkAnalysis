@@ -139,7 +139,6 @@ export default function Signup() {
             required
             minLength={PASSWORD_MIN_LENGTH}
             autoComplete="new-password"
-            allowGenerate
             value={form.password}
             onChange={(value) => set("password", value)}
           />

@@ -385,7 +385,6 @@ export default function PlatformSchoolDetail() {
                   id="add-principal-password"
                   name="principalPassword"
                   autoComplete="new-password"
-                  allowGenerate
                   minLength={10}
                   value={principal.password}
                   onChange={(value) => setPrincipal({ ...principal, password: value })}

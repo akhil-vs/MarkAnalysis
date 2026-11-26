@@ -217,7 +217,6 @@ export default function Profile() {
               id="profile-new-password"
               name="newPassword"
               autoComplete="new-password"
-              allowGenerate
               required
               minLength={10}
               value={form.newPassword}

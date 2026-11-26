@@ -1,7 +1,4 @@
-/**
- * Shared password-field behaviour: a reveal control plus the options menu
- * (show/hide, copy, and generate on fields where a new password is chosen).
- */
+/** Temporary passwords for staff accounts. Meets both the dev and production policies. */
 
 const UPPER = "ABCDEFGHJKLMNPQRSTUVWXYZ";
 const LOWER = "abcdefghijkmnopqrstuvwxyz";
@@ -37,13 +34,4 @@ export function generatePassword(length = 12) {
     [chars[i], chars[j]] = [chars[j], chars[i]];
   }
   return chars.join("");
-}
-
-export function passwordFieldActions({ visible = false, hasValue = false, allowGenerate = false } = {}) {
-  const actions = [
-    { id: "toggle", label: visible ? "Hide password" : "Show password" },
-    { id: "copy", label: "Copy password", disabled: !hasValue },
-  ];
-  if (allowGenerate) actions.push({ id: "generate", label: "Generate password" });
-  return actions;
 }
