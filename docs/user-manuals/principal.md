@@ -145,7 +145,7 @@ On theory + practical papers these codes apply to **theory only**.
 
 1. Pick exam, class, and division.
 2. Create/edit batch details (title, venue, instructions). Tick **Print student photos when available**.
-3. Preview on the right (**With photo** count); **Download PDF (5 / A4)** (or the PDF button beside each division).
+3. Preview on the right (**With photo** count); **Download PDF**. The button shows how many complete tickets fit on one A4 page once every subject for that student is included (for example **Download PDF (4 / A4)**).
 4. Paper dates **and start times** must exist under Today → Exams for every class that needs tickets (or fill one class and use **Copy class timetable to all classes**).
 
 Upload photos under **Marks → Student photos** (or Records → Students). Use **Bulk upload by admission no** with files named like `ADM-10B-01.jpg`, or add one photo per student. PNG or JPEG, 1 MB or smaller. Unmatched files can be removed with **Remove unmatched**.
@@ -222,7 +222,7 @@ Under **Account → Profile**: update name/email details, change password, and e
 5. Resolve **Access requests** only when needed.
 6. Approve **Pending leave requests** and assign cover so the daily board stays current.
 7. Review **Deep insights → Exam readiness**, then school/class/subject reports.
-8. Generate **official consolidated lists** and hall tickets (**Download PDF (5 / A4)**).
+8. Generate **official consolidated lists** and hall tickets (**Download PDF**, with every subject on the ticket).
 9. Publish / sign off report cards (Board ops) if used.
 10. Spot-check the **Audit log** if any result is questioned.
 

@@ -3,7 +3,6 @@ import { enrollmentKeySet, studentTakesSubject } from "./electiveEnrollment.js";
 import { TINY_PNG } from "./letterhead.js";
 import { contentDispositionAttachment } from "./downloadName.js";
 
-export const HALL_TICKETS_PER_PAGE = 5;
 export const DEFAULT_HALL_TICKET_INSTRUCTIONS =
   "Bring this hall ticket and your school ID to every paper. Electronic devices are not allowed in the examination hall. Follow the invigilator’s instructions at all times.";
 
@@ -14,6 +13,31 @@ const PHOTO_BG = "#EEF2F7";
 
 /** A4 portrait in PDF points. */
 export const A4 = { width: 595.28, height: 841.89 };
+
+/**
+ * Vertical rhythm of one hall ticket, in PDF points.
+ * ticketChromeBeforePapers / ticketHeightForPapers must stay in step with drawTicket.
+ */
+export const TICKET_METRICS = {
+  pad: 8,
+  logoBlock: 24,
+  schoolName: 12,
+  title: 12,
+  examCentre: 10,
+  metaRow1: 11,
+  metaRow2: 12,
+  scheduleLabel: 9,
+  columnHeader: 7,
+  ruleGap: 3,
+  rowSlack: 2,
+  footer: 28,
+  rowHeight: 8,
+  emptySchedule: 9,
+  photoH: 62,
+  photoGap: 4,
+  gap: 8,
+  margin: 22,
+};
 
 export function publicStudent(student) {
   if (!student) return student;
@@ -278,12 +302,137 @@ export function papersHaveDateAndTime(papers) {
   return list.every(paperHasDateAndTime);
 }
 
-export function ticketLayout(page = A4, { perPage = HALL_TICKETS_PER_PAGE, margin = 22 } = {}) {
-  const usableHeight = page.height - margin * 2;
-  const gap = 8;
-  const ticketHeight = (usableHeight - gap * (perPage - 1)) / perPage;
-  const ticketWidth = page.width - margin * 2;
-  return { margin, gap, ticketHeight, ticketWidth, perPage };
+/** Points used above the first paper row (padding, header, identity, column labels). */
+export function ticketChromeBeforePapers({
+  includeLogo = false,
+  includeExamCentre = false,
+} = {}) {
+  const m = TICKET_METRICS;
+  return (
+    m.pad +
+    (includeLogo ? m.logoBlock : 0) +
+    m.schoolName +
+    m.title +
+    (includeExamCentre ? m.examCentre : 0) +
+    m.metaRow1 +
+    m.metaRow2 +
+    m.scheduleLabel +
+    m.columnHeader +
+    m.ruleGap
+  );
+}
+
+/**
+ * Height of one ticket that shows every paper row, the footer, and the photo
+ * when photos are printed. Does not clip the schedule.
+ */
+export function ticketHeightForPapers(paperCount, options = {}) {
+  const m = TICKET_METRICS;
+  const before = ticketChromeBeforePapers(options);
+  const rows = Math.max(0, Number(paperCount) || 0);
+  const body = rows === 0 ? m.emptySchedule : rows * m.rowHeight;
+  const fromPapers = before + body + m.rowSlack + m.footer;
+  if (options.includePhoto === false) return fromPapers;
+  const photoBottom =
+    m.pad +
+    (options.includeLogo ? m.logoBlock : 0) +
+    m.schoolName +
+    m.title +
+    (options.includeExamCentre ? m.examCentre : 0) +
+    m.photoH +
+    m.photoGap +
+    m.footer;
+  return Math.max(fromPapers, photoBottom);
+}
+
+/** Vertical room inside a ticket box for the paper rows (below the column rule, above the footer). */
+export function paperBandHeight(ticketHeight, options = {}) {
+  const m = TICKET_METRICS;
+  return Math.max(0, ticketHeight - ticketChromeBeforePapers(options) - m.rowSlack - m.footer);
+}
+
+/** Row height that keeps every paper inside the band. Natural 8pt when the box is tall enough. */
+export function paperRowHeight(paperCount, ticketHeight, options = {}) {
+  const rows = Math.max(0, Number(paperCount) || 0);
+  const natural = TICKET_METRICS.rowHeight;
+  if (!rows) return natural;
+  const available = paperBandHeight(ticketHeight, options);
+  if (rows * natural <= available) return natural;
+  return available / rows;
+}
+
+/**
+ * How many complete tickets fit on one A4 page when each ticket lists `paperCount` subjects.
+ * Tickets are stretched to fill the sheet. If one ticket is taller than the page, a single
+ * compressed ticket fills the sheet and paper rows shrink so every subject still prints.
+ */
+export function layoutTicketsOnPage(paperCount, page = A4, options = {}) {
+  const margin = options.margin ?? TICKET_METRICS.margin;
+  const gap = options.gap ?? TICKET_METRICS.gap;
+  const usable = page.height - margin * 2;
+  const contentHeight = ticketHeightForPapers(paperCount, options);
+  const maxFit = Math.max(1, Math.floor((usable + gap) / (contentHeight + gap)));
+  const compressed = contentHeight > usable;
+  const perPage = compressed ? 1 : maxFit;
+  const ticketHeight = compressed ? usable : (usable - gap * (perPage - 1)) / perPage;
+  return {
+    margin,
+    gap,
+    perPage,
+    ticketHeight,
+    ticketWidth: page.width - margin * 2,
+    paperCount: Math.max(0, Number(paperCount) || 0),
+    contentHeight,
+    compressed,
+  };
+}
+
+export function maxPapersOnTickets(tickets) {
+  let max = 0;
+  for (const ticket of tickets || []) {
+    const count = ticket?.papers?.length || 0;
+    if (count > max) max = count;
+  }
+  return max;
+}
+
+function comparePapers(a, b) {
+  const ta = a?.paperDate ? new Date(a.paperDate).getTime() : 0;
+  const tb = b?.paperDate ? new Date(b.paperDate).getTime() : 0;
+  if (ta !== tb) return ta - tb;
+  return String(a?.subjectName || "").localeCompare(String(b?.subjectName || ""));
+}
+
+/** Every subject that appears on at least one student's ticket. */
+export function papersAcrossTickets(tickets) {
+  const byId = new Map();
+  for (const ticket of tickets || []) {
+    for (const paper of ticket?.papers || []) {
+      const key = paper?.subjectId || paper?.subjectName;
+      if (!key || byId.has(key)) continue;
+      byId.set(key, paper);
+    }
+  }
+  return [...byId.values()].sort(comparePapers);
+}
+
+/**
+ * Sheet layout for a class batch. Ticket height follows the student with the most subjects
+ * so every ticket on the page is the same size and none of them clip a paper.
+ */
+export function hallTicketSheetLayout(tickets, { schoolLogo = false } = {}) {
+  const list = tickets || [];
+  const options = {
+    includeLogo: Boolean(schoolLogo),
+    includeExamCentre: list.some((ticket) => String(ticket?.examCentre || "").trim()),
+    includePhoto: list.length ? list.some((ticket) => ticket?.includePhoto !== false) : true,
+  };
+  const maxPapersOnTicket = maxPapersOnTickets(list);
+  return {
+    ...layoutTicketsOnPage(maxPapersOnTicket, A4, options),
+    ...options,
+    maxPapersOnTicket,
+  };
 }
 
 function photoBuffer(student) {
@@ -321,15 +470,15 @@ function drawMetaCell(doc, label, value, x, y, width) {
 }
 
 function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
+  const m = TICKET_METRICS;
   const { x, y, width, height } = box;
-  const pad = 8;
+  const pad = m.pad;
   const photoW = 52;
-  const photoH = 62;
+  const photoH = m.photoH;
   const right = x + width;
   const bottom = y + height;
   const fullTextWidth = width - pad * 2;
-  const footerReserve = 28; // instructions + signature band
-  const contentBottom = bottom - footerReserve;
+  const contentBottom = bottom - m.footer;
 
   doc.save();
   doc.roundedRect(x, y, width, height, 3).strokeColor(INK).lineWidth(1).stroke();
@@ -341,7 +490,7 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
   if (schoolLogo) {
     try {
       doc.image(schoolLogo, x + width / 2 - 11, cursorY, { fit: [22, 22] });
-      cursorY += 24;
+      cursorY += m.logoBlock;
     } catch {
       // text-only header still prints
     }
@@ -356,7 +505,7 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
       align: "center",
       lineBreak: false,
     });
-  cursorY += 12;
+  cursorY += m.schoolName;
 
   doc
     .font("Helvetica-Bold")
@@ -367,9 +516,9 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
       align: "center",
       lineBreak: false,
     });
-  cursorY += 12;
+  cursorY += m.title;
 
-  if (ticket.examCentre) {
+  if (String(ticket.examCentre || "").trim()) {
     doc
       .font("Helvetica")
       .fontSize(7.5)
@@ -379,7 +528,7 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
         align: "center",
         lineBreak: false,
       });
-    cursorY += 10;
+    cursorY += m.examCentre;
   }
 
   const identityTop = cursorY;
@@ -420,10 +569,10 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
   const col2X = textLeft + colWidth + colGap;
   drawMetaCell(doc, "Name", ticket.student.name, textLeft, cursorY, colWidth);
   drawMetaCell(doc, "Class", ticket.classLabel, col2X, cursorY, colWidth);
-  cursorY += 11;
+  cursorY += m.metaRow1;
   drawMetaCell(doc, "Roll No", ticket.student.rollNo, textLeft, cursorY, colWidth);
   drawMetaCell(doc, "Admn No", ticket.student.admissionNo || "—", col2X, cursorY, colWidth);
-  cursorY += 12;
+  cursorY += m.metaRow2;
 
   // Keep schedule in the identity text column so column widths stay aligned
   // beside the photo (avoids invigilator lines jumping when past the photo).
@@ -434,7 +583,7 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
     .fontSize(7.5)
     .fillColor(INK)
     .text("Examination schedule", textLeft, cursorY, { lineBreak: false });
-  cursorY += 9;
+  cursorY += m.scheduleLabel;
 
   const cols = [
     { key: "subject", label: "Subject", width: scheduleWidth * 0.34 },
@@ -448,41 +597,28 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
     doc.text(col.label, cx, cursorY, { width: col.width, lineBreak: false });
     cx += col.width;
   }
-  cursorY += 7;
+  cursorY += m.columnHeader;
   doc
     .moveTo(textLeft, cursorY)
     .lineTo(textLeft + scheduleWidth, cursorY)
     .strokeColor(RULE)
     .lineWidth(0.4)
     .stroke();
-  cursorY += 3;
+  cursorY += m.ruleGap;
 
   const papers = ticket.papers || [];
-  const rowH = 8;
-  const spaceForRows = Math.max(0, contentBottom - cursorY - 2);
-  const maxRows = Math.max(0, Math.min(papers.length, Math.floor(spaceForRows / rowH)));
-  doc.font("Helvetica").fontSize(6.5).fillColor(INK);
+  const band = Math.max(0, contentBottom - cursorY - m.rowSlack);
+  const rowH =
+    papers.length && papers.length * m.rowHeight > band ? band / papers.length : m.rowHeight;
+  const rowFont = rowH >= m.rowHeight ? 6.5 : Math.max(4.5, rowH - 1.4);
+  doc.font("Helvetica").fontSize(papers.length ? rowFont : 6.5).fillColor(INK);
   if (!papers.length) {
-    if (cursorY + 9 <= contentBottom) {
-      doc.text("No papers scheduled for this class yet.", textLeft, cursorY, {
-        width: scheduleWidth,
-        lineBreak: false,
-      });
-      cursorY += 9;
-    }
-  } else if (maxRows === 0) {
-    doc
-      .font("Helvetica-Oblique")
-      .fontSize(6)
-      .fillColor(MUTED)
-      .text(`${papers.length} paper(s) — see school notice for schedule`, textLeft, cursorY, {
-        width: scheduleWidth,
-        lineBreak: false,
-      });
-    cursorY += 8;
+    doc.text("No papers scheduled for this class yet.", textLeft, cursorY, {
+      width: scheduleWidth,
+      lineBreak: false,
+    });
   } else {
-    for (let i = 0; i < maxRows; i += 1) {
-      const paper = papers[i];
+    for (const paper of papers) {
       const values = [
         paper.subjectName,
         formatPaperDate(paper.paperDate),
@@ -499,16 +635,6 @@ function drawTicket(doc, ticket, box, { schoolName, schoolLogo }) {
         cx += cols[c].width;
       }
       cursorY += rowH;
-    }
-    if (papers.length > maxRows && cursorY + 8 <= contentBottom) {
-      doc
-        .font("Helvetica-Oblique")
-        .fontSize(6)
-        .fillColor(MUTED)
-        .text(`+${papers.length - maxRows} more paper(s)`, textLeft, cursorY, {
-          width: scheduleWidth,
-          lineBreak: false,
-        });
     }
   }
 
@@ -583,15 +709,16 @@ export function buildHallTicketPayload({
 }
 
 /**
- * Stream an A4 PDF with five hall tickets per page into `res`.
+ * Open an A4 hall-ticket document sized so every subject fits on each ticket.
+ * Call `finish()` after the caller is listening for data (pipe or `data`).
  */
-export function streamHallTicketsPdf(res, { letterhead, tickets, filename }) {
-  const layout = ticketLayout(A4);
-  res.setHeader("Content-Type", "application/pdf");
-  res.setHeader("Content-Disposition", contentDispositionAttachment(filename, "hall-tickets.pdf"));
-
+export function buildHallTicketsDocument({ letterhead, tickets, compress = true } = {}) {
+  const schoolLogo = letterhead?.logo || null;
+  const list = tickets?.length ? tickets : [];
+  const layout = hallTicketSheetLayout(list, { schoolLogo });
   const doc = new PDFDocument({
     size: "A4",
+    compress,
     margins: {
       top: layout.margin,
       bottom: layout.margin,
@@ -601,10 +728,18 @@ export function streamHallTicketsPdf(res, { letterhead, tickets, filename }) {
     autoFirstPage: true,
     bufferPages: true,
   });
-  doc.pipe(res);
+  return {
+    doc,
+    layout,
+    finish() {
+      paintHallTickets(doc, { letterhead, tickets: list, layout, schoolLogo });
+    },
+  };
+}
 
-  // Hall tickets are absolutely positioned; suppress PDFKit's automatic page
-  // breaks so five cards stay on one sheet.
+function paintHallTickets(doc, { letterhead, tickets, layout, schoolLogo }) {
+  // Tickets are absolutely positioned. Suppress PDFKit page breaks so a card
+  // cannot split, and add a page only between complete tickets.
   const realAddPage = doc.addPage.bind(doc);
   let allowAddPage = false;
   doc.addPage = (...args) => {
@@ -613,8 +748,7 @@ export function streamHallTicketsPdf(res, { letterhead, tickets, filename }) {
   };
 
   const schoolName = letterhead?.name || "School";
-  const schoolLogo = letterhead?.logo || null;
-  const list = tickets?.length ? tickets : [];
+  const list = tickets || [];
 
   if (!list.length) {
     allowAddPage = true;
@@ -622,7 +756,7 @@ export function streamHallTicketsPdf(res, { letterhead, tickets, filename }) {
       align: "center",
     });
     doc.end();
-    return doc;
+    return;
   }
 
   list.forEach((ticket, index) => {
@@ -650,7 +784,19 @@ export function streamHallTicketsPdf(res, { letterhead, tickets, filename }) {
   });
 
   doc.end();
-  return doc;
+}
+
+/**
+ * Stream an A4 PDF into `res`. The number of tickets per page follows how many
+ * complete tickets (every subject included) fit on the sheet.
+ */
+export function streamHallTicketsPdf(res, { letterhead, tickets, filename }) {
+  const built = buildHallTicketsDocument({ letterhead, tickets });
+  res.setHeader("Content-Type", "application/pdf");
+  res.setHeader("Content-Disposition", contentDispositionAttachment(filename, "hall-tickets.pdf"));
+  built.doc.pipe(res);
+  built.finish();
+  return built.doc;
 }
 
 /** Tiny PNG used when seeding demo student photos in tests. */

@@ -1,23 +1,166 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
-  HALL_TICKETS_PER_PAGE,
+  A4,
   buildHallTicketPayload,
+  buildHallTicketsDocument,
+  hallTicketSheetLayout,
+  layoutTicketsOnPage,
+  paperBandHeight,
   paperHasDateAndTime,
+  paperRowHeight,
+  papersAcrossTickets,
   papersForStudent,
   papersHaveDateAndTime,
   parseHallTicketPatch,
   publicStudent,
   resolvePaperRows,
-  ticketLayout,
+  ticketHeightForPapers,
 } from "./hallTickets.js";
 
+const PHOTO_OPTIONS = { includePhoto: true, includeLogo: false, includeExamCentre: false };
+
+function ticketWithPapers(count, extras = {}) {
+  const names = extras.names;
+  return {
+    title: extras.title || "Final Exam — Hall Ticket",
+    instructions: "Bring this hall ticket.",
+    examCentre: extras.examCentre ?? null,
+    includePhoto: extras.includePhoto !== false,
+    classLabel: "10-A",
+    student: {
+      id: extras.studentId || "s1",
+      name: extras.studentName || "Ada Lovelace",
+      rollNo: "01",
+      admissionNo: "ADM-1",
+    },
+    papers: Array.from({ length: count }, (_, i) => ({
+      subjectId: `sub-${i}`,
+      subjectName: names?.[i] || `Subject ${String(i + 1).padStart(2, "0")}`,
+      paperDate: "2026-03-10T00:00:00.000Z",
+      startTime: "09:00",
+      endTime: "12:00",
+    })),
+  };
+}
+
+function pdfText(buffer) {
+  const hex = [...buffer.toString("latin1").matchAll(/<([0-9a-fA-F]+)>/g)].map((m) =>
+    Buffer.from(m[1], "hex").toString("utf8")
+  );
+  return hex.join("");
+}
+
+function pdfPageCount(buffer) {
+  return [...buffer.toString("latin1").matchAll(/\/Type \/Page(?!s)/g)].length;
+}
+
+async function renderTickets(tickets, letterhead = { name: "Greenfield Public School" }) {
+  const built = buildHallTicketsDocument({ letterhead, tickets, compress: false });
+  const chunks = [];
+  built.doc.on("data", (chunk) => chunks.push(chunk));
+  const done = new Promise((resolve, reject) => {
+    built.doc.on("end", resolve);
+    built.doc.on("error", reject);
+  });
+  built.finish();
+  await done;
+  return { buffer: Buffer.concat(chunks), layout: built.layout };
+}
+
 describe("hallTickets helpers", () => {
-  it("layouts five equal tickets on A4", () => {
-    const layout = ticketLayout();
-    assert.equal(layout.perPage, HALL_TICKETS_PER_PAGE);
-    assert.ok(layout.ticketHeight > 120);
+  it("fits five complete tickets on A4 when a student has six papers", () => {
+    const layout = layoutTicketsOnPage(6, A4, PHOTO_OPTIONS);
+    assert.equal(layout.perPage, 5);
+    assert.equal(layout.compressed, false);
+    assert.ok(layout.ticketHeight + 0.05 >= ticketHeightForPapers(6, PHOTO_OPTIONS));
     assert.ok(layout.ticketWidth > 500);
+  });
+
+  it("reduces tickets per page so every subject still fits", () => {
+    const six = layoutTicketsOnPage(6, A4, PHOTO_OPTIONS);
+    const twelve = layoutTicketsOnPage(12, A4, PHOTO_OPTIONS);
+    assert.ok(twelve.perPage < six.perPage);
+    assert.ok(twelve.perPage >= 1);
+    assert.ok(twelve.ticketHeight + 0.05 >= ticketHeightForPapers(12, PHOTO_OPTIONS));
+    let previous = Infinity;
+    for (let count = 0; count <= 30; count += 1) {
+      const layout = layoutTicketsOnPage(count, A4, PHOTO_OPTIONS);
+      assert.ok(layout.perPage <= previous, `${count} papers should not add tickets per page`);
+      previous = layout.perPage;
+      const band = paperBandHeight(layout.ticketHeight, PHOTO_OPTIONS);
+      if (count > 0) {
+        const rowH = paperRowHeight(count, layout.ticketHeight, PHOTO_OPTIONS);
+        assert.ok(rowH * count <= band + 0.05, `${count} paper rows fit in the ticket`);
+      }
+      const bottom =
+        layout.margin + layout.perPage * layout.ticketHeight + (layout.perPage - 1) * layout.gap;
+      assert.ok(bottom <= A4.height - layout.margin + 0.05);
+    }
+  });
+
+  it("sizes the sheet from the student with the most subjects", () => {
+    const tickets = [ticketWithPapers(4), ticketWithPapers(11, { studentId: "s2" })];
+    const layout = hallTicketSheetLayout(tickets);
+    assert.equal(layout.maxPapersOnTicket, 11);
+    assert.equal(layout.perPage, layoutTicketsOnPage(11, A4, PHOTO_OPTIONS).perPage);
+    assert.equal(layout.includePhoto, true);
+  });
+
+  it("packs more tickets when photos are turned off", () => {
+    const withPhoto = layoutTicketsOnPage(2, A4, { includePhoto: true });
+    const withoutPhoto = layoutTicketsOnPage(2, A4, { includePhoto: false });
+    assert.ok(withoutPhoto.perPage >= withPhoto.perPage);
+  });
+
+  it("unions every subject a class sits, not only the first student", () => {
+    const papers = papersAcrossTickets([
+      {
+        papers: [
+          { subjectId: "math", subjectName: "Math", paperDate: "2026-03-02T00:00:00.000Z" },
+          { subjectId: "music", subjectName: "Music", paperDate: "2026-03-01T00:00:00.000Z" },
+        ],
+      },
+      {
+        papers: [
+          { subjectId: "math", subjectName: "Math", paperDate: "2026-03-02T00:00:00.000Z" },
+          { subjectId: "art", subjectName: "Art", paperDate: "2026-03-03T00:00:00.000Z" },
+        ],
+      },
+    ]);
+    assert.deepEqual(
+      papers.map((paper) => paper.subjectId),
+      ["music", "math", "art"]
+    );
+  });
+
+  it("prints every subject on the ticket and paginates complete cards", async () => {
+    const names = [
+      "Algebra",
+      "Biology",
+      "Chemistry",
+      "Drama",
+      "English",
+      "French",
+      "Geography",
+      "History",
+      "Informatics",
+    ];
+    const tickets = Array.from({ length: 5 }, (_, i) =>
+      ticketWithPapers(names.length, {
+        names,
+        studentId: `s${i}`,
+        studentName: `Student ${i + 1}`,
+      })
+    );
+    const { buffer, layout } = await renderTickets(tickets);
+    assert.equal(layout.perPage, 4);
+    assert.equal(layout.maxPapersOnTicket, names.length);
+    assert.equal(pdfPageCount(buffer), 2);
+    const text = pdfText(buffer);
+    for (const name of names) assert.match(text, new RegExp(name));
+    assert.equal(text.includes("more paper"), false);
+    assert.match(text, /Student 5/);
   });
 
   it("publicStudent strips bytes and exposes photoUrl", () => {
