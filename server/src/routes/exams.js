@@ -30,6 +30,7 @@ import {
   prunePapersOutsideClasses,
   resolveIncludedClassNames,
 } from "../lib/examIncludedClasses.js";
+import { withExamCreatedAt } from "../lib/examCreatedAt.js";
 
 export const examsRouter = Router();
 examsRouter.use(auth);
@@ -101,7 +102,20 @@ examsRouter.get("/", async (_req, res) => {
     orderBy: { date: "asc" },
     include: examListInclude,
   });
-  res.json(exams.map(examJson));
+  const listed = exams.map(examJson);
+  let withCreated = listed;
+  if (listed.length) {
+    try {
+      const audits = await prisma.activityAudit.findMany({
+        where: { action: "EXAM_CREATED", examId: { in: listed.map((exam) => exam.id) } },
+        select: { examId: true, timestamp: true },
+      });
+      withCreated = withExamCreatedAt(listed, audits);
+    } catch (err) {
+      console.error("Could not attach exam creation times", err);
+    }
+  }
+  res.json(withCreated);
 });
 
 examsRouter.get("/:id/papers", requireRole("PRINCIPAL", "EXAM_COORDINATOR", "TEACHER"), async (req, res) => {

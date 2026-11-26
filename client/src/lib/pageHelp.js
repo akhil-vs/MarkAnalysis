@@ -74,8 +74,8 @@ export const PAGE_HELP = {
   },
   exams: {
     title: "What's on this page",
-    about: "Exam office entry for scheduling exams, paper dates, deadlines, and consolidation settings.",
-    useful: "Open here to create or edit the working exam without hunting through every Records tab.",
+    about: "Exam office calendar. Exams already created are listed first, newest at the top, with type, classes, the exam window, whether mark entry is open, and whether paper dates are ready. The schedule form sits under the list.",
+    useful: "The exam you just added is at the top of Scheduled exams. Use Schedule exam to add one, then set the classes, paper dates, mark-entry deadline, and consolidation ceiling before teachers open registers.",
   },
   approvals: {
     title: "What's on this page",

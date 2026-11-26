@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { api } from "../api.js";
 import { useConfirm } from "../components/ConfirmDialog.jsx";
 import { PageHeader } from "../components/Layout.jsx";
@@ -17,6 +17,16 @@ import ExamPaperScheduleEditor, {
 import { FieldError, fieldClass } from "../components/FieldError.jsx";
 import { AcademicYearField, AcademicYearFilter } from "../components/AcademicYearField.jsx";
 import { NAV_TITLES } from "../lib/nav.js";
+import {
+  examClassPreview,
+  examEntryState,
+  examIsLocked,
+  examReadinessState,
+  examRegisterStats,
+  examTypeLabel,
+  formatExamWindow,
+  sortExamsForRegister,
+} from "../lib/exams.js";
 import {
   acceptNonNegativeInput,
   firstError,
@@ -50,30 +60,74 @@ function examSearchText(r) {
     r.name,
     r.term,
     r.type,
+    examTypeLabel(r.type),
     r.academicYear,
     r.consolidationMaxMarks,
     ...(Array.isArray(r.includedClassNames) ? r.includedClassNames : [])
   );
 }
 
-function examIsLocked(row) {
-  return Boolean(row?.consolidationLocked || row?.consolidation?.maxMarksLocked);
+const STATUS_TONE = {
+  good: "mark-chip mark-chip-approved",
+  warn: "mark-chip mark-chip-dirty",
+  muted: "mark-chip mark-chip-empty",
+  open: "mark-chip mark-chip-approved",
+  closed: "mark-chip mark-chip-pending",
+};
+
+function StatusChip({ label, tone }) {
+  return <span className={STATUS_TONE[tone] || STATUS_TONE.muted}>{label}</span>;
 }
 
-function formatExamDateRange(row) {
-  const first = row.firstPaperDate || row.date;
-  const last = row.lastPaperDate || row.firstPaperDate || row.date;
-  if (!first) return "—";
-  const a = new Date(first).toLocaleDateString();
-  const b = new Date(last).toLocaleDateString();
-  if (a === b) return a;
-  return `${a} – ${b}`;
+function TypePill({ type }) {
+  const tone =
+    type === "FINAL"
+      ? "bg-ink-900 text-cream"
+      : type === "MID_TERM"
+        ? "border border-ink-900/15 bg-ink-900/10 text-ink-800"
+        : "border border-ink-900/15 bg-white text-ink-700";
+  return (
+    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide ${tone}`}>
+      {examTypeLabel(type)}
+    </span>
+  );
 }
 
-function formatExamClasses(row) {
-  const names = Array.isArray(row?.includedClassNames) ? row.includedClassNames : [];
-  if (!names.length) return "—";
-  return names.join(", ");
+function ClassChips({ names }) {
+  const preview = examClassPreview(names, 3);
+  if (!preview.total) return <span className="text-ink-700/40">None yet</span>;
+  return (
+    <div className="flex flex-wrap gap-1" title={preview.all.map((name) => `Class ${name}`).join(", ")}>
+      {preview.shown.map((name) => (
+        <span
+          key={name}
+          className="inline-flex rounded-md border border-ink-900/10 bg-white px-1.5 py-0.5 text-[11px] font-medium text-ink-800"
+        >
+          {name}
+        </span>
+      ))}
+      {preview.extra > 0 ? (
+        <span className="inline-flex rounded-md bg-ink-900/5 px-1.5 py-0.5 text-[11px] font-medium text-ink-700/70">
+          +{preview.extra}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function FormSection({ title, hint, action, children }) {
+  return (
+    <section className="rounded-lg border border-ink-900/10 bg-white/50 p-3 sm:p-4 space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-2">
+        <div className="min-w-0">
+          <h4 className="text-sm font-semibold text-ink-900">{title}</h4>
+          {hint ? <p className="mt-0.5 max-w-2xl text-xs leading-relaxed text-ink-700/60">{hint}</p> : null}
+        </div>
+        {action ? <div className="flex flex-wrap gap-2">{action}</div> : null}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 function subjectsForExamClasses(subjects = [], classNames = []) {
@@ -101,7 +155,14 @@ function ExamsTab() {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(true);
   const [notify, setNotify] = useState(null);
-  const table = useTableSearch(rows, { getSearchText: examSearchText, filterDefs: EXAM_FILTERS });
+  const [scheduling, setScheduling] = useState(false);
+  const [highlightId, setHighlightId] = useState(null);
+  const composerRef = useRef(null);
+  const registerRef = useRef(null);
+  const ordered = useMemo(() => sortExamsForRegister(rows), [rows]);
+  const table = useTableSearch(ordered, { getSearchText: examSearchText, filterDefs: EXAM_FILTERS });
+  const stats = useMemo(() => examRegisterStats(rows), [rows]);
+  const showComposer = Boolean(editingId) || scheduling;
   const yearOptions = useMemo(
     () => [...new Set(rows.map((r) => r.academicYear).filter(Boolean))].sort().reverse(),
     [rows]
@@ -163,7 +224,24 @@ function ExamsTab() {
     load().catch((err) => toast.error(err.message || "Could not load exams"));
   }, []);
 
+  useEffect(() => {
+    if (!highlightId) return undefined;
+    registerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    const timer = setTimeout(() => setHighlightId(null), 8000);
+    return () => clearTimeout(timer);
+  }, [highlightId]);
+
+  function openSchedule() {
+    setEditingId(null);
+    setFormError("");
+    setForm(emptyExamForm());
+    setPaperDrafts([]);
+    setPaperClass("");
+    setScheduling(true);
+  }
+
   async function startEdit(row) {
+    setScheduling(false);
     setEditingId(row.id);
     setFormError("");
     const included =
@@ -223,11 +301,20 @@ function ExamsTab() {
 
   function cancelEdit() {
     setEditingId(null);
+    setScheduling(false);
     setFormError("");
     setForm(emptyExamForm());
     setPaperDrafts([]);
     setPaperClass("");
   }
+
+  useEffect(() => {
+    if (!showComposer) return undefined;
+    const timer = setTimeout(() => {
+      composerRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 40);
+    return () => clearTimeout(timer);
+  }, [showComposer, editingId]);
 
   function toggleIncludedClass(className) {
     const name = String(className);
@@ -300,13 +387,15 @@ function ExamsTab() {
             ? `Exam updated · ${included.length} class${included.length === 1 ? "" : "es"} · ${datedPapers.length} paper date${datedPapers.length === 1 ? "" : "s"}.`
             : `Exam updated · ${included.length} class${included.length === 1 ? "" : "es"}.`
         );
+        setHighlightId(editingId);
       } else {
-        await api("/api/exams", { method: "POST", body });
+        const created = await api("/api/exams", { method: "POST", body });
         toast.success(
           datedPapers.length
             ? `Exam scheduled · ${included.length} class${included.length === 1 ? "" : "es"} · ${datedPapers.length} paper date${datedPapers.length === 1 ? "" : "s"}.`
             : `Exam scheduled · ${included.length} class${included.length === 1 ? "" : "es"}.`
         );
+        if (created?.id) setHighlightId(created.id);
       }
       cancelEdit();
       await load();
@@ -394,206 +483,69 @@ function ExamsTab() {
     }
   }
 
+  const officeStats = [
+    { key: "scheduled", label: "Scheduled", hint: "Newest created first", value: stats.scheduled },
+    { key: "entryOpen", label: "Entry open", hint: "No deadline, or still within it", value: stats.entryOpen },
+    { key: "needsDates", label: "Needs dates", hint: "Papers missing or undated", value: stats.needsDates },
+    { key: "locked", label: "Ceiling locked", hint: "Consolidation max is fixed", value: stats.locked },
+  ];
+  const selectedClassCount = (form.includedClassNames || []).length;
+  const filtersActive = Boolean(table.q.trim() || table.filters.type || table.filters.academicYear);
+
   return (
-    <div className="space-y-4">
-      <form className="card p-4 space-y-3" onSubmit={save}>
-        <h3 className="font-serif text-lg">{editingId ? "Edit exam" : "Schedule exam"}</h3>
-        <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-3">
-          <div>
-            <label className="label">Name</label>
-            <input className="field" placeholder="Name" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
-          </div>
-          <div>
-            <label className="label">Term</label>
-            <input className="field" placeholder="Term" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} required disabled={busy} />
-          </div>
-          <div>
-            <label className="label">Academic year</label>
-            <AcademicYearField
-              value={form.academicYear}
-              onChange={(v) => setForm({ ...form, academicYear: v })}
-              extraOptions={yearOptions}
-              disabled={busy}
-              required
-            />
-          </div>
-          <div>
-            <label className="label">Exam window start</label>
-            <input
-              className="field"
-              type="date"
-              value={form.date}
-              onChange={(e) => setForm({ ...form, date: e.target.value })}
-              disabled={busy}
-            />
-            <p className="mt-1 text-xs text-ink-700/55">
-              Used for sorting when paper dates differ. Fills from the earliest paper if left blank.
-            </p>
-          </div>
-          <div>
-            <label className="label">Type</label>
-            <select className="field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} disabled={busy}>
-              <option value="UNIT_TEST">Unit test</option>
-              <option value="MID_TERM">Mid-term</option>
-              <option value="FINAL">Final</option>
-            </select>
-          </div>
-          <div>
-            <label className="label">Mark entry deadline</label>
-            <input
-              className="field"
-              type="date"
-              value={form.marksEntryDeadline}
-              onChange={(e) => setForm({ ...form, marksEntryDeadline: e.target.value })}
-              disabled={busy}
-            />
-          </div>
-          <div>
-            <label className="label">Max marks [consolidation]</label>
-            <input
-              className={fieldClass(
-                formError && parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]").error
-              )}
-              type="number"
-              min={1}
-              step={1}
-              inputMode="numeric"
-              placeholder="Consolidation max"
-              value={form.consolidationMaxMarks}
-              onKeyDown={rejectNegativeKey}
-              onChange={(e) =>
-                setForm({
-                  ...form,
-                  consolidationMaxMarks: acceptNonNegativeInput(
-                    e.target.value,
-                    form.consolidationMaxMarks,
-                    { integer: true }
-                  ),
-                })
-              }
-              required
-              disabled={busy || (Boolean(editingId) && consolidationLocked)}
-            />
-            {editingId && consolidationLocked ? (
-              <p className="mt-1 text-xs text-clay-600">
-                Locked
-                {editingRow?.consolidation?.lockedBy?.name
-                  ? ` by ${editingRow.consolidation.lockedBy.name}`
-                  : ""}
-                {editingRow?.consolidation?.lockedAt
-                  ? ` on ${new Date(editingRow.consolidation.lockedAt).toLocaleString()}`
-                  : ""}
-                . Unlock to change this exam’s CML ceiling.
-              </p>
-            ) : (
-              <p className="mt-1 text-xs text-ink-700/55">
-                Entered marks are scaled to this ceiling so this exam’s consolidated lists stay within 100%.
-              </p>
-            )}
-          </div>
-        </div>
-
-        <div className="rounded-md border border-ink-900/10 p-3 space-y-2">
-          <div className="flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <h4 className="font-medium text-ink-800">Classes in this exam</h4>
-              <p className="text-xs text-ink-700/55 mt-0.5">
-                Choose which classes sit under this exam. You can change the list later when editing.
-                Paper dates only appear for the classes you select.
-              </p>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                className="btn-ghost text-xs"
-                disabled={busy || !availableClassNames.length}
-                onClick={selectAllClasses}
-              >
-                Select all
-              </button>
-              <button
-                type="button"
-                className="btn-ghost text-xs"
-                disabled={busy || !(form.includedClassNames || []).length}
-                onClick={clearAllClasses}
-              >
-                Clear
-              </button>
-            </div>
-          </div>
-          {availableClassNames.length === 0 ? (
-            <p className="text-sm text-ink-700/60">
-              Add classes under Records → Classes (and subjects for those classes) before scheduling an exam.
-            </p>
+    <div>
+      <PageHeader
+        title={NAV_TITLES.exams}
+        subtitle="Exams already on the calendar are listed first. The one you just created stays at the top."
+        actions={
+          showComposer ? (
+            <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>
+              Close form
+            </button>
           ) : (
-            <div className="flex flex-wrap gap-2">
-              {availableClassNames.map((className) => {
-                const selected = (form.includedClassNames || []).includes(className);
-                return (
-                  <button
-                    key={className}
-                    type="button"
-                    className={
-                      selected
-                        ? "btn-primary text-xs px-2.5 py-1"
-                        : "btn-ghost text-xs px-2.5 py-1"
-                    }
-                    disabled={busy}
-                    aria-pressed={selected}
-                    onClick={() => toggleIncludedClass(className)}
-                  >
-                    Class {className}
-                  </button>
-                );
-              })}
+            <button type="button" className="btn-primary" onClick={openSchedule} disabled={busy || loading}>
+              Schedule exam
+            </button>
+          )
+        }
+      />
+
+      <div className="space-y-4">
+      <section className="card overflow-hidden" aria-label="Exam office summary">
+        <div className="grid grid-cols-2 lg:grid-cols-4">
+          {officeStats.map((item, index) => (
+            <div
+              key={item.key}
+              className={`px-4 py-3.5 ${index % 2 === 1 ? "border-l border-ink-900/10" : ""} ${
+                index >= 2 ? "border-t border-ink-900/10 lg:border-t-0" : ""
+              } ${index >= 1 ? "lg:border-l lg:border-ink-900/10" : ""}`}
+            >
+              <div className="text-[10px] font-semibold uppercase tracking-wider text-ink-700/55">{item.label}</div>
+              <div
+                className={`mt-1 font-serif text-2xl leading-none ${
+                  item.key === "needsDates" && item.value > 0 ? "text-clay-600" : ""
+                }`}
+              >
+                {loading ? "—" : item.value}
+              </div>
+              <p className="mt-1 text-xs text-ink-700/55">{item.hint}</p>
             </div>
-          )}
-          {(form.includedClassNames || []).length > 0 ? (
-            <p className="text-xs text-ink-700/55">
-              {(form.includedClassNames || []).length} class
-              {(form.includedClassNames || []).length === 1 ? "" : "es"} selected
-              {" · "}
-              {(form.includedClassNames || []).join(", ")}
+          ))}
+        </div>
+      </section>
+
+      <section ref={registerRef} className="card overflow-hidden" aria-labelledby="scheduled-exams-heading">
+        <div className="flex flex-wrap items-end justify-between gap-3 border-b border-ink-900/10 px-4 py-4">
+          <div>
+            <h2 id="scheduled-exams-heading" className="font-serif text-xl leading-tight">
+              Scheduled exams
+            </h2>
+            <p className="mt-1 max-w-xl text-sm text-ink-700/65">
+              Newest created exams are first, so the paper you just added is the first row.
             </p>
-          ) : null}
+          </div>
         </div>
-
-        <ExamPaperScheduleEditor
-          drafts={paperDrafts}
-          onChange={setPaperDrafts}
-          disabled={busy || !(form.includedClassNames || []).length}
-          selectedClass={paperClass}
-          onSelectedClassChange={setPaperClass}
-          emptyMessage={
-            !(form.includedClassNames || []).length
-              ? "Select at least one class above to set paper dates for that class’s subjects."
-              : availableClassNames.length && !(subjects || []).length
-                ? "Add subjects under Records → Subjects for the selected classes, then set paper dates here."
-                : null
-          }
-        />
-
-        {formError && <FieldError message={formError} />}
-        <div className="flex flex-wrap gap-2">
-          <button className="btn-primary" disabled={busy}>
-            <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Create"} busyText={editingId ? "Saving…" : "Creating…"} />
-          </button>
-          {editingId && !consolidationLocked && (
-            <button type="button" className="btn-ghost" onClick={lockConsolidation} disabled={busy}>
-              Lock for consolidation
-            </button>
-          )}
-          {editingId && consolidationLocked && (
-            <button type="button" className="btn-ghost" onClick={unlockConsolidation} disabled={busy}>
-              Unlock
-            </button>
-          )}
-          {editingId && <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>Cancel</button>}
-        </div>
-      </form>
-
-      <div className="card">
-        <div className="p-3 border-b border-ink-900/10">
+        <div className="border-b border-ink-900/10 p-3">
           <TableToolbar
             q={table.q}
             setQ={table.setQ}
@@ -619,66 +571,335 @@ function ExamsTab() {
             />
           </TableToolbar>
         </div>
-        <PaginatedTable items={table.filtered} resetKey={table.resetKey} empty="No exams scheduled." busy={busy || loading} busyLabel={loading ? "Loading exams…" : "Updating exams…"}>
+        {!loading && table.filtered.length === 0 ? (
+          <div className="px-4 py-12 text-center">
+            <p className="font-serif text-lg text-ink-900">
+              {filtersActive ? "No exams match these filters" : "No exams on the calendar"}
+            </p>
+            <p className="mx-auto mt-1 max-w-md text-sm text-ink-700/60">
+              {filtersActive
+                ? "Clear the search or filters to see the full register."
+                : "Schedule an exam to set classes, paper dates, and the mark-entry deadline."}
+            </p>
+            {!filtersActive && !showComposer ? (
+              <button type="button" className="btn-primary mt-4" onClick={openSchedule}>
+                Schedule exam
+              </button>
+            ) : null}
+          </div>
+        ) : (
+        <PaginatedTable
+          items={table.filtered}
+          resetKey={table.resetKey}
+          empty="No exams scheduled."
+          itemLabel="exams"
+          busy={busy || loading}
+          busyLabel={loading ? "Loading exams…" : "Updating exams…"}
+        >
           {(page) => (
-            <table className="table">
+            <table className="table table-cards">
               <thead>
-                <tr>
-                  <th>Exam</th>
-                  <th>Year</th>
-                  <th>Term</th>
-                  <th>Type</th>
-                  <th>Classes</th>
-                  <th>CML max</th>
-                  <th>Papers</th>
-                  <th>Dates</th>
-                  <th>Deadline</th>
-                  <th></th>
+                <tr className="bg-ink-900/[0.03]">
+                  <th className="uppercase tracking-wide text-[11px]">Exam</th>
+                  <th className="uppercase tracking-wide text-[11px]">Type</th>
+                  <th className="uppercase tracking-wide text-[11px]">Classes</th>
+                  <th className="uppercase tracking-wide text-[11px]">Window</th>
+                  <th className="uppercase tracking-wide text-[11px]">Mark entry</th>
+                  <th className="uppercase tracking-wide text-[11px]">Readiness</th>
+                  <th className="uppercase tracking-wide text-[11px] text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {page.map((r) => (
-                  <tr key={r.id}>
-                    <td>{r.name}</td>
-                    <td>{r.academicYear || "—"}</td>
-                    <td>{r.term}</td>
-                    <td>{r.type}</td>
-                    <td>{formatExamClasses(r)}</td>
-                    <td>
-                      {r.consolidationMaxMarks ?? r.consolidation?.consolidationMaxMarks ?? "—"}
-                      {examIsLocked(r) ? (
-                        <span className="ml-1 text-xs text-moss-600">locked</span>
-                      ) : null}
-                    </td>
-                    <td>{r.paperCount ?? r.paperSchedules?.length ?? 0}</td>
-                    <td>{formatExamDateRange(r)}</td>
-                    <td>{r.marksEntryDeadline ? new Date(r.marksEntryDeadline).toLocaleDateString() : "—"}</td>
-                    <td className="whitespace-nowrap space-x-2">
-                      <button type="button" className="btn-ghost" onClick={() => startEdit(r)} disabled={busy}>Edit</button>
-                      <button
-                        type="button"
-                        className="btn-ghost"
-                        disabled={busy}
-                        onClick={() =>
-                          setNotify({
-                            kind: "DEADLINE",
-                            examId: r.id,
-                            audience: "ALL",
-                            exams: rows,
-                          })
-                        }
-                      >
-                        Notify
-                      </button>
-                      <button type="button" className="btn-ghost" onClick={() => remove(r)} disabled={busy}>Delete</button>
-                    </td>
-                  </tr>
-                ))}
+                {page.map((r) => {
+                  const entry = examEntryState(r);
+                  const readiness = examReadinessState(r);
+                  const ceiling = r.consolidationMaxMarks ?? r.consolidation?.consolidationMaxMarks ?? "—";
+                  const fresh = highlightId === r.id;
+                  const editing = editingId === r.id;
+                  const meta = [r.academicYear, r.term, ceiling === "—" ? null : `Ceiling ${ceiling}`]
+                    .filter(Boolean)
+                    .join(" · ");
+                  return (
+                    <tr key={r.id} className={editing ? "bg-clay-500/[0.06]" : fresh ? "bg-moss-500/[0.08]" : undefined}>
+                      <td data-label="Exam" className="align-top">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="font-medium text-ink-900">{r.name}</span>
+                          {fresh ? <span className="mark-chip mark-chip-approved">Just added</span> : null}
+                          {editing ? <span className="mark-chip mark-chip-draft">Editing</span> : null}
+                        </div>
+                        <p className="mt-0.5 text-xs text-ink-700/55">{meta || "—"}</p>
+                      </td>
+                      <td data-label="Type" className="align-top">
+                        <TypePill type={r.type} />
+                      </td>
+                      <td data-label="Classes" className="align-top">
+                        <ClassChips names={r.includedClassNames} />
+                      </td>
+                      <td data-label="Window" className="align-top whitespace-nowrap">
+                        {formatExamWindow(r)}
+                      </td>
+                      <td data-label="Mark entry" className="align-top">
+                        <div className="flex flex-col items-start gap-1">
+                          <StatusChip label={entry.label} tone={entry.tone} />
+                          <span className="text-xs text-ink-700/55">{entry.detail}</span>
+                        </div>
+                      </td>
+                      <td data-label="Readiness" className="align-top">
+                        <div className="flex flex-col items-start gap-1">
+                          <StatusChip label={readiness.label} tone={readiness.tone} />
+                          <span className="text-xs text-ink-700/55">{readiness.detail}</span>
+                        </div>
+                      </td>
+                      <td data-label="" className="align-top">
+                        <div className="flex flex-wrap justify-end gap-1.5">
+                          <button
+                            type="button"
+                            className="btn-ghost text-xs"
+                            onClick={() => startEdit(r)}
+                            disabled={busy}
+                          >
+                            {editing ? "Editing" : "Edit"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-ghost text-xs"
+                            disabled={busy}
+                            onClick={() =>
+                              setNotify({
+                                kind: "DEADLINE",
+                                examId: r.id,
+                                audience: "ALL",
+                                exams: rows,
+                              })
+                            }
+                          >
+                            Notify
+                          </button>
+                          <button
+                            type="button"
+                            className="btn-ghost text-xs text-clay-600 hover:bg-clay-500/10"
+                            onClick={() => remove(r)}
+                            disabled={busy}
+                          >
+                            Delete
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </PaginatedTable>
-      </div>
+        )}
+      </section>
+
+      {showComposer ? (
+      <form ref={composerRef} className="card scroll-mt-4 p-4 sm:p-5 space-y-4" onSubmit={save} aria-labelledby="exam-composer-title">
+        <div>
+          <h3 id="exam-composer-title" className="font-serif text-xl">{editingId ? "Edit exam" : "Schedule exam"}</h3>
+          <p className="mt-1 text-sm text-ink-700/65">
+            {editingId
+              ? "Update this exam in place. The register above stays in view when you are done."
+              : "The new exam is added to the top of the register as soon as you schedule it."}
+          </p>
+        </div>
+
+        <FormSection title="Identity" hint="This is the name teachers and report cards will use.">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="md:col-span-2 lg:col-span-2">
+              <label className="label" htmlFor="exam-name">Name</label>
+              <input id="exam-name" className="field" placeholder="e.g. Mid-term" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required disabled={busy} />
+            </div>
+            <div>
+              <label className="label" htmlFor="exam-type">Type</label>
+              <select id="exam-type" className="field" value={form.type} onChange={(e) => setForm({ ...form, type: e.target.value })} disabled={busy}>
+                <option value="UNIT_TEST">Unit test</option>
+                <option value="MID_TERM">Mid-term</option>
+                <option value="FINAL">Final</option>
+              </select>
+            </div>
+            <div>
+              <label className="label" htmlFor="exam-term">Term</label>
+              <input id="exam-term" className="field" placeholder="Term 1" value={form.term} onChange={(e) => setForm({ ...form, term: e.target.value })} required disabled={busy} />
+            </div>
+            <div className="md:col-span-2 lg:col-span-2">
+              <label className="label" htmlFor="exam-year">Academic year</label>
+              <AcademicYearField
+                id="exam-year"
+                value={form.academicYear}
+                onChange={(v) => setForm({ ...form, academicYear: v })}
+                extraOptions={yearOptions}
+                disabled={busy}
+                required
+              />
+            </div>
+          </div>
+        </FormSection>
+
+        <FormSection title="Window and deadline" hint="The window start places the exam on the school calendar. Teachers can enter marks through the deadline. With no deadline, entry stays open.">
+          <div className="grid md:grid-cols-2 gap-3">
+            <div>
+              <label className="label" htmlFor="exam-window">Exam window start</label>
+              <input
+                id="exam-window"
+                className="field"
+                type="date"
+                value={form.date}
+                onChange={(e) => setForm({ ...form, date: e.target.value })}
+                disabled={busy}
+              />
+              <p className="mt-1 text-xs text-ink-700/55">
+                Leave this blank to use the earliest paper date.
+              </p>
+            </div>
+            <div>
+              <label className="label" htmlFor="exam-deadline">Mark entry deadline</label>
+              <input
+                id="exam-deadline"
+                className="field"
+                type="date"
+                value={form.marksEntryDeadline}
+                onChange={(e) => setForm({ ...form, marksEntryDeadline: e.target.value })}
+                disabled={busy}
+              />
+            </div>
+          </div>
+        </FormSection>
+
+        <FormSection title="Consolidation ceiling" hint="Entered marks are scaled to this ceiling so this exam’s consolidated lists stay within 100%.">
+          <div className="max-w-sm">
+            <label className="label" htmlFor="exam-ceiling">Max marks [consolidation]</label>
+            <input
+              id="exam-ceiling"
+              className={fieldClass(
+                formError && parsePositiveInt(form.consolidationMaxMarks, "Max marks [consolidation]").error
+              )}
+              type="number"
+              min={1}
+              step={1}
+              inputMode="numeric"
+              placeholder="100"
+              value={form.consolidationMaxMarks}
+              onKeyDown={rejectNegativeKey}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  consolidationMaxMarks: acceptNonNegativeInput(
+                    e.target.value,
+                    form.consolidationMaxMarks,
+                    { integer: true }
+                  ),
+                })
+              }
+              required
+              disabled={busy || (Boolean(editingId) && consolidationLocked)}
+            />
+            {editingId && consolidationLocked ? (
+              <p className="mt-1 text-xs text-clay-600">
+                Locked
+                {editingRow?.consolidation?.lockedBy?.name
+                  ? ` by ${editingRow.consolidation.lockedBy.name}`
+                  : ""}
+                {editingRow?.consolidation?.lockedAt
+                  ? ` on ${new Date(editingRow.consolidation.lockedAt).toLocaleString("en-GB")}`
+                  : ""}
+                . Unlock to change this exam’s ceiling.
+              </p>
+            ) : null}
+          </div>
+        </FormSection>
+
+        <FormSection
+          title={`Classes in this exam${selectedClassCount ? ` · ${selectedClassCount} selected` : ""}`}
+          hint="Choose the classes included in this exam. Paper dates only appear for those classes, and you can change the list later."
+          action={
+            <>
+              <button
+                type="button"
+                className="btn-ghost text-xs"
+                disabled={busy || !availableClassNames.length}
+                onClick={selectAllClasses}
+              >
+                Select all
+              </button>
+              <button
+                type="button"
+                className="btn-ghost text-xs"
+                disabled={busy || !selectedClassCount}
+                onClick={clearAllClasses}
+              >
+                Clear
+              </button>
+            </>
+          }
+        >
+          {availableClassNames.length === 0 ? (
+            <p className="text-sm text-ink-700/60">
+              Add classes under Records → Classes, and subjects for those classes, before scheduling an exam.
+            </p>
+          ) : (
+            <div className="flex flex-wrap gap-2">
+              {availableClassNames.map((className) => {
+                const selected = (form.includedClassNames || []).includes(className);
+                return (
+                  <button
+                    key={className}
+                    type="button"
+                    className={
+                      selected
+                        ? "inline-flex min-h-9 items-center rounded-full border border-ink-900 bg-ink-900 px-3 py-1 text-xs font-medium text-cream"
+                        : "inline-flex min-h-9 items-center rounded-full border border-ink-900/15 bg-white px-3 py-1 text-xs font-medium text-ink-800 hover:border-ink-900/30"
+                    }
+                    disabled={busy}
+                    aria-pressed={selected}
+                    onClick={() => toggleIncludedClass(className)}
+                  >
+                    Class {className}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </FormSection>
+
+        <ExamPaperScheduleEditor
+          drafts={paperDrafts}
+          onChange={setPaperDrafts}
+          disabled={busy || !selectedClassCount}
+          selectedClass={paperClass}
+          onSelectedClassChange={setPaperClass}
+          emptyMessage={
+            !selectedClassCount
+              ? "Select at least one class above to set paper dates for that class’s subjects."
+              : availableClassNames.length && !(subjects || []).length
+                ? "Add subjects under Records → Subjects for the selected classes, then set paper dates here."
+                : null
+          }
+        />
+
+        {formError && <FieldError message={formError} />}
+        <div className="flex flex-wrap gap-2 border-t border-ink-900/10 pt-4">
+          <button className="btn-primary" disabled={busy}>
+            <BusyLabel busy={busy} idle={editingId ? "Save changes" : "Schedule exam"} busyText={editingId ? "Saving…" : "Scheduling…"} />
+          </button>
+          {editingId && !consolidationLocked && (
+            <button type="button" className="btn-ghost" onClick={lockConsolidation} disabled={busy}>
+              Lock for consolidation
+            </button>
+          )}
+          {editingId && consolidationLocked && (
+            <button type="button" className="btn-ghost" onClick={unlockConsolidation} disabled={busy}>
+              Unlock ceiling
+            </button>
+          )}
+          <button type="button" className="btn-ghost" onClick={cancelEdit} disabled={busy}>
+            {editingId ? "Cancel" : "Close"}
+          </button>
+        </div>
+      </form>
+      ) : null}
       {notify && (
         <NotifyTeachersDialog
           {...notify}
@@ -690,19 +911,12 @@ function ExamsTab() {
           }}
         />
       )}
+      </div>
     </div>
   );
 }
 
 
 export default function Exams() {
-  return (
-    <div>
-      <PageHeader
-        title={NAV_TITLES.exams}
-        subtitle="Schedule exams, include classes, and set paper dates"
-      />
-      <ExamsTab />
-    </div>
-  );
+  return <ExamsTab />;
 }
